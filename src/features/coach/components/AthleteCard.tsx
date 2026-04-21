@@ -5,12 +5,14 @@ import { Card } from '../../../shared/components/Card';
 import { Button } from '../../../shared/components/Button';
 import { theme } from '../../../core/theme';
 import { GlowView } from '../../../shared/components/GlowView';
+import { useRouter } from 'expo-router';
 
 interface Props {
   athlete: ManagedAthlete;
 }
 
 export const AthleteCard: React.FC<Props> = ({ athlete }) => {
+  const router = useRouter();
   const getStatusColor = () => {
     switch (athlete.lastWorkoutStatus) {
       case 'completed': return theme.colors.success;
@@ -51,7 +53,7 @@ export const AthleteCard: React.FC<Props> = ({ athlete }) => {
 
         <Button
           title="ASSIGNER SÉANCE"
-          onPress={() => {}} // Non-functional yet
+          onPress={() => router.push(`/(coach)/assign/${athlete.id}`)}
           variant="outline"
           style={styles.actionBtn}
         />
