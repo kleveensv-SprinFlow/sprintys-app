@@ -28,6 +28,12 @@ export default function TabsLayout() {
           title: 'Séance',
         }}
       />
+      <Tabs.Screen
+        name="body"
+        options={{
+          title: 'Corps',
+        }}
+      />
     </Tabs>
   );
 }
