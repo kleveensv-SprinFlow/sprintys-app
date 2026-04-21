@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { v4 as uuidv4 } from 'uuid';
+import uuid from 'react-native-uuid';
 import { animateLayout } from '../shared/utils/animations';
 
 export type WorkoutCategory = 'Lactique' | 'Musculation' | 'Aérobie' | 'Escalier' | 'Technique';
@@ -87,7 +87,7 @@ export const useWorkoutBuilderStore = create<WorkoutBuilderState>((set) => ({
       exercises: [
         ...state.exercises,
         {
-          id: uuidv4(),
+          id: uuid.v4() as string,
           name: libEx.name,
           category: libEx.category,
           tags: libEx.tags,
@@ -103,7 +103,7 @@ export const useWorkoutBuilderStore = create<WorkoutBuilderState>((set) => ({
       exercises: [
         ...state.exercises,
         {
-          id: uuidv4(),
+          id: uuid.v4() as string,
           name,
           category: state.category,
           tags: [],
@@ -169,7 +169,7 @@ export const useWorkoutBuilderStore = create<WorkoutBuilderState>((set) => ({
 }));
 
 function createDefaultSet(category: WorkoutCategory): BuilderSet {
-  const base = { id: uuidv4(), restSeconds: 60 };
+  const base = { id: uuid.v4() as string, restSeconds: 60 };
   switch (category) {
     case 'Musculation': return { ...base, reps: 10, weight: 0 };
     case 'Aérobie':

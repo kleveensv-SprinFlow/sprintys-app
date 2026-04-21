@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { WorkoutSession, Exercise, Set, WorkoutHistoryItem } from '../features/workout/types';
 import { workoutService } from '../services/workoutService';
 import * as Haptics from 'expo-haptics';
-import { v4 as uuidv4 } from 'uuid';
+import uuid from 'react-native-uuid';
 
 interface WorkoutState {
   activeSession: WorkoutSession | null;
@@ -31,7 +31,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   startWorkout: (name) => {
     set({
       activeSession: {
-        id: uuidv4(),
+        id: uuid.v4() as string,
         name,
         startTime: Date.now(),
         exercises: [],
@@ -64,9 +64,9 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     const { activeSession } = get();
     if (!activeSession) return;
     const newExercise: Exercise = {
-      id: uuidv4(),
+      id: uuid.v4() as string,
       name,
-      sets: [{ id: uuidv4(), weight: 0, reps: 0, isCompleted: false }],
+      sets: [{ id: uuid.v4() as string, weight: 0, reps: 0, isCompleted: false }],
     };
     set({ activeSession: { ...activeSession, exercises: [...activeSession.exercises, newExercise] } });
   },
@@ -80,7 +80,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         return {
           ...ex,
           sets: [...ex.sets, { 
-            id: uuidv4(), 
+            id: uuid.v4() as string, 
             weight: lastSet?.weight || 0, 
             reps: lastSet?.reps || 0, 
             isCompleted: false 
