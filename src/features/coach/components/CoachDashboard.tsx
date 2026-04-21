@@ -3,11 +3,13 @@ import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
 import { AthleteList } from './AthleteList';
 import { theme } from '../../../core/theme';
 import { useAuthStore } from '../../../store/authStore';
-import { Button } from '../../../shared/components/Button';
+import { ProfileAvatar } from '../../../shared/components/ProfileAvatar';
 import { WeatherBadge } from '../../../shared/components/WeatherBadge';
+import { useRouter } from 'expo-router';
 
 export const CoachDashboard: React.FC = () => {
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
+  const router = useRouter();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -19,12 +21,8 @@ export const CoachDashboard: React.FC = () => {
           </View>
           <Text style={styles.title}>Salut, {user?.name.split(' ')[0]}</Text>
         </View>
-        <Button
-          title="LOGOUT"
-          onPress={logout}
-          variant="ghost"
-          style={styles.logoutBtn}
-          textStyle={styles.logoutText}
+        <ProfileAvatar 
+          onPress={() => router.push('/(coach)/profile')} 
         />
       </View>
 

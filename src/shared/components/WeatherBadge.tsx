@@ -1,11 +1,14 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, Pressable, Modal, TouchableWithoutFeedback } from 'react-native';
 import { useWeatherStore } from '../../store/weatherStore';
+import { weatherAdviceService } from '../../services/weatherAdviceService';
 import { theme } from '../../core/theme';
+import { GlassView } from './GlassView';
 import Svg, { Path, Circle } from 'react-native-svg';
 
 export const WeatherBadge: React.FC = () => {
   const { data, isLoading, error, updateWeather } = useWeatherStore();
+  const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
     updateWeather();
@@ -20,6 +23,8 @@ export const WeatherBadge: React.FC = () => {
       </View>
     );
   }
+
+  const advice = data ? weatherAdviceService.getCoachingAdvice(data) : null;
 
   const renderIcon = () => {
     const color = theme.colors.accent;
@@ -56,14 +61,65 @@ export const WeatherBadge: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.iconWrapper}>
-        {renderIcon()}
-      </View>
-      <Text style={styles.temp}>{data?.temperature}°</Text>
-      <View style={styles.divider} />
-      <Text style={styles.wind}>{data?.windSpeed} km/h</Text>
-    </View>
+    <>
+      <Pressable 
+        onPress={() => setModalVisible(true)}
+        style={({ pressed }) => [
+          styles.container,
+          pressed && { opacity: 0.7, scale: 0.98 }
+        ]}
+      >
+        <View style={styles.iconWrapper}>
+          {renderIcon()}
+        </View>
+        <Text style={styles.temp}>{data?.temperature}°</Text>
+        <View style={styles.divider} />
+        <Text style={styles.wind}>{data?.windSpeed} km/h</Text>
+      </Pressable>
+
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.modalContent}>
+                <GlassView style={styles.glassCard}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>CONSEIL SPRINTY</Text>
+                    <View style={styles.statusDot} />
+                  </View>
+                  
+                  <Text style={styles.conditionText}>
+                    {data?.temperature}°C • {data?.condition?.toUpperCase()}
+                  </Text>
+
+                  <View style={styles.adviceContainer}>
+                    <Text style={styles.adviceMessage}>{advice?.message}</Text>
+                    <View style={styles.infoRow}>
+                      <View style={styles.infoBadge}>
+                        <Text style={styles.infoBadgeText}>EQUIPEMENT</Text>
+                      </View>
+                      <Text style={styles.infoText}>Précision Élite active</Text>
+                    </View>
+                  </View>
+
+                  <Pressable 
+                    onPress={() => setModalVisible(false)}
+                    style={styles.closeButton}
+                  >
+                    <Text style={styles.closeButtonText}>COMPRIS</Text>
+                  </Pressable>
+                </GlassView>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+    </>
   );
 };
 
@@ -96,5 +152,85 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     fontSize: 10,
     fontWeight: theme.typography.fontWeights.medium as any,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: theme.spacing.xl,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 400,
+  },
+  glassCard: {
+    padding: theme.spacing.xl,
+    borderRadius: 24,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.lg,
+  },
+  modalTitle: {
+    color: theme.colors.accent,
+    fontSize: 12,
+    fontWeight: theme.typography.fontWeights.bold as any,
+    letterSpacing: 2,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: theme.colors.accent,
+  },
+  conditionText: {
+    color: theme.colors.text,
+    fontSize: 24,
+    fontWeight: theme.typography.fontWeights.bold as any,
+    marginBottom: theme.spacing.xl,
+  },
+  adviceContainer: {
+    marginBottom: theme.spacing.xxxl,
+  },
+  adviceMessage: {
+    color: theme.colors.text,
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: theme.spacing.lg,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  infoBadge: {
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  infoBadgeText: {
+    color: theme.colors.accent,
+    fontSize: 8,
+    fontWeight: theme.typography.fontWeights.bold as any,
+  },
+  infoText: {
+    color: theme.colors.textMuted,
+    fontSize: 10,
+  },
+  closeButton: {
+    backgroundColor: theme.colors.accent,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    color: theme.colors.background,
+    fontSize: 12,
+    fontWeight: theme.typography.fontWeights.bold as any,
+    letterSpacing: 1,
   },
 });
