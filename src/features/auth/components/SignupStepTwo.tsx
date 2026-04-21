@@ -3,6 +3,7 @@ import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { Button } from '../../../shared/components/Button';
 import { Input } from '../../../shared/components/Input';
 import { theme } from '../../../core/theme';
+import { UserRole } from '../../../store/authStore';
 
 interface Props {
   data: any;
@@ -13,11 +14,16 @@ interface Props {
 }
 
 export const SignupStepTwo: React.FC<Props> = ({ data, updateData, onBack, onSubmit, isLoading }) => {
-  const isValid = data.name && data.goal;
+  const isValid = data.name && data.role;
+
+  const roles: { label: string; value: UserRole }[] = [
+    { label: 'ATHLÈTE', value: 'athlete' },
+    { label: 'COACH', value: 'coach' },
+  ];
 
   return (
     <View>
-      <Text style={styles.stepTitle}>Profil Athlète</Text>
+      <Text style={styles.stepTitle}>Votre Profil</Text>
       <Text style={styles.stepSubtitle}>Étape 2 sur 2</Text>
 
       <Input
@@ -27,12 +33,26 @@ export const SignupStepTwo: React.FC<Props> = ({ data, updateData, onBack, onSub
         onChangeText={(val) => updateData({ name: val })}
       />
 
-      <Input
-        label="Objectif principal"
-        placeholder="ex: Marathon, Sprint 100m, Perte de gras..."
-        value={data.goal}
-        onChangeText={(val) => updateData({ goal: val })}
-      />
+      <Text style={styles.label}>Je suis un :</Text>
+      <View style={styles.roleContainer}>
+        {roles.map((r) => (
+          <TouchableOpacity
+            key={r.value}
+            onPress={() => updateData({ role: r.value })}
+            style={[
+              styles.roleButton,
+              data.role === r.value && styles.roleButtonActive
+            ]}
+          >
+            <Text style={[
+              styles.roleText,
+              data.role === r.value && styles.roleTextActive
+            ]}>
+              {r.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       <Button
         title="Créer mon compte"
@@ -62,6 +82,39 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeights.bold as any,
     textTransform: 'uppercase',
     marginBottom: theme.spacing.xl,
+  },
+  label: {
+    color: theme.colors.textSecondary,
+    fontSize: 14,
+    marginBottom: theme.spacing.sm,
+  },
+  roleContainer: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.xl,
+  },
+  roleButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+  },
+  roleButtonActive: {
+    borderColor: theme.colors.accent,
+    backgroundColor: theme.colors.accentMuted,
+  },
+  roleText: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    fontWeight: theme.typography.fontWeights.bold as any,
+    letterSpacing: 1,
+  },
+  roleTextActive: {
+    color: theme.colors.accent,
   },
   button: {
     marginTop: theme.spacing.md,

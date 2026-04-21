@@ -13,7 +13,7 @@ export const RegisterMultiStep = () => {
     email: '',
     password: '',
     name: '',
-    goal: '',
+    role: 'athlete', // Default
   });
 
   const { signup, isLoading, error } = useAuthStore();
@@ -24,7 +24,12 @@ export const RegisterMultiStep = () => {
   };
 
   const handleSignup = async () => {
-    await signup(formData.email, formData.password, { name: formData.name, goal: formData.goal });
+    await signup(
+      formData.email, 
+      formData.password, 
+      formData.name, 
+      formData.role as any
+    );
   };
 
   return (

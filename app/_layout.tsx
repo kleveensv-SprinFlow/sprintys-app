@@ -16,7 +16,12 @@ export default function RootLayout() {
     if (!user && !inAuthGroup) {
       router.replace('/login');
     } else if (user && inAuthGroup) {
-      router.replace('/');
+      // Redirect based on role
+      if (user.role === 'coach') {
+        router.replace('/(coach)');
+      } else {
+        router.replace('/(athlete)');
+      }
     }
   }, [user, segments, isLoading]);
 
@@ -24,7 +29,9 @@ export default function RootLayout() {
     <>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(athlete)" />
+        <Stack.Screen name="(coach)" />
+        <Stack.Screen name="index" />
       </Stack>
       <SprintyFeedback />
     </>
