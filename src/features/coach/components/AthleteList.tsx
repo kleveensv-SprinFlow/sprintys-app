@@ -30,7 +30,7 @@ export const AthleteList: React.FC = React.memo(() => {
       )}
     />
   );
-};
+});
 
 const styles = StyleSheet.create({
   list: {

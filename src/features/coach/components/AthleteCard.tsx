@@ -60,7 +60,7 @@ export const AthleteCard: React.FC<Props> = React.memo(({ athlete }) => {
       </Card>
     </GlowView>
   );
-};
+});
 
 const styles = StyleSheet.create({
   card: {

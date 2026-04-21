@@ -46,7 +46,7 @@ export const WorkoutHistory: React.FC = React.memo(() => {
       contentContainerStyle={styles.listContent}
     />
   );
-};
+});
 
 const styles = StyleSheet.create({
   emptyContainer: {

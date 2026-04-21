@@ -42,7 +42,7 @@ export const WeightChart: React.FC = React.memo(() => {
       </Svg>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

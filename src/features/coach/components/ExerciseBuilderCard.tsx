@@ -37,8 +37,8 @@ export const ExerciseBuilderCard: React.FC<Props> = ({ exercise }) => {
     }
   };
 
-  const renderSetFields = (set: any, setId: string) => {
-    const baseInputStyle = { height: 40, textAlign: 'center', fontSize: 14 };
+  const renderSetFields = (set: BuilderSet, setId: string) => {
+    const baseInputStyle = { height: 40, textAlign: 'center' as const, fontSize: 16 };
     
     switch (exercise.category) {
       case 'Musculation':

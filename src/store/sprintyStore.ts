@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import * as Haptics from 'expo-haptics';
 
-export type SprintyStatus = 'idle' | 'active' | 'success' | 'error' | 'warning' | 'rest';
+export type SprintyStatus = 'idle' | 'active' | 'success' | 'error' | 'warning' | 'rest' | 'info';
 
 interface SprintyState {
   status: SprintyStatus;

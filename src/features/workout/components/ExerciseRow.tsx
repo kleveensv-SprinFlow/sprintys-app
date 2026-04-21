@@ -30,7 +30,7 @@ export const ExerciseRow: React.FC<Props> = ({ exercise }) => {
   };
 
   const renderInputs = (set: Set) => {
-    const baseInputStyle = { height: 40, textAlign: 'center', fontSize: 16 };
+    const baseInputStyle = { height: 40, textAlign: 'center' as const, fontSize: 16 };
     
     return (
       <>

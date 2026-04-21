@@ -128,7 +128,7 @@ export const useWorkoutBuilderStore = create<WorkoutBuilderState>((set) => ({
           const lastSet = ex.sets[ex.sets.length - 1];
           return {
             ...ex,
-            sets: [...ex.sets, { ...lastSet, id: uuidv4() }]
+            sets: [...ex.sets, { ...lastSet, id: uuid.v4() as string }]
           };
         }
         return ex;
