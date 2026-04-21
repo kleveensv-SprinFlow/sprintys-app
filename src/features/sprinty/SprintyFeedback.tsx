@@ -17,9 +17,31 @@ export const SprintyFeedback: React.FC = () => {
   const { status, message, isVisible } = useSprintyStore();
   const slideAnim = useRef(new Animated.Value(-100)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    if (isVisible) {
+    if (status === 'active') {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 0.6,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [status]);
+
+  useEffect(() => {
+    if (isVisible || status === 'active') {
       Animated.parallel([
         Animated.spring(slideAnim, {
           toValue: 20,
@@ -47,7 +69,7 @@ export const SprintyFeedback: React.FC = () => {
         }),
       ]).start();
     }
-  }, [isVisible]);
+  }, [isVisible, status]);
 
   if (!isVisible && status === 'idle') return null;
 
@@ -66,7 +88,10 @@ export const SprintyFeedback: React.FC = () => {
       style={[
         styles.container, 
         { 
-          transform: [{ translateY: slideAnim }],
+          transform: [
+            { translateY: slideAnim },
+            { scale: pulseAnim }
+          ],
           opacity: opacityAnim 
         }
       ]}
@@ -76,8 +101,13 @@ export const SprintyFeedback: React.FC = () => {
           <View style={styles.content}>
             <View style={[styles.indicator, { backgroundColor: getStatusColor(status) }]} />
             <View style={styles.textContainer}>
-              <Text style={styles.statusLabel}>{status.toUpperCase()}</Text>
+              <Text style={styles.statusLabel}>
+                {status === 'active' ? 'ANALYSE EN COURS...' : status.toUpperCase()}
+              </Text>
               {message && <Text style={styles.messageText}>{message}</Text>}
+              {status === 'active' && !message && (
+                <Text style={styles.messageText}>Calcul de vos insights de performance...</Text>
+              )}
             </View>
           </View>
         </GlassView>

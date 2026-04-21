@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { WorkoutSession, Exercise, Set, WorkoutHistoryItem } from '../features/workout/types';
 import { workoutService } from '../services/workoutService';
+import { useInsightStore } from './insightStore';
 import { v4 as uuidv4 } from 'uuid';
 
 interface WorkoutState {
@@ -154,6 +155,9 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         history: [historyItem, ...history],
         isLoading: false,
       });
+
+      // Trigger Intelligent Analysis
+      useInsightStore.getState().runAnalysis();
     } catch (error) {
       console.error('Failed to complete workout:', error);
       set({ isLoading: false });
