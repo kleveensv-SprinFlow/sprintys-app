@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity } from 'react-native';
 import { useWorkoutBuilderStore, WorkoutCategory } from '../../../store/workoutBuilderStore';
+import { useAuthStore } from '../../../store/authStore';
+import { useSprintyStore } from '../../../store/sprintyStore';
+import { workoutService } from '../../../services/workoutService';
 import { ExerciseBuilderCard } from './ExerciseBuilderCard';
 import { ExerciseLibraryModal } from './ExerciseLibraryModal';
 import { Button } from '../../../shared/components/Button';
@@ -25,13 +28,38 @@ export const WorkoutBuilder: React.FC<Props> = ({ athleteId }) => {
     resetBuilder 
   } = useWorkoutBuilderStore();
   
+  const { user } = useAuthStore();
+  const showFeedback = useSprintyStore(state => state.showFeedback);
   const [libraryVisible, setLibraryVisible] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     initBuilder(athleteId);
     return () => resetBuilder();
   }, [athleteId]);
+
+  const handleSave = async () => {
+    if (!user) return;
+    
+    setIsSaving(true);
+    try {
+      await workoutService.assignWorkoutToAthlete({
+        coach_id: user.id,
+        athlete_id: athleteId,
+        type_seance: category,
+        exercises: exercises,
+      });
+
+      showFeedback('success', 'Séance assignée avec succès !');
+      resetBuilder();
+      router.replace('/(coach)');
+    } catch (error: any) {
+      showFeedback('error', `Erreur: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -83,9 +111,10 @@ export const WorkoutBuilder: React.FC<Props> = ({ athleteId }) => {
         <Button
           title="VALIDER ET ASSIGNER"
           variant="primary"
-          onPress={() => router.back()}
+          onPress={handleSave}
           style={styles.saveBtn}
-          disabled={exercises.length === 0}
+          loading={isSaving}
+          disabled={exercises.length === 0 || isSaving}
         />
         <Button
           title="ANNULER"
