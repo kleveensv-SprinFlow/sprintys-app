@@ -14,10 +14,8 @@ export default function RootLayout() {
     const inAuthGroup = segments[0] === '(auth)';
 
     if (!user && !inAuthGroup) {
-      // Redirect to login if not authenticated
       router.replace('/login');
     } else if (user && inAuthGroup) {
-      // Redirect to main app if authenticated
       router.replace('/');
     }
   }, [user, segments, isLoading]);
@@ -25,8 +23,8 @@ export default function RootLayout() {
   return (
     <>
       <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        <Stack.Screen name="index" options={{ title: 'Home' }} />
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(tabs)" />
       </Stack>
       <SprintyFeedback />
     </>
