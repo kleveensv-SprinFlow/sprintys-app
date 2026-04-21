@@ -1,11 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, Platform, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { theme } from '../../src/core/theme';
 import { useAuthStore } from '../../src/store/authStore';
 import { ProfileAvatar } from '../../src/shared/components/ProfileAvatar';
 import { Button } from '../../src/shared/components/Button';
-import { Card } from '../../src/shared/components/Card';
 import { GlassView } from '../../src/shared/components/GlassView';
 
 export default function ProfileScreen() {
@@ -17,53 +16,70 @@ export default function ProfileScreen() {
     router.replace('/login');
   };
 
+  // Mocking detailed info as requested (no DB change)
+  const [firstName, ...lastNameParts] = (user?.name || 'Coach SprintFlow').split(' ');
+  const lastName = lastNameParts.join(' ');
+  const specialty = 'COACH SPRINT ÉLITE';
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Button 
-          title="RETOUR" 
+        <TouchableOpacity 
           onPress={() => router.back()} 
-          variant="ghost" 
           style={styles.backBtn}
-          textStyle={styles.backBtnText}
-        />
-        <Text style={styles.headerTitle}>MON PROFIL</Text>
+        >
+          <Text style={styles.backBtnText}>RETOUR</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>PROFIL</Text>
         <View style={{ width: 60 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.profileInfo}>
-          <ProfileAvatar size={100} />
-          <Text style={styles.name}>{user?.name || 'Coach SprintFlow'}</Text>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>COACH SPRINT ÉLITE</Text>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.avatarSection}>
+          <View style={styles.avatarWrapper}>
+            <ProfileAvatar size={120} />
+            <View style={styles.onlineBadge} />
           </View>
         </View>
 
-        <View style={styles.statsContainer}>
-          <GlassView style={styles.statCard}>
-            <Text style={styles.statLabel}>ATHLÈTES</Text>
-            <Text style={styles.statValue}>12</Text>
-          </GlassView>
-          <GlassView style={styles.statCard}>
-            <Text style={styles.statLabel}>SÉANCES</Text>
-            <Text style={styles.statValue}>148</Text>
+        <View style={styles.infoSection}>
+          <Text style={styles.sectionLabel}>INFORMATIONS PERSONNELLES</Text>
+          <GlassView style={styles.infoCard}>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>PRÉNOM</Text>
+              <Text style={styles.infoValue}>{firstName}</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>NOM</Text>
+              <Text style={styles.infoValue}>{lastName || 'FLOW'}</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>SPÉCIALITÉ</Text>
+              <Text style={styles.infoValue}>{specialty}</Text>
+            </View>
           </GlassView>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>PARAMÈTRES</Text>
-          <Card style={styles.settingItem}>
-            <Text style={styles.settingLabel}>Notifications</Text>
-            <Text style={styles.settingValue}>Activées</Text>
-          </Card>
-          <Card style={styles.settingItem}>
-            <Text style={styles.settingLabel}>Mode Élite</Text>
-            <Text style={styles.settingValue}>Activé</Text>
-          </Card>
+        <View style={styles.statsSection}>
+          <Text style={styles.sectionLabel}>PERFORMANCES</Text>
+          <View style={styles.statsGrid}>
+            <GlassView style={styles.statCard}>
+              <Text style={styles.statNumber}>12</Text>
+              <Text style={styles.statLabel}>ATHLÈTES</Text>
+            </GlassView>
+            <GlassView style={styles.statCard}>
+              <Text style={styles.statNumber}>148</Text>
+              <Text style={styles.statLabel}>SÉANCES</Text>
+            </GlassView>
+          </View>
         </View>
 
-        <View style={styles.footer}>
+        <View style={styles.logoutSection}>
           <Button 
             title="DÉCONNEXION" 
             onPress={handleLogout}
@@ -71,7 +87,7 @@ export default function ProfileScreen() {
             style={styles.logoutBtn}
             textStyle={styles.logoutText}
           />
-          <Text style={styles.version}>VERSION 3.0.0 ELITE</Text>
+          <Text style={styles.version}>SPRINTFLOW V3.0.0 ELITE EDITION</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -87,116 +103,133 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.md,
+    paddingHorizontal: theme.spacing.xl,
+    paddingTop: theme.spacing.lg,
+    paddingBottom: theme.spacing.md,
   },
   headerTitle: {
     color: theme.colors.text,
     fontSize: 14,
     fontWeight: theme.typography.fontWeights.bold as any,
     letterSpacing: 2,
+    color: theme.colors.accent,
   },
   backBtn: {
-    paddingHorizontal: 0,
+    paddingVertical: 8,
   },
   backBtnText: {
     fontSize: 12,
-    color: theme.colors.textSecondary,
+    color: theme.colors.textMuted,
+    fontWeight: theme.typography.fontWeights.medium as any,
+    letterSpacing: 1,
   },
   scrollContent: {
     padding: theme.spacing.xl,
-    alignItems: 'center',
+    paddingBottom: 100,
   },
-  profileInfo: {
+  avatarSection: {
     alignItems: 'center',
     marginBottom: theme.spacing.xxxl,
   },
-  name: {
-    color: theme.colors.text,
-    fontSize: 24,
-    fontWeight: theme.typography.fontWeights.bold as any,
-    marginTop: theme.spacing.lg,
-    marginBottom: theme.spacing.xs,
+  avatarWrapper: {
+    position: 'relative',
+    padding: 4,
+    borderWidth: 2,
+    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderRadius: 70,
   },
-  badge: {
-    backgroundColor: theme.colors.accentMuted,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 4,
-    borderRadius: theme.radius.full,
-    borderWidth: 1,
-    borderColor: theme.colors.accent,
+  onlineBadge: {
+    position: 'absolute',
+    bottom: 5,
+    right: 5,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#4CD964',
+    borderWidth: 3,
+    borderColor: theme.colors.background,
   },
-  badgeText: {
-    color: theme.colors.accent,
-    fontSize: 10,
-    fontWeight: theme.typography.fontWeights.bold as any,
-    letterSpacing: 1,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    gap: theme.spacing.md,
+  infoSection: {
     marginBottom: theme.spacing.xxxl,
   },
-  statCard: {
-    flex: 1,
-    padding: theme.spacing.lg,
-    alignItems: 'center',
-    minWidth: 140,
-  },
-  statLabel: {
-    color: theme.colors.textMuted,
-    fontSize: 10,
-    fontWeight: theme.typography.fontWeights.bold as any,
-    letterSpacing: 1,
-    marginBottom: 4,
-  },
-  statValue: {
-    color: theme.colors.accent,
-    fontSize: 24,
-    fontWeight: theme.typography.fontWeights.bold as any,
-  },
-  section: {
-    width: '100%',
-    marginBottom: theme.spacing.xxxl,
-  },
-  sectionTitle: {
+  sectionLabel: {
     color: theme.colors.textMuted,
     fontSize: 10,
     fontWeight: theme.typography.fontWeights.bold as any,
     letterSpacing: 1.5,
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+    marginLeft: 4,
   },
-  settingItem: {
+  infoCard: {
+    padding: theme.spacing.xl,
+    borderRadius: 24,
+  },
+  infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: theme.spacing.lg,
-    marginBottom: theme.spacing.sm,
+    alignItems: 'center',
+    paddingVertical: 4,
   },
-  settingLabel: {
-    color: theme.colors.text,
-    fontSize: 14,
-  },
-  settingValue: {
-    color: theme.colors.accent,
-    fontSize: 14,
+  infoLabel: {
+    color: theme.colors.textMuted,
+    fontSize: 10,
     fontWeight: theme.typography.fontWeights.medium as any,
   },
-  footer: {
-    width: '100%',
+  infoValue: {
+    color: theme.colors.text,
+    fontSize: 16,
+    fontWeight: theme.typography.fontWeights.bold as any,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    marginVertical: theme.spacing.md,
+  },
+  statsSection: {
+    marginBottom: theme.spacing.xxxl,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    gap: theme.spacing.lg,
+  },
+  statCard: {
+    flex: 1,
+    padding: theme.spacing.xl,
     alignItems: 'center',
-    marginTop: theme.spacing.lg,
+    borderRadius: 24,
+  },
+  statNumber: {
+    color: theme.colors.accent,
+    fontSize: 28,
+    fontWeight: theme.typography.fontWeights.bold as any,
+    marginBottom: 4,
+  },
+  statLabel: {
+    color: theme.colors.textMuted,
+    fontSize: 8,
+    fontWeight: theme.typography.fontWeights.bold as any,
+    letterSpacing: 1,
+  },
+  logoutSection: {
+    marginTop: theme.spacing.xl,
+    alignItems: 'center',
   },
   logoutBtn: {
     width: '100%',
     borderColor: 'rgba(255, 69, 58, 0.3)',
+    borderRadius: 16,
+    height: 56,
   },
   logoutText: {
     color: theme.colors.error,
+    fontWeight: theme.typography.fontWeights.bold as any,
+    letterSpacing: 1,
   },
   version: {
     color: theme.colors.textMuted,
-    fontSize: 10,
+    fontSize: 9,
     marginTop: theme.spacing.xl,
-    letterSpacing: 1,
+    letterSpacing: 2,
+    opacity: 0.5,
   },
 });

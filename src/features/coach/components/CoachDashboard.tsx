@@ -67,12 +67,4 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: theme.spacing.xl,
   },
-  logoutBtn: {
-    height: 32,
-    paddingHorizontal: theme.spacing.sm,
-  },
-  logoutText: {
-    fontSize: 10,
-    color: theme.colors.error,
-  }
 });

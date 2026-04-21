@@ -80,30 +80,42 @@ export const WeatherBadge: React.FC = () => {
       <Modal
         visible={modalVisible}
         transparent
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => setModalVisible(false)}
       >
         <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
           <View style={styles.modalOverlay}>
             <TouchableWithoutFeedback>
               <View style={styles.modalContent}>
-                <GlassView style={styles.glassCard}>
+                <BlurView intensity={80} tint="dark" style={styles.glassCard}>
                   <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>CONSEIL SPRINTY</Text>
-                    <View style={styles.statusDot} />
+                    <View style={styles.sprintyBadge}>
+                      <Text style={styles.modalTitle}>SPRINTY ADVICE</Text>
+                    </View>
+                    <Pressable onPress={() => setModalVisible(false)}>
+                      <View style={styles.closeIcon} />
+                    </Pressable>
                   </View>
                   
-                  <Text style={styles.conditionText}>
-                    {data?.temperature}°C • {data?.condition?.toUpperCase()}
-                  </Text>
+                  <View style={styles.weatherInfoRow}>
+                    <View style={styles.iconBig}>
+                      {renderIcon()}
+                    </View>
+                    <View>
+                      <Text style={styles.conditionText}>
+                        {data?.temperature}°C
+                      </Text>
+                      <Text style={styles.conditionSub}>
+                        {data?.condition?.toUpperCase()} • {data?.windSpeed} KM/H
+                      </Text>
+                    </View>
+                  </View>
 
                   <View style={styles.adviceContainer}>
                     <Text style={styles.adviceMessage}>{advice?.message}</Text>
-                    <View style={styles.infoRow}>
-                      <View style={styles.infoBadge}>
-                        <Text style={styles.infoBadgeText}>EQUIPEMENT</Text>
-                      </View>
-                      <Text style={styles.infoText}>Précision Élite active</Text>
+                    <View style={styles.proTip}>
+                      <Text style={styles.proTipLabel}>ELITE TIP</Text>
+                      <Text style={styles.proTipText}>Ajustez l'échauffement de +5 min.</Text>
                     </View>
                   </View>
 
@@ -113,7 +125,7 @@ export const WeatherBadge: React.FC = () => {
                   >
                     <Text style={styles.closeButtonText}>COMPRIS</Text>
                   </Pressable>
-                </GlassView>
+                </BlurView>
               </View>
             </TouchableWithoutFeedback>
           </View>
@@ -155,7 +167,7 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: theme.spacing.xl,
@@ -165,67 +177,106 @@ const styles = StyleSheet.create({
     maxWidth: 400,
   },
   glassCard: {
-    padding: theme.spacing.xl,
-    borderRadius: 24,
+    padding: theme.spacing.xxl,
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.2)',
+    overflow: 'hidden',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.xxxl,
+  },
+  sprintyBadge: {
+    backgroundColor: 'rgba(212, 175, 55, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.3)',
   },
   modalTitle: {
     color: theme.colors.accent,
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: theme.typography.fontWeights.bold as any,
     letterSpacing: 2,
   },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: theme.colors.accent,
+  closeIcon: {
+    width: 24,
+    height: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+  },
+  weatherInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.xxxl,
+    gap: 20,
+  },
+  iconBig: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   conditionText: {
     color: theme.colors.text,
-    fontSize: 24,
+    fontSize: 42,
     fontWeight: theme.typography.fontWeights.bold as any,
-    marginBottom: theme.spacing.xl,
+    lineHeight: 48,
+  },
+  conditionSub: {
+    color: theme.colors.textMuted,
+    fontSize: 10,
+    fontWeight: theme.typography.fontWeights.bold as any,
+    letterSpacing: 1,
   },
   adviceContainer: {
     marginBottom: theme.spacing.xxxl,
   },
   adviceMessage: {
     color: theme.colors.text,
-    fontSize: 16,
-    lineHeight: 24,
-    marginBottom: theme.spacing.lg,
+    fontSize: 18,
+    lineHeight: 28,
+    fontWeight: theme.typography.fontWeights.medium as any,
+    marginBottom: theme.spacing.xl,
   },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  proTip: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    padding: theme.spacing.lg,
+    borderRadius: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: theme.colors.accent,
   },
-  infoBadge: {
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  infoBadgeText: {
+  proTipLabel: {
     color: theme.colors.accent,
     fontSize: 8,
     fontWeight: theme.typography.fontWeights.bold as any,
+    letterSpacing: 1,
+    marginBottom: 4,
   },
-  infoText: {
-    color: theme.colors.textMuted,
-    fontSize: 10,
+  proTipText: {
+    color: theme.colors.text,
+    fontSize: 13,
+    fontWeight: theme.typography.fontWeights.medium as any,
   },
   closeButton: {
     backgroundColor: theme.colors.accent,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: 16,
+    borderRadius: 16,
     alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: theme.colors.accent,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+    }),
   },
   closeButtonText: {
     color: theme.colors.background,
