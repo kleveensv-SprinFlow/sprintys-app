@@ -1,36 +1,46 @@
 import { create } from 'zustand';
-import { BodyMetric } from '../features/body/types';
-import { v4 as uuidv4 } from 'uuid';
+import { bodyService, BodyMetric } from '../services/bodyService';
 
-interface BodyStoreState {
+interface BodyState {
   metrics: BodyMetric[];
+  isLoading: boolean;
   
   // Actions
-  addMetric: (weight: number, bodyFat?: number) => void;
-  removeMetric: (id: string) => void;
+  loadMetrics: (athleteId: string) => Promise<void>;
+  addMetric: (athleteId: string, weight: number, bodyFat?: number) => Promise<void>;
 }
 
-export const useBodyStore = create<BodyStoreState>((set) => ({
+export const useBodyStore = create<BodyState>((set, get) => ({
   metrics: [],
+  isLoading: false,
 
-  addMetric: (weight, bodyFat) => {
-    const newMetric: BodyMetric = {
-      id: uuidv4(),
-      date: new Date().toISOString(),
-      weight,
-      bodyFat,
-    };
-
-    set((state) => ({
-      metrics: [newMetric, ...state.metrics].sort((a, b) => 
-        new Date(b.date).getTime() - new Date(a.date).getTime()
-      ),
-    }));
+  loadMetrics: async (athleteId) => {
+    set({ isLoading: true });
+    try {
+      const data = await bodyService.fetchMetrics(athleteId);
+      set({ metrics: data || [], isLoading: false });
+    } catch (error) {
+      console.error('Failed to load metrics:', error);
+      set({ isLoading: false });
+    }
   },
 
-  removeMetric: (id) => {
-    set((state) => ({
-      metrics: state.metrics.filter((m) => m.id !== id),
-    }));
+  addMetric: async (athleteId, weight, bodyFat) => {
+    set({ isLoading: true });
+    try {
+      await bodyService.addMetric({
+        athlete_id: athleteId,
+        weight,
+        body_fat: bodyFat,
+      });
+      
+      // Reload metrics to keep sync
+      const data = await bodyService.fetchMetrics(athleteId);
+      set({ metrics: data || [], isLoading: false });
+    } catch (error) {
+      console.error('Failed to add metric:', error);
+      set({ isLoading: false });
+      throw error;
+    }
   },
 }));

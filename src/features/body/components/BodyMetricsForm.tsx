@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import { useBodyStore } from '../../../store/bodyStore';
+import { useAuthStore } from '../../../store/authStore';
 import { useSprintyStore } from '../../../store/sprintyStore';
 import { Button } from '../../../shared/components/Button';
 import { Input } from '../../../shared/components/Input';
@@ -10,17 +11,23 @@ import { theme } from '../../../core/theme';
 export const BodyMetricsForm: React.FC = () => {
   const [weight, setWeight] = useState('');
   const [bodyFat, setBodyFat] = useState('');
-  const addMetric = useBodyStore((state) => state.addMetric);
+  const { user } = useAuthStore();
+  const { addMetric, isLoading } = useBodyStore();
   const showFeedback = useSprintyStore((state) => state.showFeedback);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (!user) return;
     const w = parseFloat(weight);
     if (isNaN(w)) return;
 
-    addMetric(w, bodyFat ? parseFloat(bodyFat) : undefined);
-    setWeight('');
-    setBodyFat('');
-    showFeedback('success', 'Métriques enregistrées.');
+    try {
+      await addMetric(user.id, w, bodyFat ? parseFloat(bodyFat) : undefined);
+      setWeight('');
+      setBodyFat('');
+      showFeedback('success', 'Données enregistrées.');
+    } catch (error) {
+      showFeedback('error', 'Échec de l\'enregistrement.');
+    }
   };
 
   return (
@@ -50,7 +57,8 @@ export const BodyMetricsForm: React.FC = () => {
       <Button
         title="ENREGISTRER LA PESÉE"
         onPress={handleSubmit}
-        disabled={!weight}
+        disabled={!weight || isLoading}
+        loading={isLoading}
         variant="primary"
         style={styles.button}
       />

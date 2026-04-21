@@ -4,8 +4,17 @@ import { BodyMetricsForm } from '../../src/features/body/components/BodyMetricsF
 import { WeightChart } from '../../src/features/body/components/WeightChart';
 import { BodyHistoryList } from '../../src/features/body/components/BodyHistoryList';
 import { theme } from '../../src/core/theme';
+import { useAuthStore } from '../../src/store/authStore';
+import { useBodyStore } from '../../src/store/bodyStore';
 
 export default function BodyScreen() {
+  const { user } = useAuthStore();
+  const { loadMetrics } = useBodyStore();
+
+  React.useEffect(() => {
+    if (user) loadMetrics(user.id);
+  }, [user]);
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
