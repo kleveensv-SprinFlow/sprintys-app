@@ -1,5 +1,10 @@
 import React from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { 
+  View, 
+  StyleSheet, 
+  KeyboardAvoidingView, 
+  Platform 
+} from 'react-native';
 import { LoginForm } from '../../src/features/auth/components/LoginForm';
 import { theme } from '../../src/core/theme';
 

@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { theme } from './theme';
 
 export const effects = {
@@ -9,19 +10,37 @@ export const effects = {
   glow: {
     // Subtle gold glow
     gold: {
-      shadowColor: theme.colors.accent,
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.15,
-      shadowRadius: 10,
-      elevation: 5,
+      ...Platform.select({
+        ios: {
+          shadowColor: theme.colors.accent,
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.15,
+          shadowRadius: 10,
+        },
+        android: {
+          elevation: 5,
+        },
+        web: {
+          boxShadow: `0 0 10px ${theme.colors.accent}26`, // 26 is ~0.15 alpha
+        }
+      })
     },
     // Subtle surface glow
     surface: {
-      shadowColor: '#FFFFFF',
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
-      elevation: 3,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#FFFFFF',
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.05,
+          shadowRadius: 8,
+        },
+        android: {
+          elevation: 3,
+        },
+        web: {
+          boxShadow: '0 0 8px rgba(255, 255, 255, 0.05)',
+        }
+      })
     }
   }
 } as const;

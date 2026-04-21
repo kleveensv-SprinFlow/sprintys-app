@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, Platform, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { theme } from '../../src/core/theme';
 import { useAuthStore } from '../../src/store/authStore';

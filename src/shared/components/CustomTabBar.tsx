@@ -1,5 +1,11 @@
 import React, { useRef, useEffect } from 'react';
-import { View, TouchableOpacity, StyleSheet, Platform, Animated } from 'react-native';
+import { 
+  View, 
+  TouchableOpacity, 
+  StyleSheet, 
+  Platform, 
+  Animated 
+} from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { theme } from '../../core/theme';
 import { BlurView } from 'expo-blur';
@@ -103,6 +109,9 @@ const styles = StyleSheet.create({
       android: {
         elevation: 10,
       },
+      web: {
+        boxShadow: '0 10px 20px rgba(0,0,0,0.5)',
+      }
     }),
   },
   blur: {

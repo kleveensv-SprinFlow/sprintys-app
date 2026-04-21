@@ -1,9 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Pressable, Modal, TouchableWithoutFeedback, Platform } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ActivityIndicator, 
+  Pressable, 
+  Modal, 
+  TouchableWithoutFeedback,
+  Platform 
+} from 'react-native';
 import { useWeatherStore } from '../../store/weatherStore';
 import { weatherAdviceService } from '../../services/weatherAdviceService';
 import { theme } from '../../core/theme';
 import { GlassView } from './GlassView';
+import { BlurView } from 'expo-blur';
 import Svg, { Path, Circle } from 'react-native-svg';
 
 export const WeatherBadge: React.FC = () => {
@@ -66,7 +76,7 @@ export const WeatherBadge: React.FC = () => {
         onPress={() => setModalVisible(true)}
         style={({ pressed }) => [
           styles.container,
-          pressed && { opacity: 0.7, scale: 0.98 }
+          pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }
         ]}
       >
         <View style={styles.iconWrapper}>
@@ -276,6 +286,9 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 8,
       },
+      web: {
+        boxShadow: `0 4px 8px ${theme.colors.accent}4D`, // 4D is ~0.3 alpha
+      }
     }),
   },
   closeButtonText: {
