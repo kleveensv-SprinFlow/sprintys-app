@@ -21,13 +21,13 @@ export const BodyHistoryList: React.FC = () => {
         <Card key={item.id} style={styles.card}>
           <View style={styles.row}>
             <View>
-              <Text style={styles.date}>{formatDate(item.date)}</Text>
+              <Text style={styles.date}>{formatDate(item.created_at || new Date().toISOString())}</Text>
               <Text style={styles.weight}>{item.weight} kg</Text>
             </View>
-            {item.bodyFat && (
+            {item.body_fat && (
               <View style={styles.fatContainer}>
                 <Text style={styles.fatLabel}>GRAS</Text>
-                <Text style={styles.fatValue}>{item.bodyFat}%</Text>
+                <Text style={styles.fatValue}>{item.body_fat}%</Text>
               </View>
             )}
           </View>

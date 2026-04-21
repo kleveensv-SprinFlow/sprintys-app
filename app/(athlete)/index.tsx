@@ -12,27 +12,20 @@ import { theme } from '../../src/core/theme';
 import { useRouter } from 'expo-router';
 
 export default function DashboardScreen() {
-  const { startWorkout, startAssignedWorkout } = useWorkoutStore();
+  const { startWorkout, startAssignedWorkout, pendingWorkout, loadPendingWorkout, isLoading } = useWorkoutStore();
   const { user } = useAuthStore();
-  const [pendingWorkout, setPendingWorkout] = useState<any>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const router = useRouter();
 
-  const loadData = async () => {
+  const handleRefresh = async () => {
     if (!user) return;
     setIsRefreshing(true);
-    try {
-      const workout = await workoutService.fetchPendingWorkout(user.id);
-      setPendingWorkout(workout);
-    } catch (error) {
-      console.error('Failed to fetch pending workout', error);
-    } finally {
-      setIsRefreshing(false);
-    }
+    await loadPendingWorkout(user.id);
+    setIsRefreshing(false);
   };
 
   useEffect(() => {
-    loadData();
+    if (user) loadPendingWorkout(user.id);
   }, [user]);
 
   const handleStartAssigned = () => {
@@ -52,7 +45,7 @@ export default function DashboardScreen() {
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={isRefreshing} onRefresh={loadData} tintColor={theme.colors.accent} />
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={theme.colors.accent} />
         }
       >
         <View style={styles.header}>

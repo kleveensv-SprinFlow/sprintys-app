@@ -56,13 +56,13 @@ export const AthleteCard: React.FC<Props> = React.memo(({ athlete }) => {
             title="DÉTAILS"
             onPress={() => router.push(`/(coach)/athlete/${athlete.id}`)}
             variant="ghost"
-            style={[styles.actionBtn, { flex: 1, marginRight: 8 }]}
+            style={[styles.actionBtn, { flex: 1, marginRight: 8 }] as any}
           />
           <Button
             title="ASSIGNER"
             onPress={() => router.push(`/(coach)/assign/${athlete.id}`)}
             variant="outline"
-            style={[styles.actionBtn, { flex: 1.5 }]}
+            style={[styles.actionBtn, { flex: 1.5 }] as any}
           />
         </View>
       </Card>

@@ -1,7 +1,7 @@
 import { WorkoutHistoryItem } from '../features/workout/types';
 import { BodyMetric } from '../services/bodyService';
 import { WeatherData } from '../services/weatherService';
-import { supabase } from '../core/supabase';
+import { supabase } from './supabase';
 
 export interface Insight {
   id: string;

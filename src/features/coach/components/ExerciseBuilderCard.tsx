@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { BuilderExercise, WorkoutCategory } from '../../../store/workoutBuilderStore';
-import { useWorkoutBuilderStore } from '../../../store/workoutBuilderStore';
+import { useWorkoutBuilderStore, BuilderSet } from '../../../store/workoutBuilderStore';
 import { Card } from '../../../shared/components/Card';
 import { Input } from '../../../shared/components/Input';
 import { theme } from '../../../core/theme';

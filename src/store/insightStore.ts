@@ -5,18 +5,38 @@ import { useBodyStore } from './bodyStore';
 import { useWeatherStore } from './weatherStore';
 import { useSprintyStore } from './sprintyStore';
 import { useAuthStore } from './authStore';
+import { SprintyStatus } from './sprintyStore';
 
 interface InsightState {
   currentInsights: Insight[];
-  isAnalyzing: boolean;
+  athleteInsights: Insight[];
+  isLoading: boolean;
+  status: SprintyStatus;
   
   // Actions
   runAnalysis: () => Promise<void>;
+  loadAthleteInsights: (athleteId: string) => Promise<void>;
+  setStatus: (status: SprintyStatus) => void;
 }
 
 export const useInsightStore = create<InsightState>((set, get) => ({
   currentInsights: [],
-  isAnalyzing: false,
+  athleteInsights: [],
+  isLoading: false,
+  status: 'idle',
+
+  loadAthleteInsights: async (athleteId) => {
+    set({ isLoading: true });
+    try {
+      const insights = await insightService.fetchInsights(athleteId, 10);
+      set({ athleteInsights: insights, isLoading: false });
+    } catch (error) {
+      useSprintyStore.getState().showFeedback('error', "Impossible de récupérer les insights de l'athlète.");
+      set({ isLoading: false });
+    }
+  },
+
+  setStatus: (status) => set({ status }),
 
   runAnalysis: async () => {
     const { history } = useWorkoutStore.getState();
@@ -24,7 +44,7 @@ export const useInsightStore = create<InsightState>((set, get) => ({
     const { data: weather } = useWeatherStore.getState();
     const { showFeedback, setStatus } = useSprintyStore.getState();
 
-    set({ isAnalyzing: true });
+    set({ isLoading: true });
     setStatus('active'); // Pulse gold state
 
     // Simulate analysis delay for UX
@@ -32,7 +52,7 @@ export const useInsightStore = create<InsightState>((set, get) => ({
 
     try {
       const insights = insightService.generateInsights(history, metrics, weather);
-      set({ currentInsights: insights, isAnalyzing: false });
+      set({ currentInsights: insights, isLoading: false });
 
       if (insights.length > 0) {
         const bestInsight = insights[0];
@@ -45,14 +65,13 @@ export const useInsightStore = create<InsightState>((set, get) => ({
             athlete_id: user.id,
             type: bestInsight.type,
             message: bestInsight.message,
-          }).catch(err => console.error('Failed to persist insight', err));
+          }).catch(() => {});
         }
       } else {
         setStatus('idle');
       }
     } catch (error) {
-      console.error('Analysis failed', error);
-      set({ isAnalyzing: false });
+      set({ isLoading: false });
       setStatus('idle');
     }
   },

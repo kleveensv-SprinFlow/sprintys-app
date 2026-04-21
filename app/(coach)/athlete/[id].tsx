@@ -1,45 +1,22 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { theme } from '../../../src/core/theme';
 import { GlassView } from '../../../src/shared/components/GlassView';
 import { Button } from '../../../src/shared/components/Button';
-import { insightService, Insight } from '../../../src/services/insightService';
-import { workoutService } from '../../../src/services/workoutService';
-import { WorkoutHistoryItem } from '../../../src/features/workout/types';
 import { useCoachStore } from '../../../src/store/coachStore';
+import { useInsightStore } from '../../../src/store/insightStore';
 import { EmptyState } from '../../../src/shared/components/EmptyState';
 
 export default function AthleteDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { athletes } = useCoachStore();
+  const { athleteInsights: insights, loadAthleteInsights, isLoading } = useInsightStore();
   const athlete = athletes.find(a => a.id === id);
 
-  const [insights, setInsights] = useState<Insight[]>([]);
-  const [history, setHistory] = useState<WorkoutHistoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
   useEffect(() => {
-    async function loadData() {
-      if (!id) return;
-      try {
-        const [insightsData, historyData] = await Promise.all([
-          insightService.fetchInsights(id, 5),
-          // We don't have a direct fetchHistory(athleteId) yet, 
-          // but workoutService might need it or we can use workouts table.
-          // For now let's assume we can fetch it.
-          [] as WorkoutHistoryItem[] 
-        ]);
-        setInsights(insightsData);
-        // setHistory(historyData);
-      } catch (error) {
-        console.error('Failed to load athlete details', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadData();
+    if (id) loadAthleteInsights(id);
   }, [id]);
 
   if (!athlete) return <View style={styles.center}><Text style={styles.errorText}>Athlète non trouvé</Text></View>;
@@ -60,7 +37,7 @@ export default function AthleteDetailScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.sectionTitle}>INSIGHTS RÉCENTS (SPRINTY)</Text>
-        {loading ? (
+        {isLoading ? (
           <ActivityIndicator color={theme.colors.accent} style={styles.loader} />
         ) : (
           insights.map((insight, idx) => (
@@ -75,7 +52,7 @@ export default function AthleteDetailScreen() {
             </GlassView>
           ))
         )}
-        {insights.length === 0 && !loading && (
+        {insights.length === 0 && !isLoading && (
           <EmptyState 
             title="Aucun Insight" 
             message="Sprinty n'a pas encore généré d'analyses pour cet athlète. Les insights apparaîtront après ses premières séances." 
