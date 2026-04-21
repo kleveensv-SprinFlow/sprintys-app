@@ -1,13 +1,15 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useWorkoutStore } from '../../../store/workoutStore';
+import { useSprintyStore } from '../../../store/sprintyStore';
 import { ExerciseRow } from './ExerciseRow';
 import { Button } from '../../../shared/components/Button';
 import { theme } from '../../../core/theme';
 import { Card } from '../../../shared/components/Card';
 
 export const ActiveWorkoutSession: React.FC = () => {
-  const { activeSession, timer, tickTimer, addExercise, finishWorkout, cancelWorkout } = useWorkoutStore();
+  const { activeSession, timer, tickTimer, addExercise, finishWorkout, cancelWorkout, isLoading } = useWorkoutStore();
+  const showFeedback = useSprintyStore(state => state.showFeedback);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -26,13 +28,20 @@ export const ActiveWorkoutSession: React.FC = () => {
     return `${hrs > 0 ? hrs + ':' : ''}${mins < 10 && hrs > 0 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     Alert.alert(
       "Terminer la séance",
       "Voulez-vous enregistrer vos performances ?",
       [
         { text: "Annuler", style: "cancel" },
-        { text: "Enregistrer", onPress: finishWorkout, style: "default" }
+        { 
+          text: "Enregistrer", 
+          onPress: async () => {
+            await finishWorkout();
+            showFeedback('success', 'Séance terminée ! Vos données sont synchronisées.');
+          }, 
+          style: "default" 
+        }
       ]
     );
   };
@@ -65,6 +74,8 @@ export const ActiveWorkoutSession: React.FC = () => {
           variant="primary"
           onPress={handleFinish}
           style={styles.finishBtn}
+          loading={isLoading}
+          disabled={isLoading}
         />
         <Button
           title="ANNULER"

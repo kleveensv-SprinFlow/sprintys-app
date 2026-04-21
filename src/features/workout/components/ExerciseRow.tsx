@@ -12,37 +12,85 @@ interface Props {
 export const ExerciseRow: React.FC<Props> = ({ exercise }) => {
   const { addSet, updateSet, toggleSetCompletion } = useWorkoutStore();
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.exerciseName}>{exercise.name}</Text>
-      
+  const renderHeader = () => {
+    const firstSet = exercise.sets[0];
+    if (!firstSet) return null;
+
+    return (
       <View style={styles.headerRow}>
         <Text style={styles.headerText}>SET</Text>
-        <Text style={styles.headerText}>KG</Text>
-        <Text style={styles.headerText}>REPS</Text>
+        {firstSet.weight !== undefined && <Text style={styles.headerText}>KG</Text>}
+        {firstSet.reps !== undefined && <Text style={styles.headerText}>REPS</Text>}
+        {firstSet.distance !== undefined && <Text style={styles.headerText}>DIST (M)</Text>}
+        {firstSet.duration !== undefined && <Text style={styles.headerText}>TEMPS</Text>}
+        {firstSet.steps !== undefined && <Text style={styles.headerText}>MARCHES</Text>}
         <Text style={[styles.headerText, { width: 40 }]}>OK</Text>
       </View>
+    );
+  };
 
-      {exercise.sets.map((set, index) => (
-        <View key={set.id} style={[styles.setRow, set.isCompleted && styles.completedRow]}>
-          <Text style={styles.setNumber}>{index + 1}</Text>
-          
+  const renderInputs = (set: Set) => {
+    const baseInputStyle = { height: 40, textAlign: 'center', fontSize: 16 };
+    
+    return (
+      <>
+        {set.weight !== undefined && (
           <Input
             value={set.weight.toString()}
             onChangeText={(val) => updateSet(exercise.id, set.id, { weight: parseFloat(val) || 0 })}
             keyboardType="numeric"
             containerStyle={styles.inputContainer}
-            style={styles.input}
+            style={baseInputStyle}
           />
-
+        )}
+        {set.reps !== undefined && (
           <Input
             value={set.reps.toString()}
             onChangeText={(val) => updateSet(exercise.id, set.id, { reps: parseInt(val) || 0 })}
             keyboardType="numeric"
             containerStyle={styles.inputContainer}
-            style={styles.input}
+            style={baseInputStyle}
           />
+        )}
+        {set.distance !== undefined && (
+          <Input
+            value={set.distance.toString()}
+            onChangeText={(val) => updateSet(exercise.id, set.id, { distance: parseInt(val) || 0 })}
+            keyboardType="numeric"
+            containerStyle={styles.inputContainer}
+            style={baseInputStyle}
+          />
+        )}
+        {set.duration !== undefined && (
+          <Input
+            value={set.duration}
+            onChangeText={(val) => updateSet(exercise.id, set.id, { duration: val })}
+            containerStyle={styles.inputContainer}
+            style={baseInputStyle}
+          />
+        )}
+        {set.steps !== undefined && (
+          <Input
+            value={set.steps.toString()}
+            onChangeText={(val) => updateSet(exercise.id, set.id, { steps: parseInt(val) || 0 })}
+            keyboardType="numeric"
+            containerStyle={styles.inputContainer}
+            style={baseInputStyle}
+          />
+        )}
+      </>
+    );
+  };
 
+  return (
+    <View style={styles.container}>
+      <Text style={styles.exerciseName}>{exercise.name}</Text>
+      {renderHeader()}
+
+      {exercise.sets.map((set, index) => (
+        <View key={set.id} style={[styles.setRow, set.isCompleted && styles.completedRow]}>
+          <Text style={styles.setNumber}>{index + 1}</Text>
+          {renderInputs(set)}
           <TouchableOpacity 
             onPress={() => toggleSetCompletion(exercise.id, set.id)}
             style={[styles.checkCircle, set.isCompleted && styles.checkCircleActive]}
@@ -104,11 +152,6 @@ const styles = StyleSheet.create({
     flex: 1,
     marginBottom: 0,
     marginHorizontal: theme.spacing.xs,
-  },
-  input: {
-    height: 40,
-    textAlign: 'center',
-    fontSize: 16,
   },
   checkCircle: {
     width: 32,

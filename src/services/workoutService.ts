@@ -28,4 +28,29 @@ export const workoutService = {
     if (error) throw error;
     return data;
   },
+
+  fetchPendingWorkout: async (athleteId: string) => {
+    const { data, error } = await supabase
+      .from('workouts')
+      .select('*')
+      .eq('athlete_id', athleteId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  },
+
+  completeWorkout: async (workoutId: string) => {
+    const { data, error } = await supabase
+      .from('workouts')
+      .update({ status: 'completed' })
+      .eq('id', workoutId)
+      .select();
+
+    if (error) throw error;
+    return data;
+  },
 };
