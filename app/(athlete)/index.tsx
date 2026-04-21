@@ -4,6 +4,7 @@ import { WorkoutHistory } from '../../src/features/workout/components/WorkoutHis
 import { Button } from '../../src/shared/components/Button';
 import { Card } from '../../src/shared/components/Card';
 import { GlowView } from '../../src/shared/components/GlowView';
+import { WeatherBadge } from '../../src/shared/components/WeatherBadge';
 import { useWorkoutStore } from '../../src/store/workoutStore';
 import { useAuthStore } from '../../src/store/authStore';
 import { workoutService } from '../../src/services/workoutService';
@@ -55,7 +56,10 @@ export default function DashboardScreen() {
         }
       >
         <View style={styles.header}>
-          <Text style={styles.welcome}>BIENVENUE, {user?.name.split(' ')[0].toUpperCase()}</Text>
+          <View style={styles.headerTop}>
+            <Text style={styles.welcome}>BIENVENUE, {user?.name.split(' ')[0].toUpperCase()}</Text>
+            <WeatherBadge />
+          </View>
           <Text style={styles.title}>Votre Performance</Text>
         </View>
 
@@ -108,6 +112,12 @@ const styles = StyleSheet.create({
   header: {
     padding: theme.spacing.xl,
     paddingTop: theme.spacing.xxl,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   welcome: {
     color: theme.colors.accent,

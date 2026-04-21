@@ -4,6 +4,7 @@ import { AthleteList } from './AthleteList';
 import { theme } from '../../../core/theme';
 import { useAuthStore } from '../../../store/authStore';
 import { Button } from '../../../shared/components/Button';
+import { WeatherBadge } from '../../../shared/components/WeatherBadge';
 
 export const CoachDashboard: React.FC = () => {
   const { user, logout } = useAuthStore();
@@ -11,8 +12,11 @@ export const CoachDashboard: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <View>
-          <Text style={styles.welcome}>ESPACE COACH</Text>
+        <View style={{ flex: 1 }}>
+          <View style={styles.headerTop}>
+            <Text style={styles.welcome}>ESPACE COACH</Text>
+            <WeatherBadge />
+          </View>
           <Text style={styles.title}>Salut, {user?.name.split(' ')[0]}</Text>
         </View>
         <Button
@@ -42,6 +46,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   welcome: {
     color: theme.colors.accent,
