@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useWorkoutStore } from '../../../store/workoutStore';
 import { useSprintyStore } from '../../../store/sprintyStore';
+import { useInsightStore } from '../../../store/insightStore';
 import { ExerciseRow } from './ExerciseRow';
 import { Button } from '../../../shared/components/Button';
 import { theme } from '../../../core/theme';
@@ -10,6 +11,7 @@ import { Card } from '../../../shared/components/Card';
 export const ActiveWorkoutSession: React.FC = () => {
   const { activeSession, timer, tickTimer, addExercise, finishWorkout, cancelWorkout, isLoading } = useWorkoutStore();
   const showFeedback = useSprintyStore(state => state.showFeedback);
+  const runAnalysis = useInsightStore(state => state.runAnalysis);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -39,6 +41,7 @@ export const ActiveWorkoutSession: React.FC = () => {
           onPress: async () => {
             await finishWorkout();
             showFeedback('success', 'Séance terminée ! Vos données sont synchronisées.');
+            runAnalysis();
           }, 
           style: "default" 
         }

@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { bodyService, BodyMetric } from '../services/bodyService';
-import { useInsightStore } from './insightStore';
 
 interface BodyState {
   metrics: BodyMetric[];
@@ -38,9 +37,6 @@ export const useBodyStore = create<BodyState>((set, get) => ({
       // Reload metrics to keep sync
       const data = await bodyService.fetchMetrics(athleteId);
       set({ metrics: data || [], isLoading: false });
-
-      // Trigger Intelligent Analysis
-      useInsightStore.getState().runAnalysis();
     } catch (error) {
       console.error('Failed to add metric:', error);
       set({ isLoading: false });

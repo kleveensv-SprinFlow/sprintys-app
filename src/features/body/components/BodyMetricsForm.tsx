@@ -3,6 +3,7 @@ import { View, StyleSheet, Text } from 'react-native';
 import { useBodyStore } from '../../../store/bodyStore';
 import { useAuthStore } from '../../../store/authStore';
 import { useSprintyStore } from '../../../store/sprintyStore';
+import { useInsightStore } from '../../../store/insightStore';
 import { Button } from '../../../shared/components/Button';
 import { Input } from '../../../shared/components/Input';
 import { Card } from '../../../shared/components/Card';
@@ -14,6 +15,7 @@ export const BodyMetricsForm: React.FC = () => {
   const { user } = useAuthStore();
   const { addMetric, isLoading } = useBodyStore();
   const showFeedback = useSprintyStore((state) => state.showFeedback);
+  const runAnalysis = useInsightStore((state) => state.runAnalysis);
 
   const handleSubmit = async () => {
     if (!user) return;
@@ -25,6 +27,7 @@ export const BodyMetricsForm: React.FC = () => {
       setWeight('');
       setBodyFat('');
       showFeedback('success', 'Données enregistrées.');
+      runAnalysis();
     } catch (error) {
       showFeedback('error', 'Échec de l\'enregistrement.');
     }
