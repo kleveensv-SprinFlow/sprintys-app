@@ -13,16 +13,18 @@ export default function RootLayout() {
 
     const inAuthGroup = segments[0] === '(auth)';
 
-    if (!user && !inAuthGroup) {
-      router.replace('/login');
-    } else if (user && inAuthGroup) {
-      // Redirect based on role
-      if (user.role === 'coach') {
-        router.replace('/(coach)');
-      } else {
-        router.replace('/(athlete)');
+    setTimeout(() => {
+      if (!user && !inAuthGroup) {
+        router.replace('/login');
+      } else if (user && inAuthGroup) {
+        // Redirect based on role
+        if (user.role === 'coach') {
+          router.replace('/(coach)');
+        } else {
+          router.replace('/(athlete)');
+        }
       }
-    }
+    }, 0);
   }, [user, segments, isLoading]);
 
   return (
