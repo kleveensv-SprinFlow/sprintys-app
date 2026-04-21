@@ -59,4 +59,13 @@ export const weatherAdviceService = {
 
     return advices.sort((a, b) => b.priority - a.priority);
   },
+
+  getCoachingAdvice: (weather: WeatherData): WeatherAdvice => {
+    const advices = weatherAdviceService.getAdvice(weather);
+    return advices[0] || {
+      id: 'standard',
+      message: "Conditions optimales. Prêt pour une performance Élite.",
+      priority: 0,
+    };
+  },
 };

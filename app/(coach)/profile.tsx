@@ -9,11 +9,11 @@ import { Card } from '../../src/shared/components/Card';
 import { GlassView } from '../../src/shared/components/GlassView';
 
 export default function ProfileScreen() {
-  const { user, signOut } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const router = useRouter();
 
   const handleLogout = async () => {
-    await signOut();
+    await logout();
     router.replace('/login');
   };
 
