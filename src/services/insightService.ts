@@ -1,15 +1,38 @@
 import { WorkoutHistoryItem } from '../features/workout/types';
 import { BodyMetric } from '../services/bodyService';
 import { WeatherData } from '../services/weatherService';
+import { supabase } from '../core/supabase';
 
 export interface Insight {
   id: string;
+  athlete_id?: string;
   message: string;
   type: 'info' | 'success' | 'warning';
   priority: number;
+  created_at?: string;
 }
 
 export const insightService = {
+  saveInsight: async (insight: Omit<Insight, 'id' | 'priority'>) => {
+    const { error } = await supabase
+      .from('athlete_insights')
+      .insert([insight]);
+    
+    if (error) throw error;
+  },
+
+  fetchInsights: async (athleteId: string, limit = 10): Promise<Insight[]> => {
+    const { data, error } = await supabase
+      .from('athlete_insights')
+      .select('*')
+      .eq('athlete_id', athleteId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    
+    if (error) throw error;
+    return data || [];
+  },
+
   generateInsights: (
     history: WorkoutHistoryItem[],
     metrics: BodyMetric[],

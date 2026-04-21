@@ -51,12 +51,20 @@ export const AthleteCard: React.FC<Props> = React.memo(({ athlete }) => {
           </View>
         </View>
 
-        <Button
-          title="ASSIGNER SÉANCE"
-          onPress={() => router.push(`/(coach)/assign/${athlete.id}`)}
-          variant="outline"
-          style={styles.actionBtn}
-        />
+        <View style={styles.buttonRow}>
+          <Button
+            title="DÉTAILS"
+            onPress={() => router.push(`/(coach)/athlete/${athlete.id}`)}
+            variant="ghost"
+            style={[styles.actionBtn, { flex: 1, marginRight: 8 }]}
+          />
+          <Button
+            title="ASSIGNER"
+            onPress={() => router.push(`/(coach)/assign/${athlete.id}`)}
+            variant="outline"
+            style={[styles.actionBtn, { flex: 1.5 }]}
+          />
+        </View>
       </Card>
     </GlowView>
   );
@@ -117,6 +125,10 @@ const styles = StyleSheet.create({
     width: 1,
     backgroundColor: theme.colors.border,
     marginHorizontal: theme.spacing.md,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   actionBtn: {
     height: 44,

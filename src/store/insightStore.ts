@@ -4,6 +4,7 @@ import { useWorkoutStore } from './workoutStore';
 import { useBodyStore } from './bodyStore';
 import { useWeatherStore } from './weatherStore';
 import { useSprintyStore } from './sprintyStore';
+import { useAuthStore } from './authStore';
 
 interface InsightState {
   currentInsights: Insight[];
@@ -36,6 +37,16 @@ export const useInsightStore = create<InsightState>((set, get) => ({
       if (insights.length > 0) {
         const bestInsight = insights[0];
         showFeedback(bestInsight.type, bestInsight.message);
+
+        // PERSISTENCE: Save to Supabase
+        const { user } = useAuthStore.getState();
+        if (user) {
+          insightService.saveInsight({
+            athlete_id: user.id,
+            type: bestInsight.type,
+            message: bestInsight.message,
+          }).catch(err => console.error('Failed to persist insight', err));
+        }
       } else {
         setStatus('idle');
       }
