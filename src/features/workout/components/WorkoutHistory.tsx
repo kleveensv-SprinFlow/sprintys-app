@@ -4,7 +4,7 @@ import { useWorkoutStore } from '../../../store/workoutStore';
 import { Card } from '../../../shared/components/Card';
 import { theme } from '../../../core/theme';
 
-export const WorkoutHistory: React.FC = () => {
+export const WorkoutHistory: React.FC = React.memo(() => {
   const { history } = useWorkoutStore();
 
   const formatDate = (dateStr: string) => {

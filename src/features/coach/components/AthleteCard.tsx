@@ -11,7 +11,7 @@ interface Props {
   athlete: ManagedAthlete;
 }
 
-export const AthleteCard: React.FC<Props> = ({ athlete }) => {
+export const AthleteCard: React.FC<Props> = React.memo(({ athlete }) => {
   const router = useRouter();
   const getStatusColor = () => {
     switch (athlete.lastWorkoutStatus) {

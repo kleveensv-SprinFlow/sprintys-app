@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { WorkoutSession, Exercise, Set, WorkoutHistoryItem } from '../features/workout/types';
 import { workoutService } from '../services/workoutService';
 import { useInsightStore } from './insightStore';
+import * as Haptics from 'expo-haptics';
 import { v4 as uuidv4 } from 'uuid';
 
 interface WorkoutState {
@@ -110,6 +111,9 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   toggleSetCompletion: (exerciseId, setId) => {
     const { activeSession } = get();
     if (!activeSession) return;
+    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
     const updatedExercises = activeSession.exercises.map((ex) => {
       if (ex.id === exerciseId) {
         return {

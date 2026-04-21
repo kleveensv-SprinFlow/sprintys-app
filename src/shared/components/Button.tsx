@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { 
-  TouchableOpacity, 
+  Pressable, 
   Text, 
   StyleSheet, 
   ActivityIndicator, 
   ViewStyle, 
-  TextStyle 
+  TextStyle,
+  Animated
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { theme } from '../../core/theme';
 
 interface ButtonProps {
@@ -17,6 +19,7 @@ interface ButtonProps {
   disabled?: boolean;
   style?: ViewStyle;
   textStyle?: TextStyle;
+  haptic?: Haptics.ImpactFeedbackStyle;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -27,53 +30,70 @@ export const Button: React.FC<ButtonProps> = ({
   disabled = false,
   style,
   textStyle,
+  haptic = Haptics.ImpactFeedbackStyle.Light,
 }) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.97,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePress = () => {
+    Haptics.impactAsync(haptic);
+    onPress();
+  };
+
   const getVariantStyle = () => {
     switch (variant) {
-      case 'primary':
-        return styles.primary;
-      case 'secondary':
-        return styles.secondary;
-      case 'outline':
-        return styles.outline;
-      case 'ghost':
-        return styles.ghost;
-      default:
-        return styles.primary;
+      case 'primary': return styles.primary;
+      case 'secondary': return styles.secondary;
+      case 'outline': return styles.outline;
+      case 'ghost': return styles.ghost;
+      default: return styles.primary;
     }
   };
 
   const getTextStyle = () => {
     switch (variant) {
-      case 'primary':
-        return styles.primaryText;
-      case 'outline':
-        return styles.outlineText;
-      default:
-        return styles.secondaryText;
+      case 'primary': return styles.primaryText;
+      case 'outline': return styles.outlineText;
+      default: return styles.secondaryText;
     }
   };
 
   return (
-    <TouchableOpacity
-      onPress={onPress}
+    <Pressable
+      onPress={handlePress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       disabled={disabled || loading}
-      activeOpacity={0.8}
-      style={[
+      style={({ pressed }) => [
         styles.base,
         getVariantStyle(),
         disabled && styles.disabled,
         style,
       ]}
     >
-      {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? theme.colors.background : theme.colors.accent} />
-      ) : (
-        <Text style={[styles.baseText, getTextStyle(), textStyle]}>
-          {title}
-        </Text>
-      )}
-    </TouchableOpacity>
+      <Animated.View style={[styles.content, { transform: [{ scale: scaleAnim }] }]}>
+        {loading ? (
+          <ActivityIndicator color={variant === 'primary' ? theme.colors.background : theme.colors.accent} />
+        ) : (
+          <Text style={[styles.baseText, getTextStyle(), textStyle]}>
+            {title}
+          </Text>
+        )}
+      </Animated.View>
+    </Pressable>
   );
 };
 
@@ -84,7 +104,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.xl,
+    overflow: 'hidden',
+  },
+  content: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
   },
   baseText: {
     fontSize: 16,
@@ -113,9 +139,6 @@ const styles = StyleSheet.create({
   },
   ghost: {
     backgroundColor: 'transparent',
-  },
-  ghostText: {
-    color: theme.colors.textSecondary,
   },
   disabled: {
     opacity: 0.5,

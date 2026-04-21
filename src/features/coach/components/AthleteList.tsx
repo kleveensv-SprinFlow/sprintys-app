@@ -4,7 +4,7 @@ import { useCoachStore } from '../../../store/coachStore';
 import { AthleteCard } from './AthleteCard';
 import { theme } from '../../../core/theme';
 
-export const AthleteList: React.FC = () => {
+export const AthleteList: React.FC = React.memo(() => {
   const { athletes, isLoading, fetchAthletes } = useCoachStore();
 
   useEffect(() => {

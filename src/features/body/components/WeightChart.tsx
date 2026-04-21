@@ -8,7 +8,7 @@ const { width } = Dimensions.get('window');
 const CHART_HEIGHT = 150;
 const CHART_WIDTH = width - 80;
 
-export const WeightChart: React.FC = () => {
+export const WeightChart: React.FC = React.memo(() => {
   const { metrics } = useBodyStore();
   
   // Need at least 2 points for a chart

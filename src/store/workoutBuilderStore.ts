@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
+import { animateLayout } from '../shared/utils/animations';
 
 export type WorkoutCategory = 'Lactique' | 'Musculation' | 'Aérobie' | 'Escalier' | 'Technique';
 
@@ -75,58 +76,77 @@ export const useWorkoutBuilderStore = create<WorkoutBuilderState>((set) => ({
   }),
 
   setSessionName: (name) => set({ currentSessionName: name }),
-  setCategory: (category) => set({ category }),
+  setCategory: (category) => {
+    animateLayout();
+    set({ category, exercises: [] });
+  },
 
-  addExerciseFromLibrary: (libEx) => set((state) => ({
-    exercises: [
-      ...state.exercises,
-      {
-        id: uuidv4(),
-        name: libEx.name,
-        category: libEx.category,
-        tags: libEx.tags,
-        sets: [createDefaultSet(libEx.category)]
-      }
-    ]
-  })),
+  addExerciseFromLibrary: (libEx) => {
+    animateLayout();
+    set((state) => ({
+      exercises: [
+        ...state.exercises,
+        {
+          id: uuidv4(),
+          name: libEx.name,
+          category: libEx.category,
+          tags: libEx.tags,
+          sets: [createDefaultSet(libEx.category)]
+        }
+      ]
+    }));
+  },
 
-  addCustomExercise: (name) => set((state) => ({
-    exercises: [
-      ...state.exercises,
-      {
-        id: uuidv4(),
-        name,
-        category: state.category,
-        tags: [],
-        sets: [createDefaultSet(state.category)]
-      }
-    ]
-  })),
+  addCustomExercise: (name) => {
+    animateLayout();
+    set((state) => ({
+      exercises: [
+        ...state.exercises,
+        {
+          id: uuidv4(),
+          name,
+          category: state.category,
+          tags: [],
+          sets: [createDefaultSet(state.category)]
+        }
+      ]
+    }));
+  },
 
-  removeExercise: (id) => set((state) => ({
-    exercises: state.exercises.filter(ex => ex.id !== id)
-  })),
+  removeExercise: (id) => {
+    animateLayout();
+    set((state) => ({
+      exercises: state.exercises.filter(ex => ex.id !== id)
+    }));
+  },
 
-  addSet: (exerciseId) => set((state) => ({
-    exercises: state.exercises.map(ex => {
-      if (ex.id === exerciseId) {
-        return {
-          ...ex,
-          sets: [...ex.sets, createDefaultSet(ex.category)]
-        };
-      }
-      return ex;
-    })
-  })),
+  addSet: (exerciseId) => {
+    animateLayout();
+    set((state) => ({
+      exercises: state.exercises.map(ex => {
+        if (ex.id === exerciseId) {
+          const lastSet = ex.sets[ex.sets.length - 1];
+          return {
+            ...ex,
+            sets: [...ex.sets, { ...lastSet, id: uuidv4() }]
+          };
+        }
+        return ex;
+      })
+    }));
+  },
 
-  removeSet: (exerciseId, setId) => set((state) => ({
-    exercises: state.exercises.map(ex => {
-      if (ex.id === exerciseId) {
-        return { ...ex, sets: ex.sets.filter(s => s.id !== setId) };
-      }
-      return ex;
-    })
-  })),
+  removeSet: (exerciseId, setId) => {
+    animateLayout();
+    set((state) => ({
+      exercises: state.exercises.map(ex => {
+        if (ex.id === exerciseId) {
+          return { ...ex, sets: ex.sets.filter(s => s.id !== setId) };
+        }
+        return ex;
+      })
+    }));
+  },
 
   updateSet: (exerciseId, setId, updates) => set((state) => ({
     exercises: state.exercises.map(ex => {

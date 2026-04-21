@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import * as Haptics from 'expo-haptics';
 
 export type SprintyStatus = 'idle' | 'active' | 'success' | 'error' | 'warning' | 'rest';
 
@@ -21,10 +22,21 @@ export const useSprintyStore = create<SprintyState>((set) => ({
 
   setStatus: (status, message = null) => {
     const isVisible = status !== 'idle' && status !== 'rest';
+    if (isVisible) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     set({ status, message, isVisible });
   },
 
   showFeedback: (status, message, duration = 3000) => {
+    if (status === 'success') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else if (status === 'error') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+
     set({ status, message, isVisible: true });
     
     if (duration > 0) {
