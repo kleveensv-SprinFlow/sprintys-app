@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Pressable, Modal, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Pressable, Modal, TouchableWithoutFeedback, Platform } from 'react-native';
 import { useWeatherStore } from '../../store/weatherStore';
 import { weatherAdviceService } from '../../services/weatherAdviceService';
 import { theme } from '../../core/theme';
