@@ -79,6 +79,7 @@ export const SprintyFeedback: React.FC = () => {
       case 'error': return theme.colors.error;
       case 'warning': return theme.colors.warning;
       case 'active': return theme.colors.text;
+      case 'info': return '#3498db'; // Soft blue for info/weather
       default: return theme.colors.textSecondary;
     }
   };
@@ -96,13 +97,15 @@ export const SprintyFeedback: React.FC = () => {
         }
       ]}
     >
-      <GlowView variant={status === 'success' ? 'gold' : 'surface'}>
+      <GlowView variant={status === 'success' ? 'gold' : status === 'info' ? 'surface' : 'surface'}>
         <GlassView style={styles.glassContainer}>
           <View style={styles.content}>
             <View style={[styles.indicator, { backgroundColor: getStatusColor(status) }]} />
             <View style={styles.textContainer}>
               <Text style={styles.statusLabel}>
-                {status === 'active' ? 'ANALYSE EN COURS...' : status.toUpperCase()}
+                {status === 'active' ? 'ANALYSE EN COURS...' : 
+                 status === 'info' ? 'COACHING MÉTÉO' : 
+                 status.toUpperCase()}
               </Text>
               {message && <Text style={styles.messageText}>{message}</Text>}
               {status === 'active' && !message && (
