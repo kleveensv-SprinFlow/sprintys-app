@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { useWorkoutStore } from '../../../store/workoutStore';
 import { Card } from '../../../shared/components/Card';
 import { theme } from '../../../core/theme';
+import { EmptyState } from '../../../shared/components/EmptyState';
 
 export const WorkoutHistory: React.FC = React.memo(() => {
   const { history } = useWorkoutStore();
@@ -14,9 +15,10 @@ export const WorkoutHistory: React.FC = React.memo(() => {
 
   if (history.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>Aucune séance enregistrée.</Text>
-      </View>
+      <EmptyState 
+        title="Aucune séance" 
+        message="Vous n'avez pas encore de séances enregistrées. Votre progression s'affichera ici dès la fin de votre premier entraînement." 
+      />
     );
   }
 

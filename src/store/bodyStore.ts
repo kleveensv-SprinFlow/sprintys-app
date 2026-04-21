@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { bodyService, BodyMetric } from '../services/bodyService';
+import { useSprintyStore } from './sprintyStore';
 
 interface BodyState {
   metrics: BodyMetric[];
@@ -20,7 +21,7 @@ export const useBodyStore = create<BodyState>((set, get) => ({
       const data = await bodyService.fetchMetrics(athleteId);
       set({ metrics: data || [], isLoading: false });
     } catch (error) {
-      console.error('Failed to load metrics:', error);
+      useSprintyStore.getState().showFeedback('error', "Impossible de charger vos données corporelles.");
       set({ isLoading: false });
     }
   },
@@ -38,7 +39,7 @@ export const useBodyStore = create<BodyState>((set, get) => ({
       const data = await bodyService.fetchMetrics(athleteId);
       set({ metrics: data || [], isLoading: false });
     } catch (error) {
-      console.error('Failed to add metric:', error);
+      useSprintyStore.getState().showFeedback('error', "Échec de l'enregistrement. Vérifiez votre connexion.");
       set({ isLoading: false });
       throw error;
     }

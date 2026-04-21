@@ -3,6 +3,7 @@ import { FlatList, StyleSheet, ActivityIndicator, View, Text } from 'react-nativ
 import { useCoachStore } from '../../../store/coachStore';
 import { AthleteCard } from './AthleteCard';
 import { theme } from '../../../core/theme';
+import { EmptyState } from '../../../shared/components/EmptyState';
 
 export const AthleteList: React.FC = React.memo(() => {
   const { athletes, isLoading, fetchAthletes } = useCoachStore();
@@ -16,6 +17,15 @@ export const AthleteList: React.FC = React.memo(() => {
       <View style={styles.center}>
         <ActivityIndicator color={theme.colors.accent} />
       </View>
+    );
+  }
+
+  if (athletes.length === 0) {
+    return (
+      <EmptyState 
+        title="Aucun athlète" 
+        message="Votre liste d'athlètes est vide. Commencez par inviter vos sportifs pour planifier leurs séances." 
+      />
     );
   }
 

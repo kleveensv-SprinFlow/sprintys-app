@@ -8,6 +8,7 @@ import { insightService, Insight } from '../../../src/services/insightService';
 import { workoutService } from '../../../src/services/workoutService';
 import { WorkoutHistoryItem } from '../../../src/features/workout/types';
 import { useCoachStore } from '../../../src/store/coachStore';
+import { EmptyState } from '../../../src/shared/components/EmptyState';
 
 export default function AthleteDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -75,7 +76,10 @@ export default function AthleteDetailScreen() {
           ))
         )}
         {insights.length === 0 && !loading && (
-          <Text style={styles.emptyText}>Aucun insight généré pour le moment.</Text>
+          <EmptyState 
+            title="Aucun Insight" 
+            message="Sprinty n'a pas encore généré d'analyses pour cet athlète. Les insights apparaîtront après ses premières séances." 
+          />
         )}
 
         <View style={styles.actions}>

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { WorkoutSession, Exercise, Set, WorkoutHistoryItem } from '../features/workout/types';
 import { workoutService } from '../services/workoutService';
+import { useSprintyStore } from './sprintyStore';
 import * as Haptics from 'expo-haptics';
 import uuid from 'react-native-uuid';
 
@@ -159,7 +160,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         isLoading: false,
       });
     } catch (error) {
-      console.error('Failed to complete workout:', error);
+      useSprintyStore.getState().showFeedback('error', "Échec de la synchronisation de la séance.");
       set({ isLoading: false });
     }
   },
