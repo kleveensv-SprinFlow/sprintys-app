@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
-import { useWorkoutBuilderStore } from '../../../store/workoutBuilderStore';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity } from 'react-native';
+import { useWorkoutBuilderStore, WorkoutCategory } from '../../../store/workoutBuilderStore';
 import { ExerciseBuilderCard } from './ExerciseBuilderCard';
+import { ExerciseLibraryModal } from './ExerciseLibraryModal';
 import { Button } from '../../../shared/components/Button';
 import { Input } from '../../../shared/components/Input';
 import { theme } from '../../../core/theme';
@@ -11,15 +12,20 @@ interface Props {
   athleteId: string;
 }
 
+const CATEGORIES: WorkoutCategory[] = ['Musculation', 'Lactique', 'Aérobie', 'Escalier', 'Technique'];
+
 export const WorkoutBuilder: React.FC<Props> = ({ athleteId }) => {
   const { 
     currentSessionName, 
     setSessionName, 
+    category,
+    setCategory,
     exercises, 
-    addExercise, 
     initBuilder,
     resetBuilder 
   } = useWorkoutBuilderStore();
+  
+  const [libraryVisible, setLibraryVisible] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -27,23 +33,37 @@ export const WorkoutBuilder: React.FC<Props> = ({ athleteId }) => {
     return () => resetBuilder();
   }, [athleteId]);
 
-  const handleSave = () => {
-    // Logic to save to Supabase will go here
-    console.log('Saving workout for', athleteId, exercises);
-    router.back();
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.welcome}>BUILDER DE SÉANCE</Text>
+        <Text style={styles.welcome}>BUILDER DE SÉANCE D'ÉLITE</Text>
         <Input
-          placeholder="Nom de la séance (ex: Force Bas du Corps)"
+          placeholder="Nom de la séance..."
           value={currentSessionName}
           onChangeText={setSessionName}
           style={styles.sessionInput}
           containerStyle={styles.sessionInputContainer}
         />
+        
+        <View style={styles.catSelector}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {CATEGORIES.map(cat => (
+              <TouchableOpacity
+                key={cat}
+                onPress={() => setCategory(cat)}
+                style={[
+                  styles.catBtn,
+                  category === cat && styles.catBtnActive
+                ]}
+              >
+                <Text style={[
+                  styles.catBtnText,
+                  category === cat && styles.catBtnTextActive
+                ]}>{cat.toUpperCase()}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -52,9 +72,9 @@ export const WorkoutBuilder: React.FC<Props> = ({ athleteId }) => {
         ))}
 
         <Button
-          title="+ AJOUTER UN EXERCICE"
+          title="+ AJOUTER DEPUIS LA BIBLIOTHÈQUE"
           variant="outline"
-          onPress={() => addExercise('Nouvel Exercice')}
+          onPress={() => setLibraryVisible(true)}
           style={styles.addExBtn}
         />
       </ScrollView>
@@ -63,7 +83,7 @@ export const WorkoutBuilder: React.FC<Props> = ({ athleteId }) => {
         <Button
           title="VALIDER ET ASSIGNER"
           variant="primary"
-          onPress={handleSave}
+          onPress={() => router.back()}
           style={styles.saveBtn}
           disabled={exercises.length === 0}
         />
@@ -73,6 +93,11 @@ export const WorkoutBuilder: React.FC<Props> = ({ athleteId }) => {
           onPress={() => router.back()}
         />
       </View>
+
+      <ExerciseLibraryModal 
+        visible={libraryVisible} 
+        onClose={() => setLibraryVisible(false)} 
+      />
     </SafeAreaView>
   );
 };
@@ -97,16 +122,40 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
   sessionInputContainer: {
-    marginBottom: 0,
+    marginBottom: theme.spacing.md,
   },
   sessionInput: {
     fontSize: 20,
     fontWeight: theme.typography.fontWeights.bold as any,
     color: theme.colors.text,
   },
+  catSelector: {
+    flexDirection: 'row',
+  },
+  catBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginRight: 8,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  catBtnActive: {
+    borderColor: theme.colors.accent,
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+  },
+  catBtnText: {
+    color: theme.colors.textMuted,
+    fontSize: 9,
+    fontWeight: theme.typography.fontWeights.bold as any,
+  },
+  catBtnTextActive: {
+    color: theme.colors.accent,
+  },
   scrollContent: {
     padding: theme.spacing.xl,
-    paddingBottom: 120,
+    paddingBottom: 150,
   },
   addExBtn: {
     marginTop: theme.spacing.md,
