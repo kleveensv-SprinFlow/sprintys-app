@@ -14,7 +14,7 @@ import {
   Modal,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '../services/supabaseClient';
 import { EXERCISE_LIBRARY } from '../data/exercises';
@@ -24,10 +24,15 @@ const CATEGORIES = ['Haltérophilie', 'Jambes', 'Haut du Corps', 'Tronc / Gainag
 
 const AddWorkoutScreen = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const [workoutType, setWorkoutType] = useState('Vitesse');
   const [rpe, setRpe] = useState(7);
   const [notes, setNotes] = useState('');
-  const [workoutDate, setWorkoutDate] = useState(new Date());
+  
+  // Initialiser la date à partir des params ou de la date actuelle
+  const initialDate = route.params?.selectedDate ? new Date(route.params.selectedDate) : new Date();
+  const [workoutDate, setWorkoutDate] = useState(initialDate);
+  
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
