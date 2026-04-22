@@ -3,6 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
 import DashboardScreen from '../screens/DashboardScreen';
+import WorkoutScreen from '../screens/WorkoutScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -22,7 +23,7 @@ const TabNavigator = () => {
       }}
     >
       <Tab.Screen name="Accueil" component={DashboardScreen} />
-      <Tab.Screen name="Entraînement" component={EmptyScreen} />
+      <Tab.Screen name="Entraînement" component={WorkoutScreen} />
       <Tab.Screen name="Profil" component={EmptyScreen} />
     </Tab.Navigator>
   );
