@@ -11,6 +11,7 @@ import OnboardingScreen from './src/screens/OnboardingScreen';
 import TabNavigator from './src/navigation/TabNavigator';
 import CheckInScreen from './src/screens/CheckInScreen';
 import AddWorkoutScreen from './src/screens/AddWorkoutScreen';
+import DayDetailScreen from './src/screens/DayDetailScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -121,6 +122,10 @@ export default function App() {
                 component={AddWorkoutScreen} 
                 options={{ presentation: 'modal' }} 
               />
+              <Stack.Screen 
+                name="DayDetail" 
+                component={DayDetailScreen} 
+              />
             </>
           ) : (
             <>
@@ -136,6 +141,10 @@ export default function App() {
                 name="AddWorkout" 
                 component={AddWorkoutScreen} 
                 options={{ presentation: 'modal' }} 
+              />
+              <Stack.Screen 
+                name="DayDetail" 
+                component={DayDetailScreen} 
               />
             </>
           )}

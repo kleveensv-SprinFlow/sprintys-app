@@ -130,17 +130,22 @@ const WorkoutScreen = () => {
               return (
                 <View key={index} style={[styles.dayCardWrapper, isToday && styles.todayCard]}>
                   <BlurView intensity={40} tint="default" style={styles.dayCard}>
-                    <View style={styles.dayCardHeader}>
-                      <Text style={[styles.dayName, isToday && styles.todayText]}>
-                        {dayName.charAt(0).toUpperCase() + dayName.slice(1)} {dayNum}
-                      </Text>
-                      <TouchableOpacity 
-                        onPress={() => navigation.navigate('AddWorkout', { selectedDate: date.toISOString() })}
-                        style={styles.addDayBtn}
-                      >
-                        <Text style={styles.addDayBtnText}>+</Text>
-                      </TouchableOpacity>
-                    </View>
+                    <TouchableOpacity 
+                      activeOpacity={0.7}
+                      onPress={() => navigation.navigate('DayDetail', { date: date.toISOString() })}
+                    >
+                      <View style={styles.dayCardHeader}>
+                        <Text style={[styles.dayName, isToday && styles.todayText]}>
+                          {dayName.charAt(0).toUpperCase() + dayName.slice(1)} {dayNum}
+                        </Text>
+                        <TouchableOpacity 
+                          onPress={() => navigation.navigate('AddWorkout', { selectedDate: date.toISOString() })}
+                          style={styles.addDayBtn}
+                        >
+                          <Text style={styles.addDayBtnText}>+</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </TouchableOpacity>
                     
                     <View style={styles.dayCardContent}>
                       {dayWorkouts.length > 0 ? (
@@ -148,7 +153,7 @@ const WorkoutScreen = () => {
                       ) : (
                         <TouchableOpacity 
                           style={styles.emptyDayAction}
-                          onPress={() => navigation.navigate('AddWorkout', { selectedDate: date.toISOString() })}
+                          onPress={() => navigation.navigate('DayDetail', { date: date.toISOString() })}
                         >
                           <Text style={styles.emptyDayText}>+ Ajouter une séance ou Repos</Text>
                         </TouchableOpacity>
