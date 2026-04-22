@@ -21,6 +21,8 @@ const CheckInScreen = () => {
   const navigation = useNavigation<any>();
   const [bedTime, setBedTime] = useState('23:00');
   const [wakeTime, setWakeTime] = useState('07:00');
+  const [idealSleep, setIdealSleep] = useState(8);
+  const [latency, setLatency] = useState(30);
   const [energyScore, setEnergyScore] = useState(5);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,20 +45,15 @@ const CheckInScreen = () => {
     let diff = wake - bed;
     if (diff <= 0) diff += 1440; // Ajouter 24h
 
-    const totalHours = diff / 60;
+    // Sommeil réel = Temps au lit - Latence
+    const actualSleepMins = Math.max(0, diff - latency);
+    const totalHours = actualSleepMins / 60;
     const h = Math.floor(totalHours);
     const m = Math.round((totalHours - h) * 60);
 
-    // Scoring logic: 8h = 10, 7h = 8, 6h = 6, 5h = 4, <4h = 2
-    let score = 2;
-    if (totalHours >= 8) score = 10;
-    else if (totalHours >= 7.5) score = 9;
-    else if (totalHours >= 7) score = 8;
-    else if (totalHours >= 6.5) score = 7;
-    else if (totalHours >= 6) score = 6;
-    else if (totalHours >= 5.5) score = 5;
-    else if (totalHours >= 5) score = 4;
-    else if (totalHours >= 4.5) score = 3;
+    // Score proportionnel au besoin idéal
+    const idealSleepMins = idealSleep * 60;
+    const score = Math.min(10, Math.round((actualSleepMins / idealSleepMins) * 10));
 
     return { hours: h, mins: m, score };
   };
@@ -141,6 +138,26 @@ const CheckInScreen = () => {
           <BlurView intensity={40} tint="default" style={styles.glassCard}>
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Qualité du sommeil</Text>
+              
+              {/* Besoin Idéal */}
+              <View style={styles.idealRow}>
+                <Text style={styles.idealLabel}>Besoin idéal : {idealSleep}h</Text>
+                <View style={styles.counterRow}>
+                  <TouchableOpacity 
+                    style={styles.counterBtn} 
+                    onPress={() => setIdealSleep(Math.max(6, idealSleep - 0.5))}
+                  >
+                    <Text style={styles.counterBtnText}>-</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.counterBtn} 
+                    onPress={() => setIdealSleep(Math.min(12, idealSleep + 0.5))}
+                  >
+                    <Text style={styles.counterBtnText}>+</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
               <View style={styles.timeInputRow}>
                 <View style={styles.timeInputContainer}>
                   <Text style={styles.timeInputLabel}>Coucher</Text>
@@ -163,8 +180,37 @@ const CheckInScreen = () => {
                   />
                 </View>
               </View>
+
+              {/* Latence */}
+              <View style={styles.latencyContainer}>
+                <Text style={styles.timeInputLabel}>Endormissement (Latence)</Text>
+                <View style={styles.latencyRow}>
+                  {[
+                    { label: 'Rapide', val: 15 },
+                    { label: 'Normal', val: 30 },
+                    { label: 'Long', val: 60 }
+                  ].map((item) => (
+                    <TouchableOpacity
+                      key={item.val}
+                      style={[
+                        styles.latencyPill,
+                        latency === item.val && styles.latencyPillSelected
+                      ]}
+                      onPress={() => setLatency(item.val)}
+                    >
+                      <Text style={[
+                        styles.latencyText,
+                        latency === item.val && styles.latencyTextSelected
+                      ]}>
+                        {item.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
               <Text style={styles.sleepSummary}>
-                Durée estimée : {getSleepStats().hours}h {getSleepStats().mins}m (Score : {getSleepStats().score}/10)
+                Sommeil réel : {getSleepStats().hours}h {getSleepStats().mins}m (Score : {getSleepStats().score}/10)
               </Text>
             </View>
 
@@ -342,6 +388,68 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     marginTop: 8,
+  },
+  idealRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    padding: 12,
+    borderRadius: 12,
+  },
+  idealLabel: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  counterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  counterBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12,
+  },
+  counterBtnText: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  latencyContainer: {
+    marginBottom: 16,
+  },
+  latencyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  latencyPill: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    marginHorizontal: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  latencyPillSelected: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
+  },
+  latencyText: {
+    color: '#8E8E93',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  latencyTextSelected: {
+    color: '#000000',
   },
   saveButton: {
     backgroundColor: '#FFFFFF',
