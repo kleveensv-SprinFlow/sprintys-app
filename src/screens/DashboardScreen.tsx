@@ -48,27 +48,35 @@ const DashboardScreen = () => {
 
         if (profileData) setProfile(profileData);
 
-        // 2. Charger le dernier check-in
+        // 2. Charger les 3 derniers check-ins
         const { data: checkinData } = await supabase
           .from('daily_checkins')
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+          .limit(3);
 
-        if (checkinData) {
+        if (checkinData && checkinData.length > 0) {
           const today = new Date().toISOString().split('T')[0];
-          const checkinDate = checkinData.created_at.split('T')[0];
+          const latestCheckinDate = checkinData[0].created_at.split('T')[0];
+          setHasCheckedInToday(today === latestCheckinDate);
 
-          if (today === checkinDate) {
-            setHasCheckedInToday(true);
-            const score = Math.round(((checkinData.sleep_score + checkinData.energy_score) / 20) * 100);
-            setDailyScore(score);
-          } else {
-            setHasCheckedInToday(false);
-            setDailyScore(null);
-          }
+          // Calcul pondéré sur 3 jours (Dette de sommeil / Fatigue cumulée)
+          const weights = [0.5, 0.3, 0.2];
+          let totalScore = 0;
+          let totalWeight = 0;
+
+          checkinData.forEach((checkin, index) => {
+            const dailyBaseScore = ((checkin.sleep_score + checkin.energy_score) / 20) * 100;
+            totalScore += dailyBaseScore * weights[index];
+            totalWeight += weights[index];
+          });
+
+          const finalScore = Math.round(totalScore / totalWeight);
+          setDailyScore(finalScore);
+        } else {
+          setHasCheckedInToday(false);
+          setDailyScore(null);
         }
       }
     } catch (error) {
