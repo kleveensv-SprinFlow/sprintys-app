@@ -16,15 +16,32 @@ import { BlurView } from 'expo-blur';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../services/supabaseClient';
 
-const WORKOUT_TYPES = ['Sprint', 'Musculation', 'Aérobie', 'PPG', 'Récupération'];
+const WORKOUT_TYPES = ['Vitesse', 'Lactique', 'Aérobie', 'Départs/Blocs', 'Musculation/Haltéro'];
 
 const AddWorkoutScreen = () => {
   const navigation = useNavigation<any>();
-  const [workoutType, setWorkoutType] = useState('Sprint');
+  const [workoutType, setWorkoutType] = useState('Vitesse');
   const [duration, setDuration] = useState('90');
   const [rpe, setRpe] = useState(7);
   const [notes, setNotes] = useState('');
+  const [blocks, setBlocks] = useState([{ sets: '1', distance: '100', unit: 'm' }]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const addBlock = () => {
+    setBlocks([...blocks, { sets: '1', distance: '100', unit: 'm' }]);
+  };
+
+  const updateBlock = (index: number, key: string, value: string) => {
+    const newBlocks = [...blocks];
+    (newBlocks[index] as any)[key] = value;
+    setBlocks(newBlocks);
+  };
+
+  const removeBlock = (index: number) => {
+    if (blocks.length > 1) {
+      setBlocks(blocks.filter((_, i) => i !== index));
+    }
+  };
 
   const handleSave = async () => {
     if (!duration || isNaN(parseInt(duration))) {
@@ -37,12 +54,20 @@ const AddWorkoutScreen = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) throw new Error('Utilisateur non identifié');
 
+      let finalNotes = notes;
+      if (workoutType !== 'Musculation/Haltéro') {
+        const blocksText = blocks
+          .map(b => `${b.sets}x ${b.distance}${b.unit}`)
+          .join(' | ');
+        finalNotes = `CŒUR DE SÉANCE : ${blocksText}\n\nÉCHAUFFEMENT & NOTES : ${notes}`;
+      }
+
       const { error } = await supabase.from('workouts').insert({
         user_id: session.user.id,
         type: workoutType,
         duration_minutes: parseInt(duration),
         rpe: rpe,
-        notes: notes,
+        notes: finalNotes,
         created_at: new Date().toISOString(),
       });
 
@@ -132,12 +157,52 @@ const AddWorkoutScreen = () => {
               </View>
             </View>
 
+            {/* Cœur de séance (Blocs) - Uniquement si pas Muscu */}
+            {workoutType !== 'Musculation/Haltéro' && (
+              <View style={styles.section}>
+                <Text style={styles.sectionLabel}>Cœur de séance (Blocs)</Text>
+                {blocks.map((block, index) => (
+                  <View key={index} style={styles.blockRow}>
+                    <TextInput
+                      style={[styles.input, styles.blockInputSmall]}
+                      value={block.sets}
+                      onChangeText={(val) => updateBlock(index, 'sets', val)}
+                      keyboardType="numeric"
+                      placeholder="Sér."
+                    />
+                    <Text style={styles.blockX}>x</Text>
+                    <TextInput
+                      style={[styles.input, styles.blockInputMedium]}
+                      value={block.distance}
+                      onChangeText={(val) => updateBlock(index, 'distance', val)}
+                      keyboardType="numeric"
+                      placeholder="Dist."
+                    />
+                    <TouchableOpacity 
+                      style={styles.unitToggle}
+                      onPress={() => updateBlock(index, 'unit', block.unit === 'm' ? 'sec' : 'm')}
+                    >
+                      <Text style={styles.unitText}>{block.unit}</Text>
+                    </TouchableOpacity>
+                    {blocks.length > 1 && (
+                      <TouchableOpacity onPress={() => removeBlock(index)} style={styles.removeBtn}>
+                        <Text style={styles.removeBtnText}>✕</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))}
+                <TouchableOpacity style={styles.addBlockBtn} onPress={addBlock}>
+                  <Text style={styles.addBlockText}>+ Ajouter un bloc</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             {/* Notes */}
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Notes / Détails</Text>
+              <Text style={styles.sectionLabel}>Échauffement & Notes supplémentaires</Text>
               <TextInput
                 style={styles.textArea}
-                placeholder="Contenu de la séance, sensations..."
+                placeholder="Détails, sensations, départs chariot..."
                 placeholderTextColor="#8E8E93"
                 multiline
                 numberOfLines={4}
@@ -193,6 +258,16 @@ const styles = StyleSheet.create({
   tagText: { color: '#8E8E93', fontSize: 14, fontWeight: '500' },
   tagTextSelected: { color: '#000000' },
   input: { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 12, padding: 16, color: '#FFFFFF', fontSize: 18, fontWeight: '600', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
+  blockRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  blockInputSmall: { width: 60, textAlign: 'center', padding: 10 },
+  blockInputMedium: { flex: 1, textAlign: 'center', padding: 10 },
+  blockX: { color: '#8E8E93', marginHorizontal: 10, fontSize: 18, fontWeight: '700' },
+  unitToggle: { backgroundColor: 'rgba(255, 255, 255, 0.1)', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, marginLeft: 10, minWidth: 50, alignItems: 'center' },
+  unitText: { color: '#FFFFFF', fontWeight: '700' },
+  removeBtn: { marginLeft: 10, padding: 5 },
+  removeBtnText: { color: '#FF3B30', fontSize: 20 },
+  addBlockBtn: { marginTop: 8, paddingVertical: 8 },
+  addBlockText: { color: '#32ADE6', fontWeight: '600', fontSize: 15 },
   rpeGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   rpePill: { width: '18%', height: 44, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 10, backgroundColor: 'rgba(255, 255, 255, 0.05)' },
   rpePillSelected: { backgroundColor: '#FFFFFF', borderColor: '#FFFFFF' },
