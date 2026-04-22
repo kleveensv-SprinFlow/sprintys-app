@@ -10,6 +10,7 @@ import AuthScreen from './src/screens/AuthScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import TabNavigator from './src/navigation/TabNavigator';
 import CheckInScreen from './src/screens/CheckInScreen';
+import AddWorkoutScreen from './src/screens/AddWorkoutScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -108,7 +109,19 @@ export default function App() {
           {!session ? (
             <Stack.Screen name="Auth" component={AuthScreen} />
           ) : hasCompletedOnboarding === true ? (
-            <Stack.Screen name="MainTabs" component={TabNavigator} />
+            <>
+              <Stack.Screen name="MainTabs" component={TabNavigator} />
+              <Stack.Screen 
+                name="CheckIn" 
+                component={CheckInScreen} 
+                options={{ presentation: 'modal' }} 
+              />
+              <Stack.Screen 
+                name="AddWorkout" 
+                component={AddWorkoutScreen} 
+                options={{ presentation: 'modal' }} 
+              />
+            </>
           ) : (
             <>
               {/* Par défaut ou si l'onboarding n'est pas fini */}
@@ -117,6 +130,11 @@ export default function App() {
               <Stack.Screen 
                 name="CheckIn" 
                 component={CheckInScreen} 
+                options={{ presentation: 'modal' }} 
+              />
+              <Stack.Screen 
+                name="AddWorkout" 
+                component={AddWorkoutScreen} 
                 options={{ presentation: 'modal' }} 
               />
             </>

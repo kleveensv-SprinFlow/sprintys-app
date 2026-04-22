@@ -9,10 +9,13 @@ import {
   Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { useNavigation } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
 const WorkoutScreen = () => {
+  const navigation = useNavigation<any>();
+
   return (
     <View style={styles.container}>
       {/* Background with light effects */}
@@ -33,7 +36,10 @@ const WorkoutScreen = () => {
         </View>
 
         {/* Add Session Button */}
-        <TouchableOpacity style={styles.addButton}>
+        <TouchableOpacity 
+          style={styles.addButton}
+          onPress={() => navigation.navigate('AddWorkout')}
+        >
           <Text style={styles.addButtonText}>Ajouter une séance +</Text>
         </TouchableOpacity>
 
