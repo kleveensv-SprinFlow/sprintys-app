@@ -18,6 +18,15 @@ import WeatherBadge from '../shared/components/WeatherBadge';
 
 const { width } = Dimensions.get('window');
 
+const BAG_CHECKLIST_ITEMS = [
+  'Pointes & Pointes de rechange',
+  'Maillot & Épingles',
+  'Chaussures d\'échauffement',
+  'Bouteille d\'eau & Boisson d\'effort',
+  'Goûter / Barres',
+  'Rouleau / Elastiques'
+];
+
 const DashboardScreen = () => {
   const navigation = useNavigation<any>();
   const isFocused = useIsFocused();
@@ -26,8 +35,10 @@ const DashboardScreen = () => {
   const [dailyScore, setDailyScore] = useState<number | null>(null);
   const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
   const [lastWorkout, setLastWorkout] = useState<any>(null);
+  const [todayCompetition, setTodayCompetition] = useState<any>(null);
   const [weather, setWeather] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [bagChecked, setBagChecked] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (isFocused) {
@@ -86,6 +97,23 @@ const DashboardScreen = () => {
           setDailyScore(null);
         }
 
+        // Détection Compétition Aujourd'hui
+        const todayStr = new Date().toISOString().split('T')[0];
+        const { data: compData } = await supabase
+          .from('workouts')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('is_competition', true)
+          .gte('created_at', `${todayStr}T00:00:00`)
+          .lte('created_at', `${todayStr}T23:59:59`)
+          .limit(1);
+
+        if (compData && compData.length > 0) {
+          setTodayCompetition(compData[0]);
+        } else {
+          setTodayCompetition(null);
+        }
+
         const { data: workoutData } = await supabase
           .from('workouts')
           .select('*')
@@ -104,7 +132,14 @@ const DashboardScreen = () => {
     }
   };
 
+  const toggleBagItem = (item: string) => {
+    setBagChecked(prev => ({ ...prev, [item]: !prev[item] }));
+  };
+
   const getSprintyAdvice = (shapeScore: number | null, workout: any) => {
+    if (todayCompetition) {
+      return "JOUR DE COURSE. C'est le moment de tout donner. Concentre-toi sur ton processus d'échauffement et reste dans ta bulle.";
+    }
     if (!hasCheckedInToday || shapeScore === null) {
       return "Fais ton check-in pour recevoir ton analyse de performance.";
     }
@@ -153,6 +188,26 @@ const DashboardScreen = () => {
             </View>
           </TouchableOpacity>
         </View>
+
+        {/* Focus Compétition (Jour J) */}
+        {todayCompetition && (
+          <BlurView intensity={60} tint="default" style={[styles.mainCard, styles.compFocusCard]}>
+            <Text style={styles.compFocusTitle}>FOCUS COMPÉTITION</Text>
+            <Text style={styles.compFocusMain}>JOUR DE COURSE - {todayCompetition.city?.toUpperCase() || 'STADE'}</Text>
+            
+            <View style={styles.bagSection}>
+              <Text style={styles.bagTitle}>MON SAC</Text>
+              {BAG_CHECKLIST_ITEMS.map((item, idx) => (
+                <TouchableOpacity key={idx} style={styles.checkItem} onPress={() => toggleBagItem(item)}>
+                  <View style={[styles.checkbox, bagChecked[item] && styles.checkboxActive]}>
+                    {bagChecked[item] && <View style={styles.checkInner} />}
+                  </View>
+                  <Text style={[styles.checkText, bagChecked[item] && styles.checkTextActive]}>{item.toUpperCase()}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </BlurView>
+        )}
 
         {/* État de Forme */}
         <BlurView intensity={40} tint="default" style={styles.mainCard}>
@@ -246,6 +301,17 @@ const styles = StyleSheet.create({
   statDesc: { color: '#00E5FF', fontSize: 10, fontWeight: '700', marginTop: 2 },
   weatherAdviceContainer: { borderTopWidth: 1, borderTopColor: 'rgba(255, 255, 255, 0.05)', paddingTop: 16 },
   weatherAdvice: { color: '#FFFFFF', fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
+  compFocusCard: { borderColor: '#FFD700', backgroundColor: 'rgba(255, 215, 0, 0.05)' },
+  compFocusTitle: { fontSize: 12, fontWeight: '900', color: '#FFD700', marginBottom: 12, letterSpacing: 1 },
+  compFocusMain: { fontSize: 20, fontWeight: '900', color: '#FFFFFF', marginBottom: 24 },
+  bagSection: { borderTopWidth: 1, borderTopColor: 'rgba(255, 215, 0, 0.2)', paddingTop: 16 },
+  bagTitle: { fontSize: 10, fontWeight: '900', color: '#FFD700', marginBottom: 12, letterSpacing: 1.5 },
+  checkItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  checkbox: { width: 18, height: 18, borderRadius: 4, borderWidth: 1.5, borderColor: '#00E5FF', marginRight: 12, justifyContent: 'center', alignItems: 'center' },
+  checkboxActive: { backgroundColor: '#00E5FF' },
+  checkInner: { width: 8, height: 8, backgroundColor: '#000000', borderRadius: 2 },
+  checkText: { color: '#8E8E93', fontSize: 11, fontWeight: '700' },
+  checkTextActive: { color: '#FFFFFF' },
 });
 
 export default DashboardScreen;
