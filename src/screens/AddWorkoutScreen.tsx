@@ -18,6 +18,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '../services/supabaseClient';
 import { EXERCISE_LIBRARY } from '../data/exercises';
+import { notificationService } from '../services/notificationService';
 
 const WORKOUT_TYPES = ['Vitesse', 'Lactique', 'Aérobie', 'Départs/Blocs', 'Musculation/Haltéro'];
 const CATEGORIES = ['Haltérophilie', 'Jambes', 'Haut du Corps', 'Tronc / Gainage'];
@@ -225,6 +226,14 @@ const AddWorkoutScreen = () => {
         : await supabase.from('workouts').insert(payload);
 
       if (error) throw error;
+
+      if (isCompetition) {
+        const hasPermission = await notificationService.requestPermissions();
+        if (hasPermission) {
+          await notificationService.scheduleCompetitionReminder(workoutDate, city);
+        }
+      }
+
       navigation.goBack();
     } catch (error: any) {
       Alert.alert('Erreur', error.message);
