@@ -21,7 +21,6 @@ const WORKOUT_TYPES = ['Vitesse', 'Lactique', 'Aérobie', 'Départs/Blocs', 'Mus
 const AddWorkoutScreen = () => {
   const navigation = useNavigation<any>();
   const [workoutType, setWorkoutType] = useState('Vitesse');
-  const [duration, setDuration] = useState('90');
   const [rpe, setRpe] = useState(7);
   const [notes, setNotes] = useState('');
   const [blocks, setBlocks] = useState([
@@ -47,13 +46,11 @@ const AddWorkoutScreen = () => {
 
   const formatPerformance = (val: string) => {
     if (!val) return '';
-    // Supprime tout ce qui n'est pas chiffre
     const cleaned = val.replace(/\D/g, '');
     if (cleaned.length <= 2) return cleaned;
     if (cleaned.length <= 4) {
       return `${cleaned.slice(0, cleaned.length - 2)}"${cleaned.slice(-2)}`;
     }
-    // Pour les formats plus longs (MM:SS.CC)
     const cc = cleaned.slice(-2);
     const ss = cleaned.slice(-4, -2);
     const mm = cleaned.slice(0, -4);
@@ -61,11 +58,6 @@ const AddWorkoutScreen = () => {
   };
 
   const handleSave = async () => {
-    if (!duration || isNaN(parseInt(duration))) {
-      Alert.alert('Erreur', 'Veuillez saisir une durée valide en minutes.');
-      return;
-    }
-
     setIsSubmitting(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -86,7 +78,7 @@ const AddWorkoutScreen = () => {
       const { error } = await supabase.from('workouts').insert({
         user_id: session.user.id,
         type: workoutType,
-        duration_minutes: parseInt(duration),
+        duration_minutes: 0, // Plus de saisie de durée
         rpe: rpe,
         notes: finalNotes,
         created_at: new Date().toISOString(),
@@ -145,6 +137,7 @@ const AddWorkoutScreen = () => {
                 <Text style={styles.sectionLabel}>Cœur de séance (Blocs)</Text>
                 {blocks.map((block, index) => (
                   <View key={index} style={styles.blockContainer}>
+                    {/* Ligne 1 : Séries x Distance */}
                     <View style={styles.blockInputGrid}>
                       <View style={styles.inputGroup}>
                         <Text style={styles.inputLabel}>Séries</Text>
@@ -157,11 +150,11 @@ const AddWorkoutScreen = () => {
                           placeholderTextColor="#555"
                         />
                       </View>
-                      <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>Distance</Text>
+                      <View style={[styles.inputGroup, { flex: 1.5, marginLeft: 12 }]}>
+                        <Text style={styles.inputLabel}>Distance / Temps</Text>
                         <View style={styles.unitInputRow}>
                           <TextInput
-                            style={[styles.input, styles.compactInput, { flex: 1 }]}
+                            style={[styles.input, styles.compactInput, { flex: 1, borderTopRightRadius: 0, borderBottomRightRadius: 0 }]}
                             value={block.distance}
                             onChangeText={(val) => updateBlock(index, 'distance', val)}
                             keyboardType="numeric"
@@ -169,15 +162,16 @@ const AddWorkoutScreen = () => {
                             placeholderTextColor="#555"
                           />
                           <TouchableOpacity 
-                            style={styles.unitSmallBtn}
+                            style={styles.unitInlineBtn}
                             onPress={() => updateBlock(index, 'unit', block.unit === 'm' ? 'sec' : 'm')}
                           >
-                            <Text style={styles.unitSmallText}>{block.unit}</Text>
+                            <Text style={styles.unitInlineText}>{block.unit}</Text>
                           </TouchableOpacity>
                         </View>
                       </View>
                     </View>
 
+                    {/* Ligne 2 : Chrono / Repos */}
                     <View style={styles.blockInputGrid}>
                       <View style={styles.inputGroup}>
                         <Text style={styles.inputLabel}>⏱️ Chrono</Text>
@@ -190,7 +184,7 @@ const AddWorkoutScreen = () => {
                           placeholderTextColor="#555"
                         />
                       </View>
-                      <View style={styles.inputGroup}>
+                      <View style={[styles.inputGroup, { marginLeft: 12 }]}>
                         <Text style={styles.inputLabel}>⏳ Repos (min)</Text>
                         <TextInput
                           style={[styles.input, styles.compactInput]}
@@ -203,7 +197,7 @@ const AddWorkoutScreen = () => {
                       </View>
                     </View>
 
-                    {parseInt(block.distance) > 800 && (
+                    {parseInt(block.distance) > 800 && block.unit === 'm' && (
                       <Text style={styles.warningText}>⚠️ Discipline hors scope sprint/haies</Text>
                     )}
 
@@ -219,19 +213,6 @@ const AddWorkoutScreen = () => {
                 </TouchableOpacity>
               </View>
             )}
-
-            {/* Durée */}
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Durée totale (minutes)</Text>
-              <TextInput
-                style={styles.input}
-                value={duration}
-                onChangeText={setDuration}
-                keyboardType="numeric"
-                placeholder="Ex: 90"
-                placeholderTextColor="#8E8E93"
-              />
-            </View>
 
             {/* RPE */}
             <View style={styles.section}>
@@ -299,13 +280,13 @@ const styles = StyleSheet.create({
   tagTextSelected: { color: '#000000' },
   input: { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 12, padding: 16, color: '#FFFFFF', fontSize: 18, fontWeight: '600', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
   blockContainer: { backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: 20, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.05)' },
-  blockInputGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  inputGroup: { width: '48%' },
+  blockInputGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
+  inputGroup: { flex: 1 },
   inputLabel: { color: '#8E8E93', fontSize: 11, marginBottom: 6, fontWeight: '600', textTransform: 'uppercase' },
   compactInput: { padding: 12, fontSize: 16 },
   unitInputRow: { flexDirection: 'row', alignItems: 'center' },
-  unitSmallBtn: { marginLeft: 8, backgroundColor: 'rgba(255, 255, 255, 0.1)', padding: 10, borderRadius: 10, minWidth: 40, alignItems: 'center' },
-  unitSmallText: { color: '#FFFFFF', fontWeight: '700', fontSize: 12 },
+  unitInlineBtn: { backgroundColor: 'rgba(255, 255, 255, 0.1)', paddingVertical: 12, paddingHorizontal: 12, borderTopRightRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)', borderLeftWidth: 0, minWidth: 45, alignItems: 'center', justifyContent: 'center' },
+  unitInlineText: { color: '#8E8E93', fontWeight: '700', fontSize: 13 },
   warningText: { color: '#FF9F0A', fontSize: 12, fontWeight: '600', marginBottom: 10, textAlign: 'center' },
   removeBlockBtn: { marginTop: 4, paddingVertical: 4, alignItems: 'center' },
   removeBlockText: { color: '#FF3B30', fontSize: 12, fontWeight: '500' },
