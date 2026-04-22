@@ -244,28 +244,31 @@ const AddWorkoutScreen = () => {
   };
 
   const handleDelete = async () => {
-    Alert.alert(
-      'SUPPRIMER ?',
-      'Es-tu sûr de vouloir supprimer définitivement cet événement ?',
-      [
-        { text: 'ANNULER', style: 'cancel' },
-        { 
-          text: 'SUPPRIMER', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setIsSubmitting(true);
-              await workoutService.deleteWorkout(editingWorkout.id);
-              navigation.goBack();
-            } catch (error: any) {
-              Alert.alert('Erreur', 'Impossible de supprimer la séance.');
-            } finally {
-              setIsSubmitting(false);
-            }
-          }
-        }
-      ]
-    );
+    const performDelete = async () => {
+      try {
+        setIsSubmitting(true);
+        await workoutService.deleteWorkout(editingWorkout.id);
+        navigation.goBack();
+      } catch (error: any) {
+        Alert.alert('Erreur', 'Impossible de supprimer la séance.');
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Es-tu sûr de vouloir supprimer définitivement cet événement ?');
+      if (confirmed) await performDelete();
+    } else {
+      Alert.alert(
+        'SUPPRIMER ?',
+        'Es-tu sûr de vouloir supprimer définitivement cet événement ?',
+        [
+          { text: 'ANNULER', style: 'cancel' },
+          { text: 'SUPPRIMER', style: 'destructive', onPress: performDelete }
+        ]
+      );
+    }
   };
 
   return (
