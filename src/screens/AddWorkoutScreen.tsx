@@ -24,6 +24,15 @@ import { workoutService } from '../services/workoutService';
 const WORKOUT_TYPES = ['Vitesse', 'Lactique', 'Aérobie', 'Départs/Blocs', 'Musculation/Haltéro'];
 const CATEGORIES = ['Haltérophilie', 'Jambes', 'Haut du Corps', 'Tronc / Gainage'];
 
+const TRACK_EVENTS = [
+  { category: 'SPRINTS', events: ['60m', '100m', '200m', '400m'] },
+  { category: 'HAIES', events: ['60mH', '100mH', '110mH', '400mH'] },
+  { category: 'SAUTS', events: ['Longueur', 'Triple Saut', 'Hauteur', 'Perche'] },
+  { category: 'DEMI-FOND', events: ['800m', '1500m', '3000m', '3000m Steeple'] },
+  { category: 'LANCERS', events: ['Poids', 'Disque', 'Javelot', 'Marteau'] },
+  { category: 'RELAIS', events: ['4x100m', '4x400m'] },
+];
+
 const AddWorkoutScreen = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -46,11 +55,16 @@ const AddWorkoutScreen = () => {
   const [city, setCity] = useState(editingWorkout?.city || '');
   const [address, setAddress] = useState(editingWorkout?.address || '');
   const [schedule, setSchedule] = useState<any[]>(editingWorkout?.competition_schedule || [{ time: '', event: '' }]);
+  const [showEventPicker, setShowEventPicker] = useState<number | null>(null);
 
   const handleTimeBlur = (index: number) => {
     let time = schedule[index].time;
+    // Si c'est 4 chiffres (ex: 1400) ou 3 chiffres (ex: 930)
     if (time.length === 4 && !time.includes(':')) {
       const formattedTime = `${time.slice(0, 2)}:${time.slice(2)}`;
+      updateScheduleItem(index, 'time', formattedTime);
+    } else if (time.length === 3 && !time.includes(':')) {
+      const formattedTime = `0${time.slice(0, 1)}:${time.slice(1)}`;
       updateScheduleItem(index, 'time', formattedTime);
     }
   };
@@ -435,20 +449,22 @@ const AddWorkoutScreen = () => {
                 {schedule.map((item, index) => (
                   <View key={index} style={styles.scheduleRow}>
                     <TextInput 
-                      style={[styles.input, { flex: 1, marginRight: 10 }]} 
+                      style={[styles.input, styles.scheduleInputTime]} 
                       value={item.time} 
                       onChangeText={(val) => updateScheduleItem(index, 'time', val)} 
                       onBlur={() => handleTimeBlur(index)}
                       placeholder="14:30" 
                       placeholderTextColor="#555"
+                      keyboardType="numeric"
                     />
-                    <TextInput 
-                      style={[styles.input, { flex: 2 }]} 
-                      value={item.event} 
-                      onChangeText={(val) => updateScheduleItem(index, 'event', val)} 
-                      placeholder="100m - Séries" 
-                      placeholderTextColor="#555"
-                    />
+                    <TouchableOpacity 
+                      style={[styles.input, styles.scheduleInputEvent]} 
+                      onPress={() => setShowEventPicker(index)}
+                    >
+                      <Text style={item.event ? styles.scheduleEventText : styles.scheduleEventPlaceholder}>
+                        {item.event || 'ÉPREUVE...'}
+                      </Text>
+                    </TouchableOpacity>
                     {schedule.length > 1 && (
                       <TouchableOpacity onPress={() => removeScheduleItem(index)} style={styles.removeScheduleBtn}>
                         <Text style={styles.removeBlockText}>X</Text>
@@ -529,10 +545,48 @@ const AddWorkoutScreen = () => {
                 ))}
               </ScrollView>
             )}
-            <TouchableOpacity style={styles.modalCloseBtn} onPress={() => { setShowExercisePicker(null); setIsCreatingCustom(false); }}><Text style={styles.modalCloseText}>FERMER</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.modalCloseBtn} onPress={() => { setShowExercisePicker(null); setIsCreatingCustom(false); }}>
+              <Text style={styles.modalCloseText}>FERMER</Text>
+            </TouchableOpacity>
           </View>
         </BlurView>
       </Modal>
+ 
+      {/* Modal Sélecteur d'Épreuves (Athlétisme) */}
+      <Modal visible={showEventPicker !== null} animationType="slide" transparent>
+        <BlurView intensity={100} tint="dark" style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>ÉPREUVES PISTE</Text>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {TRACK_EVENTS.map((cat, i) => (
+                <View key={i} style={styles.modalSection}>
+                  <Text style={styles.modalCategory}>{cat.category}</Text>
+                  <View style={styles.modalExerciseGrid}>
+                    {cat.events.map((ev, j) => (
+                      <TouchableOpacity 
+                        key={j} 
+                        style={styles.modalExerciseBtn} 
+                        onPress={() => { 
+                          if (showEventPicker !== null) updateScheduleItem(showEventPicker, 'event', ev); 
+                          setShowEventPicker(null); 
+                        }}
+                      >
+                        <Text style={styles.modalExerciseText}>{ev}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+            <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setShowEventPicker(null)}>
+              <Text style={styles.modalCloseText}>FERMER</Text>
+            </TouchableOpacity>
+          </View>
+        </BlurView>
+      </Modal>
+
     </View>
   );
 };
@@ -575,6 +629,10 @@ const styles = StyleSheet.create({
   addBlockBtn: { marginTop: 8, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: '#00E5FF', borderStyle: 'dashed', alignItems: 'center' },
   addBlockText: { color: '#00E5FF', fontWeight: '800', fontSize: 13 },
   scheduleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  scheduleInputTime: { width: 70, marginRight: 8, paddingVertical: 8, paddingHorizontal: 4, textAlign: 'center', fontSize: 14 },
+  scheduleInputEvent: { flex: 1, paddingVertical: 10, paddingHorizontal: 12, justifyContent: 'center' },
+  scheduleEventText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800', textTransform: 'uppercase' },
+  scheduleEventPlaceholder: { color: '#555', fontSize: 12, fontWeight: '700' },
   removeScheduleBtn: { marginLeft: 10, padding: 10 },
   exerciseSelector: { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
   exerciseName: { color: '#FFFFFF', fontSize: 15, fontWeight: '800', textTransform: 'uppercase' },
