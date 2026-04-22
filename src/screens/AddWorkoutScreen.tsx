@@ -57,9 +57,23 @@ const AddWorkoutScreen = () => {
   const [schedule, setSchedule] = useState<any[]>(editingWorkout?.competition_schedule || [{ time: '', event: '' }]);
   const [showEventPicker, setShowEventPicker] = useState<number | null>(null);
 
+  const handleTimeChange = (index: number, val: string) => {
+    // On enlève tout sauf les chiffres
+    let cleaned = val.replace(/\D/g, '');
+    if (cleaned.length > 4) cleaned = cleaned.slice(0, 4);
+
+    let formatted = cleaned;
+    if (cleaned.length > 2) {
+      formatted = `${cleaned.slice(0, 2)}:${cleaned.slice(2)}`;
+    }
+    updateScheduleItem(index, 'time', formatted);
+  };
+
   const handleTimeBlur = (index: number) => {
     let time = schedule[index].time;
-    // Si c'est 4 chiffres (ex: 1400) ou 3 chiffres (ex: 930)
+    // Si l'utilisateur a tapé 3 chiffres (ex: 930 -> 09:30)
+    // Le handleTimeChange l'aura mis en 93:0 ou similaire si on ne fait pas gaffe
+    // Mais on va laisser handleTimeBlur gérer le "0" de devant si besoin
     if (time.length === 4 && !time.includes(':')) {
       const formattedTime = `${time.slice(0, 2)}:${time.slice(2)}`;
       updateScheduleItem(index, 'time', formattedTime);
@@ -451,7 +465,7 @@ const AddWorkoutScreen = () => {
                     <TextInput 
                       style={[styles.input, styles.scheduleInputTime]} 
                       value={item.time} 
-                      onChangeText={(val) => updateScheduleItem(index, 'time', val)} 
+                      onChangeText={(val) => handleTimeChange(index, val)} 
                       onBlur={() => handleTimeBlur(index)}
                       placeholder="14:30" 
                       placeholderTextColor="#555"
