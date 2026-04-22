@@ -204,7 +204,7 @@ const OnboardingScreen = () => {
 
       {/* Navigation Touch Zones (disabled when success) */}
       {!isSuccess && (
-        <View style={styles.touchZonesContainer} pointerEvents="box-none">
+        <View style={[styles.touchZonesContainer, { pointerEvents: 'box-none' }]}>
           <TouchableOpacity 
             style={styles.touchZone} 
             onPress={handlePrev} 
@@ -220,10 +220,9 @@ const OnboardingScreen = () => {
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-        pointerEvents="box-none"
+        style={[styles.keyboardView, { pointerEvents: 'box-none' }]}
       >
-        <View style={styles.mainContent} pointerEvents="box-none">
+        <View style={[styles.mainContent, { pointerEvents: 'box-none' }]}>
           {renderProgressBars()}
 
           <BlurView intensity={40} tint="default" style={styles.glassCard}>

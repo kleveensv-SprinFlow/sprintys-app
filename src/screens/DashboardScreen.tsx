@@ -8,6 +8,7 @@ import {
   Dimensions,
   ActivityIndicator,
   Platform,
+  KeyboardAvoidingView,
   Modal,
   TextInput,
   Alert,
@@ -133,7 +134,7 @@ const DashboardScreen = () => {
           .eq('user_id', user.id)
           .eq('is_competition', true)
           .lt('created_at', `${todayStr}T00:00:00`)
-          .is('results', null)
+          .filter('notes', 'not.ilike', '%RÉSULTATS OFFICIELS :%')
           .order('created_at', { ascending: false })
           .limit(1);
 
