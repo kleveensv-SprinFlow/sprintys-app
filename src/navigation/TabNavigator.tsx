@@ -4,10 +4,11 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
 import DashboardScreen from '../screens/DashboardScreen';
 import WorkoutScreen from '../screens/WorkoutScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 
 const Tab = createBottomTabNavigator();
 
-const EmptyScreen = () => <View style={{ flex: 1, backgroundColor: '#000000' }} />;
+
 
 const TabNavigator = () => {
   return (
@@ -24,7 +25,7 @@ const TabNavigator = () => {
     >
       <Tab.Screen name="Accueil" component={DashboardScreen} />
       <Tab.Screen name="Entraînement" component={WorkoutScreen} />
-      <Tab.Screen name="Profil" component={EmptyScreen} />
+      <Tab.Screen name="Profil" component={ProfileScreen} />
     </Tab.Navigator>
   );
 };
