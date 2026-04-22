@@ -407,7 +407,7 @@ const AddWorkoutScreen = () => {
             </View>
 
             <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={isSubmitting}>
-              {isSubmitting ? <ActivityIndicator color="#000000" /> : <Text style={styles.saveButtonText}>{editingWorkout ? 'METTRE À JOUR' : 'ENREGISTRER'}</Text>}
+              {isSubmitting ? <ActivityIndicator color="#000000" /> : <Text style={styles.saveButtonText}>{editingWorkout ? 'METTRE À JOUR' : (isCompetition ? 'ENREGISTRER LA COMPÉTITION' : 'ENREGISTRER LA SÉANCE')}</Text>}
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()} disabled={isSubmitting}>

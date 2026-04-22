@@ -154,7 +154,7 @@ const DayDetailScreen = () => {
           style={styles.addButton}
           onPress={() => navigation.navigate('AddWorkout', { selectedDate: date })}
         >
-          <Text style={styles.addButtonText}>Ajouter une séance</Text>
+          <Text style={styles.addButtonText}>AJOUTER UNE SÉANCE / COMPÉTITION</Text>
         </TouchableOpacity>
         
         <View style={{ height: 60 }} />
