@@ -236,7 +236,24 @@ const styles = StyleSheet.create({
   agendaContainer: { width: '100%' },
   dayCardWrapper: { marginBottom: 12, borderRadius: 20, overflow: 'hidden', borderWidth: 0.5, borderColor: 'rgba(255, 255, 255, 0.1)' },
   todayCard: { borderWidth: 2, borderColor: '#00E5FF' },
-  compCard: { borderWidth: 2, borderColor: '#FFD700', shadowColor: '#FFD700', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 10, elevation: 5 },
+  compCard: { 
+    borderWidth: 2, 
+    borderColor: '#FFD700',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#FFD700',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
+      },
+      android: {
+        elevation: 5,
+      },
+      web: {
+        boxShadow: '0px 0px 15px rgba(255, 215, 0, 0.5)',
+      }
+    }),
+  },
   prepCard: { borderWidth: 2, borderColor: '#BB86FC' },
   dayCard: { padding: 16, minHeight: 90 },
   dayCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
