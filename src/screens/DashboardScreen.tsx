@@ -8,7 +8,6 @@ import {
   Dimensions,
   ActivityIndicator,
   Platform,
-  Alert,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
@@ -123,16 +122,6 @@ const DashboardScreen = () => {
     return date.charAt(0).toUpperCase() + date.slice(1);
   };
 
-  const renderHubCard = (title: string, subtitle: string, icon: string, onPress: () => void) => (
-    <TouchableOpacity style={styles.hubCardWrapper} onPress={onPress}>
-      <BlurView intensity={40} tint="default" style={styles.hubCard}>
-        <Text style={styles.hubIcon}>{icon}</Text>
-        <Text style={styles.hubTitle}>{title}</Text>
-        <Text style={styles.hubSubtitle}>{subtitle}</Text>
-      </BlurView>
-    </TouchableOpacity>
-  );
-
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -190,13 +179,29 @@ const DashboardScreen = () => {
           <Text style={styles.sprintyAdvice}>{getSprintyAdvice(dailyScore, lastWorkout)}</Text>
         </BlurView>
 
-        {/* Grid Hub 2x2 */}
-        <View style={styles.hubGrid}>
-          {renderHubCard('ENTRAÎNEMENT', 'PROGRAMME DU JOUR', '🏃', () => navigation.navigate('Entraînement'))}
-          {renderHubCard('MON CORPS', 'RECORDS ET FORME', '👤', () => navigation.navigate('Profil'))}
-          {renderHubCard('SOMMEIL', 'RÉCUPÉRATION', '💤', () => navigation.navigate('CheckIn'))}
-          {renderHubCard('STATS', 'ANALYSE DE SAISON', '📊', () => Alert.alert('Stats', 'Analyse de saison bientôt disponible'))}
-        </View>
+        {/* Carte Météo Technique */}
+        {weather && (
+          <BlurView intensity={40} tint="default" style={styles.mainCard}>
+            <Text style={styles.cardTitle}>MÉTÉO TECHNIQUE</Text>
+            <View style={styles.weatherGrid}>
+              <View style={styles.weatherStat}>
+                <Text style={styles.statLabel}>TEMPÉRATURE</Text>
+                <Text style={styles.statValue}>{weather.temp}°C</Text>
+                <Text style={styles.statDesc}>{weather.condition.toUpperCase()}</Text>
+              </View>
+              <View style={styles.weatherStat}>
+                <Text style={styles.statLabel}>VENT</Text>
+                <Text style={styles.statValue}>{weather.windSpeed} M/S</Text>
+                <Text style={styles.statDesc}>DIRECTION : {weather.windDirection}</Text>
+              </View>
+            </View>
+            <View style={styles.weatherAdviceContainer}>
+              {weather.windSpeed > 2 && <Text style={styles.weatherAdvice}>VENT FAVORABLE POUR LA VITESSE</Text>}
+              {weather.temp < 12 && <Text style={styles.weatherAdvice}>FROID : ÉCHAUFFEMENT LONG OBLIGATOIRE</Text>}
+              {weather.temp >= 12 && weather.windSpeed <= 2 && <Text style={styles.weatherAdvice}>CONDITIONS STABLES POUR L'ENTRAÎNEMENT</Text>}
+            </View>
+          </BlurView>
+        )}
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -220,7 +225,7 @@ const styles = StyleSheet.create({
   profileButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255, 255, 255, 0.1)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.2)' },
   profileInitial: { width: '100%', height: '100%', borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   profileInitialText: { color: '#FFFFFF', fontSize: 18, fontWeight: '700' },
-  mainCard: { width: '100%', borderRadius: 24, padding: 24, backgroundColor: 'rgba(255, 255, 255, 0.08)', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.12)', marginBottom: 20, overflow: 'hidden' },
+  mainCard: { width: '100%', borderRadius: 24, padding: 24, backgroundColor: 'rgba(255, 255, 255, 0.08)', borderWidth: 0.5, borderColor: 'rgba(0, 229, 255, 0.2)', marginBottom: 20, overflow: 'hidden' },
   cardTitle: { fontSize: 11, fontWeight: '900', color: '#8E8E93', marginBottom: 16, letterSpacing: 1.5, textTransform: 'uppercase' },
   scoreContainer: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 12 },
   scoreValue: { fontSize: 48, fontWeight: '900', color: '#FFFFFF' },
@@ -234,12 +239,13 @@ const styles = StyleSheet.create({
   sprintyCard: { borderColor: 'rgba(0, 229, 255, 0.4)', backgroundColor: 'rgba(0, 229, 255, 0.05)' },
   sprintyTitle: { fontSize: 12, fontWeight: '900', color: '#00E5FF', marginBottom: 12, letterSpacing: 1 },
   sprintyAdvice: { fontSize: 15, color: '#FFFFFF', lineHeight: 22, fontWeight: '600' },
-  hubGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  hubCardWrapper: { width: (width - 40 - 15) / 2, marginBottom: 15 },
-  hubCard: { padding: 20, borderRadius: 24, backgroundColor: 'rgba(255, 255, 255, 0.05)', borderWidth: 0.5, borderColor: 'rgba(0, 229, 255, 0.2)', height: 140, justifyContent: 'center' },
-  hubIcon: { fontSize: 24, marginBottom: 12 },
-  hubTitle: { color: '#FFFFFF', fontSize: 13, fontWeight: '900', letterSpacing: 0.5, marginBottom: 4 },
-  hubSubtitle: { color: '#8E8E93', fontSize: 10, fontWeight: '700' },
+  weatherGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
+  weatherStat: { flex: 1 },
+  statLabel: { color: '#8E8E93', fontSize: 9, fontWeight: '800', marginBottom: 4 },
+  statValue: { color: '#FFFFFF', fontSize: 22, fontWeight: '900' },
+  statDesc: { color: '#00E5FF', fontSize: 10, fontWeight: '700', marginTop: 2 },
+  weatherAdviceContainer: { borderTopWidth: 1, borderTopColor: 'rgba(255, 255, 255, 0.05)', paddingTop: 16 },
+  weatherAdvice: { color: '#FFFFFF', fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
 });
 
 export default DashboardScreen;

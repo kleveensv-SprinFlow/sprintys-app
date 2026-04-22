@@ -1,11 +1,12 @@
 export const weatherService = {
   fetchWeather: async () => {
-    // Mocking weather fetch for now
+    // Mocking technical weather data for athletes
     return {
       temp: 24,
-      wind: 1.2,
-      condition: 'Clear',
-      description: 'Ciel dégagé'
+      condition: 'Ensoleillé',
+      windSpeed: 2.1,
+      windDirection: 'NE',
+      description: 'Conditions optimales'
     };
   }
 };
