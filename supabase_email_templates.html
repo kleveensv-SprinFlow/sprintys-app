@@ -1,0 +1,42 @@
+<!-- SPRINTFLOW EMAIL TEMPLATES FOR SUPABASE -->
+
+<!-- 1. CONFIRM SIGNUP (OTP) -->
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: 'Inter', Helvetica, Arial, sans-serif; background-color: #050505; margin: 0; padding: 0; color: #ffffff; }
+    .container { max-width: 600px; margin: 40px auto; background-color: #0f0f0f; border-radius: 24px; overflow: hidden; border: 1px solid rgba(0, 229, 255, 0.2); }
+    .header { background: linear-gradient(135deg, #00E5FF 0%, #BF5AF2 100%); padding: 40px; text-align: center; }
+    .header h1 { margin: 0; font-size: 28px; font-weight: 900; letter-spacing: 2px; color: #000000; }
+    .content { padding: 40px; text-align: center; }
+    .content h2 { color: #ffffff; font-size: 20px; font-weight: 800; }
+    .content p { font-size: 16px; color: #8E8E93; line-height: 1.6; }
+    .otp-card { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; padding: 30px; margin: 30px 0; }
+    .otp-code { font-size: 42px; font-weight: 900; letter-spacing: 12px; color: #00E5FF; margin: 0; }
+    .footer { padding: 20px; text-align: center; font-size: 12px; color: #444; border-top: 1px solid rgba(255, 255, 255, 0.05); }
+    .timer { color: #FF3B30; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>SPRINTFLOW ELITE</h1>
+    </div>
+    <div class="content">
+      <h2>VÉRIFICATION DE TON COMPTE</h2>
+      <p>Bienvenue dans l'élite. Utilise le code ci-dessous pour confirmer ton inscription et commencer ton entraînement.</p>
+      <div class="otp-card">
+        <h1 class="otp-code">{{ .Token }}</h1>
+      </div>
+      <p>Ce code est valable pendant <span class="timer">10 minutes</span>.</p>
+    </div>
+    <div class="footer">
+      &copy; 2026 SPRINTFLOW PERFORMANCE ENGINE. ALL RIGHTS RESERVED.
+    </div>
+  </div>
+</body>
+</html>
+
+<!-- 2. RESET PASSWORD (OTP) -->
+<!-- Same logic, but with red theme -->

@@ -13,6 +13,7 @@ import CheckInScreen from './src/screens/CheckInScreen';
 import AddWorkoutScreen from './src/screens/AddWorkoutScreen';
 import DayDetailScreen from './src/screens/DayDetailScreen';
 import WeatherDetailScreen from './src/screens/WeatherDetailScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -117,6 +118,7 @@ export default function App() {
               <Stack.Screen name="AddWorkout" component={AddWorkoutScreen} options={{ presentation: 'modal' }} />
               <Stack.Screen name="DayDetail" component={DayDetailScreen} />
               <Stack.Screen name="WeatherDetail" component={WeatherDetailScreen} />
+              <Stack.Screen name="Profile" component={ProfileScreen} />
             </>
           ) : (
             <>
@@ -126,6 +128,7 @@ export default function App() {
               <Stack.Screen name="AddWorkout" component={AddWorkoutScreen} options={{ presentation: 'modal' }} />
               <Stack.Screen name="DayDetail" component={DayDetailScreen} />
               <Stack.Screen name="WeatherDetail" component={WeatherDetailScreen} />
+              <Stack.Screen name="Profile" component={ProfileScreen} />
             </>
           )}
         </Stack.Navigator>

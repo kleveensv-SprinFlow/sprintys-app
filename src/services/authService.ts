@@ -1,9 +1,15 @@
 import { supabase } from './supabaseClient'
 
-export const signUpWithEmail = async (email: string, password: string) => {
+export const signUpWithEmail = async (email: string, password: string, firstName?: string, lastName?: string) => {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      data: {
+        first_name: firstName,
+        last_name: lastName,
+      }
+    }
   })
   return { data, error }
 }

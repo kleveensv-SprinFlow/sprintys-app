@@ -13,6 +13,7 @@ import {
   TextInput,
   Alert,
   Linking,
+  Image,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
@@ -24,6 +25,7 @@ import PerformanceCard from '../shared/components/PerformanceCard';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { useRef } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
 
@@ -74,15 +76,16 @@ const DashboardScreen = () => {
       const user = session?.user;
 
       if (user) {
-        setUserName(user.email?.split('@')[0] || 'Athlète');
-        
         const { data: profileData } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
           .single();
 
-        if (profileData) setProfile(profileData);
+        if (profileData) {
+          setProfile(profileData);
+          setUserName(profileData.first_name || user.email?.split('@')[0] || 'Athlète');
+        }
 
         const { data: checkinData } = await supabase
           .from('daily_checkins')
@@ -129,9 +132,11 @@ const DashboardScreen = () => {
         const activeComp = compData?.[0];
         if (activeComp) {
           // Calculer si la compétition est "finie" pour aujourd'hui
-          const lastEvent = activeComp.competition_schedule?.reduce((prev: any, current: any) => {
-            return (prev.time > current.time) ? prev : current;
-          });
+          const lastEvent = (activeComp.competition_schedule && activeComp.competition_schedule.length > 0)
+            ? activeComp.competition_schedule.reduce((prev: any, current: any) => {
+                return (prev.time > current.time) ? prev : current;
+              })
+            : null;
           
           if (lastEvent) {
             const [hours, minutes] = lastEvent.time.split(':').map(Number);
@@ -301,16 +306,34 @@ const DashboardScreen = () => {
   return (
     <View style={styles.container}>
       <View style={styles.lightBackground}>
-        <View style={[styles.lightCircle, styles.cyanCircle]} />
-        <View style={[styles.lightCircle, styles.purpleCircle]} />
+        <LinearGradient
+          colors={['rgba(0, 229, 255, 0.4)', 'transparent']}
+          style={[styles.lightCircle, styles.cyanCircle]}
+        />
+        <LinearGradient
+          colors={['rgba(191, 90, 242, 0.4)', 'transparent']}
+          style={[styles.lightCircle, styles.purpleCircle]}
+        />
       </View>
-      <BlurView intensity={100} tint="dark" style={StyleSheet.absoluteFill} />
+      <BlurView 
+        intensity={Platform.OS === 'android' ? 80 : 100} 
+        tint="dark" 
+        style={[StyleSheet.absoluteFill, Platform.OS === 'android' && { backgroundColor: 'rgba(0,0,0,0.7)' }]} 
+      />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View>
             <View style={styles.welcomeRow}>
-              <Text style={styles.welcomeText}>SALUT, {userName.toUpperCase()}</Text>
+              <View style={{ flex: 1, marginRight: 10 }}>
+                <Text 
+                  style={styles.welcomeText} 
+                  numberOfLines={1} 
+                  ellipsizeMode="tail"
+                >
+                  SALUT, {userName.toUpperCase()}
+                </Text>
+              </View>
               {weather && (
                 <TouchableOpacity onPress={() => navigation.navigate('WeatherDetail')}>
                   <WeatherBadge temp={weather.temp} condition={weather.condition} />
@@ -318,9 +341,16 @@ const DashboardScreen = () => {
               )}
             </View>
           </View>
-          <TouchableOpacity onPress={() => signOutUser()} style={styles.profileButton}>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('Profile')} 
+            style={styles.profileButton}
+          >
             <View style={styles.profileInitial}>
-              <Text style={styles.profileInitialText}>{userName.charAt(0).toUpperCase()}</Text>
+              {profile?.avatar_url ? (
+                <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.profileInitialText}>{userName.charAt(0).toUpperCase()}</Text>
+              )}
             </View>
           </TouchableOpacity>
         </View>
@@ -513,6 +543,7 @@ const styles = StyleSheet.create({
   profileButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255, 255, 255, 0.1)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.2)' },
   profileInitial: { width: '100%', height: '100%', borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   profileInitialText: { color: '#FFFFFF', fontSize: 18, fontWeight: '700' },
+  avatarImage: { width: '100%', height: '100%', borderRadius: 22 },
   mainCard: { width: '100%', borderRadius: 24, padding: 24, backgroundColor: 'rgba(255, 255, 255, 0.08)', borderWidth: 0.5, borderColor: 'rgba(0, 229, 255, 0.2)', marginBottom: 20, overflow: 'hidden' },
   cardTitle: { fontSize: 11, fontWeight: '900', color: '#8E8E93', marginBottom: 16, letterSpacing: 1.5, textTransform: 'uppercase' },
   scoreContainer: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 12 },

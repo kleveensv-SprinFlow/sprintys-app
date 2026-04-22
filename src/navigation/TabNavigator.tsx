@@ -35,7 +35,6 @@ const TabItem = ({ state, descriptors, navigation, route, index }: any) => {
     switch (name) {
       case 'Dashboard': return 'grid-outline';
       case 'Agenda': return 'calendar-outline';
-      case 'Profile': return 'person-outline';
       default: return 'help-outline';
     }
   };
@@ -84,7 +83,6 @@ const TabNavigator = () => {
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Agenda" component={WorkoutScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 };

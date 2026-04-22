@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { signOutUser } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
 
@@ -197,10 +198,20 @@ const OnboardingScreen = () => {
     <View style={styles.container}>
       {/* Background circles */}
       <View style={styles.lightBackground}>
-        <View style={[styles.lightCircle, styles.cyanCircle]} />
-        <View style={[styles.lightCircle, styles.purpleCircle]} />
+        <LinearGradient
+          colors={['rgba(0, 229, 255, 0.4)', 'transparent']}
+          style={[styles.lightCircle, styles.cyanCircle]}
+        />
+        <LinearGradient
+          colors={['rgba(191, 90, 242, 0.4)', 'transparent']}
+          style={[styles.lightCircle, styles.purpleCircle]}
+        />
       </View>
-      <BlurView intensity={100} tint="dark" style={StyleSheet.absoluteFill} />
+      <BlurView 
+        intensity={Platform.OS === 'android' ? 80 : 100} 
+        tint="dark" 
+        style={[StyleSheet.absoluteFill, Platform.OS === 'android' && { backgroundColor: 'rgba(0,0,0,0.7)' }]} 
+      />
 
       {/* Navigation Touch Zones (disabled when success) */}
       {!isSuccess && (

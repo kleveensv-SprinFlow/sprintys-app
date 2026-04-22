@@ -14,14 +14,20 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { signInWithEmail, signUpWithEmail } from '../services/authService';
+import { supabase } from '../services/supabaseClient';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width, height } = Dimensions.get('window');
 
 const AuthScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showOtp, setShowOtp] = useState(false);
+  const [otpToken, setOtpToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
 
   const showAlert = (title: string, message: string) => {
     if (Platform.OS === 'web') {
@@ -32,33 +38,54 @@ const AuthScreen = () => {
   };
 
   const handleAuth = async () => {
-    console.log(`Attempting ${isLogin ? 'Sign In' : 'Sign Up'} for:`, email);
-    if (!email || !password) {
+    if (!email || !password || (!isLogin && (!firstName || !lastName))) {
       showAlert('Erreur', 'Veuillez remplir tous les champs.');
       return;
     }
 
     setLoading(true);
     try {
-      const { data, error } = isLogin 
-        ? await signInWithEmail(email, password)
-        : await signUpWithEmail(email, password);
-
-      setLoading(false);
-
-      if (error) {
-        console.error('Auth Error:', error.message);
-        showAlert('Erreur d\'authentification', error.message);
+      if (isLogin) {
+        const { data, error } = await signInWithEmail(email, password);
+        if (error) throw error;
       } else {
-        console.log('Auth Success:', data);
-        if (!isLogin && data?.user) {
-          showAlert('Succès', 'Veuillez vérifier votre email pour confirmer l\'inscription.');
+        // En mode inscription, Supabase enverra un code si configuré en OTP
+        const { data, error } = await signUpWithEmail(email, password, firstName, lastName);
+        if (error) throw error;
+        
+        if (data?.user) {
+          setShowOtp(true);
+          showAlert('Vérification', 'Un code de confirmation a été envoyé à ton email.');
         }
       }
     } catch (e: any) {
+      showAlert('Erreur', e.message);
+    } finally {
       setLoading(false);
-      console.error('Unexpected Auth Error:', e);
-      showAlert('Erreur inattendue', e.message);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (otpToken.length !== 8) {
+      showAlert('Erreur', 'Le code doit comporter 8 chiffres.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token: otpToken,
+        type: 'signup',
+      });
+
+      if (error) throw error;
+      
+      showAlert('Succès', 'Compte vérifié ! Bienvenue dans l\'élite.');
+    } catch (e: any) {
+      showAlert('Erreur de validation', e.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -66,12 +93,22 @@ const AuthScreen = () => {
     <View style={styles.container}>
       {/* Jeux de lumière background */}
       <View style={styles.lightBackground}>
-        <View style={[styles.lightCircle, styles.cyanCircle]} />
-        <View style={[styles.lightCircle, styles.purpleCircle]} />
+        <LinearGradient
+          colors={['rgba(50, 173, 230, 0.4)', 'transparent']}
+          style={[styles.lightCircle, styles.cyanCircle]}
+        />
+        <LinearGradient
+          colors={['rgba(191, 90, 242, 0.4)', 'transparent']}
+          style={[styles.lightCircle, styles.purpleCircle]}
+        />
       </View>
       
       {/* Full screen blur to diffuse light */}
-      <BlurView intensity={100} tint="dark" style={StyleSheet.absoluteFill} />
+      <BlurView 
+        intensity={Platform.OS === 'android' ? 80 : 100} 
+        tint="dark" 
+        style={[StyleSheet.absoluteFill, Platform.OS === 'android' && { backgroundColor: 'rgba(0,0,0,0.7)' }]} 
+      />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -79,65 +116,121 @@ const AuthScreen = () => {
       >
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <BlurView intensity={40} tint="default" style={styles.glassCard}>
-            <Text style={styles.title}>{isLogin ? 'Connexion' : 'Inscription'}</Text>
-            <Text style={styles.subtitle}>Sprinty's - Elite Performance</Text>
+            <Text style={styles.title}>
+              {showOtp ? 'Vérification' : (isLogin ? 'Connexion' : 'Inscription')}
+            </Text>
+            <Text style={styles.subtitle}>
+              {showOtp ? 'Entre le code reçu par email' : "Sprinty's - Elite Performance"}
+            </Text>
 
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Email"
-                placeholderTextColor="#8E8E93"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-              />
-            </View>
+            {!showOtp ? (
+              <>
+                {!isLogin && (
+                  <>
+                    <View style={styles.inputContainer}>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Prénom"
+                        placeholderTextColor="#8E8E93"
+                        value={firstName}
+                        onChangeText={setFirstName}
+                      />
+                    </View>
+                    <View style={styles.inputContainer}>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Nom"
+                        placeholderTextColor="#8E8E93"
+                        value={lastName}
+                        onChangeText={setLastName}
+                      />
+                    </View>
+                  </>
+                )}
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Email"
+                    placeholderTextColor="#8E8E93"
+                    value={email}
+                    onChangeText={setEmail}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                  />
+                </View>
 
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Mot de passe"
-                placeholderTextColor="#8E8E93"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
-            </View>
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Mot de passe"
+                    placeholderTextColor="#8E8E93"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry
+                  />
+                </View>
 
-            <TouchableOpacity 
-              style={styles.mainButton} 
-              onPress={handleAuth}
-              disabled={loading}
-              activeOpacity={0.8}
-            >
-              {loading ? (
-                <ActivityIndicator color="#000000" />
-              ) : (
-                <Text style={styles.mainButtonText}>
-                  {isLogin ? 'Se connecter' : 'Créer un compte'}
-                </Text>
-              )}
-            </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.mainButton} 
+                  onPress={handleAuth}
+                  disabled={loading}
+                  activeOpacity={0.8}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#000000" />
+                  ) : (
+                    <Text style={styles.mainButtonText}>
+                      {isLogin ? 'Se connecter' : 'Créer un compte'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.googleButton} 
-              onPress={() => console.log('Google Auth later')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.googleButtonText}>Continuer avec Google</Text>
-            </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.toggleButton} 
+                  onPress={() => setIsLogin(!isLogin)}
+                >
+                  <Text style={styles.toggleButtonText}>
+                    {isLogin 
+                      ? "Pas de compte ? S'inscrire" 
+                      : "Déjà un compte ? Se connecter"}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    style={[styles.input, { textAlign: 'center', fontSize: 22, letterSpacing: 4 }]}
+                    placeholder="00000000"
+                    placeholderTextColor="#444"
+                    value={otpToken}
+                    onChangeText={setOtpToken}
+                    keyboardType="numeric"
+                    maxLength={8}
+                  />
+                </View>
 
-            <TouchableOpacity 
-              style={styles.toggleButton} 
-              onPress={() => setIsLogin(!isLogin)}
-            >
-              <Text style={styles.toggleButtonText}>
-                {isLogin 
-                  ? "Pas de compte ? S'inscrire" 
-                  : "Déjà un compte ? Se connecter"}
-              </Text>
-            </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.mainButton} 
+                  onPress={handleVerifyOtp}
+                  disabled={loading}
+                  activeOpacity={0.8}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#000000" />
+                  ) : (
+                    <Text style={styles.mainButtonText}>Confirmer le code</Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.toggleButton} 
+                  onPress={() => setShowOtp(false)}
+                >
+                  <Text style={styles.toggleButtonText}>Retour à l'inscription</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </BlurView>
         </ScrollView>
       </KeyboardAvoidingView>
