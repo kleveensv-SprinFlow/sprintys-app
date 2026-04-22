@@ -89,7 +89,7 @@ export const openFoodFactsService = {
 
   getProductByBarcode: async (barcode: string): Promise<OFFProduct | null> => {
     try {
-      const url = `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`;
+      const url = `https://fr.openfoodfacts.org/api/v0/product/${barcode}.json`;
       console.log('Fetching OFF Barcode:', url);
       
       const response = await fetch(url);

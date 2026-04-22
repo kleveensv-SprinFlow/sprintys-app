@@ -1,77 +1,101 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Modal, Alert } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
+  Dimensions,
+  ActivityIndicator,
+} from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
+
+const { width, height } = Dimensions.get('window');
 
 interface BarcodeScannerModalProps {
   visible: boolean;
   onClose: () => void;
-  onScanned: (barcode: string) => void;
+  onScanSuccess: (barcode: string) => void;
 }
 
-export const BarcodeScannerModal = ({ visible, onClose, onScanned }: BarcodeScannerModalProps) => {
+export const BarcodeScannerModal = ({ visible, onClose, onScanSuccess }: BarcodeScannerModalProps) => {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
 
-  useEffect(() => {
-    if (visible) {
-      setScanned(false);
-    }
-  }, [visible]);
+  const handleBarcodeScanned = ({ data }: { data: string }) => {
+    if (scanned) return;
+    setScanned(true);
+    onScanSuccess(data);
+    
+    // Reset scanned state after a short delay to allow future scans if needed
+    setTimeout(() => setScanned(false), 2000);
+  };
+
+  if (!visible) return null;
 
   if (!permission) {
-    return <View />;
+    return (
+      <Modal visible={visible} transparent animationType="fade">
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#00E5FF" />
+        </View>
+      </Modal>
+    );
   }
 
   if (!permission.granted) {
     return (
-      <Modal visible={visible} animationType="slide">
-        <View style={styles.permissionContainer}>
-          <Text style={styles.permissionText}>NOUS AVONS BESOIN DE VOTRE PERMISSION POUR UTILISER L'APPAREIL PHOTO</Text>
+      <Modal visible={visible} transparent animationType="fade">
+        <View style={styles.centerContainer}>
+          <Text style={styles.permissionText}>L'accès à la caméra est nécessaire pour scanner les produits.</Text>
           <TouchableOpacity style={styles.permissionBtn} onPress={requestPermission}>
-            <Text style={styles.permissionBtnText}>ACCORDER LA PERMISSION</Text>
+            <Text style={styles.permissionBtnText}>AUTORISER LA CAMÉRA</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-            <Text style={styles.closeBtnText}>ANNULER</Text>
+          <TouchableOpacity style={styles.closeAbsolute} onPress={onClose}>
+            <Ionicons name="close" size={32} color="#FFF" />
           </TouchableOpacity>
         </View>
       </Modal>
     );
   }
 
-  const handleBarcodeScanned = ({ data }: { data: string }) => {
-    if (scanned) return;
-    setScanned(true);
-    onScanned(data);
-  };
-
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.container}>
         <CameraView
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
           barcodeScannerSettings={{
-            barcodeTypes: ["ean13", "ean8", "upc_a", "upc_e"],
+            barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e'],
           }}
-        >
-          <View style={styles.overlay}>
-            <TouchableOpacity style={styles.closeIcon} onPress={onClose}>
-              <Ionicons name="close" size={32} color="#FFF" />
-            </TouchableOpacity>
-
-            <View style={styles.scanFrameContainer}>
-              <View style={styles.scanFrame}>
-                <View style={[styles.corner, styles.topLeft]} />
-                <View style={[styles.corner, styles.topRight]} />
-                <View style={[styles.corner, styles.bottomLeft]} />
-                <View style={[styles.corner, styles.bottomRight]} />
-              </View>
-              <Text style={styles.scanText}>SCANNEZ LE CODE-BARRES</Text>
+        />
+        
+        {/* Dark Overlay with transparent target area */}
+        <View style={styles.overlay}>
+          <View style={styles.topRow} />
+          <View style={styles.middleRow}>
+            <View style={styles.sideCol} />
+            <View style={styles.targetArea}>
+              {/* Technical Corners */}
+              <View style={[styles.corner, styles.topLeft]} />
+              <View style={[styles.corner, styles.topRight]} />
+              <View style={[styles.corner, styles.bottomLeft]} />
+              <View style={[styles.corner, styles.bottomRight]} />
             </View>
+            <View style={styles.sideCol} />
           </View>
-        </CameraView>
+          <View style={styles.bottomRow}>
+            <Text style={styles.hintText}>PLACE LE CODE-BARRES DANS LE CADRE</Text>
+          </View>
+        </View>
+
+        {/* Header with Close Button */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+            <Ionicons name="close" size={28} color="#FFF" />
+          </TouchableOpacity>
+        </View>
       </View>
     </Modal>
   );
@@ -79,56 +103,27 @@ export const BarcodeScannerModal = ({ visible, onClose, onScanned }: BarcodeScan
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
-  permissionContainer: {
-    flex: 1,
-    backgroundColor: '#000',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  permissionText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '900',
-    textAlign: 'center',
-    marginBottom: 40,
-    letterSpacing: 1,
-  },
-  permissionBtn: {
-    backgroundColor: '#00E5FF',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 16,
-    marginBottom: 20,
-  },
-  permissionBtnText: { color: '#000', fontSize: 12, fontWeight: '900' },
-  closeBtn: { padding: 10 },
-  closeBtnText: { color: '#8E8E93', fontSize: 12, fontWeight: '700' },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
-  closeIcon: { position: 'absolute', top: 60, right: 30, zIndex: 10 },
-  scanFrameContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scanFrame: {
-    width: 250,
-    height: 250,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    position: 'relative',
-  },
-  scanText: {
-    color: '#00E5FF',
-    marginTop: 40,
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 2,
-  },
-  corner: {
-    position: 'absolute',
-    width: 40,
-    height: 40,
-    borderColor: '#00E5FF',
-  },
-  topLeft: { top: -2, left: -2, borderTopWidth: 4, borderLeftWidth: 4 },
-  topRight: { top: -2, right: -2, borderTopWidth: 4, borderRightWidth: 4 },
-  bottomLeft: { bottom: -2, left: -2, borderBottomWidth: 4, borderLeftWidth: 4 },
-  bottomRight: { bottom: -2, right: -2, borderBottomWidth: 4, borderRightWidth: 4 },
+  centerContainer: { flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center', padding: 40 },
+  permissionText: { color: '#FFF', fontSize: 16, fontWeight: '700', textAlign: 'center', marginBottom: 32 },
+  permissionBtn: { backgroundColor: '#00E5FF', paddingVertical: 16, paddingHorizontal: 32, borderRadius: 12 },
+  permissionBtnText: { color: '#000', fontWeight: '900', fontSize: 14 },
+  closeAbsolute: { position: 'absolute', top: 60, right: 24 },
+  
+  header: { position: 'absolute', top: 50, right: 20, zIndex: 10 },
+  closeBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  
+  overlay: { ...StyleSheet.absoluteFillObject },
+  topRow: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
+  middleRow: { flexDirection: 'row', height: 200 },
+  sideCol: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
+  targetArea: { width: 280, height: 200, backgroundColor: 'transparent', position: 'relative' },
+  bottomRow: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', paddingTop: 40 },
+  
+  corner: { position: 'absolute', width: 30, height: 30, borderColor: '#00E5FF', borderWidth: 4 },
+  topLeft: { top: 0, left: 0, borderRightWidth: 0, borderBottomWidth: 0 },
+  topRight: { top: 0, right: 0, borderLeftWidth: 0, borderBottomWidth: 0 },
+  bottomLeft: { bottom: 0, left: 0, borderRightWidth: 0, borderTopWidth: 0 },
+  bottomRight: { bottom: 0, right: 0, borderLeftWidth: 0, borderTopWidth: 0 },
+  
+  hintText: { color: '#FFF', fontSize: 12, fontWeight: '900', letterSpacing: 2, textAlign: 'center' },
 });

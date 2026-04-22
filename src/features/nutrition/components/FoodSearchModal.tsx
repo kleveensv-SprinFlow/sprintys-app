@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,10 +12,11 @@ import {
   Platform,
   Alert,
   Dimensions,
+  ScrollView,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { BarcodeScannerModal } from './BarcodeScannerModal';
 import { openFoodFactsService, OFFProduct } from '../../../services/openFoodFactsService';
 import { useNutritionStore, MealType } from '../../../store/nutritionStore';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -28,7 +29,7 @@ interface FoodSearchModalProps {
   mealType: MealType;
 }
 
-type ModalStep = 'search' | 'scan' | 'quantity';
+type ModalStep = 'search' | 'quantity';
 
 export const FoodSearchModal = ({ visible, onClose, mealType }: FoodSearchModalProps) => {
   const addFoodLog = useNutritionStore((state) => state.addFoodLog);
@@ -40,8 +41,7 @@ export const FoodSearchModal = ({ visible, onClose, mealType }: FoodSearchModalP
   const [selectedFood, setSelectedFood] = useState<OFFProduct | null>(null);
   const [quantity, setQuantity] = useState('100');
   
-  const [permission, requestPermission] = useCameraPermissions();
-  const [scanned, setScanned] = useState(false);
+  const [scannerVisible, setScannerVisible] = useState(false);
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -51,7 +51,7 @@ export const FoodSearchModal = ({ visible, onClose, mealType }: FoodSearchModalP
       setResults([]);
       setSelectedFood(null);
       setQuantity('100');
-      setScanned(false);
+      setScannerVisible(false);
     }
   }, [visible]);
 
@@ -63,21 +63,18 @@ export const FoodSearchModal = ({ visible, onClose, mealType }: FoodSearchModalP
     setLoading(false);
   };
 
-  const onBarcodeScanned = async ({ data }: { data: string }) => {
-    if (scanned) return;
-    setScanned(true);
+  const handleScanSuccess = async (barcode: string) => {
+    setScannerVisible(false);
     setLoading(true);
     
-    const product = await openFoodFactsService.getProductByBarcode(data);
+    const product = await openFoodFactsService.getProductByBarcode(barcode);
     setLoading(false);
     
     if (product) {
       setSelectedFood(product);
       setStep('quantity');
     } else {
-      Alert.alert('Produit non trouvé', 'Ce code-barres n\'est pas dans notre base de données.', [
-        { text: 'OK', onPress: () => setScanned(false) }
-      ]);
+      Alert.alert('Introuvable', "Ce produit n'est pas dans la base de données.");
     }
   };
 
@@ -112,42 +109,6 @@ export const FoodSearchModal = ({ visible, onClose, mealType }: FoodSearchModalP
     onClose();
   };
 
-  const renderScanner = () => {
-    if (!permission) return <ActivityIndicator size="large" color="#00E5FF" />;
-    
-    if (!permission.granted) {
-      return (
-        <View style={styles.permissionContainer}>
-          <Text style={styles.permissionText}>Accès à la caméra requis pour scanner</Text>
-          <TouchableOpacity style={styles.permissionBtn} onPress={requestPermission}>
-            <Text style={styles.permissionBtnText}>AUTORISER LA CAMÉRA</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    return (
-      <View style={styles.scannerWrapper}>
-        <CameraView
-          style={styles.camera}
-          onBarcodeScanned={scanned ? undefined : onBarcodeScanned}
-          barcodeScannerSettings={{
-            barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e'],
-          }}
-        >
-          <View style={styles.scannerOverlay}>
-            <View style={styles.scanTarget} />
-            <Text style={styles.scanHint}>PLACE LE CODE-BARRES DANS LE CADRE</Text>
-          </View>
-        </CameraView>
-        <TouchableOpacity style={styles.backBtn} onPress={() => setStep('search')}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-          <Text style={styles.backBtnText}>RETOUR À LA RECHERCHE</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  };
-
   const renderSearch = () => (
     <View style={styles.content}>
       <View style={styles.header}>
@@ -171,7 +132,7 @@ export const FoodSearchModal = ({ visible, onClose, mealType }: FoodSearchModalP
           <Ionicons name="search" size={20} color="#00E5FF" />
         </TouchableOpacity>
         <View style={styles.divider} />
-        <TouchableOpacity style={styles.scanBtn} onPress={() => setStep('scan')}>
+        <TouchableOpacity style={styles.scanBtn} onPress={() => setScannerVisible(true)}>
           <Ionicons name="barcode-outline" size={24} color="#00E5FF" />
         </TouchableOpacity>
       </View>
@@ -196,6 +157,12 @@ export const FoodSearchModal = ({ visible, onClose, mealType }: FoodSearchModalP
           }
         />
       )}
+
+      <BarcodeScannerModal 
+        visible={scannerVisible} 
+        onClose={() => setScannerVisible(false)} 
+        onScanSuccess={handleScanSuccess} 
+      />
     </View>
   );
 
