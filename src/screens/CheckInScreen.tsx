@@ -15,7 +15,8 @@ import { BlurView } from 'expo-blur';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../services/supabaseClient';
 
-const { height } = Dimensions.get('window');
+const BODY_PARTS = ['Aucune', 'Ischios', 'Quadriceps', 'Mollets', 'Adducteurs', 'Dos', 'Pied/Cheville'];
+const PAIN_TYPES = ['Courbatures', 'Raideur', 'Crampe', 'Gêne aiguë'];
 
 const CheckInScreen = () => {
   const navigation = useNavigation<any>();
@@ -24,8 +25,19 @@ const CheckInScreen = () => {
   const [idealSleep, setIdealSleep] = useState(8);
   const [latency, setLatency] = useState(30);
   const [energyScore, setEnergyScore] = useState(5);
+  
+  // États Douleurs
+  const [selectedBodyPart, setSelectedBodyPart] = useState<string | null>('Aucune');
+  const [selectedPainType, setSelectedPainType] = useState<string | null>(null);
+  
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const formatIdealSleep = (val: number) => {
+    const h = Math.floor(val);
+    const m = val % 1 !== 0 ? '30' : '00';
+    return `${h}h${m}`;
+  };
 
   const getMinutes = (time: string) => {
     const parts = time.split(':');
@@ -89,12 +101,16 @@ const CheckInScreen = () => {
       if (!session?.user) throw new Error('Utilisateur non identifié');
 
       const { score: calculatedSleepScore } = getSleepStats();
+      
+      const finalNotes = selectedBodyPart && selectedBodyPart !== 'Aucune' 
+        ? `[${selectedPainType || 'Douleur'} - ${selectedBodyPart}] ${notes}` 
+        : notes;
 
       const { error } = await supabase.from('daily_checkins').insert({
         user_id: session.user.id,
         sleep_score: calculatedSleepScore,
         energy_score: energyScore,
-        notes: notes,
+        notes: finalNotes,
         created_at: new Date().toISOString(),
       });
 
@@ -141,7 +157,7 @@ const CheckInScreen = () => {
               
               {/* Besoin Idéal */}
               <View style={styles.idealRow}>
-                <Text style={styles.idealLabel}>Besoin idéal : {idealSleep}h</Text>
+                <Text style={styles.idealLabel}>Besoin idéal : {formatIdealSleep(idealSleep)}</Text>
                 <View style={styles.counterRow}>
                   <TouchableOpacity 
                     style={styles.counterBtn} 
@@ -186,9 +202,9 @@ const CheckInScreen = () => {
                 <Text style={styles.timeInputLabel}>Endormissement (Latence)</Text>
                 <View style={styles.latencyRow}>
                   {[
-                    { label: 'Rapide', val: 15 },
-                    { label: 'Normal', val: 30 },
-                    { label: 'Long', val: 60 }
+                    { label: 'Rapide (15m)', val: 15 },
+                    { label: 'Normal (30m)', val: 30 },
+                    { label: 'Long (60m)', val: 60 }
                   ].map((item) => (
                     <TouchableOpacity
                       key={item.val}
@@ -220,10 +236,52 @@ const CheckInScreen = () => {
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Notes / Douleurs</Text>
+              <Text style={styles.sectionLabel}>Douleurs ou remarques</Text>
+              
+              {/* Zone du corps */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagScroll}>
+                {BODY_PARTS.map((part) => (
+                  <TouchableOpacity
+                    key={part}
+                    style={[
+                      styles.tagPill,
+                      selectedBodyPart === part && styles.tagPillSelected
+                    ]}
+                    onPress={() => {
+                      setSelectedBodyPart(part);
+                      if (part === 'Aucune') setSelectedPainType(null);
+                    }}
+                  >
+                    <Text style={[styles.tagText, selectedBodyPart === part && styles.tagTextSelected]}>
+                      {part}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {/* Type de douleur (si zone sélectionnée) */}
+              {selectedBodyPart && selectedBodyPart !== 'Aucune' && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagScroll}>
+                  {PAIN_TYPES.map((type) => (
+                    <TouchableOpacity
+                      key={type}
+                      style={[
+                        styles.tagPill,
+                        selectedPainType === type && styles.tagPillSelected
+                      ]}
+                      onPress={() => setSelectedPainType(type)}
+                    >
+                      <Text style={[styles.tagText, selectedPainType === type && styles.tagTextSelected]}>
+                        {type}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+
               <TextInput
                 style={styles.textArea}
-                placeholder="Ex: Légère tension ischios, bien dormi..."
+                placeholder="Précisions supplémentaires..."
                 placeholderTextColor="#8E8E93"
                 multiline
                 numberOfLines={4}
@@ -449,6 +507,30 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   latencyTextSelected: {
+    color: '#000000',
+  },
+  tagScroll: {
+    marginBottom: 12,
+  },
+  tagPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    marginRight: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  tagPillSelected: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
+  },
+  tagText: {
+    color: '#8E8E93',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  tagTextSelected: {
     color: '#000000',
   },
   saveButton: {
