@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet, Platform, Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
 import DashboardScreen from '../screens/DashboardScreen';
@@ -7,8 +7,6 @@ import WorkoutScreen from '../screens/WorkoutScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
 const Tab = createBottomTabNavigator();
-
-
 
 const TabNavigator = () => {
   return (
@@ -18,15 +16,28 @@ const TabNavigator = () => {
         tabBarShowLabel: true,
         tabBarStyle: styles.tabBar,
         tabBarBackground: () => (
-          <BlurView intensity={90} tint="dark" style={StyleSheet.absoluteFill} />
+          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
         ),
         tabBarActiveTintColor: '#00E5FF',
         tabBarInactiveTintColor: '#8E8E93',
+        tabBarLabelStyle: styles.tabBarLabel,
       }}
     >
-      <Tab.Screen name="Accueil" component={DashboardScreen} />
-      <Tab.Screen name="Entraînement" component={WorkoutScreen} />
-      <Tab.Screen name="Profil" component={ProfileScreen} />
+      <Tab.Screen 
+        name="Accueil" 
+        component={DashboardScreen} 
+        options={{ tabBarLabel: 'DASHBOARD' }}
+      />
+      <Tab.Screen 
+        name="Entraînement" 
+        component={WorkoutScreen} 
+        options={{ tabBarLabel: 'AGENDA' }}
+      />
+      <Tab.Screen 
+        name="Profil" 
+        component={ProfileScreen} 
+        options={{ tabBarLabel: 'RECORDS' }}
+      />
     </Tab.Navigator>
   );
 };
@@ -39,13 +50,20 @@ const styles = StyleSheet.create({
     right: 20,
     elevation: 0,
     backgroundColor: 'transparent',
-    borderRadius: 24,
-    height: 70,
+    borderRadius: 32,
+    height: 65,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(0, 229, 255, 0.2)',
     overflow: 'hidden',
-    paddingBottom: Platform.OS === 'ios' ? 20 : 10,
-    paddingTop: 10,
+    paddingBottom: Platform.OS === 'ios' ? 10 : 0,
+    borderTopWidth: 1, // Assure consistency
+    borderTopColor: 'rgba(0, 229, 255, 0.2)',
+  },
+  tabBarLabel: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginBottom: 5,
   },
 });
 
