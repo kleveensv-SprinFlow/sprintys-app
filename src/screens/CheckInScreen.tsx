@@ -19,10 +19,47 @@ const { height } = Dimensions.get('window');
 
 const CheckInScreen = () => {
   const navigation = useNavigation<any>();
-  const [sleepScore, setSleepScore] = useState(5);
+  const [bedTime, setBedTime] = useState('23:00');
+  const [wakeTime, setWakeTime] = useState('07:00');
   const [energyScore, setEnergyScore] = useState(5);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const getMinutes = (time: string) => {
+    const parts = time.split(':');
+    if (parts.length !== 2) return null;
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    if (isNaN(h) || isNaN(m)) return null;
+    return h * 60 + m;
+  };
+
+  const getSleepStats = () => {
+    const bed = getMinutes(bedTime);
+    const wake = getMinutes(wakeTime);
+    
+    if (bed === null || wake === null) return { hours: 0, mins: 0, score: 0 };
+
+    let diff = wake - bed;
+    if (diff <= 0) diff += 1440; // Ajouter 24h
+
+    const totalHours = diff / 60;
+    const h = Math.floor(totalHours);
+    const m = Math.round((totalHours - h) * 60);
+
+    // Scoring logic: 8h = 10, 7h = 8, 6h = 6, 5h = 4, <4h = 2
+    let score = 2;
+    if (totalHours >= 8) score = 10;
+    else if (totalHours >= 7.5) score = 9;
+    else if (totalHours >= 7) score = 8;
+    else if (totalHours >= 6.5) score = 7;
+    else if (totalHours >= 6) score = 6;
+    else if (totalHours >= 5.5) score = 5;
+    else if (totalHours >= 5) score = 4;
+    else if (totalHours >= 4.5) score = 3;
+
+    return { hours: h, mins: m, score };
+  };
 
   const renderScorePills = (currentValue: number, setter: (val: number) => void) => {
     return (
@@ -54,9 +91,11 @@ const CheckInScreen = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) throw new Error('Utilisateur non identifié');
 
+      const { score: calculatedSleepScore } = getSleepStats();
+
       const { error } = await supabase.from('daily_checkins').insert({
         user_id: session.user.id,
-        sleep_score: sleepScore,
+        sleep_score: calculatedSleepScore,
         energy_score: energyScore,
         notes: notes,
         created_at: new Date().toISOString(),
@@ -102,7 +141,31 @@ const CheckInScreen = () => {
           <BlurView intensity={40} tint="default" style={styles.glassCard}>
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Qualité du sommeil</Text>
-              {renderScorePills(sleepScore, setSleepScore)}
+              <View style={styles.timeInputRow}>
+                <View style={styles.timeInputContainer}>
+                  <Text style={styles.timeInputLabel}>Coucher</Text>
+                  <TextInput
+                    style={styles.timeInput}
+                    value={bedTime}
+                    onChangeText={setBedTime}
+                    placeholder="23:00"
+                    placeholderTextColor="#8E8E93"
+                  />
+                </View>
+                <View style={styles.timeInputContainer}>
+                  <Text style={styles.timeInputLabel}>Lever</Text>
+                  <TextInput
+                    style={styles.timeInput}
+                    value={wakeTime}
+                    onChangeText={setWakeTime}
+                    placeholder="07:00"
+                    placeholderTextColor="#8E8E93"
+                  />
+                </View>
+              </View>
+              <Text style={styles.sleepSummary}>
+                Durée estimée : {getSleepStats().hours}h {getSleepStats().mins}m (Score : {getSleepStats().score}/10)
+              </Text>
             </View>
 
             <View style={styles.section}>
@@ -248,6 +311,37 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  timeInputRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  timeInputContainer: {
+    width: '48%',
+  },
+  timeInputLabel: {
+    color: '#8E8E93',
+    fontSize: 12,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  timeInput: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    padding: 12,
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  sleepSummary: {
+    color: '#32ADE6',
+    fontSize: 14,
+    fontWeight: '500',
+    marginTop: 8,
   },
   saveButton: {
     backgroundColor: '#FFFFFF',
