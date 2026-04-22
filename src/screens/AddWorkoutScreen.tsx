@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -20,6 +20,7 @@ import { supabase } from '../services/supabaseClient';
 import { EXERCISE_LIBRARY } from '../data/exercises';
 
 const WORKOUT_TYPES = ['Vitesse', 'Lactique', 'Aérobie', 'Départs/Blocs', 'Musculation/Haltéro'];
+const CATEGORIES = ['Haltérophilie', 'Jambes', 'Haut du Corps', 'Tronc / Gainage'];
 
 const AddWorkoutScreen = () => {
   const navigation = useNavigation<any>();
@@ -40,6 +41,74 @@ const AddWorkoutScreen = () => {
     { name: '', sets: '', reps: '', weight: '' }
   ]);
   const [showExercisePicker, setShowExercisePicker] = useState<number | null>(null);
+  const [userExercises, setUserExercises] = useState<any[]>([]);
+
+  // État pour la création d'exercice custom
+  const [isCreatingCustom, setIsCreatingCustom] = useState(false);
+  const [customName, setCustomName] = useState('');
+  const [customCategory, setCustomCategory] = useState(CATEGORIES[0]);
+
+  useEffect(() => {
+    fetchUserExercises();
+  }, []);
+
+  const fetchUserExercises = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+
+      const { data, error } = await supabase
+        .from('user_exercises')
+        .select('*')
+        .eq('user_id', session.user.id);
+
+      if (error) throw error;
+      setUserExercises(data || []);
+    } catch (error) {
+      console.error('Error fetching user exercises:', error);
+    }
+  };
+
+  const saveCustomExercise = async () => {
+    if (!customName) {
+      Alert.alert('Erreur', 'Veuillez saisir un nom pour l\'exercice.');
+      return;
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) throw new Error('Non connecté');
+
+      const { data, error } = await supabase
+        .from('user_exercises')
+        .insert({
+          user_id: session.user.id,
+          name: customName,
+          category: customCategory
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setUserExercises([...userExercises, data]);
+      setCustomName('');
+      setIsCreatingCustom(false);
+      Alert.alert('Succès', 'Exercice ajouté à votre bibliothèque !');
+    } catch (error: any) {
+      Alert.alert('Erreur', error.message || 'Impossible de sauvegarder l\'exercice');
+    }
+  };
+
+  const getFullLibrary = () => {
+    return EXERCISE_LIBRARY.map(cat => {
+      const customs = userExercises.filter(ue => ue.category === cat.category).map(ue => ue.name);
+      return {
+        ...cat,
+        exercises: [...cat.exercises, ...customs]
+      };
+    });
+  };
 
   const addBlock = () => {
     setBlocks([...blocks, { sets: '1', distance: '100', unit: 'm', performance: '', recovery: '' }]);
@@ -177,7 +246,7 @@ const AddWorkoutScreen = () => {
               </ScrollView>
             </View>
 
-            {/* Constructeur Piste */}
+            {/* Constructeurs */}
             {workoutType !== 'Musculation/Haltéro' ? (
               <View style={styles.section}>
                 <Text style={styles.sectionLabel}>Cœur de séance (Blocs)</Text>
@@ -208,33 +277,17 @@ const AddWorkoutScreen = () => {
                 <TouchableOpacity style={styles.addBlockBtn} onPress={addBlock}><Text style={styles.addBlockText}>+ Ajouter un bloc</Text></TouchableOpacity>
               </View>
             ) : (
-              /* Constructeur Musculation */
               <View style={styles.section}>
                 <Text style={styles.sectionLabel}>Cœur de séance (Musculation)</Text>
                 {muscuExercises.map((ex, index) => (
                   <View key={index} style={styles.blockContainer}>
-                    <TouchableOpacity 
-                      style={styles.exerciseSelector} 
-                      onPress={() => setShowExercisePicker(index)}
-                    >
-                      <Text style={ex.name ? styles.exerciseName : styles.exercisePlaceholder}>
-                        {ex.name || 'Choisir un exercice...'}
-                      </Text>
+                    <TouchableOpacity style={styles.exerciseSelector} onPress={() => setShowExercisePicker(index)}>
+                      <Text style={ex.name ? styles.exerciseName : styles.exercisePlaceholder}>{ex.name || 'Choisir un exercice...'}</Text>
                     </TouchableOpacity>
-
                     <View style={styles.blockInputGrid}>
-                      <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>Séries</Text>
-                        <TextInput style={[styles.input, styles.compactInput]} value={ex.sets} onChangeText={(val) => updateMuscuExercise(index, 'sets', val)} keyboardType="numeric" placeholder="3" />
-                      </View>
-                      <View style={[styles.inputGroup, { marginHorizontal: 8 }]}>
-                        <Text style={styles.inputLabel}>Reps</Text>
-                        <TextInput style={[styles.input, styles.compactInput]} value={ex.reps} onChangeText={(val) => updateMuscuExercise(index, 'reps', val)} keyboardType="numeric" placeholder="10" />
-                      </View>
-                      <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>Poids (kg)</Text>
-                        <TextInput style={[styles.input, styles.compactInput]} value={ex.weight} onChangeText={(val) => updateMuscuExercise(index, 'weight', val)} keyboardType="numeric" placeholder="60" />
-                      </View>
+                      <View style={styles.inputGroup}><Text style={styles.inputLabel}>Séries</Text><TextInput style={[styles.input, styles.compactInput]} value={ex.sets} onChangeText={(val) => updateMuscuExercise(index, 'sets', val)} keyboardType="numeric" placeholder="3" /></View>
+                      <View style={[styles.inputGroup, { marginHorizontal: 8 }]}><Text style={styles.inputLabel}>Reps</Text><TextInput style={[styles.input, styles.compactInput]} value={ex.reps} onChangeText={(val) => updateMuscuExercise(index, 'reps', val)} keyboardType="numeric" placeholder="10" /></View>
+                      <View style={styles.inputGroup}><Text style={styles.inputLabel}>Poids (kg)</Text><TextInput style={[styles.input, styles.compactInput]} value={ex.weight} onChangeText={(val) => updateMuscuExercise(index, 'weight', val)} keyboardType="numeric" placeholder="60" /></View>
                     </View>
                     {muscuExercises.length > 1 && <TouchableOpacity onPress={() => removeMuscuExercise(index)} style={styles.removeBlockBtn}><Text style={styles.removeBlockText}>Supprimer</Text></TouchableOpacity>}
                   </View>
@@ -277,29 +330,62 @@ const AddWorkoutScreen = () => {
       <Modal visible={showExercisePicker !== null} animationType="slide" transparent>
         <BlurView intensity={100} tint="dark" style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Bibliothèque d'Exercices</Text>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {EXERCISE_LIBRARY.map((cat, i) => (
-                <View key={i} style={styles.modalSection}>
-                  <Text style={styles.modalCategory}>{cat.category}</Text>
-                  <View style={styles.modalExerciseGrid}>
-                    {cat.exercises.map((ex, j) => (
-                      <TouchableOpacity 
-                        key={j} 
-                        style={styles.modalExerciseBtn}
-                        onPress={() => {
-                          if (showExercisePicker !== null) updateMuscuExercise(showExercisePicker, 'name', ex);
-                          setShowExercisePicker(null);
-                        }}
-                      >
-                        <Text style={styles.modalExerciseText}>{ex}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Bibliothèque</Text>
+              <TouchableOpacity style={styles.createBtn} onPress={() => setIsCreatingCustom(true)}>
+                <Text style={styles.createBtnText}>✨ Créer</Text>
+              </TouchableOpacity>
+            </View>
+
+            {isCreatingCustom ? (
+              <View style={styles.customForm}>
+                <Text style={styles.formLabel}>Nom de l'exercice</Text>
+                <TextInput style={styles.input} value={customName} onChangeText={setCustomName} placeholder="Ex: Gobelet Squat" placeholderTextColor="#555" />
+                
+                <Text style={styles.formLabel}>Catégorie</Text>
+                <View style={styles.categoryGrid}>
+                  {CATEGORIES.map(cat => (
+                    <TouchableOpacity 
+                      key={cat} 
+                      style={[styles.categoryPill, customCategory === cat && styles.categoryPillSelected]}
+                      onPress={() => setCustomCategory(cat)}
+                    >
+                      <Text style={[styles.categoryText, customCategory === cat && styles.categoryTextSelected]}>{cat}</Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
-              ))}
-            </ScrollView>
-            <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setShowExercisePicker(null)}>
+
+                <TouchableOpacity style={styles.saveCustomBtn} onPress={saveCustomExercise}>
+                  <Text style={styles.saveCustomBtnText}>Sauvegarder</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.cancelCustomBtn} onPress={() => setIsCreatingCustom(false)}>
+                  <Text style={styles.cancelCustomBtnText}>Retour à la liste</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {getFullLibrary().map((cat, i) => (
+                  <View key={i} style={styles.modalSection}>
+                    <Text style={styles.modalCategory}>{cat.category}</Text>
+                    <View style={styles.modalExerciseGrid}>
+                      {cat.exercises.map((ex, j) => (
+                        <TouchableOpacity 
+                          key={j} 
+                          style={styles.modalExerciseBtn}
+                          onPress={() => {
+                            if (showExercisePicker !== null) updateMuscuExercise(showExercisePicker, 'name', ex);
+                            setShowExercisePicker(null);
+                          }}
+                        >
+                          <Text style={styles.modalExerciseText}>{ex}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+            <TouchableOpacity style={styles.modalCloseBtn} onPress={() => { setShowExercisePicker(null); setIsCreatingCustom(false); }}>
               <Text style={styles.modalCloseText}>Fermer</Text>
             </TouchableOpacity>
           </View>
@@ -356,8 +442,11 @@ const styles = StyleSheet.create({
   cancelButton: { alignItems: 'center', marginTop: 16 },
   cancelButtonText: { color: '#8E8E93', fontSize: 14 },
   modalOverlay: { flex: 1, justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#1C1C1E', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, height: '80%' },
-  modalTitle: { fontSize: 24, fontWeight: '800', color: '#FFFFFF', marginBottom: 24 },
+  modalContent: { backgroundColor: '#1C1C1E', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, height: '85%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  modalTitle: { fontSize: 24, fontWeight: '800', color: '#FFFFFF' },
+  createBtn: { backgroundColor: 'rgba(50, 173, 230, 0.1)', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1, borderColor: '#32ADE6' },
+  createBtnText: { color: '#32ADE6', fontWeight: '700', fontSize: 13 },
   modalSection: { marginBottom: 24 },
   modalCategory: { color: '#32ADE6', fontSize: 14, fontWeight: '700', textTransform: 'uppercase', marginBottom: 12 },
   modalExerciseGrid: { flexDirection: 'row', flexWrap: 'wrap' },
@@ -365,6 +454,17 @@ const styles = StyleSheet.create({
   modalExerciseText: { color: '#FFFFFF', fontSize: 14 },
   modalCloseBtn: { marginTop: 12, paddingVertical: 16, alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: 16 },
   modalCloseText: { color: '#FFFFFF', fontWeight: '700' },
+  customForm: { paddingBottom: 24 },
+  formLabel: { color: '#FFFFFF', fontSize: 14, fontWeight: '600', marginBottom: 12, marginTop: 16 },
+  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 },
+  categoryPill: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)', marginRight: 8, marginBottom: 8 },
+  categoryPillSelected: { backgroundColor: '#32ADE6', borderColor: '#32ADE6' },
+  categoryText: { color: '#8E8E93', fontSize: 12, fontWeight: '600' },
+  categoryTextSelected: { color: '#FFFFFF' },
+  saveCustomBtn: { backgroundColor: '#32ADE6', paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginTop: 24 },
+  saveCustomBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 16 },
+  cancelCustomBtn: { paddingVertical: 14, alignItems: 'center' },
+  cancelCustomBtnText: { color: '#8E8E93', fontSize: 14 },
 });
 
 export default AddWorkoutScreen;
