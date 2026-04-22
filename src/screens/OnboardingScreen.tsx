@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { useNavigation } from '@react-navigation/native';
 import { signOutUser } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
 
@@ -27,6 +28,7 @@ const OnboardingScreen = () => {
   const [personalRecords, setPersonalRecords] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const navigation = useNavigation<any>();
 
   const handleToggleDiscipline = (discipline: string) => {
     if (selectedDisciplines.includes(discipline)) {
@@ -79,6 +81,9 @@ const OnboardingScreen = () => {
         if (error) throw error;
 
         setIsSuccess(true);
+        setTimeout(() => {
+          navigation.replace('MainTabs');
+        }, 1000);
       } catch (error: any) {
         showAlert('Erreur de sauvegarde', error.message || 'Une erreur est survenue.');
       } finally {

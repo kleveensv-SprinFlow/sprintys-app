@@ -15,17 +15,70 @@ const Stack = createNativeStackNavigator();
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<boolean | null>(null);
+
+  const checkUserProfile = async (userId: string) => {
+    console.log('Checking profile for user:', userId);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('disciplines')
+        .eq('id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Erreur Supabase lors de la vérification:', error);
+      }
+
+      if (data && data.disciplines && data.disciplines.length > 0) {
+        console.log('Profile complete, disciplines found.');
+        setHasCompletedOnboarding(true);
+      } else {
+        console.log('Profile incomplete or not found (code PGRST116).');
+        setHasCompletedOnboarding(false);
+      }
+    } catch (err) {
+      console.error('Erreur vérification profil:', err);
+      setHasCompletedOnboarding(false);
+    } finally {
+      console.log('Profile check finished, stopping loader.');
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // 1. Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
+    console.log('App starting, initializing auth...');
+    
+    const initializeAuth = async () => {
+      try {
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        setSession(initialSession);
+        
+        if (initialSession?.user) {
+          await checkUserProfile(initialSession.user.id);
+        }
+      } catch (err) {
+        console.error('Initialization error:', err);
+      } finally {
+        console.log('Initialization finished, setting loading to false.');
+        setLoading(false);
+      }
+    };
 
-    // 2. Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+    initializeAuth();
+
+    // Écouter les changements d'état (Login/Logout)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      console.log('Auth event:', event);
+      setSession(currentSession);
+      
+      if (currentSession?.user) {
+        await checkUserProfile(currentSession.user.id);
+      } else {
+        setHasCompletedOnboarding(null);
+      }
+      
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -45,10 +98,11 @@ export default function App() {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           {!session ? (
             <Stack.Screen name="Auth" component={AuthScreen} />
+          ) : hasCompletedOnboarding === true ? (
+            <Stack.Screen name="MainTabs" component={TabNavigator} />
           ) : (
             <>
-              {/* Note: The app will start on the first screen in the stack.
-                  Later we can add logic to check if onboarding is completed. */}
+              {/* Par défaut ou si l'onboarding n'est pas fini */}
               <Stack.Screen name="Onboarding" component={OnboardingScreen} />
               <Stack.Screen name="MainTabs" component={TabNavigator} />
             </>
