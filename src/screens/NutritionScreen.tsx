@@ -74,10 +74,14 @@ const MealCard = ({
 
 const NutritionScreen = () => {
   const { profile } = useBodyStore();
-  const { dailyLog, getTotals, removeFoodLog } = useNutritionStore();
+  const { dailyLog, getTotals, removeFoodLog, fetchDailyLogs } = useNutritionStore();
   
   const [modalVisible, setModalVisible] = useState(false);
   const [activeMealType, setActiveMealType] = useState<MealType>('PETIT-DÉJEUNER');
+
+  useEffect(() => {
+    fetchDailyLogs();
+  }, []);
 
   const totals = useMemo(() => getTotals(), [dailyLog]);
 

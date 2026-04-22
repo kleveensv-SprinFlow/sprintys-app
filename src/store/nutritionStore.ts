@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { nutritionService } from '../services/nutritionService';
 
 export type MealType = 'PETIT-DÉJEUNER' | 'DÉJEUNER' | 'COLLATION / PRÉ-WORKOUT' | 'DÎNER';
 
@@ -16,21 +17,38 @@ export interface FoodLog {
 
 interface NutritionState {
   dailyLog: FoodLog[];
-  addFoodLog: (food: FoodLog) => void;
-  removeFoodLog: (id: string) => void;
+  addFoodLog: (food: Omit<FoodLog, 'id'>) => Promise<void>;
+  removeFoodLog: (id: string) => Promise<void>;
+  fetchDailyLogs: () => Promise<void>;
   getTotals: () => { calories: number; protein: number; carbs: number; fats: number };
 }
 
 export const useNutritionStore = create<NutritionState>((set, get) => ({
   dailyLog: [],
 
-  addFoodLog: (food) => set((state) => ({
-    dailyLog: [...state.dailyLog, food]
-  })),
+  fetchDailyLogs: async () => {
+    const logs = await nutritionService.getDailyLogs(new Date());
+    set({ dailyLog: logs });
+  },
 
-  removeFoodLog: (id) => set((state) => ({
-    dailyLog: state.dailyLog.filter(item => item.id !== id)
-  })),
+  addFoodLog: async (foodData) => {
+    const id = await nutritionService.addNutritionLog(foodData);
+    if (id) {
+      const newLog = { ...foodData, id };
+      set((state) => ({
+        dailyLog: [...state.dailyLog, newLog]
+      }));
+    }
+  },
+
+  removeFoodLog: async (id) => {
+    const success = await nutritionService.deleteNutritionLog(id);
+    if (success) {
+      set((state) => ({
+        dailyLog: state.dailyLog.filter(item => item.id !== id)
+      }));
+    }
+  },
 
   getTotals: () => {
     const today = new Date().setHours(0, 0, 0, 0);

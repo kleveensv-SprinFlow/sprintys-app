@@ -83,7 +83,7 @@ export const FoodSearchModal = ({ visible, onClose, mealType }: FoodSearchModalP
     setStep('quantity');
   };
 
-  const handleAddLog = () => {
+  const handleAddLog = async () => {
     if (!selectedFood) return;
     
     const qtyGrams = parseFloat(quantity) || 0;
@@ -94,8 +94,7 @@ export const FoodSearchModal = ({ visible, onClose, mealType }: FoodSearchModalP
 
     const ratio = qtyGrams / 100;
     
-    addFoodLog({
-      id: Math.random().toString(36).substr(2, 9),
+    await addFoodLog({
       name: selectedFood.name,
       calories: Math.round(selectedFood.kcal100g * ratio),
       protein: Math.round(selectedFood.protein100g * ratio * 10) / 10,
