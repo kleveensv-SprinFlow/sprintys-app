@@ -309,7 +309,6 @@ const DashboardScreen = () => {
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View>
-            <Text style={styles.dateText}>{formatDate()}</Text>
             <View style={styles.welcomeRow}>
               <Text style={styles.welcomeText}>SALUT, {userName.toUpperCase()}</Text>
               {weather && <WeatherBadge temp={weather.temp} condition={weather.condition} />}
@@ -386,30 +385,6 @@ const DashboardScreen = () => {
           <Text style={styles.sprintyTitle}>ANALYSE SPRINTY</Text>
           <Text style={styles.sprintyAdvice}>{getSprintyAdvice(dailyScore, lastWorkout)}</Text>
         </BlurView>
-
-        {/* Carte Météo Technique */}
-        {weather && (
-          <BlurView intensity={40} tint="default" style={styles.mainCard}>
-            <Text style={styles.cardTitle}>MÉTÉO TECHNIQUE</Text>
-            <View style={styles.weatherGrid}>
-              <View style={styles.weatherStat}>
-                <Text style={styles.statLabel}>TEMPÉRATURE</Text>
-                <Text style={styles.statValue}>{weather.temp}°C</Text>
-                <Text style={styles.statDesc}>{weather.condition.toUpperCase()}</Text>
-              </View>
-              <View style={styles.weatherStat}>
-                <Text style={styles.statLabel}>VENT</Text>
-                <Text style={styles.statValue}>{weather.windSpeed} M/S</Text>
-                <Text style={styles.statDesc}>DIRECTION : {weather.windDirection}</Text>
-              </View>
-            </View>
-            <View style={styles.weatherAdviceContainer}>
-              {weather.windSpeed > 2 && <Text style={styles.weatherAdvice}>VENT FAVORABLE POUR LA VITESSE</Text>}
-              {weather.temp < 12 && <Text style={styles.weatherAdvice}>FROID : ÉCHAUFFEMENT LONG OBLIGATOIRE</Text>}
-              {weather.temp >= 12 && weather.windSpeed <= 2 && <Text style={styles.weatherAdvice}>CONDITIONS STABLES POUR L'ENTRAÎNEMENT</Text>}
-            </View>
-          </BlurView>
-        )}
 
         <View style={{ height: 100 }} />
       </ScrollView>
