@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useNavigation } from '@react-navigation/native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '../services/supabaseClient';
 
 const BODY_PARTS = ['Aucune', 'Ischios', 'Quadriceps', 'Mollets', 'Adducteurs', 'Dos', 'Pied/Cheville'];
@@ -102,52 +103,45 @@ const CheckInScreen = () => {
     }
   };
 
+  const parseTime = (timeStr: string) => {
+    const [h, m] = timeStr.split(':').map(Number);
+    const d = new Date();
+    d.setHours(h, m, 0, 0);
+    return d;
+  };
+
   const renderTimePicker = (type: 'bed' | 'wake') => {
     const currentTime = type === 'bed' ? bedTime : wakeTime;
-    const [currentH, currentM] = currentTime.split(':');
     const setTime = type === 'bed' ? setBedTime : setWakeTime;
-
-    const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
-    const minutes = Array.from({ length: 12 }, (_, i) => (i * 5).toString().padStart(2, '0'));
 
     return (
       <BlurView intensity={60} tint="light" style={styles.pickerContainer}>
-        <View style={styles.pickerColumns}>
-          {/* Colonne Heures */}
-          <ScrollView style={styles.pickerColumn} showsVerticalScrollIndicator={false}>
-            {hours.map(h => (
-              <TouchableOpacity 
-                key={h} 
-                onPress={() => setTime(`${h}:${currentM}`)}
-                style={styles.pickerItem}
-              >
-                <Text style={[styles.pickerItemText, currentH === h && styles.pickerItemTextActive]}>
-                  {h}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          <View style={styles.pickerSeparator}><Text style={styles.pickerSeparatorText}>:</Text></View>
-
-          {/* Colonne Minutes */}
-          <ScrollView style={styles.pickerColumn} showsVerticalScrollIndicator={false}>
-            {minutes.map(m => (
-              <TouchableOpacity 
-                key={m} 
-                onPress={() => setTime(`${currentH}:${m}`)}
-                style={styles.pickerItem}
-              >
-                <Text style={[styles.pickerItemText, currentM === m && styles.pickerItemTextActive]}>
-                  {m}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-        <TouchableOpacity style={styles.closePickerBtn} onPress={() => setActivePicker(null)}>
-          <Text style={styles.closePickerText}>Valider</Text>
-        </TouchableOpacity>
+        <DateTimePicker
+          value={parseTime(currentTime)}
+          mode="time"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          is24Hour={true}
+          minuteInterval={5}
+          themeVariant="dark"
+          textColor="#FFFFFF"
+          onChange={(event, selectedDate) => {
+            // Sur Android, fermer après sélection
+            if (Platform.OS === 'android' && (event.type === 'set' || event.type === 'dismissed')) {
+              setActivePicker(null);
+            }
+            
+            if (selectedDate) {
+              const h = selectedDate.getHours().toString().padStart(2, '0');
+              const m = selectedDate.getMinutes().toString().padStart(2, '0');
+              setTime(`${h}:${m}`);
+            }
+          }}
+        />
+        {Platform.OS === 'ios' && (
+          <TouchableOpacity style={styles.closePickerBtn} onPress={() => setActivePicker(null)}>
+            <Text style={styles.closePickerText}>Valider</Text>
+          </TouchableOpacity>
+        )}
       </BlurView>
     );
   };
