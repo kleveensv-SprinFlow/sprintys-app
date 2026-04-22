@@ -15,11 +15,12 @@ const TabNavigator = () => {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
+        tabBarShowLabel: true,
         tabBarStyle: styles.tabBar,
         tabBarBackground: () => (
-          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+          <BlurView intensity={90} tint="dark" style={StyleSheet.absoluteFill} />
         ),
-        tabBarActiveTintColor: '#FFFFFF',
+        tabBarActiveTintColor: '#00E5FF',
         tabBarInactiveTintColor: '#8E8E93',
       }}
     >
@@ -33,11 +34,18 @@ const TabNavigator = () => {
 const styles = StyleSheet.create({
   tabBar: {
     position: 'absolute',
-    borderTopWidth: 0,
+    bottom: 25,
+    left: 20,
+    right: 20,
     elevation: 0,
     backgroundColor: 'transparent',
-    height: 60,
-    paddingBottom: 10,
+    borderRadius: 24,
+    height: 70,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    overflow: 'hidden',
+    paddingBottom: Platform.OS === 'ios' ? 20 : 10,
+    paddingTop: 10,
   },
 });
 
