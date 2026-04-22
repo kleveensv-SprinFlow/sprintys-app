@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { supabase } from '../services/supabaseClient';
 import { signOutUser } from '../services/authService';
 
@@ -18,13 +18,18 @@ const { width } = Dimensions.get('window');
 
 const DashboardScreen = () => {
   const navigation = useNavigation<any>();
+  const isFocused = useIsFocused();
   const [profile, setProfile] = useState<any>(null);
   const [userName, setUserName] = useState<string>('');
+  const [dailyScore, setDailyScore] = useState<number | null>(null);
+  const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchUserData();
-  }, []);
+    if (isFocused) {
+      fetchUserData();
+    }
+  }, [isFocused]);
 
   const fetchUserData = async () => {
     try {
@@ -34,13 +39,37 @@ const DashboardScreen = () => {
       if (user) {
         setUserName(user.email?.split('@')[0] || 'Athlète');
         
-        const { data, error } = await supabase
+        // 1. Charger le profil
+        const { data: profileData } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
           .single();
 
-        if (data) setProfile(data);
+        if (profileData) setProfile(profileData);
+
+        // 2. Charger le dernier check-in
+        const { data: checkinData } = await supabase
+          .from('daily_checkins')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (checkinData) {
+          const today = new Date().toISOString().split('T')[0];
+          const checkinDate = checkinData.created_at.split('T')[0];
+
+          if (today === checkinDate) {
+            setHasCheckedInToday(true);
+            const score = Math.round(((checkinData.sleep_score + checkinData.energy_score) / 20) * 100);
+            setDailyScore(score);
+          } else {
+            setHasCheckedInToday(false);
+            setDailyScore(null);
+          }
+        }
       }
     } catch (error) {
       console.error('Erreur lors de la récupération des données:', error);
@@ -94,18 +123,26 @@ const DashboardScreen = () => {
         <BlurView intensity={40} tint="default" style={styles.card}>
           <Text style={styles.cardTitle}>État de forme</Text>
           <View style={styles.scoreContainer}>
-            <Text style={styles.scoreValue}>85</Text>
+            <Text style={styles.scoreValue}>{hasCheckedInToday ? dailyScore : '--'}</Text>
             <Text style={styles.scoreMax}>/100</Text>
           </View>
           <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: '85%' }]} />
+            <View style={[styles.progressFill, { width: hasCheckedInToday ? `${dailyScore}%` : '0%' }]} />
           </View>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => navigation.navigate('CheckIn')}
-          >
-            <Text style={styles.actionButtonText}>Faire mon check-in</Text>
-          </TouchableOpacity>
+          
+          {!hasCheckedInToday && (
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => navigation.navigate('CheckIn')}
+            >
+              <Text style={styles.actionButtonText}>Faire mon check-in</Text>
+            </TouchableOpacity>
+          )}
+          {hasCheckedInToday && (
+            <View style={styles.completedBadge}>
+              <Text style={styles.completedBadgeText}>Check-in terminé pour aujourd'hui</Text>
+            </View>
+          )}
         </BlurView>
 
         {/* Card 2: Objectif de Saison */}
@@ -302,6 +339,19 @@ const styles = StyleSheet.create({
     width: 1,
     height: 40,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  completedBadge: {
+    backgroundColor: 'rgba(50, 173, 230, 0.15)',
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(50, 173, 230, 0.3)',
+  },
+  completedBadgeText: {
+    color: '#32ADE6',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });
 
