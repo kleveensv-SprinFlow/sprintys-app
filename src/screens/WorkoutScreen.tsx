@@ -90,7 +90,7 @@ const WorkoutScreen = () => {
         <BlurView intensity={20} tint="light" style={styles.miniCard}>
           <View style={styles.miniCardHeader}>
             <Text style={styles.miniType}>{workout.type}</Text>
-            <Text style={styles.miniRpe}>🔥 {workout.rpe}</Text>
+            <Text style={styles.miniRpe}>SCORE : {workout.rpe}</Text>
           </View>
           <Text style={styles.miniSummary} numberOfLines={1}>{summary}</Text>
         </BlurView>
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
   monthLabel: { color: '#FFFFFF', fontSize: 17, fontWeight: '700', textTransform: 'capitalize' },
   agendaContainer: { width: '100%' },
   dayCardWrapper: { marginBottom: 12, borderRadius: 20, overflow: 'hidden' },
-  todayCard: { borderWidth: 1.5, borderColor: '#32ADE6' },
+  todayCard: { borderWidth: 1.5, borderColor: '#00E5FF' },
   dayCard: { padding: 16, minHeight: 90 },
   dayCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   dayName: { color: '#8E8E93', fontSize: 14, fontWeight: '700', textTransform: 'uppercase' },

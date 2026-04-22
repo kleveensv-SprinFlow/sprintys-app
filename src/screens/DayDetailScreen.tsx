@@ -139,7 +139,7 @@ const DayDetailScreen = () => {
                 </View>
 
                 <View style={styles.intensityBadge}>
-                  <Text style={styles.intensityText}>Intensité: {workout.rpe}/10</Text>
+                  <Text style={styles.intensityText}>INTENSITÉ : {workout.rpe}/10</Text>
                 </View>
 
                 <View style={styles.notesContainer}>
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   intensityText: { color: '#32ADE6', fontSize: 13, fontWeight: '700' },
   notesContainer: { marginTop: 8 },
   noteLine: { color: '#D1D1D6', fontSize: 15, lineHeight: 22, marginBottom: 4 },
-  noteHeader: { color: '#FFFFFF', fontWeight: '800', fontSize: 14, textTransform: 'uppercase', marginBottom: 8, marginTop: 4 },
+  noteHeader: { color: '#00E5FF', fontWeight: '800', fontSize: 14, textTransform: 'uppercase', marginBottom: 8, marginTop: 4 },
   addButton: { backgroundColor: '#FFFFFF', paddingVertical: 18, borderRadius: 16, alignItems: 'center', marginTop: 20 },
   addButtonText: { color: '#000000', fontSize: 17, fontWeight: '700' },
 });
