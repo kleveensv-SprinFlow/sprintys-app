@@ -8,6 +8,7 @@ import {
   Dimensions,
   Platform,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
@@ -47,13 +48,59 @@ const WorkoutScreen = () => {
     }
   };
 
+  const deleteWorkout = async (id: string) => {
+    Alert.alert(
+      'Supprimer la séance',
+      'Es-tu sûr de vouloir supprimer cet entraînement ? Cette action est irréversible.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { 
+          text: 'Supprimer', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('workouts')
+                .delete()
+                .eq('id', id);
+              
+              if (error) throw error;
+              setWorkouts(workouts.filter(w => w.id !== id));
+            } catch (error: any) {
+              Alert.alert('Erreur', 'Impossible de supprimer la séance.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('fr-FR', {
       day: 'numeric',
       month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
+      year: 'numeric',
+    });
+  };
+
+  const renderNotes = (notes: string) => {
+    if (!notes) return null;
+
+    const lines = notes.split('\n');
+    return lines.map((line, i) => {
+      const isHeader = line.includes('CŒUR DE SÉANCE :') || line.includes('MUSCULATION :');
+      return (
+        <Text 
+          key={i} 
+          style={[
+            styles.noteLine, 
+            isHeader && styles.noteHeader
+          ]}
+        >
+          {line}
+        </Text>
+      );
     });
   };
 
@@ -94,32 +141,30 @@ const WorkoutScreen = () => {
           </View>
         ) : (
           <View style={styles.workoutList}>
-            {workouts.map((workout) => {
-              const load = workout.duration_minutes * workout.rpe;
-              return (
-                <BlurView key={workout.id} intensity={40} tint="default" style={styles.workoutCard}>
-                  <View style={styles.cardHeader}>
+            {workouts.map((workout) => (
+              <BlurView key={workout.id} intensity={40} tint="default" style={styles.workoutCard}>
+                <View style={styles.cardHeader}>
+                  <View>
                     <Text style={styles.workoutType}>{workout.type}</Text>
                     <Text style={styles.workoutDate}>{formatDate(workout.created_at)}</Text>
                   </View>
-                  
-                  <View style={styles.cardStats}>
-                    <View style={styles.statItem}>
-                      <Text style={styles.statLabel}>Durée</Text>
-                      <Text style={styles.statValue}>{workout.duration_minutes} min</Text>
-                    </View>
-                    <View style={styles.statItem}>
-                      <Text style={styles.statLabel}>RPE</Text>
-                      <Text style={styles.statValue}>{workout.rpe}/10</Text>
-                    </View>
-                    <View style={[styles.statItem, styles.loadItem]}>
-                      <Text style={styles.statLabel}>Charge</Text>
-                      <Text style={styles.loadValue}>{load}</Text>
-                    </View>
-                  </View>
-                </BlurView>
-              );
-            })}
+                  <TouchableOpacity 
+                    onPress={() => deleteWorkout(workout.id)}
+                    style={styles.deleteBtn}
+                  >
+                    <Text style={styles.deleteIcon}>🗑️</Text>
+                  </TouchableOpacity>
+                </View>
+                
+                <View style={styles.intensityRow}>
+                  <Text style={styles.intensityText}>🔥 Intensité : {workout.rpe}/10</Text>
+                </View>
+
+                <View style={styles.notesContainer}>
+                  {renderNotes(workout.notes)}
+                </View>
+              </BlurView>
+            ))}
           </View>
         )}
 
@@ -130,147 +175,33 @@ const WorkoutScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  lightBackground: {
-    ...StyleSheet.absoluteFillObject,
-    overflow: 'hidden',
-  },
-  lightCircle: {
-    position: 'absolute',
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    opacity: 0.3,
-  },
-  cyanCircle: {
-    top: -50,
-    right: -50,
-    backgroundColor: '#32ADE6',
-  },
-  purpleCircle: {
-    bottom: 100,
-    left: -50,
-    backgroundColor: '#BF5AF2',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 70 : 50,
-  },
-  header: {
-    marginBottom: 30,
-  },
-  title: {
-    fontSize: 34,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: -1,
-  },
-  addButton: {
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-    marginBottom: 40,
-    shadowColor: '#FFFFFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  addButtonText: {
-    color: '#000000',
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  emptyContainer: {
-    marginTop: 40,
-    alignItems: 'center',
-  },
-  emptyCard: {
-    padding: 40,
-    borderRadius: 24,
-    width: '100%',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  emptyIcon: {
-    fontSize: 40,
-    marginBottom: 16,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#8E8E93',
-    textAlign: 'center',
-    lineHeight: 24,
-    fontWeight: '500',
-  },
-  workoutList: {
-    width: '100%',
-  },
-  workoutCard: {
-    padding: 20,
-    borderRadius: 24,
-    marginBottom: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    overflow: 'hidden',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  workoutType: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  workoutDate: {
-    color: '#8E8E93',
-    fontSize: 13,
-  },
-  cardStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: 16,
-    padding: 12,
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statLabel: {
-    color: '#8E8E93',
-    fontSize: 11,
-    textTransform: 'uppercase',
-    marginBottom: 4,
-    fontWeight: '600',
-  },
-  statValue: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  loadItem: {
-    borderLeftWidth: 1,
-    borderLeftColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  loadValue: {
-    color: '#32ADE6',
-    fontSize: 17,
-    fontWeight: '800',
-  },
+  container: { flex: 1, backgroundColor: '#000000' },
+  lightBackground: { ...StyleSheet.absoluteFillObject, overflow: 'hidden' },
+  lightCircle: { position: 'absolute', width: 300, height: 300, borderRadius: 150, opacity: 0.4 },
+  cyanCircle: { top: -50, right: -50, backgroundColor: '#32ADE6' },
+  purpleCircle: { bottom: -50, left: -50, backgroundColor: '#BF5AF2' },
+  scrollView: { flex: 1 },
+  scrollContent: { padding: 24, paddingTop: 60 },
+  header: { marginBottom: 32 },
+  title: { fontSize: 34, fontWeight: '800', color: '#FFFFFF', letterSpacing: -1 },
+  addButton: { backgroundColor: '#FFFFFF', paddingVertical: 16, borderRadius: 16, alignItems: 'center', marginBottom: 32 },
+  addButtonText: { color: '#000000', fontSize: 17, fontWeight: '700' },
+  emptyContainer: { alignItems: 'center', marginTop: 40 },
+  emptyCard: { padding: 40, borderRadius: 32, alignItems: 'center', width: width - 48, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
+  emptyIcon: { fontSize: 48, marginBottom: 16 },
+  emptyText: { fontSize: 16, color: '#8E8E93', textAlign: 'center', lineHeight: 24, fontWeight: '500' },
+  workoutList: { width: '100%' },
+  workoutCard: { padding: 20, borderRadius: 24, marginBottom: 16, backgroundColor: 'rgba(255, 255, 255, 0.05)', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)', overflow: 'hidden' },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
+  workoutType: { color: '#FFFFFF', fontSize: 18, fontWeight: '700' },
+  workoutDate: { color: '#8E8E93', fontSize: 13, marginTop: 2 },
+  deleteBtn: { padding: 4 },
+  deleteIcon: { fontSize: 18, opacity: 0.6 },
+  intensityRow: { marginBottom: 12, backgroundColor: 'rgba(255, 255, 255, 0.03)', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, alignSelf: 'flex-start' },
+  intensityText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
+  notesContainer: { marginTop: 4 },
+  noteLine: { color: '#D1D1D6', fontSize: 14, lineHeight: 20, marginBottom: 4 },
+  noteHeader: { color: '#32ADE6', fontWeight: '800', fontSize: 13, textTransform: 'uppercase', marginBottom: 8, marginTop: 4 },
 });
 
 export default WorkoutScreen;
