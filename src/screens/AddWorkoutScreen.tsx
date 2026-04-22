@@ -25,14 +25,17 @@ const CATEGORIES = ['Haltérophilie', 'Jambes', 'Haut du Corps', 'Tronc / Gainag
 const AddWorkoutScreen = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const [workoutType, setWorkoutType] = useState('Vitesse');
-  const [rpe, setRpe] = useState(7);
+  const editingWorkout = route.params?.workout;
+
+  const [workoutType, setWorkoutType] = useState(editingWorkout?.type || 'Vitesse');
+  const [rpe, setRpe] = useState(editingWorkout?.rpe || 7);
   const [notes, setNotes] = useState('');
   
-  // Initialiser la date à partir des params ou de la date actuelle
-  const initialDate = route.params?.selectedDate ? new Date(route.params.selectedDate) : new Date();
-  const [workoutDate, setWorkoutDate] = useState(initialDate);
+  const initialDate = route.params?.selectedDate 
+    ? new Date(route.params.selectedDate) 
+    : (editingWorkout ? new Date(editingWorkout.created_at) : new Date());
   
+  const [workoutDate, setWorkoutDate] = useState(initialDate);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -48,112 +51,123 @@ const AddWorkoutScreen = () => {
   const [showExercisePicker, setShowExercisePicker] = useState<number | null>(null);
   const [userExercises, setUserExercises] = useState<any[]>([]);
 
-  // État pour la création d'exercice custom
   const [isCreatingCustom, setIsCreatingCustom] = useState(false);
   const [customName, setCustomName] = useState('');
   const [customCategory, setCustomCategory] = useState(CATEGORIES[0]);
 
   useEffect(() => {
     fetchUserExercises();
+    if (editingWorkout) {
+      parseWorkoutNotes(editingWorkout.notes, editingWorkout.type);
+    }
   }, []);
+
+  const parseWorkoutNotes = (rawNotes: string, type: string) => {
+    if (!rawNotes) return;
+
+    if (type === 'Musculation/Haltéro') {
+      const muscuPart = rawNotes.split('\n\nNOTES :')[0]?.replace('MUSCULATION : ', '');
+      const notesPart = rawNotes.split('\n\nNOTES :')[1] || '';
+      setNotes(notesPart);
+
+      if (muscuPart) {
+        const exerciseLines = muscuPart.split(' | ');
+        const parsed = exerciseLines.map(line => {
+          // Format: Name : SetsxReps @Weightkg
+          const [namePart, statsPart] = line.split(' : ');
+          const setsReps = statsPart?.split(' @')[0];
+          const weight = statsPart?.split(' @')[1]?.replace('kg', '');
+          const [sets, reps] = setsReps?.split('x') || ['', ''];
+          return { name: namePart || '', sets, reps, weight: weight || '' };
+        });
+        setMuscuExercises(parsed);
+      }
+    } else {
+      const blocksPart = rawNotes.split('\n\nÉCHAUFFEMENT & NOTES :')[0]?.replace('CŒUR DE SÉANCE : ', '');
+      const notesPart = rawNotes.split('\n\nÉCHAUFFEMENT & NOTES :')[1] || '';
+      setNotes(notesPart);
+
+      if (blocksPart) {
+        const blockStrings = blocksPart.split(' | ');
+        const parsed = blockStrings.map(str => {
+          // Format: setsx distanceunit (⏱️ perf) [⏳ recmin]
+          const sets = str.split('x ')[0];
+          const rest = str.split('x ')[1];
+          const distanceUnit = rest?.split(' (')[0]?.split(' [')[0];
+          const unit = distanceUnit?.endsWith('sec') ? 'sec' : 'm';
+          const distance = distanceUnit?.replace('sec', '').replace('m', '');
+          
+          const perfMatch = str.match(/⏱️ (.*?)\)/);
+          const recMatch = str.match(/⏳ (.*?)min/);
+          
+          return {
+            sets: sets || '1',
+            distance: distance || '100',
+            unit,
+            performance: perfMatch ? perfMatch[1].replace('"', '').replace(':', '') : '',
+            recovery: recMatch ? recMatch[1] : ''
+          };
+        });
+        setBlocks(parsed);
+      }
+    }
+  };
 
   const fetchUserExercises = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
-
-      const { data, error } = await supabase
-        .from('user_exercises')
-        .select('*')
-        .eq('user_id', session.user.id);
-
+      const { data, error } = await supabase.from('user_exercises').select('*').eq('user_id', session.user.id);
       if (error) throw error;
       setUserExercises(data || []);
     } catch (error) {
-      console.error('Error fetching user exercises:', error);
+      console.error(error);
     }
   };
 
   const saveCustomExercise = async () => {
-    if (!customName) {
-      Alert.alert('Erreur', 'Veuillez saisir un nom pour l\'exercice.');
-      return;
-    }
-
+    if (!customName) return;
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) throw new Error('Non connecté');
-
-      const { data, error } = await supabase
-        .from('user_exercises')
-        .insert({
-          user_id: session.user.id,
-          name: customName,
-          category: customCategory
-        })
-        .select()
-        .single();
-
+      if (!session?.user) return;
+      const { data, error } = await supabase.from('user_exercises').insert({ user_id: session.user.id, name: customName, category: customCategory }).select().single();
       if (error) throw error;
-
       setUserExercises([...userExercises, data]);
       setCustomName('');
       setIsCreatingCustom(false);
-      Alert.alert('Succès', 'Exercice ajouté à votre bibliothèque !');
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible de sauvegarder l\'exercice');
+      Alert.alert('Erreur', error.message);
     }
   };
 
   const getFullLibrary = () => {
     return EXERCISE_LIBRARY.map(cat => {
       const customs = userExercises.filter(ue => ue.category === cat.category).map(ue => ue.name);
-      return {
-        ...cat,
-        exercises: [...cat.exercises, ...customs]
-      };
+      return { ...cat, exercises: [...cat.exercises, ...customs] };
     });
   };
 
-  const addBlock = () => {
-    setBlocks([...blocks, { sets: '1', distance: '100', unit: 'm', performance: '', recovery: '' }]);
-  };
-
+  const addBlock = () => setBlocks([...blocks, { sets: '1', distance: '100', unit: 'm', performance: '', recovery: '' }]);
   const updateBlock = (index: number, key: string, value: string) => {
     const newBlocks = [...blocks];
     (newBlocks[index] as any)[key] = value;
     setBlocks(newBlocks);
   };
+  const removeBlock = (index: number) => blocks.length > 1 && setBlocks(blocks.filter((_, i) => i !== index));
 
-  const removeBlock = (index: number) => {
-    if (blocks.length > 1) {
-      setBlocks(blocks.filter((_, i) => i !== index));
-    }
-  };
-
-  const addMuscuExercise = () => {
-    setMuscuExercises([...muscuExercises, { name: '', sets: '', reps: '', weight: '' }]);
-  };
-
+  const addMuscuExercise = () => setMuscuExercises([...muscuExercises, { name: '', sets: '', reps: '', weight: '' }]);
   const updateMuscuExercise = (index: number, key: string, value: string) => {
     const newExercises = [...muscuExercises];
     (newExercises[index] as any)[key] = value;
     setMuscuExercises(newExercises);
   };
-
-  const removeMuscuExercise = (index: number) => {
-    if (muscuExercises.length > 1) {
-      setMuscuExercises(muscuExercises.filter((_, i) => i !== index));
-    }
-  };
+  const removeMuscuExercise = (index: number) => muscuExercises.length > 1 && setMuscuExercises(muscuExercises.filter((_, i) => i !== index));
 
   const formatPerformance = (val: string) => {
     if (!val) return '';
     const cleaned = val.replace(/\D/g, '');
     if (cleaned.length <= 2) return cleaned;
-    if (cleaned.length <= 4) {
-      return `${cleaned.slice(0, cleaned.length - 2)}"${cleaned.slice(-2)}`;
-    }
+    if (cleaned.length <= 4) return `${cleaned.slice(0, cleaned.length - 2)}"${cleaned.slice(-2)}`;
     const cc = cleaned.slice(-2);
     const ss = cleaned.slice(-4, -2);
     const mm = cleaned.slice(0, -4);
@@ -168,35 +182,34 @@ const AddWorkoutScreen = () => {
 
       let finalNotes = notes;
       if (workoutType === 'Musculation/Haltéro') {
-        const muscuText = muscuExercises
-          .filter(e => e.name)
-          .map(e => `${e.name} : ${e.sets}x${e.reps} @${e.weight}kg`)
-          .join(' | ');
+        const muscuText = muscuExercises.filter(e => e.name).map(e => `${e.name} : ${e.sets}x${e.reps} @${e.weight}kg`).join(' | ');
         finalNotes = `MUSCULATION : ${muscuText}\n\nNOTES : ${notes}`;
       } else {
-        const blocksText = blocks
-          .map(b => {
-            const perfPart = b.performance ? ` (⏱️ ${formatPerformance(b.performance)})` : '';
-            const recPart = b.recovery ? ` [⏳ ${b.recovery}min]` : '';
-            return `${b.sets}x ${b.distance}${b.unit}${perfPart}${recPart}`;
-          })
-          .join(' | ');
+        const blocksText = blocks.map(b => {
+          const perfPart = b.performance ? ` (⏱️ ${formatPerformance(b.performance)})` : '';
+          const recPart = b.recovery ? ` [⏳ ${b.recovery}min]` : '';
+          return `${b.sets}x ${b.distance}${b.unit}${perfPart}${recPart}`;
+        }).join(' | ');
         finalNotes = `CŒUR DE SÉANCE : ${blocksText}\n\nÉCHAUFFEMENT & NOTES : ${notes}`;
       }
 
-      const { error } = await supabase.from('workouts').insert({
+      const payload = {
         user_id: session.user.id,
         type: workoutType,
         duration_minutes: 0,
         rpe: rpe,
         notes: finalNotes,
         created_at: workoutDate.toISOString(),
-      });
+      };
+
+      const { error } = editingWorkout 
+        ? await supabase.from('workouts').update(payload).eq('id', editingWorkout.id)
+        : await supabase.from('workouts').insert(payload);
 
       if (error) throw error;
       navigation.goBack();
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible d\'enregistrer la séance');
+      Alert.alert('Erreur', error.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -210,13 +223,10 @@ const AddWorkoutScreen = () => {
       </View>
       <BlurView intensity={100} tint="dark" style={StyleSheet.absoluteFill} />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
-            <Text style={styles.title}>Nouvelle Séance</Text>
+            <Text style={styles.title}>{editingWorkout ? 'Modifier Séance' : 'Nouvelle Séance'}</Text>
             <TouchableOpacity style={styles.dateSelector} onPress={() => setShowDatePicker(true)}>
               <Text style={styles.dateSelectorText}>📅 Séance du {workoutDate.toLocaleDateString('fr-FR')}</Text>
             </TouchableOpacity>
@@ -320,7 +330,7 @@ const AddWorkoutScreen = () => {
             </View>
 
             <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={isSubmitting}>
-              {isSubmitting ? <ActivityIndicator color="#000000" /> : <Text style={styles.saveButtonText}>Enregistrer la séance</Text>}
+              {isSubmitting ? <ActivityIndicator color="#000000" /> : <Text style={styles.saveButtonText}>{editingWorkout ? 'Mettre à jour' : 'Enregistrer la séance'}</Text>}
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()} disabled={isSubmitting}>
@@ -337,35 +347,22 @@ const AddWorkoutScreen = () => {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Bibliothèque</Text>
-              <TouchableOpacity style={styles.createBtn} onPress={() => setIsCreatingCustom(true)}>
-                <Text style={styles.createBtnText}>✨ Créer</Text>
-              </TouchableOpacity>
+              <TouchableOpacity style={styles.createBtn} onPress={() => setIsCreatingCustom(true)}><Text style={styles.createBtnText}>✨ Créer</Text></TouchableOpacity>
             </View>
-
             {isCreatingCustom ? (
               <View style={styles.customForm}>
                 <Text style={styles.formLabel}>Nom de l'exercice</Text>
-                <TextInput style={styles.input} value={customName} onChangeText={setCustomName} placeholder="Ex: Gobelet Squat" placeholderTextColor="#555" />
-                
+                <TextInput style={styles.input} value={customName} onChangeText={setCustomName} placeholder="Ex: Gobelet Squat" />
                 <Text style={styles.formLabel}>Catégorie</Text>
                 <View style={styles.categoryGrid}>
                   {CATEGORIES.map(cat => (
-                    <TouchableOpacity 
-                      key={cat} 
-                      style={[styles.categoryPill, customCategory === cat && styles.categoryPillSelected]}
-                      onPress={() => setCustomCategory(cat)}
-                    >
+                    <TouchableOpacity key={cat} style={[styles.categoryPill, customCategory === cat && styles.categoryPillSelected]} onPress={() => setCustomCategory(cat)}>
                       <Text style={[styles.categoryText, customCategory === cat && styles.categoryTextSelected]}>{cat}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
-
-                <TouchableOpacity style={styles.saveCustomBtn} onPress={saveCustomExercise}>
-                  <Text style={styles.saveCustomBtnText}>Sauvegarder</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.cancelCustomBtn} onPress={() => setIsCreatingCustom(false)}>
-                  <Text style={styles.cancelCustomBtnText}>Retour à la liste</Text>
-                </TouchableOpacity>
+                <TouchableOpacity style={styles.saveCustomBtn} onPress={saveCustomExercise}><Text style={styles.saveCustomBtnText}>Sauvegarder</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.cancelCustomBtn} onPress={() => setIsCreatingCustom(false)}><Text style={styles.cancelCustomBtnText}>Annuler</Text></TouchableOpacity>
               </View>
             ) : (
               <ScrollView showsVerticalScrollIndicator={false}>
@@ -374,25 +371,14 @@ const AddWorkoutScreen = () => {
                     <Text style={styles.modalCategory}>{cat.category}</Text>
                     <View style={styles.modalExerciseGrid}>
                       {cat.exercises.map((ex, j) => (
-                        <TouchableOpacity 
-                          key={j} 
-                          style={styles.modalExerciseBtn}
-                          onPress={() => {
-                            if (showExercisePicker !== null) updateMuscuExercise(showExercisePicker, 'name', ex);
-                            setShowExercisePicker(null);
-                          }}
-                        >
-                          <Text style={styles.modalExerciseText}>{ex}</Text>
-                        </TouchableOpacity>
+                        <TouchableOpacity key={j} style={styles.modalExerciseBtn} onPress={() => { if (showExercisePicker !== null) updateMuscuExercise(showExercisePicker, 'name', ex); setShowExercisePicker(null); }}><Text style={styles.modalExerciseText}>{ex}</Text></TouchableOpacity>
                       ))}
                     </View>
                   </View>
                 ))}
               </ScrollView>
             )}
-            <TouchableOpacity style={styles.modalCloseBtn} onPress={() => { setShowExercisePicker(null); setIsCreatingCustom(false); }}>
-              <Text style={styles.modalCloseText}>Fermer</Text>
-            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalCloseBtn} onPress={() => { setShowExercisePicker(null); setIsCreatingCustom(false); }}><Text style={styles.modalCloseText}>Fermer</Text></TouchableOpacity>
           </View>
         </BlurView>
       </Modal>

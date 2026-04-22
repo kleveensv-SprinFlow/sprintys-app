@@ -49,36 +49,11 @@ const WorkoutScreen = () => {
     }
   };
 
-  const deleteWorkout = async (id: string) => {
-    Alert.alert(
-      'Supprimer la séance',
-      'Es-tu sûr de vouloir supprimer cet entraînement ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        { 
-          text: 'Supprimer', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase.from('workouts').delete().eq('id', id);
-              if (error) throw error;
-              setWorkouts(workouts.filter(w => w.id !== id));
-            } catch (error) {
-              Alert.alert('Erreur', 'Impossible de supprimer la séance.');
-            }
-          }
-        }
-      ]
-    );
-  };
-
   const weekDays = useMemo(() => {
     const days = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
     const currentDay = today.getDay();
-    // On commence au Lundi
     const diff = today.getDate() - currentDay + (currentDay === 0 ? -6 : 1) + (weekOffset * 7);
     const startOfWeek = new Date(today.setDate(diff));
 
@@ -95,25 +70,31 @@ const WorkoutScreen = () => {
   }, [weekDays]);
 
   const isSameDay = (d1: Date, d2: Date) => {
-    return d1.getFullYear() === d2.getFullYear() &&
-           d1.getMonth() === d2.getMonth() &&
-           d1.getDate() === d2.getDate();
+    return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
   };
 
   const getWorkoutsForDay = (date: Date) => {
     return workouts.filter(w => isSameDay(new Date(w.created_at), date));
   };
 
-  const renderWorkoutSummary = (workout: any) => {
-    // On essaie d'extraire le cœur de séance des notes
+  const renderWorkoutMiniCard = (workout: any) => {
     const heartLine = workout.notes?.split('\n').find((l: string) => l.includes('CŒUR DE SÉANCE :') || l.includes('MUSCULATION :'));
-    const summary = heartLine ? heartLine.split(':')[1]?.trim() : (workout.notes?.split('\n')[0] || 'Détails...');
+    const summary = heartLine ? heartLine.split(':')[1]?.trim()?.split('|')[0]?.trim() : (workout.notes?.split('\n')[0] || 'Détails...');
     
     return (
-      <View key={workout.id} style={styles.compactWorkout}>
-        <Text style={styles.compactType}>{workout.type}</Text>
-        <Text style={styles.compactNotes} numberOfLines={1}>{summary}</Text>
-      </View>
+      <TouchableOpacity 
+        key={workout.id} 
+        style={styles.miniCardWrapper}
+        onPress={() => navigation.navigate('AddWorkout', { workout: workout })}
+      >
+        <BlurView intensity={20} tint="light" style={styles.miniCard}>
+          <View style={styles.miniCardHeader}>
+            <Text style={styles.miniType}>{workout.type}</Text>
+            <Text style={styles.miniRpe}>🔥 {workout.rpe}</Text>
+          </View>
+          <Text style={styles.miniSummary} numberOfLines={1}>{summary}</Text>
+        </BlurView>
+      </TouchableOpacity>
     );
   };
 
@@ -125,24 +106,15 @@ const WorkoutScreen = () => {
       </View>
       <BlurView intensity={100} tint="dark" style={StyleSheet.absoluteFill} />
 
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.title}>Mon Agenda</Text>
         </View>
 
-        {/* Navigation Hebdomadaire */}
         <View style={styles.calendarNav}>
-          <TouchableOpacity onPress={() => setWeekOffset(weekOffset - 1)} style={styles.navBtn}>
-            <Text style={styles.navArrow}>←</Text>
-          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setWeekOffset(weekOffset - 1)} style={styles.navBtn}><Text style={styles.navArrow}>←</Text></TouchableOpacity>
           <Text style={styles.monthLabel}>{monthName}</Text>
-          <TouchableOpacity onPress={() => setWeekOffset(weekOffset + 1)} style={styles.navBtn}>
-            <Text style={styles.navArrow}>→</Text>
-          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setWeekOffset(weekOffset + 1)} style={styles.navBtn}><Text style={styles.navArrow}>→</Text></TouchableOpacity>
         </View>
 
         {loading ? (
@@ -156,34 +128,38 @@ const WorkoutScreen = () => {
               const isToday = isSameDay(date, new Date());
 
               return (
-                <TouchableOpacity 
-                  key={index} 
-                  activeOpacity={0.7}
-                  style={[styles.dayCardWrapper, isToday && styles.todayCard]}
-                  onPress={() => navigation.navigate('AddWorkout', { selectedDate: date.toISOString() })}
-                >
+                <View key={index} style={[styles.dayCardWrapper, isToday && styles.todayCard]}>
                   <BlurView intensity={40} tint="default" style={styles.dayCard}>
                     <View style={styles.dayCardHeader}>
                       <Text style={[styles.dayName, isToday && styles.todayText]}>
                         {dayName.charAt(0).toUpperCase() + dayName.slice(1)} {dayNum}
                       </Text>
-                      {isToday && <View style={styles.todayIndicator} />}
+                      <TouchableOpacity 
+                        onPress={() => navigation.navigate('AddWorkout', { selectedDate: date.toISOString() })}
+                        style={styles.addDayBtn}
+                      >
+                        <Text style={styles.addDayBtnText}>+</Text>
+                      </TouchableOpacity>
                     </View>
                     
                     <View style={styles.dayCardContent}>
                       {dayWorkouts.length > 0 ? (
-                        dayWorkouts.map(renderWorkoutSummary)
+                        dayWorkouts.map(renderWorkoutMiniCard)
                       ) : (
-                        <Text style={styles.emptyDayText}>+ Ajouter une séance ou Repos</Text>
+                        <TouchableOpacity 
+                          style={styles.emptyDayAction}
+                          onPress={() => navigation.navigate('AddWorkout', { selectedDate: date.toISOString() })}
+                        >
+                          <Text style={styles.emptyDayText}>+ Ajouter une séance ou Repos</Text>
+                        </TouchableOpacity>
                       )}
                     </View>
                   </BlurView>
-                </TouchableOpacity>
+                </View>
               );
             })}
           </View>
         )}
-
         <View style={{ height: 100 }} />
       </ScrollView>
     </View>
@@ -200,27 +176,28 @@ const styles = StyleSheet.create({
   scrollContent: { padding: 24, paddingTop: 60 },
   header: { marginBottom: 24 },
   title: { fontSize: 34, fontWeight: '800', color: '#FFFFFF', letterSpacing: -1 },
-  
   calendarNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 16, padding: 8, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
   navBtn: { padding: 10 },
   navArrow: { color: '#FFFFFF', fontSize: 20, fontWeight: '600' },
   monthLabel: { color: '#FFFFFF', fontSize: 17, fontWeight: '700', textTransform: 'capitalize' },
-  
   agendaContainer: { width: '100%' },
   dayCardWrapper: { marginBottom: 12, borderRadius: 20, overflow: 'hidden' },
   todayCard: { borderWidth: 1.5, borderColor: '#32ADE6' },
   dayCard: { padding: 16, minHeight: 90 },
-  dayCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  dayCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   dayName: { color: '#8E8E93', fontSize: 14, fontWeight: '700', textTransform: 'uppercase' },
   todayText: { color: '#FFFFFF' },
-  todayIndicator: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#32ADE6' },
-  
-  dayCardContent: { flex: 1, justifyContent: 'center' },
-  emptyDayText: { color: 'rgba(255, 255, 255, 0.2)', fontSize: 14, fontWeight: '500', fontStyle: 'italic' },
-  
-  compactWorkout: { marginBottom: 6, paddingLeft: 12, borderLeftWidth: 2, borderLeftColor: '#32ADE6' },
-  compactType: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', marginBottom: 2 },
-  compactNotes: { color: '#8E8E93', fontSize: 12 },
+  addDayBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255, 255, 255, 0.1)', justifyContent: 'center', alignItems: 'center' },
+  addDayBtnText: { color: '#FFFFFF', fontSize: 18, fontWeight: '600' },
+  dayCardContent: { flex: 1 },
+  emptyDayAction: { paddingVertical: 8 },
+  emptyDayText: { color: 'rgba(255, 255, 255, 0.2)', fontSize: 13, fontWeight: '500', fontStyle: 'italic' },
+  miniCardWrapper: { marginBottom: 8, borderRadius: 12, overflow: 'hidden' },
+  miniCard: { padding: 12, backgroundColor: 'rgba(255, 255, 255, 0.05)', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
+  miniCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  miniType: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
+  miniRpe: { color: '#8E8E93', fontSize: 11, fontWeight: '600' },
+  miniSummary: { color: '#D1D1D6', fontSize: 12 },
 });
 
 export default WorkoutScreen;
