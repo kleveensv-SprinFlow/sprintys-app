@@ -111,37 +111,36 @@ const CheckInScreen = () => {
   };
 
   const renderTimePicker = (type: 'bed' | 'wake') => {
+    if (!activePicker || activePicker !== type) return null;
+
     const currentTime = type === 'bed' ? bedTime : wakeTime;
     const setTime = type === 'bed' ? setBedTime : setWakeTime;
 
     return (
-      <BlurView intensity={80} tint="dark" style={styles.pickerContainer}>
-        <View style={styles.pickerWrapper}>
-          <DateTimePicker
-            value={parseTime(currentTime)}
-            mode="time"
-            display="spinner"
-            is24Hour={true}
-            minuteInterval={5}
-            themeVariant="dark"
-            textColor="#FFFFFF"
-            onChange={(event, selectedDate) => {
-              if (Platform.OS === 'android' && (event.type === 'set' || event.type === 'dismissed')) {
-                setActivePicker(null);
-              }
-              
-              if (selectedDate) {
-                const h = selectedDate.getHours().toString().padStart(2, '0');
-                const m = selectedDate.getMinutes().toString().padStart(2, '0');
-                setTime(`${h}:${m}`);
-              }
-            }}
-          />
-        </View>
-        <TouchableOpacity style={styles.closePickerBtn} onPress={() => setActivePicker(null)}>
-          <Text style={styles.closePickerText}>Confirmer l'heure</Text>
-        </TouchableOpacity>
-      </BlurView>
+      <DateTimePicker
+        value={parseTime(currentTime)}
+        mode="time"
+        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+        is24Hour={true}
+        minuteInterval={5}
+        themeVariant="dark"
+        textColor="#FFFFFF"
+        onChange={(event, selectedDate) => {
+          // Fermer le picker immédiatement sur Android
+          if (Platform.OS === 'android') {
+            setActivePicker(null);
+          }
+          
+          if (selectedDate) {
+            const h = selectedDate.getHours().toString().padStart(2, '0');
+            const m = selectedDate.getMinutes().toString().padStart(2, '0');
+            setTime(`${h}:${m}`);
+          }
+          
+          // Sur iOS spinner, on ferme via un bouton externe ou au changement si on veut
+          // Mais ici le user demande une interaction fluide
+        }}
+      />
     );
   };
 
@@ -210,7 +209,17 @@ const CheckInScreen = () => {
                 </TouchableOpacity>
               </View>
 
-              {activePicker && renderTimePicker(activePicker)}
+              {activePicker === 'bed' && renderTimePicker('bed')}
+              {activePicker === 'wake' && renderTimePicker('wake')}
+
+              {Platform.OS === 'ios' && activePicker && (
+                <TouchableOpacity 
+                  style={styles.closeIOSPicker} 
+                  onPress={() => setActivePicker(null)}
+                >
+                  <Text style={styles.closeIOSPickerText}>OK</Text>
+                </TouchableOpacity>
+              )}
 
               <View style={styles.latencyContainer}>
                 <Text style={styles.timeInputLabel}>Endormissement (Latence)</Text>
@@ -345,6 +354,20 @@ const styles = StyleSheet.create({
   latencyPillSelected: { backgroundColor: '#FFFFFF', borderColor: '#FFFFFF' },
   latencyText: { color: '#8E8E93', fontSize: 11, fontWeight: '600' },
   latencyTextSelected: { color: '#000000' },
+  closeIOSPicker: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  closeIOSPickerText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 16,
+  },
   sleepSummary: { color: '#32ADE6', fontSize: 14, fontWeight: '500', marginTop: 8 },
   pillsContainer: { paddingRight: 10 },
   scorePill: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.3)', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
