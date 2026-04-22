@@ -115,33 +115,32 @@ const CheckInScreen = () => {
     const setTime = type === 'bed' ? setBedTime : setWakeTime;
 
     return (
-      <BlurView intensity={60} tint="light" style={styles.pickerContainer}>
-        <DateTimePicker
-          value={parseTime(currentTime)}
-          mode="time"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          is24Hour={true}
-          minuteInterval={5}
-          themeVariant="dark"
-          textColor="#FFFFFF"
-          onChange={(event, selectedDate) => {
-            // Sur Android, fermer après sélection
-            if (Platform.OS === 'android' && (event.type === 'set' || event.type === 'dismissed')) {
-              setActivePicker(null);
-            }
-            
-            if (selectedDate) {
-              const h = selectedDate.getHours().toString().padStart(2, '0');
-              const m = selectedDate.getMinutes().toString().padStart(2, '0');
-              setTime(`${h}:${m}`);
-            }
-          }}
-        />
-        {Platform.OS === 'ios' && (
-          <TouchableOpacity style={styles.closePickerBtn} onPress={() => setActivePicker(null)}>
-            <Text style={styles.closePickerText}>Valider</Text>
-          </TouchableOpacity>
-        )}
+      <BlurView intensity={80} tint="dark" style={styles.pickerContainer}>
+        <View style={styles.pickerWrapper}>
+          <DateTimePicker
+            value={parseTime(currentTime)}
+            mode="time"
+            display="spinner"
+            is24Hour={true}
+            minuteInterval={5}
+            themeVariant="dark"
+            textColor="#FFFFFF"
+            onChange={(event, selectedDate) => {
+              if (Platform.OS === 'android' && (event.type === 'set' || event.type === 'dismissed')) {
+                setActivePicker(null);
+              }
+              
+              if (selectedDate) {
+                const h = selectedDate.getHours().toString().padStart(2, '0');
+                const m = selectedDate.getMinutes().toString().padStart(2, '0');
+                setTime(`${h}:${m}`);
+              }
+            }}
+          />
+        </View>
+        <TouchableOpacity style={styles.closePickerBtn} onPress={() => setActivePicker(null)}>
+          <Text style={styles.closePickerText}>Confirmer l'heure</Text>
+        </TouchableOpacity>
       </BlurView>
     );
   };
@@ -316,7 +315,21 @@ const styles = StyleSheet.create({
   timeDisplayActive: { borderColor: '#FFFFFF', backgroundColor: 'rgba(255, 255, 255, 0.1)' },
   timeInputLabel: { color: '#8E8E93', fontSize: 12, marginBottom: 4, textTransform: 'uppercase' },
   timeValueText: { color: '#FFFFFF', fontSize: 24, fontWeight: '700' },
-  pickerContainer: { borderRadius: 20, padding: 16, marginTop: 10, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.2)', overflow: 'hidden' },
+  pickerContainer: { 
+    borderRadius: 20, 
+    padding: 16, 
+    marginTop: 10, 
+    marginBottom: 20, 
+    borderWidth: 1, 
+    borderColor: 'rgba(255, 255, 255, 0.2)', 
+    overflow: 'hidden',
+    minHeight: 280,
+  },
+  pickerWrapper: {
+    height: 200,
+    justifyContent: 'center',
+    width: '100%',
+  },
   pickerColumns: { flexDirection: 'row', height: 150, alignItems: 'center' },
   pickerColumn: { flex: 1 },
   pickerItem: { height: 50, justifyContent: 'center', alignItems: 'center' },
