@@ -12,6 +12,7 @@ import TabNavigator from './src/navigation/TabNavigator';
 import CheckInScreen from './src/screens/CheckInScreen';
 import AddWorkoutScreen from './src/screens/AddWorkoutScreen';
 import DayDetailScreen from './src/screens/DayDetailScreen';
+import WeatherDetailScreen from './src/screens/WeatherDetailScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -112,40 +113,19 @@ export default function App() {
           ) : hasCompletedOnboarding === true ? (
             <>
               <Stack.Screen name="MainTabs" component={TabNavigator} />
-              <Stack.Screen 
-                name="CheckIn" 
-                component={CheckInScreen} 
-                options={{ presentation: 'modal' }} 
-              />
-              <Stack.Screen 
-                name="AddWorkout" 
-                component={AddWorkoutScreen} 
-                options={{ presentation: 'modal' }} 
-              />
-              <Stack.Screen 
-                name="DayDetail" 
-                component={DayDetailScreen} 
-              />
+              <Stack.Screen name="CheckIn" component={CheckInScreen} options={{ presentation: 'modal' }} />
+              <Stack.Screen name="AddWorkout" component={AddWorkoutScreen} options={{ presentation: 'modal' }} />
+              <Stack.Screen name="DayDetail" component={DayDetailScreen} />
+              <Stack.Screen name="WeatherDetail" component={WeatherDetailScreen} />
             </>
           ) : (
             <>
-              {/* Par défaut ou si l'onboarding n'est pas fini */}
               <Stack.Screen name="Onboarding" component={OnboardingScreen} />
               <Stack.Screen name="MainTabs" component={TabNavigator} />
-              <Stack.Screen 
-                name="CheckIn" 
-                component={CheckInScreen} 
-                options={{ presentation: 'modal' }} 
-              />
-              <Stack.Screen 
-                name="AddWorkout" 
-                component={AddWorkoutScreen} 
-                options={{ presentation: 'modal' }} 
-              />
-              <Stack.Screen 
-                name="DayDetail" 
-                component={DayDetailScreen} 
-              />
+              <Stack.Screen name="CheckIn" component={CheckInScreen} options={{ presentation: 'modal' }} />
+              <Stack.Screen name="AddWorkout" component={AddWorkoutScreen} options={{ presentation: 'modal' }} />
+              <Stack.Screen name="DayDetail" component={DayDetailScreen} />
+              <Stack.Screen name="WeatherDetail" component={WeatherDetailScreen} />
             </>
           )}
         </Stack.Navigator>

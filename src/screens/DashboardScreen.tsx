@@ -311,7 +311,11 @@ const DashboardScreen = () => {
           <View>
             <View style={styles.welcomeRow}>
               <Text style={styles.welcomeText}>SALUT, {userName.toUpperCase()}</Text>
-              {weather && <WeatherBadge temp={weather.temp} condition={weather.condition} />}
+              {weather && (
+                <TouchableOpacity onPress={() => navigation.navigate('WeatherDetail')}>
+                  <WeatherBadge temp={weather.temp} condition={weather.condition} />
+                </TouchableOpacity>
+              )}
             </View>
           </View>
           <TouchableOpacity onPress={() => signOutUser()} style={styles.profileButton}>
