@@ -19,6 +19,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '../services/supabaseClient';
 import { EXERCISE_LIBRARY } from '../data/exercises';
 import { notificationService } from '../services/notificationService';
+import { workoutService } from '../services/workoutService';
 
 const WORKOUT_TYPES = ['Vitesse', 'Lactique', 'Aérobie', 'Départs/Blocs', 'Musculation/Haltéro'];
 const CATEGORIES = ['Haltérophilie', 'Jambes', 'Haut du Corps', 'Tronc / Gainage'];
@@ -242,6 +243,31 @@ const AddWorkoutScreen = () => {
     }
   };
 
+  const handleDelete = async () => {
+    Alert.alert(
+      'SUPPRIMER ?',
+      'Es-tu sûr de vouloir supprimer définitivement cet événement ?',
+      [
+        { text: 'ANNULER', style: 'cancel' },
+        { 
+          text: 'SUPPRIMER', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsSubmitting(true);
+              await workoutService.deleteWorkout(editingWorkout.id);
+              navigation.goBack();
+            } catch (error: any) {
+              Alert.alert('Erreur', 'Impossible de supprimer la séance.');
+            } finally {
+              setIsSubmitting(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.lightBackground}>
@@ -422,6 +448,18 @@ const AddWorkoutScreen = () => {
             <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()} disabled={isSubmitting}>
               <Text style={styles.cancelButtonText}>ANNULER</Text>
             </TouchableOpacity>
+
+            {editingWorkout && (
+              <TouchableOpacity 
+                style={styles.deleteButton} 
+                onPress={handleDelete} 
+                disabled={isSubmitting}
+              >
+                <Text style={styles.deleteButtonText}>
+                  {isCompetition ? 'SUPPRIMER LA COMPÉTITION' : 'SUPPRIMER LA SÉANCE'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </BlurView>
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -524,6 +562,8 @@ const styles = StyleSheet.create({
   saveButtonText: { color: '#000000', fontSize: 16, fontWeight: '900' },
   cancelButton: { alignItems: 'center', marginTop: 16 },
   cancelButtonText: { color: '#8E8E93', fontSize: 13, fontWeight: '700' },
+  deleteButton: { marginTop: 40, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: '#FF4444', alignItems: 'center', backgroundColor: 'transparent' },
+  deleteButtonText: { color: '#FF4444', fontSize: 11, fontWeight: '900', letterSpacing: 1 },
   modalOverlay: { flex: 1, justifyContent: 'flex-end' },
   modalContent: { backgroundColor: '#1C1C1E', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, height: '85%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
