@@ -24,11 +24,13 @@ const AddWorkoutScreen = () => {
   const [duration, setDuration] = useState('90');
   const [rpe, setRpe] = useState(7);
   const [notes, setNotes] = useState('');
-  const [blocks, setBlocks] = useState([{ sets: '1', distance: '100', unit: 'm' }]);
+  const [blocks, setBlocks] = useState([
+    { sets: '1', distance: '100', unit: 'm', performance: '', recovery: '' }
+  ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const addBlock = () => {
-    setBlocks([...blocks, { sets: '1', distance: '100', unit: 'm' }]);
+    setBlocks([...blocks, { sets: '1', distance: '100', unit: 'm', performance: '', recovery: '' }]);
   };
 
   const updateBlock = (index: number, key: string, value: string) => {
@@ -41,6 +43,21 @@ const AddWorkoutScreen = () => {
     if (blocks.length > 1) {
       setBlocks(blocks.filter((_, i) => i !== index));
     }
+  };
+
+  const formatPerformance = (val: string) => {
+    if (!val) return '';
+    // Supprime tout ce qui n'est pas chiffre
+    const cleaned = val.replace(/\D/g, '');
+    if (cleaned.length <= 2) return cleaned;
+    if (cleaned.length <= 4) {
+      return `${cleaned.slice(0, cleaned.length - 2)}"${cleaned.slice(-2)}`;
+    }
+    // Pour les formats plus longs (MM:SS.CC)
+    const cc = cleaned.slice(-2);
+    const ss = cleaned.slice(-4, -2);
+    const mm = cleaned.slice(0, -4);
+    return `${mm}:${ss}.${cc}`;
   };
 
   const handleSave = async () => {
@@ -57,7 +74,11 @@ const AddWorkoutScreen = () => {
       let finalNotes = notes;
       if (workoutType !== 'Musculation/Haltéro') {
         const blocksText = blocks
-          .map(b => `${b.sets}x ${b.distance}${b.unit}`)
+          .map(b => {
+            const perfPart = b.performance ? ` (⏱️ ${formatPerformance(b.performance)})` : '';
+            const recPart = b.recovery ? ` [⏳ ${b.recovery}min]` : '';
+            return `${b.sets}x ${b.distance}${b.unit}${perfPart}${recPart}`;
+          })
           .join(' | ');
         finalNotes = `CŒUR DE SÉANCE : ${blocksText}\n\nÉCHAUFFEMENT & NOTES : ${notes}`;
       }
@@ -109,23 +130,99 @@ const AddWorkoutScreen = () => {
                 {WORKOUT_TYPES.map((type) => (
                   <TouchableOpacity
                     key={type}
-                    style={[
-                      styles.tagPill,
-                      workoutType === type && styles.tagPillSelected
-                    ]}
+                    style={[styles.tagPill, workoutType === type && styles.tagPillSelected]}
                     onPress={() => setWorkoutType(type)}
                   >
-                    <Text style={[styles.tagText, workoutType === type && styles.tagTextSelected]}>
-                      {type}
-                    </Text>
+                    <Text style={[styles.tagText, workoutType === type && styles.tagTextSelected]}>{type}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
             </View>
 
+            {/* Cœur de séance (Blocs) */}
+            {workoutType !== 'Musculation/Haltéro' && (
+              <View style={styles.section}>
+                <Text style={styles.sectionLabel}>Cœur de séance (Blocs)</Text>
+                {blocks.map((block, index) => (
+                  <View key={index} style={styles.blockContainer}>
+                    <View style={styles.blockInputGrid}>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.inputLabel}>Séries</Text>
+                        <TextInput
+                          style={[styles.input, styles.compactInput]}
+                          value={block.sets}
+                          onChangeText={(val) => updateBlock(index, 'sets', val)}
+                          keyboardType="numeric"
+                          placeholder="1"
+                          placeholderTextColor="#555"
+                        />
+                      </View>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.inputLabel}>Distance</Text>
+                        <View style={styles.unitInputRow}>
+                          <TextInput
+                            style={[styles.input, styles.compactInput, { flex: 1 }]}
+                            value={block.distance}
+                            onChangeText={(val) => updateBlock(index, 'distance', val)}
+                            keyboardType="numeric"
+                            placeholder="100"
+                            placeholderTextColor="#555"
+                          />
+                          <TouchableOpacity 
+                            style={styles.unitSmallBtn}
+                            onPress={() => updateBlock(index, 'unit', block.unit === 'm' ? 'sec' : 'm')}
+                          >
+                            <Text style={styles.unitSmallText}>{block.unit}</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </View>
+
+                    <View style={styles.blockInputGrid}>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.inputLabel}>⏱️ Chrono</Text>
+                        <TextInput
+                          style={[styles.input, styles.compactInput]}
+                          value={block.performance}
+                          onChangeText={(val) => updateBlock(index, 'performance', val)}
+                          keyboardType="numeric"
+                          placeholder='12"50'
+                          placeholderTextColor="#555"
+                        />
+                      </View>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.inputLabel}>⏳ Repos (min)</Text>
+                        <TextInput
+                          style={[styles.input, styles.compactInput]}
+                          value={block.recovery}
+                          onChangeText={(val) => updateBlock(index, 'recovery', val)}
+                          keyboardType="numeric"
+                          placeholder="5"
+                          placeholderTextColor="#555"
+                        />
+                      </View>
+                    </View>
+
+                    {parseInt(block.distance) > 800 && (
+                      <Text style={styles.warningText}>⚠️ Discipline hors scope sprint/haies</Text>
+                    )}
+
+                    {blocks.length > 1 && (
+                      <TouchableOpacity onPress={() => removeBlock(index)} style={styles.removeBlockBtn}>
+                        <Text style={styles.removeBlockText}>Supprimer ce bloc</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))}
+                <TouchableOpacity style={styles.addBlockBtn} onPress={addBlock}>
+                  <Text style={styles.addBlockText}>+ Ajouter un bloc de travail</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             {/* Durée */}
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Durée (minutes)</Text>
+              <Text style={styles.sectionLabel}>Durée totale (minutes)</Text>
               <TextInput
                 style={styles.input}
                 value={duration}
@@ -138,64 +235,19 @@ const AddWorkoutScreen = () => {
 
             {/* RPE */}
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Difficulté ressentie (RPE 1-10)</Text>
+              <Text style={styles.sectionLabel}>Intensité de l'effort (1 à 10)</Text>
               <View style={styles.rpeGrid}>
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => (
                   <TouchableOpacity
                     key={score}
-                    style={[
-                      styles.rpePill,
-                      rpe === score && styles.rpePillSelected
-                    ]}
+                    style={[styles.rpePill, rpe === score && styles.rpePillSelected]}
                     onPress={() => setRpe(score)}
                   >
-                    <Text style={[styles.rpeText, rpe === score && styles.rpeTextSelected]}>
-                      {score}
-                    </Text>
+                    <Text style={[styles.rpeText, rpe === score && styles.rpeTextSelected]}>{score}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
             </View>
-
-            {/* Cœur de séance (Blocs) - Uniquement si pas Muscu */}
-            {workoutType !== 'Musculation/Haltéro' && (
-              <View style={styles.section}>
-                <Text style={styles.sectionLabel}>Cœur de séance (Blocs)</Text>
-                {blocks.map((block, index) => (
-                  <View key={index} style={styles.blockRow}>
-                    <TextInput
-                      style={[styles.input, styles.blockInputSmall]}
-                      value={block.sets}
-                      onChangeText={(val) => updateBlock(index, 'sets', val)}
-                      keyboardType="numeric"
-                      placeholder="Sér."
-                    />
-                    <Text style={styles.blockX}>x</Text>
-                    <TextInput
-                      style={[styles.input, styles.blockInputMedium]}
-                      value={block.distance}
-                      onChangeText={(val) => updateBlock(index, 'distance', val)}
-                      keyboardType="numeric"
-                      placeholder="Dist."
-                    />
-                    <TouchableOpacity 
-                      style={styles.unitToggle}
-                      onPress={() => updateBlock(index, 'unit', block.unit === 'm' ? 'sec' : 'm')}
-                    >
-                      <Text style={styles.unitText}>{block.unit}</Text>
-                    </TouchableOpacity>
-                    {blocks.length > 1 && (
-                      <TouchableOpacity onPress={() => removeBlock(index)} style={styles.removeBtn}>
-                        <Text style={styles.removeBtnText}>✕</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                ))}
-                <TouchableOpacity style={styles.addBlockBtn} onPress={addBlock}>
-                  <Text style={styles.addBlockText}>+ Ajouter un bloc</Text>
-                </TouchableOpacity>
-              </View>
-            )}
 
             {/* Notes */}
             <View style={styles.section}>
@@ -211,23 +263,11 @@ const AddWorkoutScreen = () => {
               />
             </View>
 
-            <TouchableOpacity
-              style={styles.saveButton}
-              onPress={handleSave}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator color="#000000" />
-              ) : (
-                <Text style={styles.saveButtonText}>Enregistrer la séance</Text>
-              )}
+            <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={isSubmitting}>
+              {isSubmitting ? <ActivityIndicator color="#000000" /> : <Text style={styles.saveButtonText}>Enregistrer la séance</Text>}
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => navigation.goBack()}
-              disabled={isSubmitting}
-            >
+            <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()} disabled={isSubmitting}>
               <Text style={styles.cancelButtonText}>Annuler</Text>
             </TouchableOpacity>
           </BlurView>
@@ -258,15 +298,18 @@ const styles = StyleSheet.create({
   tagText: { color: '#8E8E93', fontSize: 14, fontWeight: '500' },
   tagTextSelected: { color: '#000000' },
   input: { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 12, padding: 16, color: '#FFFFFF', fontSize: 18, fontWeight: '600', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
-  blockRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  blockInputSmall: { width: 60, textAlign: 'center', padding: 10 },
-  blockInputMedium: { flex: 1, textAlign: 'center', padding: 10 },
-  blockX: { color: '#8E8E93', marginHorizontal: 10, fontSize: 18, fontWeight: '700' },
-  unitToggle: { backgroundColor: 'rgba(255, 255, 255, 0.1)', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, marginLeft: 10, minWidth: 50, alignItems: 'center' },
-  unitText: { color: '#FFFFFF', fontWeight: '700' },
-  removeBtn: { marginLeft: 10, padding: 5 },
-  removeBtnText: { color: '#FF3B30', fontSize: 20 },
-  addBlockBtn: { marginTop: 8, paddingVertical: 8 },
+  blockContainer: { backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: 20, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.05)' },
+  blockInputGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  inputGroup: { width: '48%' },
+  inputLabel: { color: '#8E8E93', fontSize: 11, marginBottom: 6, fontWeight: '600', textTransform: 'uppercase' },
+  compactInput: { padding: 12, fontSize: 16 },
+  unitInputRow: { flexDirection: 'row', alignItems: 'center' },
+  unitSmallBtn: { marginLeft: 8, backgroundColor: 'rgba(255, 255, 255, 0.1)', padding: 10, borderRadius: 10, minWidth: 40, alignItems: 'center' },
+  unitSmallText: { color: '#FFFFFF', fontWeight: '700', fontSize: 12 },
+  warningText: { color: '#FF9F0A', fontSize: 12, fontWeight: '600', marginBottom: 10, textAlign: 'center' },
+  removeBlockBtn: { marginTop: 4, paddingVertical: 4, alignItems: 'center' },
+  removeBlockText: { color: '#FF3B30', fontSize: 12, fontWeight: '500' },
+  addBlockBtn: { marginTop: 8, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: '#32ADE6', borderStyle: 'dashed', alignItems: 'center' },
   addBlockText: { color: '#32ADE6', fontWeight: '600', fontSize: 15 },
   rpeGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   rpePill: { width: '18%', height: 44, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 10, backgroundColor: 'rgba(255, 255, 255, 0.05)' },
