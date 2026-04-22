@@ -1,40 +1,23 @@
-import React, { useRef, useEffect } from 'react';
-import { View, StyleSheet, Platform, Text, TouchableOpacity, Animated } from 'react-native';
+import React, { useRef } from 'react';
+import { View, StyleSheet, Platform, TouchableOpacity, Animated } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import DashboardScreen from '../screens/DashboardScreen';
 import WorkoutScreen from '../screens/WorkoutScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import CheckInScreen from '../screens/CheckInScreen';
 
 const Tab = createBottomTabNavigator();
 
 const TabItem = ({ state, descriptors, navigation, route, index }: any) => {
-  const { options } = descriptors[route.key];
   const isFocused = state.index === index;
-
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const onPress = () => {
-    // Animation de rebond Elite
     Animated.sequence([
-      Animated.spring(scaleAnim, {
-        toValue: 0.9,
-        useNativeDriver: true,
-        speed: 50,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1.1,
-        useNativeDriver: true,
-        friction: 3,
-        tension: 100,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-        friction: 5,
-      }),
+      Animated.spring(scaleAnim, { toValue: 0.85, useNativeDriver: true, speed: 50 }),
+      Animated.spring(scaleAnim, { toValue: 1.15, useNativeDriver: true, friction: 3, tension: 100 }),
+      Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, friction: 5 }),
     ]).start();
 
     const event = navigation.emit({
@@ -50,10 +33,9 @@ const TabItem = ({ state, descriptors, navigation, route, index }: any) => {
 
   const getIconName = (name: string): any => {
     switch (name) {
-      case 'Accueil': return 'grid-outline';
-      case 'Agenda': return 'flash-outline';
-      case 'Check-in': return 'pulse-outline';
-      case 'Records': return 'person-outline';
+      case 'Dashboard': return 'grid-outline';
+      case 'Agenda': return 'calendar-outline';
+      case 'Profile': return 'person-outline';
       default: return 'help-outline';
     }
   };
@@ -64,18 +46,12 @@ const TabItem = ({ state, descriptors, navigation, route, index }: any) => {
       onPress={onPress}
       style={styles.tabItem}
     >
-      <Animated.View style={{ transform: [{ scale: scaleAnim }], alignItems: 'center' }}>
+      <Animated.View style={{ transform: [{ scale: scaleAnim }], alignItems: 'center', justifyContent: 'center' }}>
         <Ionicons 
           name={getIconName(route.name)} 
-          size={24} 
+          size={26} 
           color={isFocused ? '#00E5FF' : '#8E8E93'} 
         />
-        <Text style={[
-          styles.tabBarLabel, 
-          { color: isFocused ? '#00E5FF' : '#FFFFFF', opacity: isFocused ? 1 : 0.6 }
-        ]}>
-          {route.name.toUpperCase()}
-        </Text>
       </Animated.View>
     </TouchableOpacity>
   );
@@ -106,10 +82,9 @@ const TabNavigator = () => {
         headerShown: false,
       }}
     >
-      <Tab.Screen name="Accueil" component={DashboardScreen} />
+      <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Agenda" component={WorkoutScreen} />
-      <Tab.Screen name="Check-in" component={CheckInScreen} />
-      <Tab.Screen name="Records" component={ProfileScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 };
@@ -118,14 +93,14 @@ const styles = StyleSheet.create({
   tabBarWrapper: {
     position: 'absolute',
     bottom: 25,
-    left: 20,
-    right: 20,
-    height: 75,
+    left: 40, // More compact
+    right: 40,
+    height: 60,
     backgroundColor: 'transparent',
-    borderRadius: 35,
+    borderRadius: 30,
     overflow: 'hidden',
     borderTopWidth: 0.5,
-    borderTopColor: 'rgba(0, 229, 255, 0.4)', // Reflet Cyan sur le dessus
+    borderTopColor: 'rgba(0, 229, 255, 0.3)',
   },
   blurContainer: {
     flex: 1,
@@ -135,20 +110,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingBottom: Platform.OS === 'ios' ? 10 : 0,
+    height: '100%',
+    paddingBottom: Platform.OS === 'ios' ? 5 : 0,
   },
   tabItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 10,
-  },
-  tabBarLabel: {
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1,
-    marginTop: 4,
-    textTransform: 'uppercase',
   },
 });
 
