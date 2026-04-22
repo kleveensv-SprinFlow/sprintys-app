@@ -19,29 +19,37 @@ export default function App() {
 
   const checkUserProfile = async (userId: string) => {
     console.log('Checking profile for user:', userId);
+    
+    // Failsafe : Timeout de 3 secondes pour éviter de bloquer l'app
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Timeout')), 3000)
+    );
+
     try {
-      const { data, error } = await supabase
+      const queryPromise = supabase
         .from('profiles')
         .select('disciplines')
         .eq('id', userId)
         .single();
+
+      const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
 
       if (error && error.code !== 'PGRST116') {
         console.error('Erreur Supabase lors de la vérification:', error);
       }
 
       if (data && data.disciplines && data.disciplines.length > 0) {
-        console.log('Profile complete, disciplines found.');
+        console.log('Profile complete, moving to Dashboard.');
         setHasCompletedOnboarding(true);
       } else {
-        console.log('Profile incomplete or not found (code PGRST116).');
+        console.log('Profile incomplete or not found, moving to Onboarding.');
         setHasCompletedOnboarding(false);
       }
-    } catch (err) {
-      console.error('Erreur vérification profil:', err);
+    } catch (e: any) {
+      console.warn('Profile check bypassed or timed out (Reason:', e.message, ')');
       setHasCompletedOnboarding(false);
     } finally {
-      console.log('Profile check finished, stopping loader.');
+      console.log('Failsafe trigger: forcing loading to false.');
       setLoading(false);
     }
   };
