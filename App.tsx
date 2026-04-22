@@ -9,6 +9,7 @@ import { supabase } from './src/services/supabaseClient';
 import AuthScreen from './src/screens/AuthScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import TabNavigator from './src/navigation/TabNavigator';
+import CheckInScreen from './src/screens/CheckInScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -113,6 +114,11 @@ export default function App() {
               {/* Par défaut ou si l'onboarding n'est pas fini */}
               <Stack.Screen name="Onboarding" component={OnboardingScreen} />
               <Stack.Screen name="MainTabs" component={TabNavigator} />
+              <Stack.Screen 
+                name="CheckIn" 
+                component={CheckInScreen} 
+                options={{ presentation: 'modal' }} 
+              />
             </>
           )}
         </Stack.Navigator>

@@ -10,12 +10,14 @@ import {
   Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../services/supabaseClient';
 import { signOutUser } from '../services/authService';
 
 const { width } = Dimensions.get('window');
 
 const DashboardScreen = () => {
+  const navigation = useNavigation<any>();
   const [profile, setProfile] = useState<any>(null);
   const [userName, setUserName] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -98,7 +100,10 @@ const DashboardScreen = () => {
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: '85%' }]} />
           </View>
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => navigation.navigate('CheckIn')}
+          >
             <Text style={styles.actionButtonText}>Faire mon check-in</Text>
           </TouchableOpacity>
         </BlurView>
