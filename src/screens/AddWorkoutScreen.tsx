@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useNavigation } from '@react-navigation/native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '../services/supabaseClient';
 
 const WORKOUT_TYPES = ['Vitesse', 'Lactique', 'Aérobie', 'Départs/Blocs', 'Musculation/Haltéro'];
@@ -23,6 +24,8 @@ const AddWorkoutScreen = () => {
   const [workoutType, setWorkoutType] = useState('Vitesse');
   const [rpe, setRpe] = useState(7);
   const [notes, setNotes] = useState('');
+  const [workoutDate, setWorkoutDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [blocks, setBlocks] = useState([
     { sets: '1', distance: '100', unit: 'm', performance: '', recovery: '' }
   ]);
@@ -78,10 +81,10 @@ const AddWorkoutScreen = () => {
       const { error } = await supabase.from('workouts').insert({
         user_id: session.user.id,
         type: workoutType,
-        duration_minutes: 0, // Plus de saisie de durée
+        duration_minutes: 0,
         rpe: rpe,
         notes: finalNotes,
-        created_at: new Date().toISOString(),
+        created_at: workoutDate.toISOString(),
       });
 
       if (error) throw error;
@@ -110,9 +113,30 @@ const AddWorkoutScreen = () => {
       >
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
-            <Text style={styles.title}>Nouvelle Séance</Text>
-            <Text style={styles.subtitle}>Consigne tes efforts du jour</Text>
+            <View style={styles.titleRow}>
+              <Text style={styles.title}>Nouvelle Séance</Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.dateSelector}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Text style={styles.dateSelectorText}>
+                📅 Séance du {workoutDate.toLocaleDateString('fr-FR')}
+              </Text>
+            </TouchableOpacity>
           </View>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={workoutDate}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(event, selectedDate) => {
+                setShowDatePicker(false);
+                if (selectedDate) setWorkoutDate(selectedDate);
+              }}
+            />
+          )}
 
           <BlurView intensity={40} tint="default" style={styles.glassCard}>
             {/* Type de séance */}
@@ -214,7 +238,7 @@ const AddWorkoutScreen = () => {
               </View>
             )}
 
-            {/* RPE */}
+            {/* Intensité */}
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Intensité de l'effort (1 à 10)</Text>
               <View style={styles.rpeGrid}>
@@ -268,7 +292,10 @@ const styles = StyleSheet.create({
   keyboardView: { flex: 1 },
   scrollContent: { padding: 24, paddingTop: 60 },
   header: { marginBottom: 32 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: 34, fontWeight: '800', color: '#FFFFFF', letterSpacing: -1 },
+  dateSelector: { marginTop: 8, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.2)', alignSelf: 'flex-start', backgroundColor: 'rgba(255, 255, 255, 0.05)' },
+  dateSelectorText: { color: '#8E8E93', fontSize: 13, fontWeight: '600' },
   subtitle: { fontSize: 17, color: '#8E8E93', marginTop: 8 },
   glassCard: { borderRadius: 28, padding: 24, backgroundColor: 'rgba(255, 255, 255, 0.08)', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.12)', overflow: 'hidden' },
   section: { marginBottom: 28 },
