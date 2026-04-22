@@ -39,6 +39,11 @@ const AddWorkoutScreen = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // États pour la Compétition
+  const [isCompetition, setIsCompetition] = useState(editingWorkout?.is_competition || false);
+  const [city, setCity] = useState(editingWorkout?.city || '');
+  const [schedule, setSchedule] = useState<any[]>(editingWorkout?.competition_schedule || [{ time: '', event: '' }]);
+
   // États pour la Piste
   const [blocks, setBlocks] = useState([
     { sets: '1', distance: '100', unit: 'm', performance: '', recovery: '' }
@@ -162,6 +167,14 @@ const AddWorkoutScreen = () => {
   };
   const removeMuscuExercise = (index: number) => muscuExercises.length > 1 && setMuscuExercises(muscuExercises.filter((_, i) => i !== index));
 
+  const addScheduleItem = () => setSchedule([...schedule, { time: '', event: '' }]);
+  const updateScheduleItem = (index: number, key: string, value: string) => {
+    const newSchedule = [...schedule];
+    newSchedule[index][key] = value;
+    setSchedule(newSchedule);
+  };
+  const removeScheduleItem = (index: number) => schedule.length > 1 && setSchedule(schedule.filter((_, i) => i !== index));
+
   const formatPerformance = (val: string) => {
     if (!val) return '';
     const cleaned = val.replace(/\D/g, '');
@@ -180,7 +193,10 @@ const AddWorkoutScreen = () => {
       if (!session?.user) throw new Error('Utilisateur non identifié');
 
       let finalNotes = notes;
-      if (workoutType === 'Musculation/Haltéro') {
+      if (isCompetition) {
+        const scheduleText = schedule.filter(s => s.time && s.event).map(s => `${s.time} : ${s.event}`).join(' | ');
+        finalNotes = `COMPÉTITION À ${city.toUpperCase()}\nPROGRAMME : ${scheduleText}\n\nNOTES : ${notes}`;
+      } else if (workoutType === 'Musculation/Haltéro') {
         const muscuText = muscuExercises.filter(e => e.name).map(e => `${e.name} : ${e.sets}x${e.reps} @${e.weight}kg`).join(' | ');
         finalNotes = `MUSCULATION : ${muscuText}\n\nNOTES : ${notes}`;
       } else {
@@ -194,11 +210,14 @@ const AddWorkoutScreen = () => {
 
       const payload = {
         user_id: session.user.id,
-        type: workoutType,
+        type: isCompetition ? 'Compétition' : workoutType,
         duration_minutes: 0,
-        rpe: rpe,
+        rpe: isCompetition ? 10 : rpe,
         notes: finalNotes,
         created_at: workoutDate.toISOString(),
+        is_competition: isCompetition,
+        city: isCompetition ? city : null,
+        competition_schedule: isCompetition ? schedule : null,
       };
 
       const { error } = editingWorkout 
@@ -243,84 +262,143 @@ const AddWorkoutScreen = () => {
             />
           )}
 
-          <BlurView intensity={40} tint="default" style={styles.glassCard}>
-            {/* Type de séance */}
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>TYPE DE SÉANCE</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagScroll}>
-                {WORKOUT_TYPES.map((type) => (
-                  <TouchableOpacity
-                    key={type}
-                    style={[styles.tagPill, workoutType === type && styles.tagPillSelected]}
-                    onPress={() => setWorkoutType(type)}
-                  >
-                    <Text style={[styles.tagText, workoutType === type && styles.tagTextSelected]}>{type}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
+          {/* Toggle Compétition */}
+          <TouchableOpacity 
+            style={[styles.compToggle, isCompetition && styles.compToggleActive]} 
+            onPress={() => setIsCompetition(!isCompetition)}
+          >
+            <Text style={[styles.compToggleText, isCompetition && styles.compToggleTextActive]}>
+              {isCompetition ? 'MODALITÉ : COMPÉTITION' : 'DÉCLARER UNE COMPÉTITION'}
+            </Text>
+          </TouchableOpacity>
 
-            {/* Constructeurs */}
-            {workoutType !== 'Musculation/Haltéro' ? (
-              <View style={styles.section}>
-                <Text style={styles.sectionLabel}>CŒUR DE SÉANCE (BLOCS)</Text>
-                {blocks.map((block, index) => (
-                  <View key={index} style={styles.blockContainer}>
-                    <View style={styles.blockInputGrid}>
-                      <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>SÉRIES</Text>
-                        <TextInput style={[styles.input, styles.compactInput]} value={block.sets} onChangeText={(val) => updateBlock(index, 'sets', val)} keyboardType="numeric" placeholder="1" />
-                      </View>
-                      <View style={[styles.inputGroup, { flex: 1.5, marginLeft: 12 }]}>
-                        <Text style={styles.inputLabel}>DISTANCE / TEMPS</Text>
-                        <View style={styles.unitInputRow}>
-                          <TextInput style={[styles.input, styles.compactInput, { flex: 1, borderTopRightRadius: 0, borderBottomRightRadius: 0 }]} value={block.distance} onChangeText={(val) => updateBlock(index, 'distance', val)} keyboardType="numeric" placeholder="100" />
-                          <TouchableOpacity style={styles.unitInlineBtn} onPress={() => updateBlock(index, 'unit', block.unit === 'm' ? 'sec' : 'm')}>
-                            <Text style={styles.unitInlineText}>{block.unit}</Text>
-                          </TouchableOpacity>
+          <BlurView intensity={40} tint="default" style={styles.glassCard}>
+            {!isCompetition && (
+              <>
+                {/* Type de séance */}
+                <View style={styles.section}>
+                  <Text style={styles.sectionLabel}>TYPE DE SÉANCE</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagScroll}>
+                    {WORKOUT_TYPES.map((type) => (
+                      <TouchableOpacity
+                        key={type}
+                        style={[styles.tagPill, workoutType === type && styles.tagPillSelected]}
+                        onPress={() => setWorkoutType(type)}
+                      >
+                        <Text style={[styles.tagText, workoutType === type && styles.tagTextSelected]}>{type}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+
+                {/* Constructeurs Entraînement */}
+                {workoutType !== 'Musculation/Haltéro' ? (
+                  <View style={styles.section}>
+                    <Text style={styles.sectionLabel}>CŒUR DE SÉANCE (BLOCS)</Text>
+                    {blocks.map((block, index) => (
+                      <View key={index} style={styles.blockContainer}>
+                        <View style={styles.blockInputGrid}>
+                          <View style={styles.inputGroup}>
+                            <Text style={styles.inputLabel}>SÉRIES</Text>
+                            <TextInput style={[styles.input, styles.compactInput]} value={block.sets} onChangeText={(val) => updateBlock(index, 'sets', val)} keyboardType="numeric" placeholder="1" />
+                          </View>
+                          <View style={[styles.inputGroup, { flex: 1.5, marginLeft: 12 }]}>
+                            <Text style={styles.inputLabel}>DISTANCE / TEMPS</Text>
+                            <View style={styles.unitInputRow}>
+                              <TextInput style={[styles.input, styles.compactInput, { flex: 1, borderTopRightRadius: 0, borderBottomRightRadius: 0 }]} value={block.distance} onChangeText={(val) => updateBlock(index, 'distance', val)} keyboardType="numeric" placeholder="100" />
+                              <TouchableOpacity style={styles.unitInlineBtn} onPress={() => updateBlock(index, 'unit', block.unit === 'm' ? 'sec' : 'm')}>
+                                <Text style={styles.unitInlineText}>{block.unit}</Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
                         </View>
+                        <View style={styles.blockInputGrid}>
+                          <View style={styles.inputGroup}><Text style={styles.inputLabel}>CHRONO</Text><TextInput style={[styles.input, styles.compactInput]} value={block.performance} onChangeText={(val) => updateBlock(index, 'performance', val)} keyboardType="numeric" placeholder='12"50' /></View>
+                          <View style={[styles.inputGroup, { marginLeft: 12 }]}><Text style={styles.inputLabel}>REPOS (MIN)</Text><TextInput style={[styles.input, styles.compactInput]} value={block.recovery} onChangeText={(val) => updateBlock(index, 'recovery', val)} keyboardType="numeric" placeholder="5" /></View>
+                        </View>
+                        {blocks.length > 1 && <TouchableOpacity onPress={() => removeBlock(index)} style={styles.removeBlockBtn}><Text style={styles.removeBlockText}>SUPPRIMER</Text></TouchableOpacity>}
                       </View>
-                    </View>
-                    <View style={styles.blockInputGrid}>
-                      <View style={styles.inputGroup}><Text style={styles.inputLabel}>CHRONO</Text><TextInput style={[styles.input, styles.compactInput]} value={block.performance} onChangeText={(val) => updateBlock(index, 'performance', val)} keyboardType="numeric" placeholder='12"50' /></View>
-                      <View style={[styles.inputGroup, { marginLeft: 12 }]}><Text style={styles.inputLabel}>REPOS (MIN)</Text><TextInput style={[styles.input, styles.compactInput]} value={block.recovery} onChangeText={(val) => updateBlock(index, 'recovery', val)} keyboardType="numeric" placeholder="5" /></View>
-                    </View>
-                    {blocks.length > 1 && <TouchableOpacity onPress={() => removeBlock(index)} style={styles.removeBlockBtn}><Text style={styles.removeBlockText}>SUPPRIMER</Text></TouchableOpacity>}
+                    ))}
+                    <TouchableOpacity style={styles.addBlockBtn} onPress={addBlock}><Text style={styles.addBlockText}>+ AJOUTER UN BLOC</Text></TouchableOpacity>
                   </View>
-                ))}
-                <TouchableOpacity style={styles.addBlockBtn} onPress={addBlock}><Text style={styles.addBlockText}>+ AJOUTER UN BLOC</Text></TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.section}>
-                <Text style={styles.sectionLabel}>CŒUR DE SÉANCE (MUSCULATION)</Text>
-                {muscuExercises.map((ex, index) => (
-                  <View key={index} style={styles.blockContainer}>
-                    <TouchableOpacity style={styles.exerciseSelector} onPress={() => setShowExercisePicker(index)}>
-                      <Text style={ex.name ? styles.exerciseName : styles.exercisePlaceholder}>{ex.name || 'CHOISIR UN EXERCICE...'}</Text>
-                    </TouchableOpacity>
-                    <View style={styles.blockInputGrid}>
-                      <View style={styles.inputGroup}><Text style={styles.inputLabel}>SÉRIES</Text><TextInput style={[styles.input, styles.compactInput]} value={ex.sets} onChangeText={(val) => updateMuscuExercise(index, 'sets', val)} keyboardType="numeric" placeholder="3" /></View>
-                      <View style={[styles.inputGroup, { marginHorizontal: 8 }]}><Text style={styles.inputLabel}>REPS</Text><TextInput style={[styles.input, styles.compactInput]} value={ex.reps} onChangeText={(val) => updateMuscuExercise(index, 'reps', val)} keyboardType="numeric" placeholder="10" /></View>
-                      <View style={styles.inputGroup}><Text style={styles.inputLabel}>POIDS (KG)</Text><TextInput style={[styles.input, styles.compactInput]} value={ex.weight} onChangeText={(val) => updateMuscuExercise(index, 'weight', val)} keyboardType="numeric" placeholder="60" /></View>
-                    </View>
-                    {muscuExercises.length > 1 && <TouchableOpacity onPress={() => removeMuscuExercise(index)} style={styles.removeBlockBtn}><Text style={styles.removeBlockText}>SUPPRIMER</Text></TouchableOpacity>}
+                ) : (
+                  <View style={styles.section}>
+                    <Text style={styles.sectionLabel}>CŒUR DE SÉANCE (MUSCULATION)</Text>
+                    {muscuExercises.map((ex, index) => (
+                      <View key={index} style={styles.blockContainer}>
+                        <TouchableOpacity style={styles.exerciseSelector} onPress={() => setShowExercisePicker(index)}>
+                          <Text style={ex.name ? styles.exerciseName : styles.exercisePlaceholder}>{ex.name || 'CHOISIR UN EXERCICE...'}</Text>
+                        </TouchableOpacity>
+                        <View style={styles.blockInputGrid}>
+                          <View style={styles.inputGroup}><Text style={styles.inputLabel}>SÉRIES</Text><TextInput style={[styles.input, styles.compactInput]} value={ex.sets} onChangeText={(val) => updateMuscuExercise(index, 'sets', val)} keyboardType="numeric" placeholder="3" /></View>
+                          <View style={[styles.inputGroup, { marginHorizontal: 8 }]}><Text style={styles.inputLabel}>REPS</Text><TextInput style={[styles.input, styles.compactInput]} value={ex.reps} onChangeText={(val) => updateMuscuExercise(index, 'reps', val)} keyboardType="numeric" placeholder="10" /></View>
+                          <View style={styles.inputGroup}><Text style={styles.inputLabel}>POIDS (KG)</Text><TextInput style={[styles.input, styles.compactInput]} value={ex.weight} onChangeText={(val) => updateMuscuExercise(index, 'weight', val)} keyboardType="numeric" placeholder="60" /></View>
+                        </View>
+                        {muscuExercises.length > 1 && <TouchableOpacity onPress={() => removeMuscuExercise(index)} style={styles.removeBlockBtn}><Text style={styles.removeBlockText}>SUPPRIMER</Text></TouchableOpacity>}
+                      </View>
+                    ))}
+                    <TouchableOpacity style={styles.addBlockBtn} onPress={addMuscuExercise}><Text style={styles.addBlockText}>+ AJOUTER UN EXERCICE</Text></TouchableOpacity>
                   </View>
-                ))}
-                <TouchableOpacity style={styles.addBlockBtn} onPress={addMuscuExercise}><Text style={styles.addBlockText}>+ AJOUTER UN EXERCICE</Text></TouchableOpacity>
-              </View>
+                )}
+
+                {/* Intensité */}
+                <View style={styles.section}>
+                  <Text style={styles.sectionLabel}>INTENSITÉ DE L'EFFORT (1 À 10)</Text>
+                  <View style={styles.rpeGrid}>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => (
+                      <TouchableOpacity key={score} style={[styles.rpePill, rpe === score && styles.rpePillSelected]} onPress={() => setRpe(score)}>
+                        <Text style={[styles.rpeText, rpe === score && styles.rpeTextSelected]}>{score}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </>
             )}
 
-            {/* Intensité */}
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>INTENSITÉ DE L'EFFORT (1 À 10)</Text>
-              <View style={styles.rpeGrid}>
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => (
-                  <TouchableOpacity key={score} style={[styles.rpePill, rpe === score && styles.rpePillSelected]} onPress={() => setRpe(score)}>
-                    <Text style={[styles.rpeText, rpe === score && styles.rpeTextSelected]}>{score}</Text>
-                  </TouchableOpacity>
+            {/* Section Compétition */}
+            {isCompetition && (
+              <View style={styles.section}>
+                <Text style={styles.sectionLabel}>DÉTAILS COMPÉTITION</Text>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>VILLE / STADE</Text>
+                  <TextInput 
+                    style={styles.input} 
+                    value={city} 
+                    onChangeText={setCity} 
+                    placeholder="Ex: Paris, Stade de France" 
+                    placeholderTextColor="#555"
+                  />
+                </View>
+                
+                <Text style={[styles.sectionLabel, { marginTop: 20 }]}>PROGRAMME HORAIRE</Text>
+                {schedule.map((item, index) => (
+                  <View key={index} style={styles.scheduleRow}>
+                    <TextInput 
+                      style={[styles.input, { flex: 1, marginRight: 10 }]} 
+                      value={item.time} 
+                      onChangeText={(val) => updateScheduleItem(index, 'time', val)} 
+                      placeholder="14:30" 
+                      placeholderTextColor="#555"
+                    />
+                    <TextInput 
+                      style={[styles.input, { flex: 2 }]} 
+                      value={item.event} 
+                      onChangeText={(val) => updateScheduleItem(index, 'event', val)} 
+                      placeholder="100m - Séries" 
+                      placeholderTextColor="#555"
+                    />
+                    {schedule.length > 1 && (
+                      <TouchableOpacity onPress={() => removeScheduleItem(index)} style={styles.removeScheduleBtn}>
+                        <Text style={styles.removeBlockText}>X</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 ))}
+                <TouchableOpacity style={styles.addBlockBtn} onPress={addScheduleItem}>
+                  <Text style={styles.addBlockText}>+ AJOUTER UNE ÉPREUVE</Text>
+                </TouchableOpacity>
               </View>
-            </View>
+            )}
 
             {/* Notes */}
             <View style={styles.section}>
@@ -329,7 +407,7 @@ const AddWorkoutScreen = () => {
             </View>
 
             <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={isSubmitting}>
-              {isSubmitting ? <ActivityIndicator color="#000000" /> : <Text style={styles.saveButtonText}>{editingWorkout ? 'METTRE À JOUR' : 'ENREGISTRER LA SÉANCE'}</Text>}
+              {isSubmitting ? <ActivityIndicator color="#000000" /> : <Text style={styles.saveButtonText}>{editingWorkout ? 'METTRE À JOUR' : 'ENREGISTRER'}</Text>}
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()} disabled={isSubmitting}>
@@ -397,6 +475,10 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: '900', color: '#FFFFFF', letterSpacing: 1 },
   dateSelector: { marginTop: 8, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.2)', alignSelf: 'flex-start', backgroundColor: 'rgba(255, 255, 255, 0.05)' },
   dateSelectorText: { color: '#8E8E93', fontSize: 13, fontWeight: '700', textTransform: 'uppercase' },
+  compToggle: { marginBottom: 20, paddingVertical: 14, borderRadius: 16, borderWidth: 1, borderColor: '#00E5FF', alignItems: 'center', backgroundColor: 'rgba(0, 229, 255, 0.05)' },
+  compToggleActive: { backgroundColor: '#00E5FF' },
+  compToggleText: { color: '#00E5FF', fontSize: 13, fontWeight: '900', letterSpacing: 1 },
+  compToggleTextActive: { color: '#000000' },
   glassCard: { borderRadius: 28, padding: 24, backgroundColor: 'rgba(255, 255, 255, 0.08)', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.12)', overflow: 'hidden' },
   section: { marginBottom: 28 },
   sectionLabel: { fontSize: 13, fontWeight: '900', color: '#00E5FF', marginBottom: 16, letterSpacing: 1 },
@@ -418,6 +500,8 @@ const styles = StyleSheet.create({
   removeBlockText: { color: '#FF3B30', fontSize: 10, fontWeight: '800' },
   addBlockBtn: { marginTop: 8, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: '#00E5FF', borderStyle: 'dashed', alignItems: 'center' },
   addBlockText: { color: '#00E5FF', fontWeight: '800', fontSize: 13 },
+  scheduleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  removeScheduleBtn: { marginLeft: 10, padding: 10 },
   exerciseSelector: { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
   exerciseName: { color: '#FFFFFF', fontSize: 15, fontWeight: '800', textTransform: 'uppercase' },
   exercisePlaceholder: { color: '#555', fontSize: 14, fontWeight: '700' },
