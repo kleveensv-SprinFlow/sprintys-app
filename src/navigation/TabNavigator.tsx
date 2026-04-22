@@ -5,7 +5,7 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import DashboardScreen from '../screens/DashboardScreen';
 import WorkoutScreen from '../screens/WorkoutScreen';
-import ProfileScreen from '../screens/ProfileScreen';
+import NutritionScreen from '../screens/NutritionScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -34,6 +34,7 @@ const TabItem = ({ state, descriptors, navigation, route, index }: any) => {
   const getIconName = (name: string): any => {
     switch (name) {
       case 'Dashboard': return 'grid-outline';
+      case 'Nutrition': return 'restaurant-outline';
       case 'Agenda': return 'calendar-outline';
       default: return 'help-outline';
     }
@@ -82,6 +83,7 @@ const TabNavigator = () => {
       }}
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
+      <Tab.Screen name="Nutrition" component={NutritionScreen} />
       <Tab.Screen name="Agenda" component={WorkoutScreen} />
     </Tab.Navigator>
   );

@@ -20,6 +20,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../services/supabaseClient';
 import { signOutUser } from '../services/authService';
+import { NutritionSettingsCard } from '../features/body/components/NutritionSettingsCard';
+import { useBodyStore } from '../store/bodyStore';
 
 const { width } = Dimensions.get('window');
 
@@ -39,6 +41,8 @@ const ProfileScreen = () => {
   
   const navigation = useNavigation<any>();
 
+  const { profile: storeProfile, fetchProfile: fetchStoreProfile, setProfile: setStoreProfile } = useBodyStore();
+
   useEffect(() => {
     fetchProfile();
   }, []);
@@ -48,26 +52,16 @@ const ProfileScreen = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .single();
+      await fetchStoreProfile(session.user.id);
+      const data = useBodyStore.getState().profile;
 
-      if (error) throw error;
-      
-      const userMetadata = session.user.user_metadata || {};
-      const mergedProfile = {
-        ...data,
-        first_name: data?.first_name || userMetadata.first_name || '',
-        last_name: data?.last_name || userMetadata.last_name || '',
-      };
-
-      setProfile(mergedProfile);
-      setUserEmail(session.user.email || '');
-      setEditRecords(data?.personal_records || {});
-      setEditFirstName(mergedProfile.first_name);
-      setEditLastName(mergedProfile.last_name);
+      if (data) {
+        setProfile(data);
+        setUserEmail(session.user.email || '');
+        setEditRecords(data.personal_records || {});
+        setEditFirstName(data.first_name || '');
+        setEditLastName(data.last_name || '');
+      }
     } catch (error) {
       console.error('Erreur profil:', error);
     } finally {
@@ -302,6 +296,8 @@ const ProfileScreen = () => {
             {MUSCU_EXERCISES.map(e => renderRecordCard(e, records[e], true))}
           </View>
         </View>
+
+        <NutritionSettingsCard />
 
         <TouchableOpacity 
           style={styles.editBtn}
