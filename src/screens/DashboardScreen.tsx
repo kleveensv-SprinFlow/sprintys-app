@@ -8,6 +8,9 @@ import {
   Dimensions,
   ActivityIndicator,
   Platform,
+  Modal,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
@@ -36,9 +39,16 @@ const DashboardScreen = () => {
   const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
   const [lastWorkout, setLastWorkout] = useState<any>(null);
   const [todayCompetition, setTodayCompetition] = useState<any>(null);
+  const [pendingDebrief, setPendingDebrief] = useState<any>(null);
   const [weather, setWeather] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [bagChecked, setBagChecked] = useState<Record<string, boolean>>({});
+
+  // États Modal Débriefing
+  const [showDebriefModal, setShowDebriefModal] = useState(false);
+  const [debriefData, setDebriefData] = useState<any[]>([]);
+  const [debriefNotes, setDebriefNotes] = useState('');
+  const [isSubmittingDebrief, setIsSubmittingDebrief] = useState(false);
 
   useEffect(() => {
     if (isFocused) {
@@ -97,8 +107,10 @@ const DashboardScreen = () => {
           setDailyScore(null);
         }
 
+        const now = new Date().toISOString();
+        const todayStr = now.split('T')[0];
+
         // Détection Compétition Aujourd'hui
-        const todayStr = new Date().toISOString().split('T')[0];
         const { data: compData } = await supabase
           .from('workouts')
           .select('*')
@@ -108,10 +120,31 @@ const DashboardScreen = () => {
           .lte('created_at', `${todayStr}T23:59:59`)
           .limit(1);
 
-        if (compData && compData.length > 0) {
-          setTodayCompetition(compData[0]);
+        setTodayCompetition(compData?.[0] || null);
+
+        // Détection Compétition Passée sans Résultats
+        const { data: pastCompData } = await supabase
+          .from('workouts')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('is_competition', true)
+          .lt('created_at', `${todayStr}T00:00:00`)
+          .is('results', null)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (pastCompData && pastCompData.length > 0) {
+          setPendingDebrief(pastCompData[0]);
+          const initialResults = pastCompData[0].competition_schedule?.map((item: any) => ({
+            event: item.event,
+            time: '',
+            perf: '',
+            wind: '',
+            place: '',
+          })) || [];
+          setDebriefData(initialResults);
         } else {
-          setTodayCompetition(null);
+          setPendingDebrief(null);
         }
 
         const { data: workoutData } = await supabase
@@ -121,9 +154,7 @@ const DashboardScreen = () => {
           .order('created_at', { ascending: false })
           .limit(1);
 
-        if (workoutData && workoutData.length > 0) {
-          setLastWorkout(workoutData[0]);
-        }
+        setLastWorkout(workoutData?.[0] || null);
       }
     } catch (error) {
       console.error('Erreur data:', error);
@@ -132,17 +163,71 @@ const DashboardScreen = () => {
     }
   };
 
+  const handleSaveDebrief = async () => {
+    if (isSubmittingDebrief) return;
+    setIsSubmittingDebrief(true);
+    try {
+      // 1. Sauvegarder les résultats dans le workout
+      const { error: updateError } = await supabase
+        .from('workouts')
+        .update({ 
+          results: debriefData,
+          notes: `${pendingDebrief.notes}\n\nRÉSULTATS OFFICIELS :\n${debriefData.map(d => `${d.event} : ${d.perf} (${d.wind}m/s) - ${d.place}`).join('\n')}\n\nDÉBRIEFING : ${debriefNotes}`
+        })
+        .eq('id', pendingDebrief.id);
+
+      if (updateError) throw updateError;
+
+      // 2. Logique de Record Personnel (PB)
+      let updatedRecords = { ...(profile?.personal_records || {}) };
+      let pbFound = false;
+
+      debriefData.forEach(res => {
+        const dist = res.event.toLowerCase();
+        if (['60m', '100m', '200m'].includes(dist)) {
+          const currentPB = parseFloat(updatedRecords[dist]);
+          const newPerf = parseFloat(res.perf.replace(',', '.').replace('"', ''));
+          const wind = parseFloat(res.wind.replace(',', '.'));
+
+          if (!isNaN(newPerf) && (isNaN(currentPB) || newPerf < currentPB)) {
+            if (wind <= 2.0) {
+              updatedRecords[dist] = newPerf.toFixed(2);
+              pbFound = true;
+            } else {
+              console.log(`PB non homologué pour ${dist} (Vent: ${wind}m/s)`);
+            }
+          }
+        }
+      });
+
+      if (pbFound) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ personal_records: updatedRecords })
+          .eq('id', profile.id);
+        if (profileError) throw profileError;
+        Alert.alert('FÉLICITATIONS !', 'De nouveaux records personnels ont été enregistrés dans ta Record Room.');
+      }
+
+      setShowDebriefModal(false);
+      setPendingDebrief(null);
+      fetchUserData();
+    } catch (error: any) {
+      Alert.alert('Erreur', error.message);
+    } finally {
+      setIsSubmittingDebrief(false);
+    }
+  };
+
   const toggleBagItem = (item: string) => {
     setBagChecked(prev => ({ ...prev, [item]: !prev[item] }));
   };
 
   const getSprintyAdvice = (shapeScore: number | null, workout: any) => {
-    if (todayCompetition) {
-      return "JOUR DE COURSE. C'est le moment de tout donner. Concentre-toi sur ton processus d'échauffement et reste dans ta bulle.";
-    }
-    if (!hasCheckedInToday || shapeScore === null) {
-      return "Fais ton check-in pour recevoir ton analyse de performance.";
-    }
+    if (todayCompetition) return "JOUR DE COURSE. C'est le moment de tout donner. Concentre-toi sur ton processus d'échauffement et reste dans ta bulle.";
+    if (pendingDebrief) return "ANALYSE REQUISE. Une compétition est terminée. Saisis tes résultats pour mettre à jour ta Record Room.";
+    if (!hasCheckedInToday || shapeScore === null) return "Fais ton check-in pour recevoir ton analyse de performance.";
+    
     const lastRpe = workout?.rpe || 0;
     if (shapeScore >= 85 && lastRpe < 7) return "ÉTAT OPTIMAL. Journée idéale pour une séance de haute intensité ou un test de vitesse.";
     if (shapeScore >= 80 && lastRpe >= 8) return "FORCE ET FATIGUE. Ton système nerveux est prêt, mais tes muscles ont subi une grosse charge hier. Focus sur la technique pure, évite le lactique aujourd'hui.";
@@ -188,6 +273,17 @@ const DashboardScreen = () => {
             </View>
           </TouchableOpacity>
         </View>
+
+        {/* Action Requise : Débriefing */}
+        {pendingDebrief && (
+          <TouchableOpacity onPress={() => setShowDebriefModal(true)}>
+            <BlurView intensity={60} tint="default" style={[styles.mainCard, styles.debriefCard]}>
+              <Text style={styles.debriefTitle}>ACTION REQUISE</Text>
+              <Text style={styles.debriefMain}>SAISIR MES RÉSULTATS - {pendingDebrief.city?.toUpperCase()}</Text>
+              <Text style={styles.debriefSub}>La compétition est terminée. Mets à jour tes records.</Text>
+            </BlurView>
+          </TouchableOpacity>
+        )}
 
         {/* Focus Compétition (Jour J) */}
         {todayCompetition && (
@@ -260,6 +356,84 @@ const DashboardScreen = () => {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Modal Débriefing */}
+      <Modal visible={showDebriefModal} animationType="slide" transparent>
+        <BlurView intensity={100} tint="dark" style={styles.modalOverlay}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>DÉBRIEFING : {pendingDebrief?.city?.toUpperCase()}</Text>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {debriefData.map((item, index) => (
+                  <View key={index} style={styles.debriefItem}>
+                    <Text style={styles.debriefItemTitle}>{item.event.toUpperCase()}</Text>
+                    <View style={styles.debriefGrid}>
+                      <View style={styles.debriefInputGroup}>
+                        <Text style={styles.debriefLabel}>CHRONO</Text>
+                        <TextInput 
+                          style={styles.debriefInput} 
+                          value={item.perf} 
+                          onChangeText={(val) => {
+                            const newD = [...debriefData];
+                            newD[index].perf = val;
+                            setDebriefData(newD);
+                          }} 
+                          placeholder='10"85' 
+                          placeholderTextColor="#555"
+                        />
+                      </View>
+                      <View style={styles.debriefInputGroup}>
+                        <Text style={styles.debriefLabel}>VENT (M/S)</Text>
+                        <TextInput 
+                          style={styles.debriefInput} 
+                          value={item.wind} 
+                          onChangeText={(val) => {
+                            const newD = [...debriefData];
+                            newD[index].wind = val;
+                            setDebriefData(newD);
+                          }} 
+                          placeholder="+1.2" 
+                          placeholderTextColor="#555"
+                        />
+                      </View>
+                      <View style={styles.debriefInputGroup}>
+                        <Text style={styles.debriefLabel}>PLACE</Text>
+                        <TextInput 
+                          style={styles.debriefInput} 
+                          value={item.place} 
+                          onChangeText={(val) => {
+                            const newD = [...debriefData];
+                            newD[index].place = val;
+                            setDebriefData(newD);
+                          }} 
+                          placeholder="2ÈME" 
+                          placeholderTextColor="#555"
+                        />
+                      </View>
+                    </View>
+                  </View>
+                ))}
+                <Text style={styles.debriefLabel}>SENSATIONS / NOTES</Text>
+                <TextInput 
+                  style={styles.debriefTextArea} 
+                  value={debriefNotes} 
+                  onChangeText={setDebriefNotes} 
+                  multiline 
+                  placeholder="Comment t'es-tu senti ?" 
+                  placeholderTextColor="#555"
+                />
+                
+                <TouchableOpacity style={styles.debriefSaveBtn} onPress={handleSaveDebrief} disabled={isSubmittingDebrief}>
+                  {isSubmittingDebrief ? <ActivityIndicator color="#000" /> : <Text style={styles.debriefSaveText}>ENREGISTRER MES RÉSULTATS</Text>}
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.debriefCancelBtn} onPress={() => setShowDebriefModal(false)}>
+                  <Text style={styles.debriefCancelText}>ANNULER</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
+        </BlurView>
+      </Modal>
     </View>
   );
 };
@@ -312,6 +486,24 @@ const styles = StyleSheet.create({
   checkInner: { width: 8, height: 8, backgroundColor: '#000000', borderRadius: 2 },
   checkText: { color: '#8E8E93', fontSize: 11, fontWeight: '700' },
   checkTextActive: { color: '#FFFFFF' },
+  debriefCard: { borderColor: '#00E5FF', backgroundColor: 'rgba(0, 229, 255, 0.05)' },
+  debriefTitle: { fontSize: 12, fontWeight: '900', color: '#00E5FF', marginBottom: 12, letterSpacing: 1 },
+  debriefMain: { fontSize: 18, fontWeight: '900', color: '#FFFFFF', marginBottom: 4 },
+  debriefSub: { fontSize: 12, color: '#8E8E93', fontWeight: '600' },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#1C1C1E', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, height: '90%' },
+  modalTitle: { fontSize: 22, fontWeight: '900', color: '#FFFFFF', marginBottom: 24, letterSpacing: 1 },
+  debriefItem: { marginBottom: 24, backgroundColor: 'rgba(255, 255, 255, 0.03)', padding: 16, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.05)' },
+  debriefItemTitle: { color: '#00E5FF', fontSize: 14, fontWeight: '900', marginBottom: 16, letterSpacing: 1 },
+  debriefGrid: { flexDirection: 'row', justifyContent: 'space-between' },
+  debriefInputGroup: { width: '30%' },
+  debriefLabel: { color: '#8E8E93', fontSize: 9, fontWeight: '800', marginBottom: 6, textTransform: 'uppercase' },
+  debriefInput: { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 10, padding: 10, color: '#FFFFFF', fontSize: 15, fontWeight: '700', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
+  debriefTextArea: { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 16, padding: 16, color: '#FFFFFF', fontSize: 15, height: 100, textAlignVertical: 'top', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)', marginTop: 8 },
+  debriefSaveBtn: { backgroundColor: '#00E5FF', paddingVertical: 16, borderRadius: 16, alignItems: 'center', marginTop: 32 },
+  debriefSaveText: { color: '#000000', fontSize: 16, fontWeight: '900' },
+  debriefCancelBtn: { alignItems: 'center', marginTop: 16, paddingBottom: 20 },
+  debriefCancelText: { color: '#8E8E93', fontSize: 14, fontWeight: '700' },
 });
 
 export default DashboardScreen;
