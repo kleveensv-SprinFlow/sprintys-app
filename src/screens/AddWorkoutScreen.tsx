@@ -44,7 +44,16 @@ const AddWorkoutScreen = () => {
   // États pour la Compétition
   const [isCompetition, setIsCompetition] = useState(editingWorkout?.is_competition || false);
   const [city, setCity] = useState(editingWorkout?.city || '');
+  const [address, setAddress] = useState(editingWorkout?.address || '');
   const [schedule, setSchedule] = useState<any[]>(editingWorkout?.competition_schedule || [{ time: '', event: '' }]);
+
+  const handleTimeBlur = (index: number) => {
+    let time = schedule[index].time;
+    if (time.length === 4 && !time.includes(':')) {
+      const formattedTime = `${time.slice(0, 2)}:${time.slice(2)}`;
+      updateScheduleItem(index, 'time', formattedTime);
+    }
+  };
 
   // États pour la Piste
   const [blocks, setBlocks] = useState([
@@ -219,6 +228,7 @@ const AddWorkoutScreen = () => {
         created_at: workoutDate.toISOString(),
         is_competition: isCompetition,
         city: isCompetition ? city : null,
+        address: isCompetition ? address : null,
         competition_schedule: isCompetition ? schedule : null,
       };
 
@@ -282,7 +292,9 @@ const AddWorkoutScreen = () => {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
-            <Text style={styles.title}>{editingWorkout ? 'MODIFIER SÉANCE' : 'NOUVELLE SÉANCE'}</Text>
+            <Text style={styles.title}>
+              {editingWorkout ? 'MODIFIER' : 'AJOUTER'} {isCompetition ? 'UNE COMPÉTITION' : 'UNE SÉANCE'}
+            </Text>
             <TouchableOpacity style={styles.dateSelector} onPress={() => setShowDatePicker(true)}>
               <Text style={styles.dateSelectorText}>Date : {workoutDate.toLocaleDateString('fr-FR')}</Text>
             </TouchableOpacity>
@@ -398,23 +410,35 @@ const AddWorkoutScreen = () => {
               <View style={styles.section}>
                 <Text style={styles.sectionLabel}>DÉTAILS COMPÉTITION</Text>
                 <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>VILLE / STADE</Text>
+                  <Text style={styles.inputLabel}>VILLE</Text>
                   <TextInput 
                     style={styles.input} 
                     value={city} 
                     onChangeText={setCity} 
-                    placeholder="Ex: Paris, Stade de France" 
+                    placeholder="Ex: Paris" 
+                    placeholderTextColor="#555"
+                  />
+                </View>
+
+                <View style={[styles.inputGroup, { marginTop: 12 }]}>
+                  <Text style={styles.inputLabel}>ADRESSE / STADE</Text>
+                  <TextInput 
+                    style={styles.input} 
+                    value={address} 
+                    onChangeText={setAddress} 
+                    placeholder="Ex: 2 rue du Stade" 
                     placeholderTextColor="#555"
                   />
                 </View>
                 
-                <Text style={[styles.sectionLabel, { marginTop: 20 }]}>PROGRAMME HORAIRE</Text>
+                <Text style={[styles.sectionLabel, { marginTop: 24 }]}>PROGRAMME HORAIRE</Text>
                 {schedule.map((item, index) => (
                   <View key={index} style={styles.scheduleRow}>
                     <TextInput 
                       style={[styles.input, { flex: 1, marginRight: 10 }]} 
                       value={item.time} 
                       onChangeText={(val) => updateScheduleItem(index, 'time', val)} 
+                      onBlur={() => handleTimeBlur(index)}
                       placeholder="14:30" 
                       placeholderTextColor="#555"
                     />

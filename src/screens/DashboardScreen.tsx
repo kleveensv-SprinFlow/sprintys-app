@@ -12,6 +12,7 @@ import {
   Modal,
   TextInput,
   Alert,
+  Linking,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
@@ -115,7 +116,7 @@ const DashboardScreen = () => {
         const now = new Date().toISOString();
         const todayStr = now.split('T')[0];
 
-        // Détection Compétition Aujourd'hui
+        // Détection Compétition Aujourd'hui (Focus Persistant)
         const { data: compData } = await supabase
           .from('workouts')
           .select('*')
@@ -125,15 +126,37 @@ const DashboardScreen = () => {
           .lte('created_at', `${todayStr}T23:59:59`)
           .limit(1);
 
-        setTodayCompetition(compData?.[0] || null);
+        const activeComp = compData?.[0];
+        if (activeComp) {
+          // Calculer si la compétition est "finie" pour aujourd'hui
+          const lastEvent = activeComp.competition_schedule?.reduce((prev: any, current: any) => {
+            return (prev.time > current.time) ? prev : current;
+          });
+          
+          if (lastEvent) {
+            const [hours, minutes] = lastEvent.time.split(':').map(Number);
+            const eventDate = new Date();
+            eventDate.setHours(hours, minutes, 0, 0);
+            
+            if (new Date() < eventDate) {
+              setTodayCompetition(activeComp);
+            } else {
+              setTodayCompetition(null); // On ne l'affiche plus dans "Focus" mais on n'affiche pas encore le debrief
+            }
+          } else {
+            setTodayCompetition(activeComp);
+          }
+        } else {
+          setTodayCompetition(null);
+        }
 
-        // Détection Compétition Passée sans Résultats
+        // Détection Compétition Passée sans Résultats (J+1)
         const { data: pastCompData } = await supabase
           .from('workouts')
           .select('*')
           .eq('user_id', user.id)
           .eq('is_competition', true)
-          .lt('created_at', `${todayStr}T00:00:00`)
+          .lt('created_at', `${todayStr}T00:00:00`) // Uniquement à partir du lendemain
           .filter('notes', 'not.ilike', '%RÉSULTATS OFFICIELS :%')
           .order('created_at', { ascending: false })
           .limit(1);
@@ -316,6 +339,15 @@ const DashboardScreen = () => {
             <Text style={styles.compFocusTitle}>FOCUS COMPÉTITION</Text>
             <Text style={styles.compFocusMain}>JOUR DE COURSE - {todayCompetition.city?.toUpperCase() || 'STADE'}</Text>
             
+            {todayCompetition.address && (
+              <TouchableOpacity 
+                style={styles.addressBtn} 
+                onPress={() => Linking.openURL(`geo:0,0?q=${todayCompetition.address}`)}
+              >
+                <Text style={styles.addressText}>📍 {todayCompetition.address.toUpperCase()}</Text>
+              </TouchableOpacity>
+            )}
+
             <View style={styles.bagSection}>
               <Text style={styles.bagTitle}>MON SAC</Text>
               {BAG_CHECKLIST_ITEMS.map((item, idx) => (
@@ -554,6 +586,8 @@ const styles = StyleSheet.create({
   debriefCancelText: { color: '#8E8E93', fontSize: 14, fontWeight: '700' },
   sharePerfBtn: { marginTop: 16, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#00E5FF', alignItems: 'center', backgroundColor: 'rgba(0, 229, 255, 0.05)' },
   sharePerfText: { color: '#00E5FF', fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
+  addressBtn: { backgroundColor: 'rgba(255, 255, 255, 0.05)', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, alignSelf: 'flex-start', marginBottom: 20, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
+  addressText: { color: '#00E5FF', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
 });
 
 export default DashboardScreen;
