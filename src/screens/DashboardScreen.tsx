@@ -18,6 +18,10 @@ import { supabase } from '../services/supabaseClient';
 import { signOutUser } from '../services/authService';
 import { weatherService } from '../services/weatherService';
 import WeatherBadge from '../shared/components/WeatherBadge';
+import PerformanceCard from '../shared/components/PerformanceCard';
+import { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
+import { useRef } from 'react';
 
 const { width } = Dimensions.get('window');
 
@@ -236,6 +240,26 @@ const DashboardScreen = () => {
     return "MAINTIEN. Séance modérée possible. Écoute tes sensations sur tes premières accélérations.";
   };
 
+  const viewRef = useRef<View>(null);
+
+  const handleSharePerformance = async (item: any) => {
+    try {
+      const uri = await captureRef(viewRef, {
+        format: 'png',
+        quality: 1.0,
+      });
+
+      await Sharing.shareAsync(uri, {
+        mimeType: 'image/png',
+        dialogTitle: 'Partager ma performance',
+        UTI: 'public.png',
+      });
+    } catch (error) {
+      console.error('Erreur partage:', error);
+      Alert.alert('Erreur', 'Impossible de générer la carte de performance.');
+    }
+  };
+
   const formatDate = () => {
     const options: any = { weekday: 'long', day: 'numeric', month: 'long' };
     const date = new Date().toLocaleDateString('fr-FR', options);
@@ -411,6 +435,14 @@ const DashboardScreen = () => {
                         />
                       </View>
                     </View>
+                    {item.perf && (
+                      <TouchableOpacity 
+                        style={styles.sharePerfBtn} 
+                        onPress={() => handleSharePerformance(item)}
+                      >
+                        <Text style={styles.sharePerfText}>PARTAGER CETTE PERFORMANCE</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 ))}
                 <Text style={styles.debriefLabel}>SENSATIONS / NOTES</Text>
@@ -434,6 +466,21 @@ const DashboardScreen = () => {
           </KeyboardAvoidingView>
         </BlurView>
       </Modal>
+
+      {/* Rendu off-screen pour la capture */}
+      <View style={{ position: 'absolute', left: -5000 }} collapsable={false}>
+        <View ref={viewRef}>
+          {debriefData.length > 0 && (
+            <PerformanceCard 
+              event={debriefData[0].event}
+              perf={debriefData[0].perf || '--" --'}
+              wind={debriefData[0].wind || '0.0'}
+              city={pendingDebrief?.city || 'STADE'}
+              date={new Date(pendingDebrief?.created_at || Date.now()).toLocaleDateString('fr-FR')}
+            />
+          )}
+        </View>
+      </View>
     </View>
   );
 };
@@ -504,6 +551,8 @@ const styles = StyleSheet.create({
   debriefSaveText: { color: '#000000', fontSize: 16, fontWeight: '900' },
   debriefCancelBtn: { alignItems: 'center', marginTop: 16, paddingBottom: 20 },
   debriefCancelText: { color: '#8E8E93', fontSize: 14, fontWeight: '700' },
+  sharePerfBtn: { marginTop: 16, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#00E5FF', alignItems: 'center', backgroundColor: 'rgba(0, 229, 255, 0.05)' },
+  sharePerfText: { color: '#00E5FF', fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
 });
 
 export default DashboardScreen;
