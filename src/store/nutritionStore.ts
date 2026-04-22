@@ -17,19 +17,24 @@ export interface FoodLog {
 
 interface NutritionState {
   dailyLog: FoodLog[];
+  lastBilanDate: string | null;
   addFoodLog: (food: Omit<FoodLog, 'id'>) => Promise<void>;
   removeFoodLog: (id: string) => Promise<void>;
   fetchDailyLogs: () => Promise<void>;
+  setLastBilanDate: (date: string) => void;
   getTotals: () => { calories: number; protein: number; carbs: number; fats: number };
 }
 
 export const useNutritionStore = create<NutritionState>((set, get) => ({
   dailyLog: [],
+  lastBilanDate: null,
 
   fetchDailyLogs: async () => {
     const logs = await nutritionService.getDailyLogs(new Date());
     set({ dailyLog: logs });
   },
+
+  setLastBilanDate: (date) => set({ lastBilanDate: date }),
 
   addFoodLog: async (foodData) => {
     const id = await nutritionService.addNutritionLog(foodData);

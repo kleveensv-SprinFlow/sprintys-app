@@ -2,9 +2,11 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useBodyStore } from '../store/bodyStore';
 import { useNutritionStore, MealType, FoodLog } from '../store/nutritionStore';
 import { FoodSearchModal } from '../features/nutrition/components/FoodSearchModal';
+import { SprintyBilanModal } from '../features/nutrition/components/SprintyBilanModal';
 
 const { width } = Dimensions.get('window');
 
@@ -74,14 +76,32 @@ const MealCard = ({
 
 const NutritionScreen = () => {
   const { profile } = useBodyStore();
-  const { dailyLog, getTotals, removeFoodLog, fetchDailyLogs } = useNutritionStore();
+  const { dailyLog, getTotals, removeFoodLog, fetchDailyLogs, lastBilanDate } = useNutritionStore();
   
   const [modalVisible, setModalVisible] = useState(false);
+  const [bilanVisible, setBilanVisible] = useState(false);
   const [activeMealType, setActiveMealType] = useState<MealType>('PETIT-DÉJEUNER');
 
   useEffect(() => {
     fetchDailyLogs();
   }, []);
+
+  const showBilanButton = useMemo(() => {
+    if (!lastBilanDate) return true;
+    
+    const now = new Date();
+    const day = now.getDay(); // 0: Sunday, 6: Saturday
+    const isWeekend = day === 0 || day === 6;
+    
+    if (isWeekend) {
+      const lastBilan = new Date(lastBilanDate);
+      const diffTime = Math.abs(now.getTime() - lastBilan.getTime());
+      const diffDays = diffTime / (1000 * 60 * 60 * 24);
+      return diffDays > 2; // Plus de 2 jours depuis le dernier bilan
+    }
+    
+    return false;
+  }, [lastBilanDate]);
 
   const totals = useMemo(() => getTotals(), [dailyLog]);
 
@@ -115,6 +135,22 @@ const NutritionScreen = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {showBilanButton && (
+          <TouchableOpacity 
+            style={styles.bilanTrigger} 
+            onPress={() => setBilanVisible(true)}
+          >
+            <LinearGradient
+              colors={['rgba(0, 229, 255, 0.2)', 'rgba(191, 90, 242, 0.2)']}
+              style={styles.bilanGradient}
+            >
+              <Ionicons name="sparkles" size={18} color="#00E5FF" />
+              <Text style={styles.bilanText}>FAIRE LE POINT AVEC SPRINTY</Text>
+              <Ionicons name="chevron-forward" size={16} color="#00E5FF" />
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
+
         <BlurView intensity={30} tint="dark" style={styles.summaryCard}>
           <Text style={styles.cardTitle}>RÉSUMÉ DU JOUR</Text>
           
@@ -176,6 +212,11 @@ const NutritionScreen = () => {
         onClose={() => setModalVisible(false)} 
         mealType={activeMealType} 
       />
+
+      <SprintyBilanModal 
+        visible={bilanVisible} 
+        onClose={() => setBilanVisible(false)} 
+      />
     </View>
   );
 };
@@ -231,7 +272,31 @@ const styles = StyleSheet.create({
   lightCircle: { position: 'absolute', width: 300, height: 300, borderRadius: 150, opacity: 0.3 },
   cyanCircle: { top: -50, left: -50, backgroundColor: '#00E5FF' },
   purpleCircle: { bottom: 100, right: -50, backgroundColor: '#BF5AF2' },
+  bilanTrigger: {
+    marginBottom: 24,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 229, 255, 0.3)',
+    shadowColor: '#00E5FF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  bilanGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
+  },
+  bilanText: {
+    flex: 1,
+    color: '#00E5FF',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
 });
 
 export default NutritionScreen;
-
