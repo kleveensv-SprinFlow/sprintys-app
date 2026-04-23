@@ -14,6 +14,7 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNutritionStore } from '../../../store/nutritionStore';
+import { analyzeBilan, BilanAnswers } from '../utils/nutritionAlgorithm';
 
 const { width, height } = Dimensions.get('window');
 
@@ -86,9 +87,11 @@ export const SprintyBilanModal = ({ visible, onClose }: SprintyBilanModalProps) 
       return;
     }
 
-    Alert.alert('Bilan enregistré', 'Analyse en cours...', [
+    const result = analyzeBilan(answers as unknown as BilanAnswers);
+
+    Alert.alert(result.title, `${result.diagnostic}\n\nACTION : ${result.action}`, [
       {
-        text: 'OK',
+        text: 'COMPRIS',
         onPress: () => {
           setLastBilanDate(new Date().toISOString());
           onClose();
