@@ -37,7 +37,7 @@ const formatDateToYYYYMMDD = (date: Date) => {
 const DashboardScreen = () => {
   const navigation = useNavigation<any>();
   const isFocused = useIsFocused();
-  const { profile } = useBodyStore();
+  const { profile, fetchProfile: fetchStoreProfile, setProfile: setStoreProfile } = useBodyStore();
   
   const [userName, setUserName] = useState<string>('');
   const [dailyScore, setDailyScore] = useState<number | null>(null);
@@ -71,15 +71,13 @@ const DashboardScreen = () => {
       const user = session?.user;
 
       if (user) {
-        // Fetch Profile
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (profileData) {
-          setUserName(profileData.first_name || user.email?.split('@')[0] || 'Athlète');
+        // Fetch via Store to keep everything synchronized
+        await fetchStoreProfile(user.id);
+        
+        // The store is now updated, but we still need local states for specific logic
+        const currentProfile = useBodyStore.getState().profile;
+        if (currentProfile) {
+          setUserName(currentProfile.first_name || user.email?.split('@')[0] || 'Athlète');
         }
 
         // Dates Logic (Local Time)
@@ -101,26 +99,19 @@ const DashboardScreen = () => {
           .eq('user_id', user.id);
 
         if (workouts) {
-          // Filtrage intelligent basé sur la date LOCALE des workouts
           const workoutsWithLocalDate = workouts.map(w => ({
             ...w,
             localDate: formatDateToYYYYMMDD(new Date(w.created_at))
           }));
 
-          // J-1 : Tomorrow's Competition
           setTomorrowCompetition(workoutsWithLocalDate.find(w => w.is_competition && w.localDate === tomorrowStr) || null);
-          
-          // Jour J : Today's Competition
           setTodayCompetition(workoutsWithLocalDate.find(w => w.is_competition && w.localDate === todayStr) || null);
-
-          // J+1 : Yesterday's Competition (without results)
           setYesterdayCompetition(workoutsWithLocalDate.find(w => 
             w.is_competition && 
             w.localDate === yesterdayStr && 
             !w.results
           ) || null);
 
-          // Last Normal Workout
           const normalWorkouts = workoutsWithLocalDate
             .filter(w => !w.is_competition)
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
