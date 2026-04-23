@@ -50,7 +50,7 @@ export const AthleteIdentityCard = ({ onEdit }: { onEdit?: () => void }) => {
             </View>
             
             <TouchableOpacity style={styles.chipBtn} onPress={onEdit}>
-              <Ionicons name="settings-outline" size={20} color="#00E5FF" />
+              <Ionicons name="pencil-outline" size={18} color="#00E5FF" />
             </TouchableOpacity>
           </View>
 
@@ -97,8 +97,8 @@ export const AthleteIdentityCard = ({ onEdit }: { onEdit?: () => void }) => {
             </View>
           </View>
 
-          {/* Hologram Effect */}
-          <View style={styles.hologram} />
+          {/* Hologram Effect (pointerEvents="none" pour ne pas bloquer le bouton) */}
+          <View style={styles.hologram} pointerEvents="none" />
         </BlurView>
       </LinearGradient>
     </View>
