@@ -24,8 +24,12 @@ import { DebriefModal } from '../features/competition/components/DebriefModal';
 
 const { width } = Dimensions.get('window');
 
+// Fonction utilitaire pour obtenir la date locale au format YYYY-MM-DD
 const formatDateToYYYYMMDD = (date: Date) => {
-  return date.toISOString().split('T')[0];
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 const DashboardScreen = () => {
@@ -76,7 +80,7 @@ const DashboardScreen = () => {
           setUserName(profileData.first_name || user.email?.split('@')[0] || 'Athlète');
         }
 
-        // Dates Logic
+        // Dates Logic (Local Time)
         const now = new Date();
         const todayStr = formatDateToYYYYMMDD(now);
         
@@ -95,21 +99,27 @@ const DashboardScreen = () => {
           .eq('user_id', user.id);
 
         if (workouts) {
+          // Filtrage intelligent basé sur la date LOCALE des workouts
+          const workoutsWithLocalDate = workouts.map(w => ({
+            ...w,
+            localDate: formatDateToYYYYMMDD(new Date(w.created_at))
+          }));
+
           // J-1 : Tomorrow's Competition
-          setTomorrowCompetition(workouts.find(w => w.is_competition && w.created_at.startsWith(tomorrowStr)) || null);
+          setTomorrowCompetition(workoutsWithLocalDate.find(w => w.is_competition && w.localDate === tomorrowStr) || null);
           
           // Jour J : Today's Competition
-          setTodayCompetition(workouts.find(w => w.is_competition && w.created_at.startsWith(todayStr)) || null);
+          setTodayCompetition(workoutsWithLocalDate.find(w => w.is_competition && w.localDate === todayStr) || null);
 
           // J+1 : Yesterday's Competition (without results)
-          setYesterdayCompetition(workouts.find(w => 
+          setYesterdayCompetition(workoutsWithLocalDate.find(w => 
             w.is_competition && 
-            w.created_at.startsWith(yesterdayStr) && 
+            w.localDate === yesterdayStr && 
             !w.results
           ) || null);
 
           // Last Normal Workout
-          const normalWorkouts = workouts
+          const normalWorkouts = workoutsWithLocalDate
             .filter(w => !w.is_competition)
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
           setLastWorkout(normalWorkouts[0] || null);
@@ -124,7 +134,7 @@ const DashboardScreen = () => {
           .limit(1);
 
         if (checkinData && checkinData.length > 0) {
-          setHasCheckedInToday(todayStr === checkinData[0].created_at.split('T')[0]);
+          setHasCheckedInToday(todayStr === formatDateToYYYYMMDD(new Date(checkinData[0].created_at)));
           setDailyScore(Math.round(((checkinData[0].sleep_score + checkinData[0].energy_score) / 20) * 100));
         }
       }
@@ -279,7 +289,7 @@ const DashboardScreen = () => {
           </BlurView>
         )}
 
-        {/* --- SECTION DASHBOARD NORMAL (Toujours visible) --- */}
+        {/* --- SECTION DASHBOARD NORMAL --- */}
         
         <BlurView intensity={40} tint="default" style={styles.mainCard}>
           <Text style={styles.cardTitle}>ÉTAT DE FORME</Text>
