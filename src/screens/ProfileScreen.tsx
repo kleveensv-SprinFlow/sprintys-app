@@ -68,7 +68,15 @@ const ProfileScreen = () => {
         setEditRecords(data.personal_records || {});
         setEditFirstName(data.first_name || '');
         setEditLastName(data.last_name || '');
-        setEditDob(data.dob || '');
+        
+        // Formatage de la date de naissance pour l'affichage (YYYY-MM-DD -> DD/MM/YYYY)
+        if (data.dob) {
+          const [y, m, d] = data.dob.split('-');
+          setEditDob(`${d}/${m}/${y}`);
+        } else {
+          setEditDob('');
+        }
+
         setEditHeight(data.height?.toString() || '');
         setEditActivity(data.activity_level || 'active');
         setEditGoal(data.nutrition_goal || 'maintain');
@@ -116,7 +124,7 @@ const ProfileScreen = () => {
         personal_records: editRecords,
         first_name: editFirstName,
         last_name: editLastName,
-        dob: editDob,
+        dob: editDob.includes('/') ? editDob.split('/').reverse().join('-') : editDob,
         height: h > 0 ? h : null,
         activity_level: editActivity,
         nutrition_goal: editGoal,
@@ -295,8 +303,25 @@ const ProfileScreen = () => {
                 <TextInput style={styles.input} value={editHeight} onChangeText={setEditHeight} placeholder="180" placeholderTextColor="#555" keyboardType="numeric" />
               </View>
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>DATE DE NAISSANCE (AAAA-MM-JJ)</Text>
-                <TextInput style={styles.input} value={editDob} onChangeText={setEditDob} placeholder="1995-01-01" placeholderTextColor="#555" />
+                <Text style={styles.inputLabel}>DATE DE NAISSANCE (JJ/MM/AAAA)</Text>
+                {profile?.dob ? (
+                  <View style={styles.lockedInput}>
+                    <Ionicons name="lock-closed" size={14} color="#8E8E93" style={{ marginRight: 8 }} />
+                    <Text style={styles.lockedInputText}>
+                      {editDob} ({new Date().getFullYear() - parseInt(profile.dob.split('-')[0])} ANS)
+                    </Text>
+                  </View>
+                ) : (
+                  <TextInput 
+                    style={styles.input} 
+                    value={editDob} 
+                    onChangeText={setEditDob} 
+                    placeholder="01/01/1995" 
+                    placeholderTextColor="#555" 
+                    keyboardType="numeric"
+                  />
+                )}
+                {profile?.dob && <Text style={styles.inputNote}>Impossible de changer après enregistrement</Text>}
               </View>
 
               <View style={styles.inputGroup}>
@@ -395,6 +420,9 @@ const styles = StyleSheet.create({
   inputGroup: { marginBottom: 16 },
   inputLabel: { color: '#8E8E93', fontSize: 10, fontWeight: '800', marginBottom: 8 },
   input: { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 12, padding: 12, color: '#FFFFFF', fontSize: 16, fontWeight: '700', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
+  lockedInput: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.02)', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.05)' },
+  lockedInputText: { color: '#8E8E93', fontSize: 16, fontWeight: '700' },
+  inputNote: { color: '#FF3B30', fontSize: 8, fontWeight: '700', marginTop: 4, letterSpacing: 0.5 },
   chipRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
   miniChip: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: 'rgba(255, 255, 255, 0.05)', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
   miniChipActive: { backgroundColor: 'rgba(0, 229, 255, 0.1)', borderColor: '#00E5FF' },
