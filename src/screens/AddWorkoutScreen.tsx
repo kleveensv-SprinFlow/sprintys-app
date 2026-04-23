@@ -20,6 +20,7 @@ import { supabase } from '../services/supabaseClient';
 import { EXERCISE_LIBRARY } from '../data/exercises';
 import { notificationService } from '../services/notificationService';
 import { workoutService } from '../services/workoutService';
+import AddressAutocomplete from '../shared/components/AddressAutocomplete';
 
 const WORKOUT_TYPES = ['Vitesse', 'Lactique', 'Aérobie', 'Départs/Blocs', 'Musculation/Haltéro'];
 const CATEGORIES = ['Haltérophilie', 'Jambes', 'Haut du Corps', 'Tronc / Gainage'];
@@ -448,14 +449,13 @@ const AddWorkoutScreen = () => {
                   />
                 </View>
 
-                <View style={[styles.inputGroup, { marginTop: 12 }]}>
+                <View style={[styles.inputGroup, { marginTop: 12, zIndex: 1000 }]}>
                   <Text style={styles.inputLabel}>ADRESSE / STADE</Text>
-                  <TextInput 
-                    style={styles.input} 
+                  <AddressAutocomplete 
                     value={address} 
                     onChangeText={setAddress} 
-                    placeholder="Ex: 2 rue du Stade" 
-                    placeholderTextColor="#555"
+                    onSelect={setAddress} 
+                    placeholder="Ex: 2 rue du Stade"
                   />
                 </View>
                 
