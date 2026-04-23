@@ -151,6 +151,57 @@ const NutritionScreen = () => {
           </TouchableOpacity>
         )}
 
+        {/* Nouveau Header Nutrition Premium */}
+        <View style={styles.premiumHeader}>
+          <LinearGradient
+            colors={['rgba(0, 229, 255, 0.1)', 'rgba(191, 90, 242, 0.05)']}
+            style={styles.headerGradient}
+          >
+            <View style={styles.headerTopRow}>
+              <View>
+                <Text style={styles.headerLabel}>MON OBJECTIF</Text>
+                <Text style={styles.headerValue}>
+                  {{
+                    maintain: 'MAINTIEN',
+                    loss: 'PERTE DE POIDS',
+                    gain: 'PRISE DE MASSE'
+                  }[profile?.nutrition_goal || 'maintain']}
+                </Text>
+              </View>
+              <View style={styles.badgeContainer}>
+                <View style={[styles.statusBadge, { borderColor: '#00E5FF' }]}>
+                  <Text style={[styles.statusBadgeText, { color: '#00E5FF' }]}>
+                    {{
+                      sedentary: 'CALME',
+                      active: 'ACTIF',
+                      very_active: 'ÉLITE'
+                    }[profile?.activity_level || 'active']}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.targetGrid}>
+              <View style={styles.targetItem}>
+                <Text style={styles.targetValue}>{profile?.target_calories || '--'}</Text>
+                <Text style={styles.targetLabel}>KCAL</Text>
+              </View>
+              <View style={styles.targetItem}>
+                <Text style={styles.targetValue}>{profile?.target_protein || '--'}G</Text>
+                <Text style={styles.targetLabel}>PRO</Text>
+              </View>
+              <View style={styles.targetItem}>
+                <Text style={styles.targetValue}>{profile?.target_carbs || '--'}G</Text>
+                <Text style={styles.targetLabel}>GLU</Text>
+              </View>
+              <View style={styles.targetItem}>
+                <Text style={styles.targetValue}>{profile?.target_fats || '--'}G</Text>
+                <Text style={styles.targetLabel}>LIP</Text>
+              </View>
+            </View>
+          </LinearGradient>
+        </View>
+
         <BlurView intensity={30} tint="dark" style={styles.summaryCard}>
           <Text style={styles.cardTitle}>RÉSUMÉ DU JOUR</Text>
           
@@ -246,6 +297,68 @@ const styles = StyleSheet.create({
   macroValue: { color: '#FFFFFF', fontSize: 10, fontWeight: '700' },
   progressBg: { height: 6, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: 3, overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: '#00E5FF', borderRadius: 3 },
+  premiumHeader: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    marginBottom: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  headerGradient: {
+    padding: 20,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+  },
+  headerLabel: {
+    color: '#00E5FF',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  headerValue: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    backgroundColor: 'rgba(0, 229, 255, 0.05)',
+  },
+  statusBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  targetGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  targetItem: {
+    alignItems: 'center',
+  },
+  targetValue: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  targetLabel: {
+    color: 'rgba(255, 255, 255, 0.4)',
+    fontSize: 8,
+    fontWeight: '800',
+    marginTop: 2,
+  },
   mealsSection: { gap: 16 },
   mealCard: {
     padding: 20,

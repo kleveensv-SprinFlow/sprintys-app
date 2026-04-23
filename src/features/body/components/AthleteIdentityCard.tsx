@@ -77,33 +77,6 @@ export const AthleteIdentityCard = ({ onEdit }: { onEdit?: () => void }) => {
             </View>
           </View>
 
-          {/* Nutrition Summary */}
-          <View style={styles.nutritionBox}>
-            <View style={styles.nutritionHeader}>
-              <Text style={styles.nutriLabel}>PROFIL NUTRITIONNEL</Text>
-              <Text style={styles.goalBadge}>{goalLabel}</Text>
-            </View>
-            
-            <View style={styles.macroGrid}>
-              <View style={styles.macroItem}>
-                <Text style={styles.macroValue}>{profile?.target_calories || '--'}</Text>
-                <Text style={styles.macroLabel}>KCAL</Text>
-              </View>
-              <View style={styles.macroItem}>
-                <Text style={styles.macroValue}>{profile?.target_protein || '--'}g</Text>
-                <Text style={styles.macroLabel}>PRO</Text>
-              </View>
-              <View style={styles.macroItem}>
-                <Text style={styles.macroValue}>{profile?.target_carbs || '--'}g</Text>
-                <Text style={styles.macroLabel}>GLU</Text>
-              </View>
-              <View style={styles.macroItem}>
-                <Text style={styles.macroValue}>{profile?.target_fats || '--'}g</Text>
-                <Text style={styles.macroLabel}>LIP</Text>
-              </View>
-            </View>
-          </View>
-
           {/* Hologram Effect (pointerEvents="none" pour ne pas bloquer le bouton) */}
           <View style={styles.hologram} pointerEvents="none" />
         </BlurView>
