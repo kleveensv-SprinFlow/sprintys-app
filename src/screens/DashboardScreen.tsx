@@ -414,9 +414,24 @@ const DashboardScreen = () => {
                   </View>
                 </View>
 
-                <View style={styles.battlePlanBtn}>
-                  <Text style={styles.battlePlanText}>VOIR LE PLAN DE BATAILLE COMPLET</Text>
-                  <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.4)" />
+                <View style={styles.battlePlanBtnRow}>
+                  <TouchableOpacity 
+                    style={styles.battlePlanBtn}
+                    onPress={() => navigation.navigate('CompetitionDetail', { competition: todayCompetition })}
+                  >
+                    <Text style={styles.battlePlanText}>PLAN DE BATAILLE</Text>
+                    <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.4)" />
+                  </TouchableOpacity>
+                  
+                  {todayCompetition.address && (
+                    <TouchableOpacity 
+                      style={styles.mapBtn}
+                      onPress={() => Linking.openURL(`geo:0,0?q=${todayCompetition.address}`)}
+                    >
+                      <Ionicons name="navigate" size={14} color="#00E5FF" />
+                      <Text style={styles.mapBtnText}>ME RENDRE AU STADE</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 <View style={styles.bagSectionMini}>
@@ -538,8 +553,11 @@ const styles = StyleSheet.create({
   actionBox: { flex: 1 },
   actionLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 9, fontWeight: '800', marginBottom: 4 },
   actionVal: { color: '#00E5FF', fontSize: 14, fontWeight: '800' },
-  battlePlanBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', marginBottom: 10 },
-  battlePlanText: { color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '700' },
+  battlePlanBtnRow: { flexDirection: 'row', gap: 10, marginBottom: 15, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingTop: 15 },
+  battlePlanBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.05)', paddingVertical: 12, borderRadius: 12 },
+  battlePlanText: { color: 'rgba(255,255,255,0.8)', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  mapBtn: { flex: 1.2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(0, 229, 255, 0.1)', paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(0, 229, 255, 0.2)' },
+  mapBtnText: { color: '#00E5FF', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
   bagSectionMini: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingTop: 15 },
   nutritionSection: { borderTopWidth: 1, borderTopColor: 'rgba(255, 255, 255, 0.1)', paddingTop: 20, gap: 12 },
   nutriAlert: { flexDirection: 'row', gap: 12, alignItems: 'center' },
