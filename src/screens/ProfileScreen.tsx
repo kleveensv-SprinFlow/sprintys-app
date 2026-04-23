@@ -58,6 +58,7 @@ const ProfileScreen = () => {
   const [editActivity, setEditActivity] = useState('active');
   const [editGoal, setEditGoal] = useState('maintain');
   const [showRecordsModal, setShowRecordsModal] = useState(false);
+  const [showQuickAddModal, setShowQuickAddModal] = useState(false);
   
   const navigation = useNavigation<any>();
 
@@ -316,6 +317,12 @@ const ProfileScreen = () => {
               <Text style={styles.recordsCardTitle}>MES RECORDS</Text>
               <Text style={styles.recordsCardSub}>Officiels & Entraînement</Text>
             </View>
+            <TouchableOpacity 
+              style={styles.quickAddBtn} 
+              onPress={() => setShowQuickAddModal(true)}
+            >
+              <Ionicons name="add" size={24} color="#00E5FF" />
+            </TouchableOpacity>
             <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.3)" />
           </LinearGradient>
         </TouchableOpacity>
@@ -416,6 +423,15 @@ const ProfileScreen = () => {
         records={profile?.personal_records}
         onSave={handleSaveRecords}
       />
+
+      {/* Quick Add Record Modal */}
+      <Modal visible={showQuickAddModal} animationType="fade" transparent>
+        <QuickAddRecordModal 
+          onClose={() => setShowQuickAddModal(false)}
+          onSave={handleSaveRecords}
+          currentRecords={profile?.personal_records}
+        />
+      </Modal>
     </View>
   );
 };
@@ -509,6 +525,119 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 2,
   },
+  quickAddBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 229, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  }
 });
+
+// Modal Interne pour l'ajout rapide
+const QuickAddRecordModal = ({ onClose, onSave, currentRecords }: any) => {
+  const [type, setType] = useState<'official' | 'training_athle' | 'training_muscu'>('official');
+  const [discipline, setDiscipline] = useState('');
+  const [value, setValue] = useState('');
+  const [wind, setWind] = useState('');
+
+  const disciplines = type === 'training_muscu' 
+    ? ['Squat', 'Power Clean', 'Bench Press', 'Deadlift', 'Hip Thrust']
+    : ['60m', '100m', '200m', '400m', 'Longueur', 'Triple'];
+
+  const handleSave = () => {
+    if (!discipline || !value) {
+      Alert.alert('Erreur', 'Veuillez remplir la discipline et la valeur.');
+      return;
+    }
+
+    const updated = { ...currentRecords };
+    if (type === 'official') {
+      if (!updated.official) updated.official = {};
+      updated.official[discipline] = { value, wind };
+    } else {
+      const cat = type === 'training_athle' ? 'athle' : 'muscu';
+      if (!updated.training) updated.training = { athle: {}, muscu: {} };
+      updated.training[cat][discipline] = value;
+    }
+
+    onSave(updated);
+    onClose();
+  };
+
+  return (
+    <BlurView intensity={100} tint="dark" style={styles.modalOverlay}>
+      <View style={[styles.modalContent, { height: 'auto', paddingBottom: 40 }]}>
+        <Text style={styles.modalTitle}>AJOUT RAPIDE RECORD</Text>
+        
+        <ScrollView style={{ maxHeight: 500 }}>
+          <Text style={styles.inputLabel}>TYPE DE RECORD</Text>
+          <View style={styles.chipRow}>
+            {[
+              { id: 'official', label: 'COMPÉTITION' },
+              { id: 'training_athle', label: 'ENTRAÎNEMENT' },
+              { id: 'training_muscu', label: 'MUSCU' }
+            ].map(t => (
+              <TouchableOpacity 
+                key={t.id} 
+                style={[styles.miniChip, type === t.id && styles.miniChipActive]}
+                onPress={() => { setType(t.id as any); setDiscipline(''); }}
+              >
+                <Text style={[styles.miniChipText, type === t.id && styles.miniChipTextActive]}>{t.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={[styles.inputLabel, { marginTop: 20 }]}>DISCIPLINE</Text>
+          <View style={styles.chipRow}>
+            {disciplines.map(d => (
+              <TouchableOpacity 
+                key={d} 
+                style={[styles.miniChip, discipline === d && styles.miniChipActive]}
+                onPress={() => setDiscipline(d)}
+              >
+                <Text style={[styles.miniChipText, discipline === d && styles.miniChipTextActive]}>{d.toUpperCase()}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={{ marginTop: 20 }}>
+            <Text style={styles.inputLabel}>RÉSULTAT {type === 'training_muscu' ? '(KG)' : '(CHRONO)'}</Text>
+            <TextInput 
+              style={styles.input} 
+              value={value} 
+              onChangeText={setValue} 
+              placeholder={type === 'training_muscu' ? '0' : '00.00'} 
+              placeholderTextColor="#555" 
+              keyboardType="numeric" 
+            />
+          </View>
+
+          {type === 'official' && (
+            <View style={{ marginTop: 20 }}>
+              <Text style={styles.inputLabel}>VENT (ex: +1.2 ou -0.5)</Text>
+              <TextInput 
+                style={styles.input} 
+                value={wind} 
+                onChangeText={setWind} 
+                placeholder="+0.0" 
+                placeholderTextColor="#555" 
+              />
+            </View>
+          )}
+        </ScrollView>
+
+        <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+          <Text style={styles.saveBtnText}>VALIDER LE RECORD</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+          <Text style={styles.cancelAddText}>ANNULER</Text>
+        </TouchableOpacity>
+      </View>
+    </BlurView>
+  );
+};
 
 export default ProfileScreen;

@@ -110,56 +110,6 @@ export const RecordsManagerModal = ({ visible, onClose, records, onSave }: Props
     );
   };
 
-  const renderAddButton = () => {
-    const isTraining = activeTab === 'training';
-    const sub = isTraining ? activeTrainingSubTab : null;
-    const all = isTraining ? (sub === 'muscu' ? MUSCU_EXERCISES : ATHLETICS_DISCIPLINES) : ATHLETICS_DISCIPLINES;
-    
-    // Filtrer les disciplines déjà affichées (qui ont une valeur)
-    const existingKeys = isTraining 
-      ? Object.keys(localRecords.training?.[sub || 'athle'] || {}).filter(k => {
-          const val = localRecords.training[sub || 'athle'][k];
-          return typeof val === 'string' ? val.length > 0 : val?.value?.length > 0;
-        })
-      : Object.keys(localRecords.official || {}).filter(k => localRecords.official[k]?.value?.length > 0);
-
-    const remaining = all.filter(d => !existingKeys.includes(d));
-
-    if (remaining.length === 0) return null;
-
-    if (showAddList) {
-      return (
-        <View style={styles.addListContainer}>
-          <Text style={styles.addListTitle}>CHOISIR UNE DISCIPLINE</Text>
-          <View style={styles.addGrid}>
-            {remaining.map(d => (
-              <TouchableOpacity 
-                key={d} 
-                style={styles.addItem}
-                onPress={() => {
-                  handleUpdateRecord(isTraining ? 'training' : 'official', sub, d, '');
-                  setShowAddList(false);
-                }}
-              >
-                <Text style={styles.addItemText}>{d.toUpperCase()}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <TouchableOpacity style={styles.cancelAddBtn} onPress={() => setShowAddList(false)}>
-            <Text style={styles.cancelAddText}>ANNULER</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    return (
-      <TouchableOpacity style={styles.addBtn} onPress={() => setShowAddList(true)}>
-        <Ionicons name="add-circle-outline" size={20} color="#00E5FF" />
-        <Text style={styles.addBtnText}>AJOUTER UNE DISCIPLINE</Text>
-      </TouchableOpacity>
-    );
-  };
-
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <BlurView intensity={100} tint="dark" style={styles.container}>
@@ -213,7 +163,6 @@ export const RecordsManagerModal = ({ visible, onClose, records, onSave }: Props
                   ? ATHLETICS_DISCIPLINES.filter(d => localRecords.training?.athle?.[d]?.length > 0).map(d => renderTrainingItem(d))
                   : MUSCU_EXERCISES.filter(e => localRecords.training?.muscu?.[e]?.length > 0).map(e => renderTrainingItem(e, true))
               )}
-              {renderAddButton()}
             </View>
             <View style={{ height: 40 }} />
           </ScrollView>
