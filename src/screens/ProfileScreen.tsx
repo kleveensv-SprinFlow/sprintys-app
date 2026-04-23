@@ -20,7 +20,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../services/supabaseClient';
 import { signOutUser } from '../services/authService';
-import { NutritionSettingsCard } from '../features/body/components/NutritionSettingsCard';
+import { AthleteIdentityCard } from '../features/body/components/AthleteIdentityCard';
 import { ChecklistManagerCard } from '../features/body/components/ChecklistManagerCard';
 import { useBodyStore } from '../store/bodyStore';
 
@@ -39,6 +39,12 @@ const ProfileScreen = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [userEmail, setUserEmail] = useState('');
+  
+  // États d'édition étendus
+  const [editDob, setEditDob] = useState('');
+  const [editHeight, setEditHeight] = useState('');
+  const [editActivity, setEditActivity] = useState('active');
+  const [editGoal, setEditGoal] = useState('maintain');
   
   const navigation = useNavigation<any>();
 
@@ -62,6 +68,10 @@ const ProfileScreen = () => {
         setEditRecords(data.personal_records || {});
         setEditFirstName(data.first_name || '');
         setEditLastName(data.last_name || '');
+        setEditDob(data.dob || '');
+        setEditHeight(data.height?.toString() || '');
+        setEditActivity(data.activity_level || 'active');
+        setEditGoal(data.nutrition_goal || 'maintain');
       }
     } catch (error) {
       console.error('Erreur profil:', error);
@@ -98,6 +108,36 @@ const ProfileScreen = () => {
       if (profile && 'first_name' in profile) {
         profileData.first_name = editFirstName;
         profileData.last_name = editLastName;
+        profileData.dob = editDob;
+        profileData.height = parseFloat(editHeight);
+        profileData.activity_level = editActivity;
+        profileData.nutrition_goal = editGoal;
+
+        // --- CALCUL DES MACROS AUTOMATIQUE ---
+        const currentWeight = useBodyStore.getState().metrics[0]?.weight || 70;
+        const h = parseFloat(editHeight) || 175;
+        const dobYear = parseInt(editDob.split('-')[0]) || 1995;
+        const age = new Date().getFullYear() - dobYear;
+
+        // BMR (Mifflin-St Jeor)
+        const bmr = (10 * currentWeight) + (6.25 * h) - (5 * age) + 5;
+        
+        // Multiplicateurs
+        const multipliers: Record<string, number> = { sedentary: 1.2, active: 1.55, very_active: 1.725 };
+        const adjustments: Record<string, number> = { loss: -400, maintain: 0, gain: 300 };
+
+        const tdee = bmr * (multipliers[editActivity] || 1.2);
+        const targetCalories = Math.round(tdee + (adjustments[editGoal] || 0));
+
+        // Macros standard (Sportif de force/sprint)
+        const p = Math.round(currentWeight * 2.2);
+        const f = Math.round(currentWeight * 1.0);
+        const c = Math.round((targetCalories - (p * 4) - (f * 9)) / 4);
+
+        profileData.target_calories = targetCalories;
+        profileData.target_protein = p;
+        profileData.target_carbs = c;
+        profileData.target_fats = f;
       }
 
       const { error } = await supabase
@@ -246,39 +286,9 @@ const ProfileScreen = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.avatarContainer} 
-            onPress={showImageOptions}
-            disabled={uploading}
-          >
-            <View style={styles.avatarPlaceholder}>
-              {profile?.avatar_url ? (
-                <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
-              ) : (
-                <Text style={styles.avatarText}>
-                  {(profile?.first_name || 'A').charAt(0).toUpperCase()}
-                </Text>
-              )}
-              {uploading && (
-                <View style={styles.uploadOverlay}>
-                  <ActivityIndicator color="#00E5FF" />
-                </View>
-              )}
-            </View>
-            <View style={styles.editBadge}>
-              <Ionicons name="camera" size={16} color="#000" />
-            </View>
-          </TouchableOpacity>
-          <Text style={styles.userName}>
-            {`${profile?.first_name || ''} ${profile?.last_name || ''}`.trim().toUpperCase() || 'MODIFIER NOM'}
-          </Text>
-          <Text style={styles.userEmail}>{userEmail.toLowerCase()}</Text>
-          <View style={styles.goalContainer}>
-            <Text style={styles.goalLabel}>OBJECTIF DE LA SAISON</Text>
-            <Text style={styles.goalValue}>{profile?.season_goal || 'NON DÉFINI'}</Text>
-          </View>
-        </View>
+        <AthleteIdentityCard />
+
+        <View style={styles.section}>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -298,7 +308,6 @@ const ProfileScreen = () => {
           </View>
         </View>
 
-        <NutritionSettingsCard />
         <ChecklistManagerCard />
 
         <TouchableOpacity 
@@ -344,6 +353,63 @@ const ProfileScreen = () => {
                   placeholder="Nom"
                   placeholderTextColor="#555"
                 />
+              </View>
+
+              <Text style={styles.modalSubTitle}>MORPHOLOGIE & ACTIVITÉ</Text>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>TAILLE (CM)</Text>
+                <TextInput 
+                  style={styles.input}
+                  value={editHeight}
+                  onChangeText={setEditHeight}
+                  placeholder="180"
+                  placeholderTextColor="#555"
+                  keyboardType="numeric"
+                />
+              </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>DATE DE NAISSANCE (AAAA-MM-JJ)</Text>
+                <TextInput 
+                  style={styles.input}
+                  value={editDob}
+                  onChangeText={setEditDob}
+                  placeholder="1995-01-01"
+                  placeholderTextColor="#555"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>NIVEAU D'ACTIVITÉ</Text>
+                <View style={styles.chipRow}>
+                  {['sedentary', 'active', 'very_active'].map(level => (
+                    <TouchableOpacity 
+                      key={level}
+                      style={[styles.miniChip, editActivity === level && styles.miniChipActive]}
+                      onPress={() => setEditActivity(level)}
+                    >
+                      <Text style={[styles.miniChipText, editActivity === level && styles.miniChipTextActive]}>
+                        {level === 'sedentary' ? 'CALME' : level === 'active' ? 'ACTIF' : 'ÉLITE'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>OBJECTIF NUTRITIONNEL</Text>
+                <View style={styles.chipRow}>
+                  {['loss', 'maintain', 'gain'].map(g => (
+                    <TouchableOpacity 
+                      key={g}
+                      style={[styles.miniChip, editGoal === g && styles.miniChipActive]}
+                      onPress={() => setEditGoal(g)}
+                    >
+                      <Text style={[styles.miniChipText, editGoal === g && styles.miniChipTextActive]}>
+                        {g === 'loss' ? 'PERTE' : g === 'maintain' ? 'MAINTIEN' : 'PRISE'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
               <Text style={styles.modalSubTitle}>SPRINT (PB)</Text>
               {SPRINT_DISTANCES.map(d => (
@@ -483,6 +549,11 @@ const styles = StyleSheet.create({
   inputGroup: { marginBottom: 16 },
   inputLabel: { color: '#8E8E93', fontSize: 10, fontWeight: '800', marginBottom: 8 },
   input: { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 12, padding: 12, color: '#FFFFFF', fontSize: 16, fontWeight: '700', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
+  chipRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  miniChip: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: 'rgba(255, 255, 255, 0.05)', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
+  miniChipActive: { backgroundColor: 'rgba(0, 229, 255, 0.1)', borderColor: '#00E5FF' },
+  miniChipText: { color: '#8E8E93', fontSize: 10, fontWeight: '900' },
+  miniChipTextActive: { color: '#00E5FF' },
   saveBtn: { backgroundColor: '#FFFFFF', paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginTop: 24 },
   saveBtnText: { color: '#000', fontSize: 15, fontWeight: '900' },
   cancelBtn: { paddingVertical: 16, alignItems: 'center' },
