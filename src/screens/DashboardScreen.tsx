@@ -137,14 +137,11 @@ const DashboardScreen = () => {
 
   const calculateMealTime = (schedule: any[]) => {
     if (!schedule || schedule.length === 0) return null;
-    // Sort to find the first race
     const sorted = [...schedule].sort((a, b) => a.time.localeCompare(b.time));
-    const firstRace = sorted[0].time; // "HH:MM"
-    
+    const firstRace = sorted[0].time;
     const [hours, minutes] = firstRace.split(':').map(Number);
     let mealHours = hours - 4;
     if (mealHours < 0) mealHours += 24;
-    
     return `${mealHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   };
 
@@ -232,7 +229,9 @@ const DashboardScreen = () => {
           </TouchableOpacity>
         </View>
 
-        {/* MODE J+1 : Débriefing */}
+        {/* --- SECTION COMPÉTITION (Si applicable) --- */}
+        
+        {/* J+1 : Débriefing */}
         {yesterdayCompetition && (
           <BlurView intensity={60} tint="default" style={[styles.mainCard, styles.debriefCard]}>
             <Text style={styles.debriefTitle}>DÉBRIEFING EN ATTENTE</Text>
@@ -243,7 +242,7 @@ const DashboardScreen = () => {
           </BlurView>
         )}
 
-        {/* MODE J-1 : Préparation */}
+        {/* J-1 : Préparation */}
         {tomorrowCompetition && (
           <BlurView intensity={60} tint="default" style={[styles.mainCard, styles.prepCard]}>
             <Text style={styles.prepTitle}>PRÉPARATION J-1</Text>
@@ -252,8 +251,8 @@ const DashboardScreen = () => {
           </BlurView>
         )}
 
-        {/* MODE JOUR J : Game Day */}
-        {todayCompetition ? (
+        {/* Jour J : Game Day */}
+        {todayCompetition && (
           <BlurView intensity={60} tint="default" style={[styles.mainCard, styles.compFocusCard]}>
             <Text style={styles.compFocusTitle}>🔥 JOUR DE COMPÉTITION</Text>
             <Text style={styles.compFocusMain}>{todayCompetition.city?.toUpperCase() || 'STADE'}</Text>
@@ -278,33 +277,36 @@ const DashboardScreen = () => {
               </View>
             </View>
           </BlurView>
-        ) : !tomorrowCompetition && !yesterdayCompetition && (
-          /* DASHBOARD NORMAL (Si pas de comp J-1, J, J+1) */
-          <>
-            <BlurView intensity={40} tint="default" style={styles.mainCard}>
-              <Text style={styles.cardTitle}>ÉTAT DE FORME</Text>
-              <View style={styles.scoreContainer}>
-                <Text style={styles.scoreValue}>{hasCheckedInToday ? dailyScore : '--'}</Text>
-                <Text style={styles.scoreMax}>/100</Text>
-              </View>
-              <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: hasCheckedInToday ? `${dailyScore}%` : '0%' }]} />
-              </View>
-              {!hasCheckedInToday && (
-                <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('CheckIn')}>
-                  <Text style={styles.actionButtonText}>FAIRE MON CHECK-IN</Text>
-                </TouchableOpacity>
-              )}
-            </BlurView>
-
-            <BlurView intensity={60} tint="default" style={[styles.mainCard, styles.sprintyCard]}>
-              <Text style={styles.sprintyTitle}>ANALYSE SPRINTY</Text>
-              <Text style={styles.sprintyAdvice}>
-                {hasCheckedInToday ? "MAINTIEN. Séance modérée possible." : "Fais ton check-in pour recevoir ton analyse."}
-              </Text>
-            </BlurView>
-          </>
         )}
+
+        {/* --- SECTION DASHBOARD NORMAL (Toujours visible) --- */}
+        
+        <BlurView intensity={40} tint="default" style={styles.mainCard}>
+          <Text style={styles.cardTitle}>ÉTAT DE FORME</Text>
+          <View style={styles.scoreContainer}>
+            <Text style={styles.scoreValue}>{hasCheckedInToday ? dailyScore : '--'}</Text>
+            <Text style={styles.scoreMax}>/100</Text>
+          </View>
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: hasCheckedInToday ? `${dailyScore}%` : '0%' }]} />
+          </View>
+          {!hasCheckedInToday && (
+            <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('CheckIn')}>
+              <Text style={styles.actionButtonText}>FAIRE MON CHECK-IN</Text>
+            </TouchableOpacity>
+          )}
+        </BlurView>
+
+        <BlurView intensity={60} tint="default" style={[styles.mainCard, styles.sprintyCard]}>
+          <Text style={styles.sprintyTitle}>ANALYSE SPRINTY</Text>
+          <Text style={styles.sprintyAdvice}>
+            {todayCompetition 
+              ? "JOUR DE COURSE. C'est le moment de tout donner. Reste focus sur ton échauffement." 
+              : hasCheckedInToday 
+                ? "MAINTIEN. Séance modérée possible." 
+                : "Fais ton check-in pour recevoir ton analyse."}
+          </Text>
+        </BlurView>
 
         <View style={{ height: 100 }} />
       </ScrollView>
