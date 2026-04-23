@@ -39,12 +39,12 @@ export default function App() {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Phase d'initialisation avec sécurité (timeout 2.5s)
+    // Phase d'initialisation avec sécurité (timeout 1.5s pour plus de rapidité)
     const safetyTimeout = setTimeout(() => {
       setIsAppReady(true);
       SplashScreen.hideAsync().catch(() => {});
-      setTimeout(() => setIsBooting(false), 500);
-    }, 2500);
+      setTimeout(() => setIsBooting(false), 300);
+    }, 1500);
 
     async function initialize() {
       try {
@@ -64,10 +64,10 @@ export default function App() {
       } finally {
         clearTimeout(safetyTimeout);
         setIsAppReady(true);
-        // Hide native splash screen
+        // Hide native splash screen immédiatement
         await SplashScreen.hideAsync().catch(() => {});
-        // Laisser l'animation Lottie se jouer un peu
-        setTimeout(() => setIsBooting(false), 1500);
+        // Réduire le temps de l'animation pour que ça aille plus vite
+        setTimeout(() => setIsBooting(false), 800);
       }
     }
 
