@@ -15,9 +15,9 @@ const TabItem = ({ state, descriptors, navigation, route, index }: any) => {
 
   const onPress = () => {
     Animated.sequence([
-      Animated.spring(scaleAnim, { toValue: 0.85, useNativeDriver: true, speed: 50 }),
-      Animated.spring(scaleAnim, { toValue: 1.15, useNativeDriver: true, friction: 3, tension: 100 }),
-      Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, friction: 5 }),
+      Animated.spring(scaleAnim, { toValue: 0.85, useNativeDriver: Platform.OS !== 'web', speed: 50 }),
+      Animated.spring(scaleAnim, { toValue: 1.15, useNativeDriver: Platform.OS !== 'web', friction: 3, tension: 100 }),
+      Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: Platform.OS !== 'web', friction: 5 }),
     ]).start();
 
     const event = navigation.emit({

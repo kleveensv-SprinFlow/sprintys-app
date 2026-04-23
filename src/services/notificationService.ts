@@ -29,13 +29,27 @@ export const notificationService = {
     // Si l'heure est déjà passée, on ne programme pas
     if (reminderDate.getTime() < Date.now()) return;
 
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('competition-reminders', {
+        name: 'Compétitions',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#00E5FF',
+      });
+    }
+
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
         title: "FOCUS COMPÉTITION DEMAIN 🏁",
         body: `Prépare ton sac pour ${city.toUpperCase()}. N'oublie pas tes pointes et tes épingles !`,
         data: { city },
+        android: {
+          channelId: 'competition-reminders',
+        },
       },
-      trigger: reminderDate,
+      trigger: {
+        date: reminderDate,
+      } as any,
     });
 
     return identifier;

@@ -391,10 +391,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(0, 229, 255, 0.3)',
-    shadowColor: '#00E5FF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
+    boxShadow: '0 0 10px #00E5FF',
     elevation: 5,
   },
   bilanGradient: {

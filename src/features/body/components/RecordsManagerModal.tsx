@@ -183,13 +183,12 @@ export const RecordsManagerModal = ({ visible, onClose, records, onSave, onQuick
 
           <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
             <View style={styles.grid}>
-              {activeTab === 'official' ? (
-                ATHLETICS_DISCIPLINES.filter(d => records?.official?.[d] && (Array.isArray(records.official[d]) ? records.official[d].length > 0 : true)).map(renderOfficialItem)
-              ) : (
-                activeTrainingSubTab === 'athle' 
+              {activeTab === 'official' 
+                ? ATHLETICS_DISCIPLINES.filter(d => records?.official?.[d] && (Array.isArray(records.official[d]) ? records.official[d].length > 0 : true)).map(renderOfficialItem)
+                : activeTrainingSubTab === 'athle' 
                   ? ATHLETICS_DISCIPLINES.filter(d => records?.training?.athle?.[d] && (Array.isArray(records.training.athle[d]) ? records.training.athle[d].length > 0 : true)).map(d => renderTrainingItem(d))
                   : MUSCU_EXERCISES.filter(e => records?.training?.muscu?.[e] && (Array.isArray(records.training.muscu[e]) ? records.training.muscu[e].length > 0 : true)).map(e => renderTrainingItem(e, true))
-              )}
+              }
             </View>
             <View style={{ height: 40 }} />
           </ScrollView>

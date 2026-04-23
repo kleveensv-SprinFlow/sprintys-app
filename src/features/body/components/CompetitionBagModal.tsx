@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -8,7 +8,9 @@ import {
   ScrollView, 
   TextInput, 
   Dimensions,
-  Alert
+  Animated,
+  KeyboardAvoidingView,
+  Platform
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,61 +18,137 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 const { width, height } = Dimensions.get('window');
 
-const PREDEFINED_ITEMS = [
-  { id: 'spikes', name: 'Pointes', icon: 'flash' },
-  { id: 'pins', name: 'Épingles', icon: 'pin' },
-  { id: 'jersey', name: 'Maillot du club', icon: 'shirt' },
-  { id: 'drink', name: 'Boisson d\'effort', icon: 'water' },
-  { id: 'shoes', name: 'Baskets d\'échauffement', icon: 'walk' },
-  { id: 'warmup', name: 'Survêtement', icon: 'body' },
-];
+const AnimatedBagItem = ({ item, onTogglePrepared, onDelete }: any) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const checkAnim = useRef(new Animated.Value(item.is_prepared ? 1 : 0)).current;
 
-interface Props {
-  visible: boolean;
-  onClose: () => void;
-  bagItems: any[];
-  onUpdateBag: (items: any[]) => void;
-}
+  useEffect(() => {
+    Animated.spring(checkAnim, {
+      toValue: item.is_prepared ? 1 : 0,
+      useNativeDriver: true,
+      friction: 4
+    }).start();
+  }, [item.is_prepared]);
 
-export const CompetitionBagModal = ({ visible, onClose, bagItems, onUpdateBag }: Props) => {
-  const [showLibrary, setShowLibrary] = useState(false);
-  const [customItemName, setCustomItemName] = useState('');
+  const handlePress = () => {
+    Animated.sequence([
+      Animated.spring(scaleAnim, { toValue: 0.95, useNativeDriver: true }),
+      Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true })
+    ]).start();
+    onTogglePrepared(item.name);
+  };
+
+  return (
+    <TouchableOpacity 
+      activeOpacity={0.8} 
+      onPress={handlePress}
+      style={styles.bagItemWrapper}
+    >
+      <Animated.View style={[
+        styles.bagItem, 
+        item.is_prepared && styles.bagItemPrepared,
+        { transform: [{ scale: scaleAnim }] }
+      ]}>
+        <View style={styles.itemHeader}>
+          <View style={[styles.iconCircleSmall, item.is_prepared && styles.iconCircleSmallActive]}>
+            <Ionicons 
+              name={item.icon || 'cube-outline'} 
+              size={18} 
+              color={item.is_prepared ? '#000' : 'rgba(255,255,255,0.4)'} 
+            />
+          </View>
+          <TouchableOpacity onPress={() => onDelete(item)} style={styles.deleteMiniBtn}>
+            <Ionicons name="trash-outline" size={16} color="rgba(255,59,48,0.5)" />
+          </TouchableOpacity>
+        </View>
+
+        <Text style={[styles.itemName, item.is_prepared && styles.itemNamePrepared]}>
+          {item.name.toUpperCase()}
+        </Text>
+
+        <View style={styles.checkIndicator}>
+          <Animated.View style={{ 
+            transform: [{ scale: checkAnim }],
+            opacity: checkAnim 
+          }}>
+            <LinearGradient
+              colors={['#00E5FF', '#00B4D8']}
+              style={styles.checkCircle}
+            >
+              <Ionicons name="checkmark" size={12} color="#000" />
+            </LinearGradient>
+          </Animated.View>
+          {!item.is_prepared && (
+            <View style={styles.emptyCircle}>
+              <View style={styles.emptyCircleInner} />
+            </View>
+          )}
+        </View>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+};
+
+export const CompetitionBagModal = ({ visible, onClose, bagItems, onUpdateBag }: any) => {
+  const [showAddModule, setShowAddModule] = useState(false);
+  const [newItemName, setNewItemName] = useState('');
+  const inputRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (showAddModule) {
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [showAddModule]);
 
   const toggleItem = (item: any) => {
-    const exists = bagItems.find(i => i.name === item.name);
-    if (exists) {
-      onUpdateBag(bagItems.filter(i => i.name !== item.name));
-    } else {
-      onUpdateBag([...bagItems, { ...item, is_prepared: false }]);
-    }
+    onUpdateBag(bagItems.filter((i: any) => i.name !== item.name));
   };
 
   const togglePrepared = (name: string) => {
-    const updated = bagItems.map(i => 
+    const updated = bagItems.map((i: any) => 
       i.name === name ? { ...i, is_prepared: !i.is_prepared } : i
     );
     onUpdateBag(updated);
   };
 
-  const addCustomItem = () => {
-    if (!customItemName.trim()) return;
-    const newItem = { id: Date.now().toString(), name: customItemName, icon: 'cube', is_custom: true, is_prepared: false };
-    onUpdateBag([...bagItems, newItem]);
-    setCustomItemName('');
-    setShowLibrary(false);
+  const addItem = () => {
+    const trimmed = newItemName.trim();
+    if (!trimmed) return;
+    
+    // S'assurer que bagItems est bien un tableau
+    const currentItems = Array.isArray(bagItems) ? [...bagItems] : [];
+    
+    if (currentItems.some((i: any) => i.name.toLowerCase() === trimmed.toLowerCase())) {
+      setNewItemName('');
+      setShowAddModule(false);
+      return;
+    }
+
+    const newItem = { 
+      id: `item-${Date.now()}-${Math.floor(Math.random() * 1000)}`, 
+      name: trimmed, 
+      icon: 'cube-outline', 
+      is_prepared: false 
+    };
+
+    const updatedItems = [...currentItems, newItem];
+    onUpdateBag(updatedItems);
+    
+    setNewItemName('');
+    setShowAddModule(false);
   };
 
   const renderPreparedProgress = () => {
     if (bagItems.length === 0) return null;
-    const prepared = bagItems.filter(i => i.is_prepared).length;
+    const prepared = bagItems.filter((i: any) => i.is_prepared).length;
     const total = bagItems.length;
     const progress = (prepared / total) * 100;
 
     return (
       <View style={styles.progressContainer}>
         <View style={styles.progressHeader}>
-          <Text style={styles.progressLabel}>PRÉPARATION DU SAC</Text>
-          <Text style={styles.progressValue}>{prepared}/{total}</Text>
+          <Text style={styles.progressLabel}>TAUX DE PRÉPARATION</Text>
+          <Text style={styles.progressValue}>{Math.round(progress)}%</Text>
         </View>
         <View style={styles.progressBarBg}>
           <LinearGradient
@@ -91,114 +169,75 @@ export const CompetitionBagModal = ({ visible, onClose, bagItems, onUpdateBag }:
           <View style={styles.header}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <View style={styles.iconCircle}>
-                <Ionicons name="briefcase" size={20} color="#00E5FF" />
+                <Ionicons name="list" size={20} color="#00E5FF" />
               </View>
-              <Text style={styles.title}>SAC DE COMPÉTITION</Text>
+              <Text style={styles.title}>MES ACCESSOIRES</Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
               <Ionicons name="close" size={24} color="#FFF" />
             </TouchableOpacity>
           </View>
 
-          {renderPreparedProgress()}
+          <TouchableOpacity style={styles.triggerAddBtn} onPress={() => setShowAddModule(true)}>
+            <LinearGradient colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']} style={styles.triggerGradient}>
+              <Ionicons name="add-circle" size={24} color="#00E5FF" />
+              <Text style={styles.triggerText}>AJOUTER UN ACCESSOIRE</Text>
+            </LinearGradient>
+          </TouchableOpacity>
 
-          <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+          <View style={{ height: 12 }} />
+
+          <ScrollView 
+            style={styles.scroll} 
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 40 }}
+          >
             {bagItems.length === 0 ? (
               <View style={styles.emptyState}>
-                <Ionicons name="cart-outline" size={64} color="rgba(255,255,255,0.05)" />
-                <Text style={styles.emptyTitle}>TON SAC EST VIDE</Text>
-                <Text style={styles.emptySub}>Prépare tes accessoires pour ne rien oublier le jour J</Text>
+                <Ionicons name="cube-outline" size={64} color="rgba(255,255,255,0.05)" />
+                <Text style={styles.emptyTitle}>AUCUN ACCESSOIRE</Text>
+                <Text style={styles.emptySub}>Ajoute tes objets pour ne rien oublier le jour J</Text>
               </View>
             ) : (
               <View style={styles.itemsGrid}>
-                {bagItems.map((item, idx) => (
-                  <TouchableOpacity 
-                    key={idx} 
-                    style={[styles.bagItem, item.is_prepared && styles.bagItemPrepared]}
-                    onPress={() => togglePrepared(item.name)}
-                  >
-                    <View style={styles.itemHeader}>
-                      <Ionicons 
-                        name={item.icon as any} 
-                        size={20} 
-                        color={item.is_prepared ? '#00E5FF' : 'rgba(255,255,255,0.3)'} 
-                      />
-                      <TouchableOpacity onPress={() => toggleItem(item)}>
-                        <Ionicons name="trash-outline" size={16} color="rgba(255,255,255,0.2)" />
-                      </TouchableOpacity>
-                    </View>
-                    <Text style={[styles.itemName, item.is_prepared && styles.itemNamePrepared]}>
-                      {item.name.toUpperCase()}
-                    </Text>
-                    <View style={styles.checkIndicator}>
-                      <Ionicons 
-                        name={item.is_prepared ? "checkmark-circle" : "ellipse-outline"} 
-                        size={18} 
-                        color={item.is_prepared ? "#00E5FF" : "rgba(255,255,255,0.1)"} 
-                      />
-                    </View>
-                  </TouchableOpacity>
+                {bagItems.map((item: any, idx: number) => (
+                  <AnimatedBagItem 
+                    key={item.id || idx} 
+                    item={item} 
+                    onTogglePrepared={togglePrepared}
+                    onDelete={toggleItem}
+                  />
                 ))}
               </View>
             )}
           </ScrollView>
-
-          <TouchableOpacity style={styles.addBtn} onPress={() => setShowLibrary(true)}>
-            <LinearGradient
-              colors={['#00E5FF', '#00B4D8']}
-              style={styles.addGradient}
-            >
-              <Ionicons name="library" size={20} color="#000" style={{ marginRight: 8 }} />
-              <Text style={styles.addText}>BIBLIOTHÈQUE D'ACCESSOIRES</Text>
-            </LinearGradient>
-          </TouchableOpacity>
         </View>
 
-        {/* Modal Bibliothèque */}
-        <Modal visible={showLibrary} animationType="fade" transparent>
-          <BlurView intensity={100} tint="dark" style={styles.libraryOverlay}>
-            <View style={styles.libraryContent}>
-              <View style={styles.libraryHeader}>
-                <Text style={styles.libraryTitle}>MES ACCESSOIRES</Text>
-                <TouchableOpacity onPress={() => setShowLibrary(false)}>
-                  <Ionicons name="close" size={24} color="#FFF" />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView>
-                <Text style={styles.libSection}>PRÉ-DÉFINIS</Text>
-                <View style={styles.libGrid}>
-                  {PREDEFINED_ITEMS.map(item => {
-                    const isAdded = bagItems.some(i => i.name === item.name);
-                    return (
-                      <TouchableOpacity 
-                        key={item.id} 
-                        style={[styles.libItem, isAdded && styles.libItemActive]}
-                        onPress={() => toggleItem(item)}
-                      >
-                        <Ionicons name={item.icon as any} size={24} color={isAdded ? '#00E5FF' : '#FFF'} />
-                        <Text style={[styles.libItemText, isAdded && styles.libItemTextActive]}>{item.name}</Text>
-                        {isAdded && <Ionicons name="checkmark-circle" size={16} color="#00E5FF" style={styles.checkPos} />}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-
-                <Text style={[styles.libSection, { marginTop: 32 }]}>AJOUTER UN AUTRE OBJET</Text>
-                <View style={styles.customInputContainer}>
-                  <TextInput
-                    style={styles.customInput}
-                    placeholder="Ex: Chaussettes de récup..."
-                    placeholderTextColor="rgba(255,255,255,0.2)"
-                    value={customItemName}
-                    onChangeText={setCustomItemName}
-                  />
-                  <TouchableOpacity style={styles.customAddBtn} onPress={addCustomItem}>
-                    <Ionicons name="add" size={24} color="#000" />
+        {/* MODULE DE CRÉATION */}
+        <Modal visible={showAddModule} transparent animationType="fade">
+          <BlurView intensity={80} tint="dark" style={styles.moduleOverlay}>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ width: '100%', alignItems: 'center' }}>
+              <View style={styles.moduleContent}>
+                <Text style={styles.moduleTitle}>NOUVEL OBJET</Text>
+                <TextInput
+                  ref={inputRef}
+                  style={styles.moduleInput}
+                  placeholder="Nom de l'accessoire..."
+                  placeholderTextColor="rgba(255,255,255,0.2)"
+                  value={newItemName}
+                  onChangeText={setNewItemName}
+                  onSubmitEditing={addItem}
+                />
+                <View style={styles.moduleActions}>
+                  <TouchableOpacity style={styles.moduleCancel} onPress={() => setShowAddModule(false)}>
+                    <Text style={styles.moduleCancelText}>ANNULER</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.moduleConfirm} onPress={addItem}>
+                    <Text style={styles.moduleConfirmText}>CRÉER</Text>
                   </TouchableOpacity>
                 </View>
-              </ScrollView>
-            </View>
+              </View>
+            </KeyboardAvoidingView>
           </BlurView>
         </Modal>
       </BlurView>
@@ -214,61 +253,64 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 32, 
     borderTopRightRadius: 32,
     padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   iconCircle: { width: 36, height: 36, borderRadius: 12, backgroundColor: 'rgba(0, 229, 255, 0.1)', justifyContent: 'center', alignItems: 'center' },
-  title: { color: '#FFF', fontSize: 20, fontWeight: '900', letterSpacing: 2 },
+  title: { color: '#FFF', fontSize: 18, fontWeight: '900', letterSpacing: 1 },
   closeBtn: { padding: 8 },
-  
-  progressContainer: { marginBottom: 24 },
-  progressHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  progressLabel: { color: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: '800' },
-  progressValue: { color: '#00E5FF', fontSize: 10, fontWeight: '900' },
-  progressBarBg: { height: 6, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' },
-  progressBarFill: { height: '100%', borderRadius: 3 },
+
+  progressContainer: { marginBottom: 24, backgroundColor: 'rgba(255,255,255,0.02)', padding: 16, borderRadius: 20 },
+  progressHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  progressLabel: { color: 'rgba(255,255,255,0.3)', fontSize: 9, fontWeight: '800', letterSpacing: 1 },
+  progressValue: { color: '#00E5FF', fontSize: 14, fontWeight: '900' },
+  progressBarBg: { height: 4, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' },
+  progressBarFill: { height: '100%', borderRadius: 2 },
 
   scroll: { flex: 1 },
-  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 100 },
+  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 80 },
   emptyTitle: { color: 'rgba(255,255,255,0.2)', fontSize: 14, fontWeight: '900', marginTop: 16, letterSpacing: 1 },
   emptySub: { color: 'rgba(255,255,255,0.1)', fontSize: 10, fontWeight: '700', textAlign: 'center', marginTop: 8, paddingHorizontal: 40 },
 
   itemsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  bagItemWrapper: { width: (width - 48 - 12) / 2 },
   bagItem: { 
-    width: (width - 48 - 12) / 2, 
+    width: '100%',
     backgroundColor: 'rgba(255,255,255,0.03)', 
-    borderRadius: 20, 
+    borderRadius: 24, 
     padding: 16,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.05)',
     justifyContent: 'space-between',
-    minHeight: 120,
+    minHeight: 130,
   },
   bagItemPrepared: {
     backgroundColor: 'rgba(0,229,255,0.05)',
     borderColor: 'rgba(0,229,255,0.2)',
   },
   itemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  iconCircleSmall: { width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.05)', justifyContent: 'center', alignItems: 'center' },
+  iconCircleSmallActive: { backgroundColor: '#00E5FF' },
+  deleteMiniBtn: { padding: 4 },
   itemName: { color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: '900', marginTop: 12, letterSpacing: 1 },
   itemNamePrepared: { color: '#FFF' },
-  checkIndicator: { alignItems: 'flex-end', marginTop: 8 },
+  checkIndicator: { alignItems: 'flex-end', marginTop: 12 },
+  checkCircle: { width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  emptyCircle: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center' },
+  emptyCircleInner: { width: 4, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.1)' },
 
-  addBtn: { marginTop: 24, borderRadius: 16, overflow: 'hidden' },
-  addGradient: { paddingVertical: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  addText: { color: '#000', fontSize: 13, fontWeight: '900', letterSpacing: 1 },
+  triggerAddBtn: { marginBottom: 24, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+  triggerGradient: { padding: 20, flexDirection: 'row', alignItems: 'center', gap: 16 },
+  triggerText: { color: '#FFF', fontSize: 13, fontWeight: '900', letterSpacing: 1.5 },
 
-  libraryOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  libraryContent: { backgroundColor: '#111', borderRadius: 32, width: '100%', maxHeight: '80%', padding: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  libraryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  libraryTitle: { color: '#00E5FF', fontSize: 16, fontWeight: '900', letterSpacing: 1 },
-  libSection: { color: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: '800', marginBottom: 16 },
-  libGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  libItem: { width: (width - 48 - 60 - 24) / 3, height: 90, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, justifyContent: 'center', alignItems: 'center', gap: 8 },
-  libItemActive: { backgroundColor: 'rgba(0,229,255,0.1)', borderColor: 'rgba(0,229,255,0.3)', borderWidth: 1 },
-  libItemText: { color: 'rgba(255,255,255,0.5)', fontSize: 9, fontWeight: '700', textAlign: 'center' },
-  libItemTextActive: { color: '#00E5FF' },
-  checkPos: { position: 'absolute', top: 8, right: 8 },
-
-  customInputContainer: { flexDirection: 'row', gap: 12, alignItems: 'center' },
-  customInput: { flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 12, color: '#FFF', fontSize: 14, fontWeight: '700' },
-  customAddBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#00E5FF', justifyContent: 'center', alignItems: 'center' },
+  moduleOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  moduleContent: { backgroundColor: '#111', borderRadius: 32, width: '90%', padding: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.5, shadowRadius: 20, elevation: 10 },
+  moduleTitle: { color: '#00E5FF', fontSize: 16, fontWeight: '900', letterSpacing: 2, marginBottom: 20, textAlign: 'center' },
+  moduleInput: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 18, color: '#FFF', fontSize: 14, fontWeight: '700', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', marginBottom: 24 },
+  moduleActions: { flexDirection: 'row', gap: 12 },
+  moduleCancel: { flex: 1, paddingVertical: 16, alignItems: 'center' },
+  moduleCancelText: { color: '#FF3B30', fontSize: 13, fontWeight: '800', letterSpacing: 1 },
+  moduleConfirm: { flex: 1, backgroundColor: '#00E5FF', paddingVertical: 16, borderRadius: 14, alignItems: 'center' },
+  moduleConfirmText: { color: '#000', fontSize: 13, fontWeight: '900', letterSpacing: 1 },
 });

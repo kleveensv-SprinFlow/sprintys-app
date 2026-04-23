@@ -25,6 +25,7 @@ import { ChecklistManagerCard } from '../features/body/components/ChecklistManag
 import { useBodyStore } from '../store/bodyStore';
 import { RecordsManagerModal } from '../features/body/components/RecordsManagerModal';
 import { CompetitionBagModal } from '../features/body/components/CompetitionBagModal';
+import { bodyService } from '../services/bodyService';
 
 const { width } = Dimensions.get('window');
 
@@ -198,51 +199,90 @@ const ProfileScreen = () => {
     }
   };
 
-  const handleSaveRecords = async (newRecords: any) => {
-    setIsSaving(true);
+  const handleSaveRecords = async (type: string, discipline: string, entry: any) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return;
+      const currentRecords = JSON.parse(JSON.stringify(profile.personal_records || { official: {}, training: { athle: {}, muscu: {} } }));
+      
+      const parts = type.split('_');
+      const category = parts[0]; 
+      const subCategory = parts[1]; 
+
+      if (category === 'official') {
+        if (!currentRecords.official) currentRecords.official = {};
+        if (!currentRecords.official[discipline]) currentRecords.official[discipline] = [];
+        currentRecords.official[discipline].push(entry);
+      } else if (category === 'training') {
+        if (!currentRecords.training) currentRecords.training = { athle: {}, muscu: {} };
+        if (!currentRecords.training[subCategory]) currentRecords.training[subCategory] = {};
+        if (!currentRecords.training[subCategory][discipline]) currentRecords.training[subCategory][discipline] = [];
+        currentRecords.training[subCategory][discipline].push(entry);
+      }
 
       const { error } = await supabase
         .from('profiles')
-        .upsert({
-          id: session.user.id,
-          personal_records: newRecords,
-          updated_at: new Date().toISOString(),
-        });
+        .update({ personal_records: currentRecords })
+        .eq('id', profile.id);
 
       if (error) throw error;
-
-      fetchProfile();
-      if (!isDelete) {
-        Alert.alert('INCROYABLE ! 🚀', 'Performance de haut niveau enregistrée. Continue comme ça, champion !');
-      }
+      setProfile({ ...profile, personal_records: currentRecords });
+      
+      Alert.alert('INCROYABLE ! 🚀', 'Performance de haut niveau enregistrée. Continue comme ça, champion !');
     } catch (error: any) {
-      Alert.alert('Erreur', error.message);
-    } finally {
-      setIsSaving(false);
+      console.error('Error saving record:', error);
+      Alert.alert('Erreur', 'Impossible d\'enregistrer le record');
     }
   };
 
-  const handleDeleteRecordEntry = async (type: string, discipline: string, entryIndex: number) => {
+  const handleDeleteRecordEntry = async (type: string, discipline: string, index: number) => {
     try {
-      const current = { ...profile?.personal_records };
-      let history = [];
-      if (type === 'official') {
-        history = current.official?.[discipline] || [];
-        history.splice(entryIndex, 1);
-        current.official[discipline] = history;
+      const currentRecords = JSON.parse(JSON.stringify(profile.personal_records));
+      const parts = type.split('_');
+      const category = parts[0];
+      const subCategory = parts[1];
+
+      if (category === 'official') {
+        currentRecords.official[discipline].splice(index, 1);
       } else {
-        const cat = type === 'training_muscu' ? 'muscu' : 'athle';
-        history = current.training?.[cat]?.[discipline] || [];
-        history.splice(entryIndex, 1);
-        current.training[cat][discipline] = history;
+        currentRecords.training[subCategory][discipline].splice(index, 1);
       }
-      await handleSaveRecords(current, true);
-      setShowDetailModal(false);
-    } catch (err) {
-      console.error(err);
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({ personal_records: currentRecords })
+        .eq('id', profile.id);
+
+      if (error) throw error;
+      setProfile({ ...profile, personal_records: currentRecords });
+      
+      if (selectedDetailData) {
+        setSelectedDetailData({
+          ...selectedDetailData,
+          history: category === 'official' 
+            ? currentRecords.official[discipline] 
+            : currentRecords.training[subCategory][discipline]
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting record entry:', error);
+    }
+  };
+
+  const handleUpdateBag = async (items: any[]) => {
+    if (!profile?.id) {
+      console.error('No profile ID found for update');
+      return;
+    }
+    
+    try {
+      const updatedProfile = await bodyService.updateProfile(profile.id, { 
+        competition_bag: items 
+      });
+
+      setProfile(updatedProfile);
+      setStoreProfile(updatedProfile);
+    } catch (error) {
+      console.error('Error updating bag:', error);
+      Alert.alert('Erreur', 'Impossible de mettre à jour le sac');
     }
   };
 
@@ -360,16 +400,15 @@ const ProfileScreen = () => {
               <Ionicons name="briefcase" size={24} color="#BF5AF2" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.recordsCardTitle}>MON SAC DE COMPÉTITION</Text>
+              <Text style={styles.recordsCardTitle}>MES ACCESSOIRES</Text>
               <Text style={styles.recordsCardSub}>
-                {profile?.competition_bag?.length || 0} Objets • {profile?.competition_bag?.filter((i: any) => i.is_prepared).length || 0} Prêts
+                {profile?.competition_bag?.length || 0} Objets enregistrés
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.3)" />
           </LinearGradient>
         </TouchableOpacity>
 
-        <ChecklistManagerCard />
 
         <TouchableOpacity style={styles.editBtn} onPress={() => setShowEditModal(true)}>
           <Text style={styles.editBtnText}>MODIFIER MON PROFIL</Text>
@@ -497,8 +536,8 @@ const ProfileScreen = () => {
         onDelete={handleDeleteRecordEntry}
       />
 
-      <CompetitionBagModal
-        visible={showBagModal}
+      <CompetitionBagModal 
+        visible={showBagModal} 
         onClose={() => setShowBagModal(false)}
         bagItems={profile?.competition_bag || []}
         onUpdateBag={handleUpdateBag}
@@ -562,7 +601,7 @@ const styles = StyleSheet.create({
   saveBtn: { backgroundColor: '#FFFFFF', paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginTop: 24 },
   saveBtnText: { color: '#000', fontSize: 15, fontWeight: '900' },
   cancelBtn: { paddingVertical: 16, alignItems: 'center' },
-  cancelBtnText: { color: '#8E8E93', fontSize: 13, fontWeight: '700' },
+  cancelBtnText: { color: '#FF3B30', fontSize: 14, fontWeight: '700' },
   recordsTriggerCard: {
     marginBottom: 24,
     borderRadius: 20,
@@ -764,7 +803,7 @@ const QuickAddRecordModal = ({ onClose, onSave, currentRecords, initialData }: a
           <Text style={styles.saveBtnText}>VALIDER LE RECORD</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
-          <Text style={styles.cancelAddText}>ANNULER</Text>
+          <Text style={styles.cancelBtnText}>ANNULER</Text>
         </TouchableOpacity>
       </View>
     </BlurView>
