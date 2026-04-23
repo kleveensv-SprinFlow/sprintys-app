@@ -86,74 +86,71 @@ const ProfileScreen = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
 
-      // 1. Sauvegarde dans Auth Metadata
+      // 1. Sauvegarde dans Auth Metadata (Nom/Prénom)
       const { error: authError } = await supabase.auth.updateUser({
         data: { 
           first_name: editFirstName, 
           last_name: editLastName 
         }
       });
-
       if (authError) console.error('Auth update error:', authError);
 
-      // 2. Sauvegarde dans la table profiles
-      const profileData: any = { 
-        id: session.user.id,
-        personal_records: editRecords,
-        updated_at: new Date().toISOString(),
-        first_name: editFirstName,
-        last_name: editLastName,
-        dob: editDob,
-        height: parseFloat(editHeight),
-        activity_level: editActivity,
-        nutrition_goal: editGoal,
-      };
-
-      // --- CALCUL DES MACROS AUTOMATIQUE ---
+      // 2. Calcul des macros
       const currentWeight = useBodyStore.getState().metrics[0]?.weight || 70;
-      const h = parseFloat(editHeight) || 175;
-      const dobYear = parseInt(editDob.split('-')[0]) || 1995;
-      const age = new Date().getFullYear() - dobYear;
+      const h = parseFloat(editHeight) || 0;
+      const dobYear = parseInt(editDob.split('-')[0]) || 0;
+      const age = dobYear > 0 ? new Date().getFullYear() - dobYear : 25;
 
-      const bmr = (10 * currentWeight) + (6.25 * h) - (5 * age) + 5;
+      const bmr = (10 * currentWeight) + (6.25 * (h || 175)) - (5 * age) + 5;
       const multipliers: Record<string, number> = { sedentary: 1.2, active: 1.55, very_active: 1.725 };
       const adjustments: Record<string, number> = { loss: -400, maintain: 0, gain: 300 };
 
       const tdee = bmr * (multipliers[editActivity] || 1.2);
       const targetCalories = Math.round(tdee + (adjustments[editGoal] || 0));
-
       const p = Math.round(currentWeight * 2.2);
       const f = Math.round(currentWeight * 1.0);
       const c = Math.round((targetCalories - (p * 4) - (f * 9)) / 4);
 
-      profileData.target_calories = targetCalories;
-      profileData.target_protein = p;
-      profileData.target_carbs = c;
-      profileData.target_fats = f;
+      // 3. Mise à jour via le Store (plus propre)
+      const updates: any = {
+        personal_records: editRecords,
+        first_name: editFirstName,
+        last_name: editLastName,
+        dob: editDob,
+        height: h > 0 ? h : null,
+        activity_level: editActivity,
+        nutrition_goal: editGoal,
+        target_calories: targetCalories,
+        target_protein: p,
+        target_carbs: c,
+        target_fats: f,
+      };
 
-      const { error } = await supabase
-        .from('profiles')
-        .upsert(profileData);
-
-      if (error) {
-        if (error.code === '42703' || error.message.includes('column')) {
-           const { error: retryError } = await supabase
-            .from('profiles')
-            .upsert({ 
-              id: session.user.id,
-              personal_records: editRecords,
-              updated_at: new Date().toISOString(),
-            });
-           if (retryError) throw retryError;
+      try {
+        await useBodyStore.getState().updateProfile(session.user.id, updates);
+      } catch (storeError: any) {
+        console.error('Store update error:', storeError);
+        // Si colonnes manquantes, on tente sans les colonnes suspectes
+        if (storeError.code === '42703') {
+          const safeUpdates = {
+            personal_records: editRecords,
+            dob: editDob,
+            height: h > 0 ? h : null,
+            activity_level: editActivity,
+            nutrition_goal: editGoal,
+          };
+          await useBodyStore.getState().updateProfile(session.user.id, safeUpdates);
+          Alert.alert('Note', 'Nom/Prénom non sauvegardés (colonnes manquantes en base), mais le reste est OK.');
         } else {
-          throw error;
+          throw storeError;
         }
       }
       
       setShowEditModal(false);
       fetchProfile();
-      Alert.alert('Succès', 'Ton profil a été mis à jour.');
+      Alert.alert('Succès', 'Profil mis à jour !');
     } catch (error: any) {
+      console.error('Final update error:', error);
       Alert.alert('Erreur', error.message);
     } finally {
       setIsSaving(false);

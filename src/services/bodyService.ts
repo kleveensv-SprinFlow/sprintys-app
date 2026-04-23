@@ -6,6 +6,7 @@ export const bodyService = {
    * Mettre à jour le profil complet (incluant la nutrition)
    */
   updateProfile: async (userId: string, updates: Partial<Profile>) => {
+    console.log('bodyService: updating profile for', userId, updates);
     const { data, error } = await supabase
       .from('profiles')
       .upsert({
@@ -16,7 +17,10 @@ export const bodyService = {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('bodyService: update error', error);
+      throw error;
+    }
     return data;
   },
 
