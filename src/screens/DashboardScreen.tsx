@@ -34,6 +34,17 @@ const formatDateToYYYYMMDD = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+const formatShortAddress = (address: string) => {
+  if (!address) return '';
+  const parts = address.split(',');
+  if (parts.length <= 2) return address.toUpperCase();
+  
+  // Souvent format Google : "Numéro Rue, Code Ville, Pays"
+  const street = parts[0].trim();
+  const cityZip = parts[1].trim();
+  return `${cityZip}, ${street}`.toUpperCase();
+};
+
 const DashboardScreen = () => {
   const navigation = useNavigation<any>();
   const isFocused = useIsFocused();
@@ -346,7 +357,7 @@ const DashboardScreen = () => {
             {todayCompetition.address && (
               <TouchableOpacity style={styles.addressBtn} onPress={() => Linking.openURL(`geo:0,0?q=${todayCompetition.address}`)}>
                 <Ionicons name="location" size={14} color="#00E5FF" />
-                <Text style={styles.addressText}>{todayCompetition.address.toUpperCase()}</Text>
+                <Text style={styles.addressText}>{formatShortAddress(todayCompetition.address)}</Text>
               </TouchableOpacity>
             )}
 
