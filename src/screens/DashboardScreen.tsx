@@ -20,8 +20,13 @@ import WeatherBadge from '../shared/components/WeatherBadge';
 import { useBodyStore } from '../store/bodyStore';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { DebriefModal } from '../features/competition/components/DebriefModal';
 
 const { width } = Dimensions.get('window');
+
+const formatDateToYYYYMMDD = (date: Date) => {
+  return date.toISOString().split('T')[0];
+};
 
 const DashboardScreen = () => {
   const navigation = useNavigation<any>();
@@ -37,6 +42,7 @@ const DashboardScreen = () => {
   const [weather, setWeather] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [checkedItems, setCheckedItems] = useState<string[]>([]);
+  const [isDebriefModalVisible, setIsDebriefModalVisible] = useState(false);
 
   useEffect(() => {
     if (isFocused) {
@@ -56,7 +62,7 @@ const DashboardScreen = () => {
       const user = session?.user;
 
       if (user) {
-        // Fetch Profile Name
+        // Fetch Profile
         const { data: profileData } = await supabase
           .from('profiles')
           .select('*')
@@ -76,58 +82,71 @@ const DashboardScreen = () => {
           .limit(1);
 
         if (checkinData && checkinData.length > 0) {
-          const today = new Date().toISOString().split('T')[0];
+          const today = formatDateToYYYYMMDD(new Date());
           const latestCheckinDate = checkinData[0].created_at.split('T')[0];
           setHasCheckedInToday(today === latestCheckinDate);
           setDailyScore(Math.round(((checkinData[0].sleep_score + checkinData[0].energy_score) / 20) * 100));
         }
 
-        // Detection Logic for Competition
-        const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
-        const yesterday = new Date(now);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = yesterday.toISOString().split('T')[0];
+        // Corrected Date Logic
+        const todayStr = formatDateToYYYYMMDD(new Date());
+        const yesterdayDate = new Date();
+        yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+        const yesterdayStr = formatDateToYYYYMMDD(yesterdayDate);
 
-        // Today's Competition
-        const { data: todayComp } = await supabase
+        // Fetch Workouts
+        const { data: workouts } = await supabase
           .from('workouts')
           .select('*')
-          .eq('user_id', user.id)
-          .eq('is_competition', true)
-          .gte('created_at', `${todayStr}T00:00:00`)
-          .lte('created_at', `${todayStr}T23:59:59`)
-          .limit(1);
+          .eq('user_id', user.id);
 
-        setTodayCompetition(todayComp?.[0] || null);
+        if (workouts) {
+          // Today's Competition
+          const todayComp = workouts.find(w => w.is_competition && w.created_at.startsWith(todayStr));
+          setTodayCompetition(todayComp || null);
 
-        // Yesterday's Competition
-        const { data: yestComp } = await supabase
-          .from('workouts')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('is_competition', true)
-          .gte('created_at', `${yesterdayStr}T00:00:00`)
-          .lte('created_at', `${yesterdayStr}T23:59:59`)
-          .limit(1);
+          // Yesterday's Competition (without results)
+          const yestComp = workouts.find(w => 
+            w.is_competition && 
+            w.created_at.startsWith(yesterdayStr) && 
+            !w.results // Results field is null or empty
+          );
+          setYesterdayCompetition(yestComp || null);
 
-        setYesterdayCompetition(yestComp?.[0] || null);
-
-        // Last Normal Workout
-        const { data: workoutData } = await supabase
-          .from('workouts')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('is_competition', false)
-          .order('created_at', { ascending: false })
-          .limit(1);
-
-        setLastWorkout(workoutData?.[0] || null);
+          // Last Normal Workout
+          const normalWorkouts = workouts
+            .filter(w => !w.is_competition)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          setLastWorkout(normalWorkouts[0] || null);
+        }
       }
     } catch (error) {
       console.error('Erreur data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDebriefSubmit = async (place: string, mark: string, feeling: string) => {
+    if (!yesterdayCompetition) return;
+
+    try {
+      const results = [{ place, mark, feeling }];
+      const { error } = await supabase
+        .from('workouts')
+        .update({ 
+          results,
+          notes: `${yesterdayCompetition.notes || ''}\n\nRÉSULTATS : ${mark} (${place}e) - Ressenti : ${feeling}`
+        })
+        .eq('id', yesterdayCompetition.id);
+
+      if (error) throw error;
+
+      setIsDebriefModalVisible(false);
+      setYesterdayCompetition(null); // Hide the card
+      Alert.alert('Succès', 'Ton débriefing a été enregistré.');
+    } catch (error: any) {
+      Alert.alert('Erreur', 'Impossible de sauvegarder le débriefing.');
     }
   };
 
@@ -188,7 +207,7 @@ const DashboardScreen = () => {
             <Text style={styles.debriefText}>Comment s'est passée ta compétition hier ?</Text>
             <TouchableOpacity 
               style={styles.debriefBtn} 
-              onPress={() => navigation.navigate('AddWorkout', { workout: yesterdayCompetition })}
+              onPress={() => setIsDebriefModalVisible(true)}
             >
               <Text style={styles.debriefBtnText}>SAISIR MES RÉSULTATS</Text>
             </TouchableOpacity>
@@ -271,6 +290,12 @@ const DashboardScreen = () => {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      <DebriefModal 
+        visible={isDebriefModalVisible}
+        onClose={() => setIsDebriefModalVisible(false)}
+        onSubmit={handleDebriefSubmit}
+      />
     </View>
   );
 };
