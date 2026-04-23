@@ -28,6 +28,17 @@ const { width } = Dimensions.get('window');
 
 const SPRINT_DISTANCES = ['60m', '100m', '200m'];
 const MUSCU_EXERCISES = ['Power Clean', 'Squat', 'Bench Press'];
+const calculateAge = (dobString: string) => {
+  if (!dobString) return 0;
+  const birthDate = new Date(dobString);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+};
 
 const ProfileScreen = () => {
   const [profile, setProfile] = useState<any>(null);
@@ -124,8 +135,7 @@ const ProfileScreen = () => {
       // 2. Calcul des macros
       const currentWeight = useBodyStore.getState().metrics[0]?.weight || 70;
       const h = parseFloat(editHeight) || 0;
-      const dobYear = parseInt(editDob.split('-')[0]) || 0;
-      const age = dobYear > 0 ? new Date().getFullYear() - dobYear : 25;
+      const age = profile?.dob ? calculateAge(profile.dob) : 25;
 
       const bmr = (10 * currentWeight) + (6.25 * (h || 175)) - (5 * age) + 5;
       const multipliers: Record<string, number> = { sedentary: 1.2, active: 1.55, very_active: 1.725 };
@@ -323,7 +333,7 @@ const ProfileScreen = () => {
                   <View style={styles.lockedInput}>
                     <Ionicons name="lock-closed" size={14} color="#8E8E93" style={{ marginRight: 8 }} />
                     <Text style={styles.lockedInputText}>
-                      {editDob} ({new Date().getFullYear() - parseInt(profile.dob.split('-')[0])} ANS)
+                      {editDob} ({calculateAge(profile.dob)} ANS)
                     </Text>
                   </View>
                 ) : (

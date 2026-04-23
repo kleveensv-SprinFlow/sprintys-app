@@ -6,12 +6,23 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBodyStore } from '../../../store/bodyStore';
 
 const { width } = Dimensions.get('window');
+const calculateAge = (dobString: string | null) => {
+  if (!dobString) return 0;
+  const birthDate = new Date(dobString);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+};
 
 export const AthleteIdentityCard = ({ onEdit }: { onEdit?: () => void }) => {
   const { profile, metrics } = useBodyStore();
   
   const currentWeight = metrics[0]?.weight || '--';
-  const age = profile?.dob ? new Date().getFullYear() - new Date(profile.dob).getFullYear() : '--';
+  const age = profile?.dob ? calculateAge(profile.dob) : '--';
   
   const goalLabel = {
     maintain: 'MAINTIEN',
