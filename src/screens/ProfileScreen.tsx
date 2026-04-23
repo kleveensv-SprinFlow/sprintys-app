@@ -21,6 +21,7 @@ import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../services/supabaseClient';
 import { signOutUser } from '../services/authService';
 import { NutritionSettingsCard } from '../features/body/components/NutritionSettingsCard';
+import { ChecklistManagerCard } from '../features/body/components/ChecklistManagerCard';
 import { useBodyStore } from '../store/bodyStore';
 
 const { width } = Dimensions.get('window');
@@ -298,6 +299,7 @@ const ProfileScreen = () => {
         </View>
 
         <NutritionSettingsCard />
+        <ChecklistManagerCard />
 
         <TouchableOpacity 
           style={styles.editBtn}
