@@ -59,7 +59,15 @@ const AuthScreen = () => {
         }
       }
     } catch (e: any) {
-      showAlert('Erreur', e.message);
+      let errorMessage = e.message;
+      if (errorMessage.includes('Invalid login credentials')) {
+        errorMessage = 'Email ou mot de passe incorrect.';
+      } else if (errorMessage.includes('User already registered')) {
+        errorMessage = 'Cet email est déjà utilisé.';
+      } else if (errorMessage.includes('Password should be')) {
+        errorMessage = 'Le mot de passe doit faire au moins 6 caractères.';
+      }
+      showAlert('Erreur', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -269,7 +277,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: Platform.OS === 'android' ? 'flex-start' : 'center',
+    paddingTop: Platform.OS === 'android' ? 60 : 0,
     alignItems: 'center',
     padding: 20,
   },

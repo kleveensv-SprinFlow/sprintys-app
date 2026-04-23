@@ -37,7 +37,11 @@ const formatDateToYYYYMMDD = (date: Date) => {
 const DashboardScreen = () => {
   const navigation = useNavigation<any>();
   const isFocused = useIsFocused();
-  const { profile, fetchProfile: fetchStoreProfile, setProfile: setStoreProfile } = useBodyStore();
+  const { 
+    profile, 
+    fetchProfile: fetchStoreProfile, 
+    updateProfile: updateStoreProfile 
+  } = useBodyStore();
   
   const [userName, setUserName] = useState<string>('');
   const [dailyScore, setDailyScore] = useState<number | null>(null);
@@ -184,8 +188,8 @@ const DashboardScreen = () => {
         return item;
       });
       
-      // Use store action for both local state and persistence
-      await useBodyStore.getState().updateProfile(profile.id, { 
+      // Use store action from hook for reliable re-rendering
+      await updateStoreProfile(profile.id, { 
         competition_bag: updatedBag 
       });
     } catch (error) {
@@ -199,7 +203,7 @@ const DashboardScreen = () => {
       const currentBag = profile.competition_bag || [];
       const updatedBag = currentBag.map((item: any) => ({ ...item, is_prepared: false }));
       
-      await useBodyStore.getState().updateProfile(profile.id, { 
+      await updateStoreProfile(profile.id, { 
         competition_bag: updatedBag 
       });
       Alert.alert('Liste réinitialisée', 'C\'est reparti pour un nouveau départ !');
