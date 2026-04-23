@@ -37,21 +37,39 @@ export const RecordsManagerModal = ({ visible, onClose, records, onSave, onQuick
     return (
       <TouchableOpacity 
         key={discipline} 
-        style={styles.recordItem}
+        activeOpacity={0.8}
         onPress={() => onQuickAdd({ type: 'official', discipline, ...data })}
       >
-        <Text style={styles.disciplineLabel}>{discipline.toUpperCase()}</Text>
-        <View style={styles.displayRow}>
-          <View style={styles.displayItem}>
-            <Text style={styles.microLabel}>TEMPS</Text>
-            <Text style={styles.displayText}>{data.value || '--'}</Text>
+        <LinearGradient
+          colors={['rgba(255,255,255,0.05)', 'rgba(0,229,255,0.02)']}
+          style={styles.premiumRecordCard}
+        >
+          <View style={styles.cardHeader}>
+            <Text style={styles.premiumDiscipline}>{discipline.toUpperCase()}</Text>
+            <View style={styles.pbBadge}>
+              <Text style={styles.pbText}>PB</Text>
+            </View>
           </View>
-          <View style={styles.displayItem}>
-            <Text style={styles.microLabel}>VENT</Text>
-            <Text style={styles.displayText}>{data.wind || '--'}</Text>
+          
+          <View style={styles.performanceRow}>
+            <View style={styles.mainPerf}>
+              <Text style={styles.perfValue}>{data.value || '--'}</Text>
+              <Text style={styles.perfUnit}>SEC</Text>
+            </View>
+            
+            {data.wind && (
+              <View style={styles.windContainer}>
+                <Ionicons name="flag" size={12} color="rgba(255,255,255,0.4)" />
+                <Text style={styles.windText}>{data.wind > 0 ? `+${data.wind}` : data.wind} m/s</Text>
+              </View>
+            )}
           </View>
-          <Ionicons name="pencil" size={16} color="rgba(255,255,255,0.2)" />
-        </View>
+          
+          <View style={styles.cardFooter}>
+            <Text style={styles.competitionLabel}>COMPÉTITION OFFICIELLE</Text>
+            <Ionicons name="chevron-forward" size={14} color="rgba(0,229,255,0.3)" />
+          </View>
+        </LinearGradient>
       </TouchableOpacity>
     );
   };
@@ -62,21 +80,34 @@ export const RecordsManagerModal = ({ visible, onClose, records, onSave, onQuick
     return (
       <TouchableOpacity 
         key={discipline} 
-        style={styles.recordItem}
+        activeOpacity={0.8}
         onPress={() => onQuickAdd({ 
           type: isMuscu ? 'training_muscu' : 'training_athle', 
           discipline, 
           value: data 
         })}
       >
-        <Text style={styles.disciplineLabel}>{discipline.toUpperCase()}</Text>
-        <View style={styles.displayRow}>
-          <View style={styles.displayItem}>
-            <Text style={styles.microLabel}>{isMuscu ? 'CHARGE (KG)' : 'CHRONO'}</Text>
-            <Text style={styles.displayText}>{data || '--'}</Text>
+        <LinearGradient
+          colors={['rgba(255,255,255,0.05)', 'rgba(191,90,242,0.02)']}
+          style={[styles.premiumRecordCard, isMuscu && styles.muscuCard]}
+        >
+          <View style={styles.cardHeader}>
+            <Text style={[styles.premiumDiscipline, isMuscu && { color: '#BF5AF2' }]}>{discipline.toUpperCase()}</Text>
+            <Ionicons name={isMuscu ? "barbell" : "timer"} size={16} color="rgba(255,255,255,0.1)" />
           </View>
-          <Ionicons name="pencil" size={16} color="rgba(255,255,255,0.2)" />
-        </View>
+
+          <View style={styles.performanceRow}>
+            <View style={styles.mainPerf}>
+              <Text style={styles.perfValue}>{data || '--'}</Text>
+              <Text style={styles.perfUnit}>{isMuscu ? 'KG' : 'SEC'}</Text>
+            </View>
+          </View>
+
+          <View style={styles.cardFooter}>
+            <Text style={styles.competitionLabel}>ENTRAÎNEMENT</Text>
+            <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.1)" />
+          </View>
+        </LinearGradient>
       </TouchableOpacity>
     );
   };
@@ -228,5 +259,95 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(0, 229, 255, 0.2)',
+  },
+  premiumRecordCard: {
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    marginBottom: 12,
+  },
+  muscuCard: {
+    borderColor: 'rgba(191,90,242,0.1)',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  premiumDiscipline: {
+    color: '#00E5FF',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
+  pbBadge: {
+    backgroundColor: 'rgba(0,229,255,0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(0,229,255,0.3)',
+  },
+  pbText: {
+    color: '#00E5FF',
+    fontSize: 8,
+    fontWeight: '900',
+  },
+  performanceRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  mainPerf: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  perfValue: {
+    color: '#FFF',
+    fontSize: 42,
+    fontWeight: '900',
+    lineHeight: 42,
+    textShadowColor: 'rgba(0,229,255,0.3)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
+  },
+  perfUnit: {
+    color: 'rgba(255,255,255,0.3)',
+    fontSize: 14,
+    fontWeight: '800',
+    marginBottom: 6,
+  },
+  windContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    marginBottom: 6,
+  },
+  windText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.05)',
+  },
+  competitionLabel: {
+    color: 'rgba(255,255,255,0.2)',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1,
   }
 });

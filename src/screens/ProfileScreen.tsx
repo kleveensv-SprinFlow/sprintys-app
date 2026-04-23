@@ -210,9 +210,8 @@ const ProfileScreen = () => {
 
       if (error) throw error;
 
-      setShowRecordsModal(false);
       fetchProfile();
-      Alert.alert('Succès', 'Tes records ont été mis à jour.');
+      Alert.alert('INCROYABLE ! 🚀', 'Performance de haut niveau enregistrée. Continue comme ça, champion !');
     } catch (error: any) {
       Alert.alert('Erreur', error.message);
     } finally {
