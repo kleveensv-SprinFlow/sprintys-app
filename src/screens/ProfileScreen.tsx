@@ -86,7 +86,7 @@ const ProfileScreen = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
 
-      // 1. Sauvegarde dans Auth Metadata (Toujours possible et sûr)
+      // 1. Sauvegarde dans Auth Metadata
       const { error: authError } = await supabase.auth.updateUser({
         data: { 
           first_name: editFirstName, 
@@ -97,14 +97,12 @@ const ProfileScreen = () => {
       if (authError) console.error('Auth update error:', authError);
 
       // 2. Sauvegarde dans la table profiles
-      // On tente d'inclure les noms, mais on est prêt à ce que la table ne les ait pas
       const profileData: any = { 
         id: session.user.id,
         personal_records: editRecords,
         updated_at: new Date().toISOString(),
       };
 
-      // On ajoute les noms seulement s'ils sont supportés par la table (testé au fetch)
       if (profile && 'first_name' in profile) {
         profileData.first_name = editFirstName;
         profileData.last_name = editLastName;
@@ -119,17 +117,13 @@ const ProfileScreen = () => {
         const dobYear = parseInt(editDob.split('-')[0]) || 1995;
         const age = new Date().getFullYear() - dobYear;
 
-        // BMR (Mifflin-St Jeor)
         const bmr = (10 * currentWeight) + (6.25 * h) - (5 * age) + 5;
-        
-        // Multiplicateurs
         const multipliers: Record<string, number> = { sedentary: 1.2, active: 1.55, very_active: 1.725 };
         const adjustments: Record<string, number> = { loss: -400, maintain: 0, gain: 300 };
 
         const tdee = bmr * (multipliers[editActivity] || 1.2);
         const targetCalories = Math.round(tdee + (adjustments[editGoal] || 0));
 
-        // Macros standard (Sportif de force/sprint)
         const p = Math.round(currentWeight * 2.2);
         const f = Math.round(currentWeight * 1.0);
         const c = Math.round((targetCalories - (p * 4) - (f * 9)) / 4);
@@ -145,10 +139,7 @@ const ProfileScreen = () => {
         .upsert(profileData);
 
       if (error) {
-        console.error('Profile table update error:', error);
-        // Si l'erreur est un 400, c'est probablement que les colonnes manquent
         if (error.code === '42703' || error.message.includes('column')) {
-           // On réessaie sans les colonnes problématiques
            const { error: retryError } = await supabase
             .from('profiles')
             .upsert({ 
@@ -184,41 +175,18 @@ const ProfileScreen = () => {
       }
 
       const result = useCamera
-        ? await ImagePicker.launchCameraAsync({
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.5,
-          })
-        : await ImagePicker.launchImageLibraryAsync({
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.5,
-          });
+        ? await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.5 })
+        : await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.5 });
 
       if (!result.canceled) {
         setUploading(true);
         const imageUri = result.assets[0].uri;
 
-        // Note: Dans une version complète, on uploaderait ici sur Supabase Storage.
-        // Pour l'instant, on sauvegarde l'URI locale ou on prépare le champ.
-        // On tente de sauvegarder l'URL de l'image
         const { error } = await supabase
           .from('profiles')
-          .upsert({ 
-            id: profile.id,
-            avatar_url: imageUri,
-            updated_at: new Date().toISOString()
-          });
+          .upsert({ id: profile.id, avatar_url: imageUri, updated_at: new Date().toISOString() });
 
-        if (error) {
-          console.error('Avatar save error:', error);
-          // Si la colonne avatar_url manque, on prévient mais on garde l'image localement pour la session
-          if (error.code === '42703') {
-             Alert.alert('Note', 'Ta photo est enregistrée localement mais pas sur le serveur (colonne manquante).');
-          } else {
-            throw error;
-          }
-        }
+        if (error && error.code !== '42703') throw error;
         
         setProfile({ ...profile, avatar_url: imageUri });
         Alert.alert('Succès', 'Photo de profil mise à jour !');
@@ -262,33 +230,23 @@ const ProfileScreen = () => {
   return (
     <View style={styles.container}>
       <View style={styles.lightBackground}>
-        <LinearGradient
-          colors={['rgba(0, 229, 255, 0.4)', 'transparent']}
-          style={[styles.lightCircle, styles.cyanCircle]}
-        />
-        <LinearGradient
-          colors={['rgba(191, 90, 242, 0.4)', 'transparent']}
-          style={[styles.lightCircle, styles.purpleCircle]}
-        />
+        <LinearGradient colors={['rgba(0, 229, 255, 0.4)', 'transparent']} style={[styles.lightCircle, styles.cyanCircle]} />
+        <LinearGradient colors={['rgba(191, 90, 242, 0.4)', 'transparent']} style={[styles.lightCircle, styles.purpleCircle]} />
       </View>
-      <BlurView 
-        intensity={Platform.OS === 'android' ? 80 : 100} 
-        tint="dark" 
-        style={[StyleSheet.absoluteFill, Platform.OS === 'android' && { backgroundColor: 'rgba(0,0,0,0.7)' }]} 
-      />
+      <BlurView intensity={Platform.OS === 'android' ? 80 : 100} tint="dark" style={[StyleSheet.absoluteFill, Platform.OS === 'android' && { backgroundColor: 'rgba(0,0,0,0.7)' }]} />
 
       <View style={styles.topHeader}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.topTitle}>MON PROFIL</Text>
-        <View style={{ width: 44 }} />
+        <TouchableOpacity onPress={showImageOptions} style={styles.backButton}>
+          <Ionicons name="camera" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <AthleteIdentityCard />
-
-        <View style={styles.section}>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -310,17 +268,11 @@ const ProfileScreen = () => {
 
         <ChecklistManagerCard />
 
-        <TouchableOpacity 
-          style={styles.editBtn}
-          onPress={() => setShowEditModal(true)}
-        >
+        <TouchableOpacity style={styles.editBtn} onPress={() => setShowEditModal(true)}>
           <Text style={styles.editBtnText}>MODIFIER MON PROFIL</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.logoutBtn}
-          onPress={() => signOutUser()}
-        >
+        <TouchableOpacity style={styles.logoutBtn} onPress={() => signOutUser()}>
           <Text style={styles.logoutBtnText}>DÉCONNEXION</Text>
         </TouchableOpacity>
 
@@ -336,60 +288,29 @@ const ProfileScreen = () => {
               <Text style={styles.modalSubTitle}>IDENTITÉ</Text>
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>PRÉNOM</Text>
-                <TextInput 
-                  style={styles.input}
-                  value={editFirstName}
-                  onChangeText={setEditFirstName}
-                  placeholder="Prénom"
-                  placeholderTextColor="#555"
-                />
+                <TextInput style={styles.input} value={editFirstName} onChangeText={setEditFirstName} placeholder="Prénom" placeholderTextColor="#555" />
               </View>
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>NOM</Text>
-                <TextInput 
-                  style={styles.input}
-                  value={editLastName}
-                  onChangeText={setEditLastName}
-                  placeholder="Nom"
-                  placeholderTextColor="#555"
-                />
+                <TextInput style={styles.input} value={editLastName} onChangeText={setEditLastName} placeholder="Nom" placeholderTextColor="#555" />
               </View>
 
               <Text style={styles.modalSubTitle}>MORPHOLOGIE & ACTIVITÉ</Text>
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>TAILLE (CM)</Text>
-                <TextInput 
-                  style={styles.input}
-                  value={editHeight}
-                  onChangeText={setEditHeight}
-                  placeholder="180"
-                  placeholderTextColor="#555"
-                  keyboardType="numeric"
-                />
+                <TextInput style={styles.input} value={editHeight} onChangeText={setEditHeight} placeholder="180" placeholderTextColor="#555" keyboardType="numeric" />
               </View>
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>DATE DE NAISSANCE (AAAA-MM-JJ)</Text>
-                <TextInput 
-                  style={styles.input}
-                  value={editDob}
-                  onChangeText={setEditDob}
-                  placeholder="1995-01-01"
-                  placeholderTextColor="#555"
-                />
+                <TextInput style={styles.input} value={editDob} onChangeText={setEditDob} placeholder="1995-01-01" placeholderTextColor="#555" />
               </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>NIVEAU D'ACTIVITÉ</Text>
                 <View style={styles.chipRow}>
                   {['sedentary', 'active', 'very_active'].map(level => (
-                    <TouchableOpacity 
-                      key={level}
-                      style={[styles.miniChip, editActivity === level && styles.miniChipActive]}
-                      onPress={() => setEditActivity(level)}
-                    >
-                      <Text style={[styles.miniChipText, editActivity === level && styles.miniChipTextActive]}>
-                        {level === 'sedentary' ? 'CALME' : level === 'active' ? 'ACTIF' : 'ÉLITE'}
-                      </Text>
+                    <TouchableOpacity key={level} style={[styles.miniChip, editActivity === level && styles.miniChipActive]} onPress={() => setEditActivity(level)}>
+                      <Text style={[styles.miniChipText, editActivity === level && styles.miniChipTextActive]}>{level === 'sedentary' ? 'CALME' : level === 'active' ? 'ACTIF' : 'ÉLITE'}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -399,53 +320,31 @@ const ProfileScreen = () => {
                 <Text style={styles.inputLabel}>OBJECTIF NUTRITIONNEL</Text>
                 <View style={styles.chipRow}>
                   {['loss', 'maintain', 'gain'].map(g => (
-                    <TouchableOpacity 
-                      key={g}
-                      style={[styles.miniChip, editGoal === g && styles.miniChipActive]}
-                      onPress={() => setEditGoal(g)}
-                    >
-                      <Text style={[styles.miniChipText, editGoal === g && styles.miniChipTextActive]}>
-                        {g === 'loss' ? 'PERTE' : g === 'maintain' ? 'MAINTIEN' : 'PRISE'}
-                      </Text>
+                    <TouchableOpacity key={g} style={[styles.miniChip, editGoal === g && styles.miniChipActive]} onPress={() => setEditGoal(g)}>
+                      <Text style={[styles.miniChipText, editGoal === g && styles.miniChipTextActive]}>{g === 'loss' ? 'PERTE' : g === 'maintain' ? 'MAINTIEN' : 'PRISE'}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               </View>
+
               <Text style={styles.modalSubTitle}>SPRINT (PB)</Text>
               {SPRINT_DISTANCES.map(d => (
                 <View key={d} style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>{d.toUpperCase()}</Text>
-                  <TextInput 
-                    style={styles.input}
-                    value={editRecords[d]}
-                    onChangeText={v => setEditRecords({...editRecords, [d]: v})}
-                    placeholder="--:--"
-                    placeholderTextColor="#555"
-                    keyboardType="numeric"
-                  />
+                  <TextInput style={styles.input} value={editRecords[d]} onChangeText={v => setEditRecords({...editRecords, [d]: v})} placeholder="--:--" placeholderTextColor="#555" keyboardType="numeric" />
                 </View>
               ))}
+
               <Text style={styles.modalSubTitle}>MUSCULATION (KG)</Text>
               {MUSCU_EXERCISES.map(e => (
                 <View key={e} style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>{e.toUpperCase()}</Text>
-                  <TextInput 
-                    style={styles.input}
-                    value={editRecords[e]}
-                    onChangeText={v => setEditRecords({...editRecords, [e]: v})}
-                    placeholder="0"
-                    placeholderTextColor="#555"
-                    keyboardType="numeric"
-                  />
+                  <TextInput style={styles.input} value={editRecords[e]} onChangeText={v => setEditRecords({...editRecords, [e]: v})} placeholder="0" placeholderTextColor="#555" keyboardType="numeric" />
                 </View>
               ))}
             </ScrollView>
             
-            <TouchableOpacity 
-              style={[styles.saveBtn, isSaving && { opacity: 0.7 }]} 
-              onPress={handleUpdateProfile}
-              disabled={isSaving}
-            >
+            <TouchableOpacity style={[styles.saveBtn, isSaving && { opacity: 0.7 }]} onPress={handleUpdateProfile} disabled={isSaving}>
               {isSaving ? <ActivityIndicator color="#000" /> : <Text style={styles.saveBtnText}>ENREGISTRER</Text>}
             </TouchableOpacity>
             <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowEditModal(false)}>
@@ -482,55 +381,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  topTitle: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: 2,
-    textAlign: 'center',
-  },
+  topTitle: { fontSize: 14, fontWeight: '900', color: '#FFFFFF', letterSpacing: 2, textAlign: 'center' },
   scrollContent: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 100 },
-  header: { alignItems: 'center', marginBottom: 40 },
-  avatarContainer: { position: 'relative' },
-  avatarImage: { width: '100%', height: '100%', borderRadius: 50 },
-  editBadge: {
-    position: 'absolute',
-    bottom: 25,
-    right: 0,
-    backgroundColor: '#00E5FF',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#1C1C1E',
-  },
-  uploadOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    overflow: 'hidden',
-  },
-  avatarText: { color: '#FFFFFF', fontSize: 40, fontWeight: '900' },
-  userName: { color: '#FFFFFF', fontSize: 22, fontWeight: '900', letterSpacing: 2, marginBottom: 4 },
-  userEmail: { color: '#8E8E93', fontSize: 13, fontWeight: '600', marginBottom: 20 },
-  goalContainer: { backgroundColor: 'rgba(0, 229, 255, 0.05)', padding: 16, borderRadius: 16, width: '100%', borderWidth: 1, borderColor: 'rgba(0, 229, 255, 0.2)', alignItems: 'center' },
-  goalLabel: { color: '#00E5FF', fontSize: 10, fontWeight: '900', letterSpacing: 1.5, marginBottom: 8 },
-  goalValue: { color: '#FFFFFF', fontSize: 15, fontWeight: '700', textAlign: 'center' },
   section: { marginBottom: 32 },
   sectionHeader: { marginBottom: 16, borderLeftWidth: 3, borderLeftColor: '#00E5FF', paddingLeft: 12 },
   sectionTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '900', letterSpacing: 1.5 },
