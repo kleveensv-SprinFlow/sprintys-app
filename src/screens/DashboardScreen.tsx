@@ -36,13 +36,20 @@ const formatDateToYYYYMMDD = (date: Date) => {
 
 const formatShortAddress = (address: string) => {
   if (!address) return '';
-  const parts = address.split(',');
-  if (parts.length <= 2) return address.toUpperCase();
+  const parts = address.split(',').map(p => p.trim());
   
-  // Souvent format Google : "Numéro Rue, Code Ville, Pays"
-  const street = parts[0].trim();
-  const cityZip = parts[1].trim();
-  return `${cityZip}, ${street}`.toUpperCase();
+  // Si l'adresse est courte, on l'affiche telle quelle
+  if (parts.length <= 1) return address.toUpperCase();
+  
+  // On essaie de garder : "Rue, Ville" ou "Numéro Rue, Ville"
+  // Typiquement : [0]=Rue, [1]=Code Ville, [2]=Pays
+  if (parts.length >= 2) {
+    const street = parts[0];
+    const city = parts[1];
+    return `${street}, ${city}`.toUpperCase();
+  }
+  
+  return address.toUpperCase();
 };
 
 const DashboardScreen = () => {
