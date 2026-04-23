@@ -6,6 +6,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './src/services/supabaseClient';
 
+import * as SplashScreen from 'expo-splash-screen';
+
 import AuthScreen from './src/screens/AuthScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import TabNavigator from './src/navigation/TabNavigator';
@@ -15,6 +17,11 @@ import DayDetailScreen from './src/screens/DayDetailScreen';
 import WeatherDetailScreen from './src/screens/WeatherDetailScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import { BootScreen } from './src/screens/BootScreen';
+
+// Keep the splash screen visible while we fetch resources
+SplashScreen.preventAutoHideAsync().catch(() => {
+  /* reload might happen */
+});
 
 const Stack = createNativeStackNavigator();
 
@@ -35,6 +42,7 @@ export default function App() {
     // Phase d'initialisation avec sécurité (timeout 2.5s)
     const safetyTimeout = setTimeout(() => {
       setIsAppReady(true);
+      SplashScreen.hideAsync().catch(() => {});
       setTimeout(() => setIsBooting(false), 500);
     }, 2500);
 
@@ -56,6 +64,8 @@ export default function App() {
       } finally {
         clearTimeout(safetyTimeout);
         setIsAppReady(true);
+        // Hide native splash screen
+        await SplashScreen.hideAsync().catch(() => {});
         // Laisser l'animation Lottie se jouer un peu
         setTimeout(() => setIsBooting(false), 1500);
       }
