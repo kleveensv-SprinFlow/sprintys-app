@@ -37,8 +37,11 @@ const DashboardScreen = () => {
   const [dailyScore, setDailyScore] = useState<number | null>(null);
   const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
   const [lastWorkout, setLastWorkout] = useState<any>(null);
+  
+  const [tomorrowCompetition, setTomorrowCompetition] = useState<any>(null);
   const [todayCompetition, setTodayCompetition] = useState<any>(null);
   const [yesterdayCompetition, setYesterdayCompetition] = useState<any>(null);
+  
   const [weather, setWeather] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [checkedItems, setCheckedItems] = useState<string[]>([]);
@@ -73,26 +76,17 @@ const DashboardScreen = () => {
           setUserName(profileData.first_name || user.email?.split('@')[0] || 'Athlète');
         }
 
-        // Fetch Check-ins
-        const { data: checkinData } = await supabase
-          .from('daily_checkins')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1);
-
-        if (checkinData && checkinData.length > 0) {
-          const today = formatDateToYYYYMMDD(new Date());
-          const latestCheckinDate = checkinData[0].created_at.split('T')[0];
-          setHasCheckedInToday(today === latestCheckinDate);
-          setDailyScore(Math.round(((checkinData[0].sleep_score + checkinData[0].energy_score) / 20) * 100));
-        }
-
-        // Corrected Date Logic
-        const todayStr = formatDateToYYYYMMDD(new Date());
-        const yesterdayDate = new Date();
+        // Dates Logic
+        const now = new Date();
+        const todayStr = formatDateToYYYYMMDD(now);
+        
+        const yesterdayDate = new Date(now);
         yesterdayDate.setDate(yesterdayDate.getDate() - 1);
         const yesterdayStr = formatDateToYYYYMMDD(yesterdayDate);
+
+        const tomorrowDate = new Date(now);
+        tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+        const tomorrowStr = formatDateToYYYYMMDD(tomorrowDate);
 
         // Fetch Workouts
         const { data: workouts } = await supabase
@@ -101,23 +95,37 @@ const DashboardScreen = () => {
           .eq('user_id', user.id);
 
         if (workouts) {
-          // Today's Competition
-          const todayComp = workouts.find(w => w.is_competition && w.created_at.startsWith(todayStr));
-          setTodayCompetition(todayComp || null);
+          // J-1 : Tomorrow's Competition
+          setTomorrowCompetition(workouts.find(w => w.is_competition && w.created_at.startsWith(tomorrowStr)) || null);
+          
+          // Jour J : Today's Competition
+          setTodayCompetition(workouts.find(w => w.is_competition && w.created_at.startsWith(todayStr)) || null);
 
-          // Yesterday's Competition (without results)
-          const yestComp = workouts.find(w => 
+          // J+1 : Yesterday's Competition (without results)
+          setYesterdayCompetition(workouts.find(w => 
             w.is_competition && 
             w.created_at.startsWith(yesterdayStr) && 
-            !w.results // Results field is null or empty
-          );
-          setYesterdayCompetition(yestComp || null);
+            !w.results
+          ) || null);
 
           // Last Normal Workout
           const normalWorkouts = workouts
             .filter(w => !w.is_competition)
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
           setLastWorkout(normalWorkouts[0] || null);
+        }
+
+        // Check-ins
+        const { data: checkinData } = await supabase
+          .from('daily_checkins')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (checkinData && checkinData.length > 0) {
+          setHasCheckedInToday(todayStr === checkinData[0].created_at.split('T')[0]);
+          setDailyScore(Math.round(((checkinData[0].sleep_score + checkinData[0].energy_score) / 20) * 100));
         }
       }
     } catch (error) {
@@ -127,9 +135,21 @@ const DashboardScreen = () => {
     }
   };
 
+  const calculateMealTime = (schedule: any[]) => {
+    if (!schedule || schedule.length === 0) return null;
+    // Sort to find the first race
+    const sorted = [...schedule].sort((a, b) => a.time.localeCompare(b.time));
+    const firstRace = sorted[0].time; // "HH:MM"
+    
+    const [hours, minutes] = firstRace.split(':').map(Number);
+    let mealHours = hours - 4;
+    if (mealHours < 0) mealHours += 24;
+    
+    return `${mealHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  };
+
   const handleDebriefSubmit = async (place: string, mark: string, feeling: string) => {
     if (!yesterdayCompetition) return;
-
     try {
       const results = [{ place, mark, feeling }];
       const { error } = await supabase
@@ -141,27 +161,39 @@ const DashboardScreen = () => {
         .eq('id', yesterdayCompetition.id);
 
       if (error) throw error;
-
       setIsDebriefModalVisible(false);
-      setYesterdayCompetition(null); // Hide the card
+      setYesterdayCompetition(null);
       Alert.alert('Succès', 'Ton débriefing a été enregistré.');
-    } catch (error: any) {
+    } catch (error) {
       Alert.alert('Erreur', 'Impossible de sauvegarder le débriefing.');
     }
   };
 
   const toggleCheckItem = (item: string) => {
-    setCheckedItems(prev => 
-      prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]
-    );
+    setCheckedItems(prev => prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]);
   };
 
-  const getSprintyAdvice = () => {
-    if (todayCompetition) return "JOUR DE COURSE. C'est le moment de tout donner. Concentre-toi sur ton processus d'échauffement et reste dans ta bulle.";
-    if (yesterdayCompetition) return "ANALYSE REQUISE. Une compétition est terminée. Saisis tes résultats pour mettre à jour ta Record Room.";
-    if (!hasCheckedInToday) return "Fais ton check-in pour recevoir ton analyse de performance.";
-    return "MAINTIEN. Séance modérée possible. Écoute tes sensations sur tes premières accélérations.";
-  };
+  const renderChecklist = (checklist: string[]) => (
+    <View style={styles.bagSection}>
+      <Text style={styles.bagTitle}>MA CHECK-LIST SAC</Text>
+      {checklist.length > 0 ? (
+        checklist.map((item: string, idx: number) => (
+          <TouchableOpacity key={idx} style={styles.checkItem} onPress={() => toggleCheckItem(item)}>
+            <Ionicons 
+              name={checkedItems.includes(item) ? "checkbox" : "square-outline"} 
+              size={20} 
+              color={checkedItems.includes(item) ? "#00E5FF" : "#8E8E93"} 
+            />
+            <Text style={[styles.checkText, checkedItems.includes(item) && styles.checkTextActive]}>
+              {item.toUpperCase()}
+            </Text>
+          </TouchableOpacity>
+        ))
+      ) : (
+        <Text style={styles.emptyText}>CONFIGURER MA LISTE DANS LE PROFIL</Text>
+      )}
+    </View>
+  );
 
   if (loading) {
     return (
@@ -205,12 +237,18 @@ const DashboardScreen = () => {
           <BlurView intensity={60} tint="default" style={[styles.mainCard, styles.debriefCard]}>
             <Text style={styles.debriefTitle}>DÉBRIEFING EN ATTENTE</Text>
             <Text style={styles.debriefText}>Comment s'est passée ta compétition hier ?</Text>
-            <TouchableOpacity 
-              style={styles.debriefBtn} 
-              onPress={() => setIsDebriefModalVisible(true)}
-            >
+            <TouchableOpacity style={styles.debriefBtn} onPress={() => setIsDebriefModalVisible(true)}>
               <Text style={styles.debriefBtnText}>SAISIR MES RÉSULTATS</Text>
             </TouchableOpacity>
+          </BlurView>
+        )}
+
+        {/* MODE J-1 : Préparation */}
+        {tomorrowCompetition && (
+          <BlurView intensity={60} tint="default" style={[styles.mainCard, styles.prepCard]}>
+            <Text style={styles.prepTitle}>PRÉPARATION J-1</Text>
+            <Text style={styles.prepMain}>COMPÉTITION DEMAIN À {tomorrowCompetition.city?.toUpperCase()}</Text>
+            {renderChecklist(profile?.competition_checklist || [])}
           </BlurView>
         )}
 
@@ -221,48 +259,27 @@ const DashboardScreen = () => {
             <Text style={styles.compFocusMain}>{todayCompetition.city?.toUpperCase() || 'STADE'}</Text>
             
             {todayCompetition.address && (
-              <TouchableOpacity 
-                style={styles.addressBtn} 
-                onPress={() => Linking.openURL(`geo:0,0?q=${todayCompetition.address}`)}
-              >
+              <TouchableOpacity style={styles.addressBtn} onPress={() => Linking.openURL(`geo:0,0?q=${todayCompetition.address}`)}>
                 <Ionicons name="location" size={14} color="#00E5FF" />
                 <Text style={styles.addressText}>{todayCompetition.address.toUpperCase()}</Text>
               </TouchableOpacity>
             )}
 
-            <View style={styles.bagSection}>
-              <Text style={styles.bagTitle}>MA CHECK-LIST SAC</Text>
-              {(profile?.competition_checklist || []).length > 0 ? (
-                profile?.competition_checklist?.map((item: string, idx: number) => (
-                  <TouchableOpacity key={idx} style={styles.checkItem} onPress={() => toggleCheckItem(item)}>
-                    <Ionicons 
-                      name={checkedItems.includes(item) ? "checkbox" : "square-outline"} 
-                      size={20} 
-                      color={checkedItems.includes(item) ? "#00E5FF" : "#8E8E93"} 
-                    />
-                    <Text style={[styles.checkText, checkedItems.includes(item) && styles.checkTextActive]}>
-                      {item.toUpperCase()}
-                    </Text>
-                  </TouchableOpacity>
-                ))
-              ) : (
-                <Text style={styles.emptyText}>CONFIGURER MA LISTE DANS LE PROFIL</Text>
-              )}
-            </View>
+            {renderChecklist(profile?.competition_checklist || [])}
 
             <View style={styles.nutritionSection}>
               <View style={styles.nutriAlert}>
-                <Text style={styles.nutriTime}>⏱️ H-4</Text>
-                <Text style={styles.nutriAdvice}>Dernier gros repas riche en glucides</Text>
+                <Text style={styles.nutriTime}>⏱️ {calculateMealTime(todayCompetition.competition_schedule) || 'H-4'}</Text>
+                <Text style={styles.nutriAdvice}>DERNIER GROS REPAS (GLUCIDES)</Text>
               </View>
               <View style={styles.nutriAlert}>
                 <Text style={styles.nutriTime}>⚡ H-1</Text>
-                <Text style={styles.nutriAdvice}>Boisson d'effort & Échauffement</Text>
+                <Text style={styles.nutriAdvice}>BOISSON D'EFFORT & ÉCHAUFFEMENT</Text>
               </View>
             </View>
           </BlurView>
-        ) : (
-          /* DASHBOARD NORMAL */
+        ) : !tomorrowCompetition && !yesterdayCompetition && (
+          /* DASHBOARD NORMAL (Si pas de comp J-1, J, J+1) */
           <>
             <BlurView intensity={40} tint="default" style={styles.mainCard}>
               <Text style={styles.cardTitle}>ÉTAT DE FORME</Text>
@@ -280,10 +297,11 @@ const DashboardScreen = () => {
               )}
             </BlurView>
 
-            {/* Analyse Sprinty */}
             <BlurView intensity={60} tint="default" style={[styles.mainCard, styles.sprintyCard]}>
               <Text style={styles.sprintyTitle}>ANALYSE SPRINTY</Text>
-              <Text style={styles.sprintyAdvice}>{getSprintyAdvice()}</Text>
+              <Text style={styles.sprintyAdvice}>
+                {hasCheckedInToday ? "MAINTIEN. Séance modérée possible." : "Fais ton check-in pour recevoir ton analyse."}
+              </Text>
             </BlurView>
           </>
         )}
@@ -330,8 +348,11 @@ const styles = StyleSheet.create({
   debriefCard: { borderColor: '#00E5FF', backgroundColor: 'rgba(0, 229, 255, 0.1)' },
   debriefTitle: { color: '#00E5FF', fontSize: 12, fontWeight: '900', marginBottom: 8, letterSpacing: 1 },
   debriefText: { color: '#FFF', fontSize: 16, fontWeight: '700', marginBottom: 16 },
-  debriefBtn: { backgroundColor: '#00E5FF', paddingVertical: 12, borderRadius: 12, alignItems: 'center', shadowColor: '#00E5FF', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.8, shadowRadius: 10 },
+  debriefBtn: { backgroundColor: '#00E5FF', paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
   debriefBtnText: { color: '#000', fontWeight: '900', fontSize: 13 },
+  prepCard: { borderColor: '#BF5AF2', backgroundColor: 'rgba(191, 90, 242, 0.05)' },
+  prepTitle: { color: '#BF5AF2', fontSize: 12, fontWeight: '900', marginBottom: 8, letterSpacing: 1 },
+  prepMain: { color: '#FFF', fontSize: 20, fontWeight: '900', marginBottom: 20 },
   compFocusCard: { borderColor: '#00E5FF', borderWidth: 2 },
   compFocusTitle: { color: '#00E5FF', fontSize: 12, fontWeight: '900', marginBottom: 8, letterSpacing: 1 },
   compFocusMain: { color: '#FFF', fontSize: 28, fontWeight: '900', marginBottom: 16 },
@@ -345,8 +366,8 @@ const styles = StyleSheet.create({
   emptyText: { color: '#555', fontSize: 11, fontWeight: '800' },
   nutritionSection: { borderTopWidth: 1, borderTopColor: 'rgba(255, 255, 255, 0.1)', paddingTop: 20, gap: 12 },
   nutriAlert: { flexDirection: 'row', gap: 12, alignItems: 'center' },
-  nutriTime: { color: '#00E5FF', fontSize: 12, fontWeight: '900', width: 45 },
-  nutriAdvice: { color: '#FFF', fontSize: 13, fontWeight: '600' },
+  nutriTime: { color: '#00E5FF', fontSize: 12, fontWeight: '900', width: 55 },
+  nutriAdvice: { color: '#FFF', fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
 });
 
 export default DashboardScreen;
