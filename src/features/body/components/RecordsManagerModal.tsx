@@ -25,9 +25,10 @@ interface Props {
   onClose: () => void;
   records: any;
   onSave: (newRecords: any) => void;
+  onQuickAdd: () => void;
 }
 
-export const RecordsManagerModal = ({ visible, onClose, records, onSave }: Props) => {
+export const RecordsManagerModal = ({ visible, onClose, records, onSave, onQuickAdd }: Props) => {
   const [activeTab, setActiveTab] = useState<'official' | 'training'>('official');
   const [activeTrainingSubTab, setActiveTrainingSubTab] = useState<'athle' | 'muscu'>('athle');
   const [showAddList, setShowAddList] = useState(false);
@@ -115,7 +116,12 @@ export const RecordsManagerModal = ({ visible, onClose, records, onSave }: Props
       <BlurView intensity={100} tint="dark" style={styles.container}>
         <View style={styles.content}>
           <View style={styles.header}>
-            <Text style={styles.title}>MES RECORDS</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Text style={styles.title}>MES RECORDS</Text>
+              <TouchableOpacity onPress={onQuickAdd} style={styles.headerAddBtn}>
+                <Ionicons name="add" size={22} color="#00E5FF" />
+              </TouchableOpacity>
+            </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
               <Ionicons name="close" size={24} color="#FFF" />
             </TouchableOpacity>
@@ -240,36 +246,14 @@ const styles = StyleSheet.create({
   saveBtn: { marginTop: 16, borderRadius: 16, overflow: 'hidden' },
   saveGradient: { paddingVertical: 18, alignItems: 'center' },
   saveText: { color: '#000', fontSize: 14, fontWeight: '900', letterSpacing: 1 },
-  addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  headerAddBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 229, 255, 0.1)',
     justifyContent: 'center',
-    padding: 20,
-    borderRadius: 20,
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(0, 229, 255, 0.3)',
-    borderStyle: 'dashed',
-    gap: 8,
-    marginTop: 8,
-  },
-  addBtnText: { color: '#00E5FF', fontSize: 12, fontWeight: '800', letterSpacing: 1 },
-  addListContainer: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 24,
-    padding: 20,
-    marginTop: 8,
-  },
-  addListTitle: { color: 'rgba(255,255,255,0.4)', fontSize: 10, fontWeight: '900', marginBottom: 16, textAlign: 'center', letterSpacing: 1 },
-  addGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' },
-  addItem: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  addItemText: { color: '#FFF', fontSize: 10, fontWeight: '800' },
-  cancelAddBtn: { marginTop: 20, alignItems: 'center' },
-  cancelAddText: { color: '#FF453A', fontSize: 11, fontWeight: '800' },
+    borderColor: 'rgba(0, 229, 255, 0.2)',
+  }
 });

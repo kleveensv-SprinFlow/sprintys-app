@@ -317,12 +317,6 @@ const ProfileScreen = () => {
               <Text style={styles.recordsCardTitle}>MES RECORDS</Text>
               <Text style={styles.recordsCardSub}>Officiels & Entraînement</Text>
             </View>
-            <TouchableOpacity 
-              style={styles.quickAddBtn} 
-              onPress={() => setShowQuickAddModal(true)}
-            >
-              <Ionicons name="add" size={24} color="#00E5FF" />
-            </TouchableOpacity>
             <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.3)" />
           </LinearGradient>
         </TouchableOpacity>
@@ -422,6 +416,7 @@ const ProfileScreen = () => {
         onClose={() => setShowRecordsModal(false)}
         records={profile?.personal_records}
         onSave={handleSaveRecords}
+        onQuickAdd={() => setShowQuickAddModal(true)}
       />
 
       {/* Quick Add Record Modal */}
