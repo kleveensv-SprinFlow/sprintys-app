@@ -33,12 +33,20 @@ export const RecordsManagerModal = ({ visible, onClose, records, onSave, onQuick
   const [activeTrainingSubTab, setActiveTrainingSubTab] = useState<'athle' | 'muscu'>('athle');
 
   const renderOfficialItem = (discipline: string) => {
-    const data = records?.official?.[discipline] || { value: '', wind: '' };
+    const history = records?.official?.[discipline] || [];
+    // Si c'est encore l'ancien format (objet simple), on simule un historique
+    const entries = Array.isArray(history) ? history : [history];
+    
+    // Meilleur record (temps le plus bas)
+    const best = entries.length > 0 
+      ? entries.reduce((prev, curr) => parseFloat(curr.value) < parseFloat(prev.value) ? curr : prev)
+      : { value: '--', wind: '' };
+
     return (
       <TouchableOpacity 
         key={discipline} 
         activeOpacity={0.8}
-        onPress={() => onQuickAdd({ type: 'official', discipline, ...data })}
+        onPress={() => onQuickAdd({ type: 'official', discipline, history: entries })}
       >
         <LinearGradient
           colors={['rgba(255,255,255,0.05)', 'rgba(0,229,255,0.02)']}
@@ -47,27 +55,27 @@ export const RecordsManagerModal = ({ visible, onClose, records, onSave, onQuick
           <View style={styles.cardHeader}>
             <Text style={styles.premiumDiscipline}>{discipline.toUpperCase()}</Text>
             <View style={styles.pbBadge}>
-              <Text style={styles.pbText}>PB</Text>
+              <Text style={styles.pbText}>BEST</Text>
             </View>
           </View>
           
           <View style={styles.performanceRow}>
             <View style={styles.mainPerf}>
-              <Text style={styles.perfValue}>{data.value || '--'}</Text>
+              <Text style={styles.perfValue}>{best.value}</Text>
               <Text style={styles.perfUnit}>SEC</Text>
             </View>
             
-            {data.wind && (
+            {best.wind && (
               <View style={styles.windContainer}>
                 <Ionicons name="flag" size={12} color="rgba(255,255,255,0.4)" />
-                <Text style={styles.windText}>{data.wind > 0 ? `+${data.wind}` : data.wind} m/s</Text>
+                <Text style={styles.windText}>{parseFloat(best.wind) > 0 ? `+${best.wind}` : best.wind} m/s</Text>
               </View>
             )}
           </View>
           
           <View style={styles.cardFooter}>
-            <Text style={styles.competitionLabel}>COMPÉTITION OFFICIELLE</Text>
-            <Ionicons name="chevron-forward" size={14} color="rgba(0,229,255,0.3)" />
+            <Text style={styles.competitionLabel}>HISTORIQUE & PROGRESSION</Text>
+            <Ionicons name="stats-chart" size={14} color="rgba(0,229,255,0.3)" />
           </View>
         </LinearGradient>
       </TouchableOpacity>
@@ -76,7 +84,19 @@ export const RecordsManagerModal = ({ visible, onClose, records, onSave, onQuick
 
   const renderTrainingItem = (discipline: string, isMuscu = false) => {
     const cat = isMuscu ? 'muscu' : 'athle';
-    const data = records?.training?.[cat]?.[discipline] || '';
+    const history = records?.training?.[cat]?.[discipline] || [];
+    const entries = Array.isArray(history) ? history : [typeof history === 'string' ? { value: history } : history];
+
+    // Meilleur record (max pour muscu, min pour athle)
+    const best = entries.length > 0
+      ? entries.reduce((prev, curr) => {
+          const vP = parseFloat(prev.value);
+          const vC = parseFloat(curr.value);
+          if (isMuscu) return vC > vP ? curr : prev;
+          return vC < vP ? curr : prev;
+        })
+      : { value: '--' };
+
     return (
       <TouchableOpacity 
         key={discipline} 
@@ -84,7 +104,7 @@ export const RecordsManagerModal = ({ visible, onClose, records, onSave, onQuick
         onPress={() => onQuickAdd({ 
           type: isMuscu ? 'training_muscu' : 'training_athle', 
           discipline, 
-          value: data 
+          history: entries 
         })}
       >
         <LinearGradient
@@ -98,14 +118,14 @@ export const RecordsManagerModal = ({ visible, onClose, records, onSave, onQuick
 
           <View style={styles.performanceRow}>
             <View style={styles.mainPerf}>
-              <Text style={styles.perfValue}>{data || '--'}</Text>
+              <Text style={styles.perfValue}>{best.value}</Text>
               <Text style={styles.perfUnit}>{isMuscu ? 'KG' : 'SEC'}</Text>
             </View>
           </View>
 
           <View style={styles.cardFooter}>
-            <Text style={styles.competitionLabel}>ENTRAÎNEMENT</Text>
-            <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.1)" />
+            <Text style={styles.competitionLabel}>HISTORIQUE & PROGRESSION</Text>
+            <Ionicons name="stats-chart" size={14} color="rgba(255,255,255,0.1)" />
           </View>
         </LinearGradient>
       </TouchableOpacity>
@@ -164,11 +184,11 @@ export const RecordsManagerModal = ({ visible, onClose, records, onSave, onQuick
           <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
             <View style={styles.grid}>
               {activeTab === 'official' ? (
-                ATHLETICS_DISCIPLINES.filter(d => records?.official?.[d]?.value?.length > 0).map(renderOfficialItem)
+                ATHLETICS_DISCIPLINES.filter(d => records?.official?.[d] && (Array.isArray(records.official[d]) ? records.official[d].length > 0 : true)).map(renderOfficialItem)
               ) : (
                 activeTrainingSubTab === 'athle' 
-                  ? ATHLETICS_DISCIPLINES.filter(d => records?.training?.athle?.[d]?.length > 0).map(d => renderTrainingItem(d))
-                  : MUSCU_EXERCISES.filter(e => records?.training?.muscu?.[e]?.length > 0).map(e => renderTrainingItem(e, true))
+                  ? ATHLETICS_DISCIPLINES.filter(d => records?.training?.athle?.[d] && (Array.isArray(records.training.athle[d]) ? records.training.athle[d].length > 0 : true)).map(d => renderTrainingItem(d))
+                  : MUSCU_EXERCISES.filter(e => records?.training?.muscu?.[e] && (Array.isArray(records.training.muscu[e]) ? records.training.muscu[e].length > 0 : true)).map(e => renderTrainingItem(e, true))
               )}
             </View>
             <View style={{ height: 40 }} />

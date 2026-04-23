@@ -60,6 +60,8 @@ const ProfileScreen = () => {
   const [showRecordsModal, setShowRecordsModal] = useState(false);
   const [showQuickAddModal, setShowQuickAddModal] = useState(false);
   const [quickAddInitialData, setQuickAddInitialData] = useState<any>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedDetailData, setSelectedDetailData] = useState<any>(null);
   
   const navigation = useNavigation<any>();
 
@@ -211,11 +213,34 @@ const ProfileScreen = () => {
       if (error) throw error;
 
       fetchProfile();
-      Alert.alert('INCROYABLE ! 🚀', 'Performance de haut niveau enregistrée. Continue comme ça, champion !');
+      if (!isDelete) {
+        Alert.alert('INCROYABLE ! 🚀', 'Performance de haut niveau enregistrée. Continue comme ça, champion !');
+      }
     } catch (error: any) {
       Alert.alert('Erreur', error.message);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDeleteRecordEntry = async (type: string, discipline: string, entryIndex: number) => {
+    try {
+      const current = { ...profile?.personal_records };
+      let history = [];
+      if (type === 'official') {
+        history = current.official?.[discipline] || [];
+        history.splice(entryIndex, 1);
+        current.official[discipline] = history;
+      } else {
+        const cat = type === 'training_muscu' ? 'muscu' : 'athle';
+        history = current.training?.[cat]?.[discipline] || [];
+        history.splice(entryIndex, 1);
+        current.training[cat][discipline] = history;
+      }
+      await handleSaveRecords(current, true);
+      setShowDetailModal(false);
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -417,8 +442,14 @@ const ProfileScreen = () => {
         records={profile?.personal_records}
         onSave={handleSaveRecords}
         onQuickAdd={(data: any) => {
-          setQuickAddInitialData(data || null);
-          setShowQuickAddModal(true);
+          if (data) {
+            // Ouvrir le détail au lieu de l'édition
+            setSelectedDetailData(data);
+            setShowDetailModal(true);
+          } else {
+            setQuickAddInitialData(null);
+            setShowQuickAddModal(true);
+          }
         }}
       />
 
@@ -434,6 +465,14 @@ const ProfileScreen = () => {
           initialData={quickAddInitialData}
         />
       </Modal>
+
+      {/* Detail & Progress Modal */}
+      <RecordDetailModal 
+        visible={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        data={selectedDetailData}
+        onDelete={handleDeleteRecordEntry}
+      />
     </View>
   );
 };
@@ -535,7 +574,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 8,
-  }
+  },
+  detailHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  detailTitle: { color: '#00E5FF', fontSize: 24, fontWeight: '900', letterSpacing: 2 },
+  detailSectionTitle: { color: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: '800', letterSpacing: 1, marginBottom: 16 },
+  emptyGraph: { height: 150, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 20, borderStyle: 'dashed', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  emptyGraphText: { color: 'rgba(255,255,255,0.2)', fontSize: 10, fontWeight: '900', marginTop: 12 },
+  emptyGraphSub: { color: 'rgba(255,255,255,0.1)', fontSize: 8, fontWeight: '700', marginTop: 4 },
+  graphContainer: { height: 180, alignItems: 'center' },
+  pointInfo: { marginTop: 16, alignItems: 'center' },
+  pointValue: { color: '#FFF', fontSize: 18, fontWeight: '900' },
+  pointDate: { color: '#00E5FF', fontSize: 12, fontWeight: '700' },
+  historyRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 16, marginBottom: 8 },
+  historyValue: { color: '#FFF', fontSize: 16, fontWeight: '800' },
+  historyDate: { color: 'rgba(255,255,255,0.4)', fontSize: 10, fontWeight: '700' },
+  deleteEntryBtn: { padding: 8 },
 });
 
 // Modal Interne pour l'ajout rapide
@@ -544,86 +597,112 @@ const QuickAddRecordModal = ({ onClose, onSave, currentRecords, initialData }: a
   const [discipline, setDiscipline] = useState(initialData?.discipline || '');
   const [value, setValue] = useState(initialData?.value || '');
   const [wind, setWind] = useState(initialData?.wind || '');
+  
+  const today = new Date();
+  const defaultDateStr = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
+  const [date, setDate] = useState(defaultDateStr);
 
   const disciplines = type === 'training_muscu' 
     ? ['Squat', 'Power Clean', 'Bench Press', 'Deadlift', 'Hip Thrust']
     : ['60m', '100m', '200m', '400m', 'Longueur', 'Triple'];
 
-  useEffect(() => {
-    if (initialData) {
-      setType(initialData.type);
-      setDiscipline(initialData.discipline);
-      setValue(initialData.value);
-      setWind(initialData.wind || '');
-    }
-  }, [initialData]);
-
   const handleSave = () => {
-    if (!discipline || !value) {
-      Alert.alert('Erreur', 'Veuillez remplir la discipline et la valeur.');
+    if (!discipline || !value || !date) {
+      Alert.alert('Erreur', 'Veuillez remplir tous les champs.');
       return;
     }
 
     const updated = { ...currentRecords };
+    
+    // Migration helper & structure update
+    const ensureArray = (obj: any, key: string) => {
+      if (!obj[key]) obj[key] = [];
+      // Si c'est l'ancien format (objet simple au lieu de tableau d'historique)
+      if (!Array.isArray(obj[key])) {
+        const old = obj[key];
+        obj[key] = [typeof old === 'string' ? { value: old, date: '2024-01-01' } : { ...old, date: '2024-01-01' }];
+      }
+    };
+
+    const formattedDate = date.split('/').reverse().join('-'); // JJ/MM/AAAA -> YYYY-MM-DD
+    const newEntry: any = { value, date: formattedDate };
+    if (type === 'official' && wind) newEntry.wind = wind;
+
     if (type === 'official') {
       if (!updated.official) updated.official = {};
-      updated.official[discipline] = { value, wind };
+      ensureArray(updated.official, discipline);
+      updated.official[discipline].push(newEntry);
+      // Sort by date
+      updated.official[discipline].sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
     } else {
       const cat = type === 'training_athle' ? 'athle' : 'muscu';
       if (!updated.training) updated.training = { athle: {}, muscu: {} };
-      updated.training[cat][discipline] = value;
+      if (!updated.training[cat]) updated.training[cat] = {};
+      ensureArray(updated.training[cat], discipline);
+      updated.training[cat][discipline].push(newEntry);
+      updated.training[cat][discipline].sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
     }
 
     onSave(updated);
     onClose();
   };
 
+  const handleDateInput = (text: string) => {
+    let cleaned = text.replace(/\D/g, '');
+    if (cleaned.length > 8) cleaned = cleaned.slice(0, 8);
+    let formatted = cleaned;
+    if (cleaned.length > 4) formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}/${cleaned.slice(4)}`;
+    else if (cleaned.length > 2) formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2)}`;
+    setDate(formatted);
+  };
+
   return (
     <BlurView intensity={100} tint="dark" style={styles.modalOverlay}>
       <View style={[styles.modalContent, { height: 'auto', paddingBottom: 40 }]}>
-        <Text style={styles.modalTitle}>{initialData ? 'MODIFIER RECORD' : 'AJOUTER UN RECORD'}</Text>
+        <Text style={styles.modalTitle}>AJOUTER UN RECORD</Text>
         
         <ScrollView style={{ maxHeight: 500 }} showsVerticalScrollIndicator={false}>
-          {!initialData && (
-            <>
-              <Text style={styles.inputLabel}>TYPE DE RECORD</Text>
-              <View style={styles.chipRow}>
-                {[
-                  { id: 'official', label: 'COMPÉTITION' },
-                  { id: 'training_athle', label: 'ENTRAÎNEMENT' },
-                  { id: 'training_muscu', label: 'MUSCU' }
-                ].map(t => (
-                  <TouchableOpacity 
-                    key={t.id} 
-                    style={[styles.miniChip, type === t.id && styles.miniChipActive]}
-                    onPress={() => { setType(t.id as any); setDiscipline(''); }}
-                  >
-                    <Text style={[styles.miniChipText, type === t.id && styles.miniChipTextActive]}>{t.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+          <Text style={styles.inputLabel}>TYPE DE RECORD</Text>
+          <View style={styles.chipRow}>
+            {[
+              { id: 'official', label: 'COMPÉTITION' },
+              { id: 'training_athle', label: 'ENTRAÎNEMENT' },
+              { id: 'training_muscu', label: 'MUSCU' }
+            ].map(t => (
+              <TouchableOpacity 
+                key={t.id} 
+                style={[styles.miniChip, type === t.id && styles.miniChipActive]}
+                onPress={() => { setType(t.id as any); setDiscipline(''); }}
+              >
+                <Text style={[styles.miniChipText, type === t.id && styles.miniChipTextActive]}>{t.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-              <Text style={[styles.inputLabel, { marginTop: 20 }]}>DISCIPLINE</Text>
-              <View style={styles.chipRow}>
-                {disciplines.map(d => (
-                  <TouchableOpacity 
-                    key={d} 
-                    style={[styles.miniChip, discipline === d && styles.miniChipActive]}
-                    onPress={() => setDiscipline(d)}
-                  >
-                    <Text style={[styles.miniChipText, discipline === d && styles.miniChipTextActive]}>{d.toUpperCase()}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </>
-          )}
+          <Text style={[styles.inputLabel, { marginTop: 20 }]}>DISCIPLINE</Text>
+          <View style={styles.chipRow}>
+            {disciplines.map(d => (
+              <TouchableOpacity 
+                key={d} 
+                style={[styles.miniChip, discipline === d && styles.miniChipActive]}
+                onPress={() => setDiscipline(d)}
+              >
+                <Text style={[styles.miniChipText, discipline === d && styles.miniChipTextActive]}>{d.toUpperCase()}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-          {initialData && (
-            <View style={{ marginBottom: 20 }}>
-              <Text style={styles.inputLabel}>DISCIPLINE SÉLECTIONNÉE</Text>
-              <Text style={{ color: '#00E5FF', fontSize: 18, fontWeight: '900' }}>{discipline.toUpperCase()}</Text>
-            </View>
-          )}
+          <View style={{ marginTop: 20 }}>
+            <Text style={styles.inputLabel}>DATE (JJ/MM/AAAA)</Text>
+            <TextInput 
+              style={styles.input} 
+              value={date} 
+              onChangeText={handleDateInput} 
+              placeholder="JJ/MM/AAAA" 
+              placeholderTextColor="#555" 
+              keyboardType="numeric" 
+            />
+          </View>
 
           <View style={{ marginTop: 20 }}>
             <Text style={styles.inputLabel}>RÉSULTAT {type === 'training_muscu' ? '(KG)' : '(CHRONO)'}</Text>
@@ -652,13 +731,130 @@ const QuickAddRecordModal = ({ onClose, onSave, currentRecords, initialData }: a
         </ScrollView>
 
         <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-          <Text style={styles.saveBtnText}>{initialData ? 'METTRE À JOUR' : 'VALIDER LE RECORD'}</Text>
+          <Text style={styles.saveBtnText}>VALIDER LE RECORD</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
           <Text style={styles.cancelAddText}>ANNULER</Text>
         </TouchableOpacity>
       </View>
     </BlurView>
+  );
+};
+
+// --- NOUVELLE MODAL DE DÉTAIL & GRAPHIQUE ---
+import { Svg, Path, Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+
+const RecordDetailModal = ({ visible, onClose, data, onDelete }: any) => {
+  const [selectedPoint, setSelectedPoint] = useState<any>(null);
+
+  if (!data) return null;
+
+  const history = Array.isArray(data.history) ? data.history : [];
+  const isMuscu = data.type === 'training_muscu';
+
+  const renderGraph = () => {
+    if (history.length < 2) {
+      return (
+        <View style={styles.emptyGraph}>
+          <Ionicons name="stats-chart" size={48} color="rgba(255,255,255,0.05)" />
+          <Text style={styles.emptyGraphText}>HISTORIQUE INSUFFISANT POUR LE GRAPHIQUE</Text>
+          <Text style={styles.emptyGraphSub}>Ajoute un autre record pour voir ta progression</Text>
+        </View>
+      );
+    }
+
+    const values = history.map(h => parseFloat(h.value));
+    const min = Math.min(...values) * 0.95;
+    const max = Math.max(...values) * 1.05;
+    const range = max - min;
+    
+    const chartW = width - 80;
+    const chartH = 150;
+    
+    const points = history.map((h, i) => {
+      const x = (i / (history.length - 1)) * chartW;
+      // Pour le chrono, plus bas c'est mieux, mais on garde l'affichage standard
+      const y = chartH - ((parseFloat(h.value) - min) / range) * chartH;
+      return { x, y, ...h };
+    });
+
+    let d = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 1; i < points.length; i++) {
+      d += ` L ${points[i].x} ${points[i].y}`;
+    }
+
+    return (
+      <View style={styles.graphContainer}>
+        <Svg width={chartW} height={chartH}>
+          <Defs>
+            <SvgGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%" stopColor="#00E5FF" stopOpacity="0.3" />
+              <Stop offset="100%" stopColor="#00E5FF" stopOpacity="0" />
+            </SvgGradient>
+          </Defs>
+          <Path d={d} stroke="#00E5FF" strokeWidth="3" fill="none" />
+          <Path d={`${d} L ${chartW} ${chartH} L 0 ${chartH} Z`} fill="url(#grad)" />
+          {points.map((p, i) => (
+            <Circle 
+              key={i} 
+              cx={p.x} 
+              cy={p.y} 
+              r="6" 
+              fill="#00E5FF" 
+              onPress={() => setSelectedPoint(p)}
+            />
+          ))}
+        </Svg>
+        
+        {selectedPoint && (
+          <View style={styles.pointInfo}>
+            <Text style={styles.pointValue}>{selectedPoint.value} {isMuscu ? 'KG' : 'SEC'}</Text>
+            <Text style={styles.pointDate}>{selectedPoint.date.split('-').reverse().join('/')}</Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <BlurView intensity={100} tint="dark" style={styles.modalOverlay}>
+        <View style={[styles.modalContent, { height: 'auto', paddingBottom: 40 }]}>
+          <View style={styles.detailHeader}>
+            <Text style={styles.detailTitle}>{data.discipline.toUpperCase()}</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeDetail}>
+              <Ionicons name="close" size={24} color="#FFF" />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.detailSectionTitle}>PROGRESSION</Text>
+          {renderGraph()}
+
+          <Text style={[styles.detailSectionTitle, { marginTop: 32 }]}>HISTORIQUE DES ENTRÉES</Text>
+          <ScrollView style={{ maxHeight: 250 }} showsVerticalScrollIndicator={false}>
+            {history.slice().reverse().map((h, i) => (
+              <View key={i} style={styles.historyRow}>
+                <View>
+                  <Text style={styles.historyValue}>{h.value} {isMuscu ? 'KG' : 'SEC'}</Text>
+                  <Text style={styles.historyDate}>{h.date.split('-').reverse().join('/')}</Text>
+                </View>
+                <TouchableOpacity 
+                  style={styles.deleteEntryBtn}
+                  onPress={() => {
+                    Alert.alert('Supprimer', 'Voulez-vous supprimer ce record ?', [
+                      { text: 'Annuler', style: 'cancel' },
+                      { text: 'Supprimer', style: 'destructive', onPress: () => onDelete(data.type, data.discipline, history.length - 1 - i) }
+                    ]);
+                  }}
+                >
+                  <Ionicons name="trash-outline" size={18} color="#FF3B30" />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      </BlurView>
+    </Modal>
   );
 };
 
