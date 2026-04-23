@@ -401,6 +401,25 @@ const DashboardScreen = () => {
                     </View>
                   )}
                 </View>
+
+                <View style={styles.topActionRow}>
+                  <TouchableOpacity 
+                    style={styles.battlePlanBtnPrimary}
+                    onPress={() => navigation.navigate('CompetitionDetail', { competition: todayCompetition })}
+                  >
+                    <Text style={styles.battlePlanTextPrimary}>VOIR LE PLAN DE BATAILLE</Text>
+                    <Ionicons name="chevron-forward" size={16} color="#FFF" />
+                  </TouchableOpacity>
+                  
+                  {todayCompetition.address && (
+                    <TouchableOpacity 
+                      style={styles.mapBtnSmall}
+                      onPress={() => Linking.openURL(`geo:0,0?q=${todayCompetition.address}`)}
+                    >
+                      <Ionicons name="navigate" size={18} color="#00E5FF" />
+                    </TouchableOpacity>
+                  )}
+                </View>
                 
                 <View style={styles.nextStepRow}>
                   <View style={styles.timeBox}>
@@ -412,26 +431,6 @@ const DashboardScreen = () => {
                     <Text style={styles.actionLabel}>ÉTAPE ACTUELLE</Text>
                     <Text style={styles.actionVal}>{phase?.label || 'EN PRÉPARATION'}</Text>
                   </View>
-                </View>
-
-                <View style={styles.battlePlanBtnRow}>
-                  <TouchableOpacity 
-                    style={styles.battlePlanBtn}
-                    onPress={() => navigation.navigate('CompetitionDetail', { competition: todayCompetition })}
-                  >
-                    <Text style={styles.battlePlanText}>PLAN DE BATAILLE</Text>
-                    <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.4)" />
-                  </TouchableOpacity>
-                  
-                  {todayCompetition.address && (
-                    <TouchableOpacity 
-                      style={styles.mapBtn}
-                      onPress={() => Linking.openURL(`geo:0,0?q=${todayCompetition.address}`)}
-                    >
-                      <Ionicons name="navigate" size={14} color="#00E5FF" />
-                      <Text style={styles.mapBtnText}>ME RENDRE AU STADE</Text>
-                    </TouchableOpacity>
-                  )}
                 </View>
 
                 <View style={styles.bagSectionMini}>
@@ -553,11 +552,10 @@ const styles = StyleSheet.create({
   actionBox: { flex: 1 },
   actionLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 9, fontWeight: '800', marginBottom: 4 },
   actionVal: { color: '#00E5FF', fontSize: 14, fontWeight: '800' },
-  battlePlanBtnRow: { flexDirection: 'row', gap: 10, marginBottom: 15, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingTop: 15 },
-  battlePlanBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.05)', paddingVertical: 12, borderRadius: 12 },
-  battlePlanText: { color: 'rgba(255,255,255,0.8)', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
-  mapBtn: { flex: 1.2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(0, 229, 255, 0.1)', paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(0, 229, 255, 0.2)' },
-  mapBtnText: { color: '#00E5FF', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  topActionRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  battlePlanBtnPrimary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#BF5AF2', paddingVertical: 14, borderRadius: 16, shadowColor: '#BF5AF2', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
+  battlePlanTextPrimary: { color: '#FFF', fontSize: 13, fontWeight: '900', letterSpacing: 0.5 },
+  mapBtnSmall: { width: 52, height: 52, borderRadius: 16, backgroundColor: 'rgba(0, 229, 255, 0.1)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0, 229, 255, 0.3)' },
   bagSectionMini: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingTop: 15 },
   nutritionSection: { borderTopWidth: 1, borderTopColor: 'rgba(255, 255, 255, 0.1)', paddingTop: 20, gap: 12 },
   nutriAlert: { flexDirection: 'row', gap: 12, alignItems: 'center' },
