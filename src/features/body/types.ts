@@ -15,7 +15,6 @@ export interface Profile {
   target_protein: number;
   target_carbs: number;
   target_fats: number;
-  competition_checklist?: string[];
   competition_bag?: any[];
   updated_at: string;
 }

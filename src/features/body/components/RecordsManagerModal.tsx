@@ -330,9 +330,7 @@ const styles = StyleSheet.create({
     fontSize: 42,
     fontWeight: '900',
     lineHeight: 42,
-    textShadowColor: 'rgba(0,229,255,0.3)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
+    textShadow: '0px 2px 4px rgba(0, 0, 0, 0.8)',
   },
   perfUnit: {
     color: 'rgba(255,255,255,0.3)',

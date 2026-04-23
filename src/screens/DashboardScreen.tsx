@@ -22,6 +22,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { DebriefModal } from '../features/competition/components/DebriefModal';
 
+import { DashboardSkeleton } from '../features/body/components/DashboardSkeleton';
+
 const { width } = Dimensions.get('window');
 
 // Fonction utilitaire pour obtenir la date locale au format YYYY-MM-DD
@@ -180,34 +182,113 @@ const DashboardScreen = () => {
     setCheckedItems(prev => prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]);
   };
 
-  const renderChecklist = (checklist: string[]) => (
-    <View style={styles.bagSection}>
-      <Text style={styles.bagTitle}>MA CHECK-LIST SAC</Text>
-      {checklist.length > 0 ? (
-        checklist.map((item: string, idx: number) => (
-          <TouchableOpacity key={idx} style={styles.checkItem} onPress={() => toggleCheckItem(item)}>
-            <Ionicons 
-              name={checkedItems.includes(item) ? "checkbox" : "square-outline"} 
-              size={20} 
-              color={checkedItems.includes(item) ? "#00E5FF" : "#8E8E93"} 
-            />
-            <Text style={[styles.checkText, checkedItems.includes(item) && styles.checkTextActive]}>
-              {item.toUpperCase()}
-            </Text>
-          </TouchableOpacity>
-        ))
-      ) : (
-        <Text style={styles.emptyText}>CONFIGURER MA LISTE DANS LE PROFIL</Text>
-      )}
-    </View>
-  );
+  const toggleBagItem = async (itemName: string) => {
+    if (!profile) return;
+    try {
+      const currentBag = profile.competition_bag || [];
+      const updatedBag = currentBag.map((item: any) => {
+        if (item.name === itemName) {
+          return { ...item, is_prepared: !item.is_prepared };
+        }
+        return item;
+      });
+      
+      // Use store action for both local state and persistence
+      await useBodyStore.getState().updateProfile(profile.id, { 
+        competition_bag: updatedBag 
+      });
+    } catch (error) {
+      console.error('Error toggling bag item:', error);
+    }
+  };
 
-  if (loading) {
+  const resetBag = async () => {
+    if (!profile) return;
+    try {
+      const currentBag = profile.competition_bag || [];
+      const updatedBag = currentBag.map((item: any) => ({ ...item, is_prepared: false }));
+      
+      await useBodyStore.getState().updateProfile(profile.id, { 
+        competition_bag: updatedBag 
+      });
+      Alert.alert('Liste réinitialisée', 'C\'est reparti pour un nouveau départ !');
+    } catch (error) {
+      console.error('Error resetting bag:', error);
+    }
+  };
+
+  const renderChecklist = (checklist: any[]) => {
+    if (checklist.length === 0) {
+      return <Text style={styles.emptyText}>CONFIGURER MA LISTE DANS LE PROFIL</Text>;
+    }
+
+    const preparedCount = checklist.filter((i: any) => i.is_prepared).length;
+    const totalCount = checklist.length;
+    const percentage = Math.round((preparedCount / totalCount) * 100);
+    const isAllReady = preparedCount === totalCount;
+
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FFFFFF" />
+      <View style={styles.bagSection}>
+        <View style={styles.bagHeaderRow}>
+          <Text style={styles.bagTitle}>MA CHECK-LIST SAC</Text>
+          <TouchableOpacity onPress={resetBag} style={styles.resetBtn}>
+            <Ionicons name="refresh" size={14} color="rgba(255,255,255,0.4)" />
+            <Text style={styles.resetBtnText}>RÉINITIALISER</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.bagProgressContainer}>
+          <View style={styles.bagProgressHeader}>
+            <Text style={styles.bagProgressText}>
+              {isAllReady ? '🔥 TOUT EST PRÊT !' : `${percentage}% PRÉPARÉ`}
+            </Text>
+            <Text style={styles.bagProgressCount}>{preparedCount}/{totalCount}</Text>
+          </View>
+          <View style={styles.bagProgressBarBg}>
+            <View style={[
+              styles.bagProgressBarFill, 
+              { 
+                width: `${percentage}%`, 
+                backgroundColor: isAllReady ? '#00E5FF' : '#BF5AF2',
+                shadowColor: isAllReady ? '#00E5FF' : '#BF5AF2',
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: isAllReady ? 0.8 : 0,
+                shadowRadius: 10,
+              }
+            ]} />
+          </View>
+        </View>
+
+        <View style={styles.checklistItems}>
+          {checklist.map((item: any, idx: number) => {
+            const itemName = typeof item === 'string' ? item : item.name;
+            const isPrepared = typeof item === 'string' ? false : !!item.is_prepared;
+            
+            return (
+              <TouchableOpacity 
+                key={`${itemName}-${idx}`} 
+                style={styles.checkItem} 
+                activeOpacity={0.6}
+                onPress={() => toggleBagItem(itemName)}
+              >
+                <Ionicons 
+                  name={isPrepared ? "checkmark-circle" : "ellipse-outline"} 
+                  size={24} 
+                  color={isPrepared ? "#00E5FF" : "rgba(255,255,255,0.2)"} 
+                />
+                <Text style={[styles.checkText, isPrepared && styles.checkTextActive]}>
+                  {itemName.toUpperCase()}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
     );
+  };
+
+  if (loading) {
+    return <DashboardSkeleton />;
   }
 
   return (
@@ -257,7 +338,7 @@ const DashboardScreen = () => {
           <BlurView intensity={60} tint="default" style={[styles.mainCard, styles.prepCard]}>
             <Text style={styles.prepTitle}>PRÉPARATION J-1</Text>
             <Text style={styles.prepMain}>COMPÉTITION DEMAIN À {tomorrowCompetition.city?.toUpperCase()}</Text>
-            {renderChecklist(profile?.competition_checklist || [])}
+            {renderChecklist(profile?.competition_bag || [])}
           </BlurView>
         )}
 
@@ -274,7 +355,7 @@ const DashboardScreen = () => {
               </TouchableOpacity>
             )}
 
-            {renderChecklist(profile?.competition_checklist || [])}
+            {renderChecklist(profile?.competition_bag || [])}
 
             <View style={styles.nutritionSection}>
               <View style={styles.nutriAlert}>
@@ -371,10 +452,22 @@ const styles = StyleSheet.create({
   addressBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 24 },
   addressText: { color: '#00E5FF', fontSize: 12, fontWeight: '700', textDecorationLine: 'underline' },
   bagSection: { borderTopWidth: 1, borderTopColor: 'rgba(255, 255, 255, 0.1)', paddingTop: 20, marginBottom: 20 },
-  bagTitle: { color: '#8E8E93', fontSize: 10, fontWeight: '900', marginBottom: 12, letterSpacing: 1 },
-  checkItem: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
-  checkText: { color: '#8E8E93', fontSize: 13, fontWeight: '600' },
-  checkTextActive: { color: '#FFF', textDecorationLine: 'line-through' },
+  bagHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  bagTitle: { color: '#8E8E93', fontSize: 10, fontWeight: '900', letterSpacing: 1 },
+  resetBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.05)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  resetBtnText: { color: 'rgba(255,255,255,0.4)', fontSize: 9, fontWeight: '900', letterSpacing: 0.5 },
+  readyBadge: { backgroundColor: 'rgba(0, 229, 255, 0.2)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: '#00E5FF' },
+  readyBadgeText: { color: '#00E5FF', fontSize: 9, fontWeight: '900', letterSpacing: 0.5 },
+  bagProgressContainer: { marginBottom: 20 },
+  bagProgressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  bagProgressText: { color: '#FFF', fontSize: 11, fontWeight: '800' },
+  bagProgressCount: { color: 'rgba(255,255,255,0.4)', fontSize: 10, fontWeight: '700' },
+  bagProgressBarBg: { height: 4, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' },
+  bagProgressBarFill: { height: '100%', borderRadius: 2 },
+  checklistItems: { gap: 10 },
+  checkItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
+  checkText: { color: 'rgba(255,255,255,0.4)', fontSize: 13, fontWeight: '600' },
+  checkTextActive: { color: '#FFF', textDecorationLine: 'line-through', opacity: 0.6 },
   emptyText: { color: '#555', fontSize: 11, fontWeight: '800' },
   nutritionSection: { borderTopWidth: 1, borderTopColor: 'rgba(255, 255, 255, 0.1)', paddingTop: 20, gap: 12 },
   nutriAlert: { flexDirection: 'row', gap: 12, alignItems: 'center' },
