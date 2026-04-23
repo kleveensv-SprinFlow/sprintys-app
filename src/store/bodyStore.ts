@@ -41,6 +41,7 @@ export const useBodyStore = create<BodyState>((set) => ({
       set({ profile: updatedProfile, isLoading: false });
     } catch (err: any) {
       set({ error: err.message, isLoading: false });
+      throw err;
     }
   },
 

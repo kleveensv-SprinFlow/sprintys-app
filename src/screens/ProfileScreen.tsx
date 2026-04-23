@@ -137,12 +137,12 @@ const ProfileScreen = () => {
       const f = Math.round(currentWeight * 1.0);
       const c = Math.round((targetCalories - (p * 4) - (f * 9)) / 4);
 
-      // 3. Mise à jour via le Store (plus propre)
+      // 3. Mise à jour via le Store
+      const formattedDob = editDob.includes('/') ? editDob.split('/').reverse().join('-') : editDob;
+
       const updates: any = {
         personal_records: editRecords,
-        first_name: editFirstName,
-        last_name: editLastName,
-        dob: editDob.includes('/') ? editDob.split('/').reverse().join('-') : editDob,
+        dob: formattedDob,
         height: h > 0 ? h : null,
         activity_level: editActivity,
         nutrition_goal: editGoal,
@@ -156,17 +156,14 @@ const ProfileScreen = () => {
         await useBodyStore.getState().updateProfile(session.user.id, updates);
       } catch (storeError: any) {
         console.error('Store update error:', storeError);
-        // Si colonnes manquantes, on tente sans les colonnes suspectes
+        // Si d'autres colonnes manquent (ex: macros), on tente le strict minimum
         if (storeError.code === '42703') {
           const safeUpdates = {
             personal_records: editRecords,
-            dob: editDob,
+            dob: formattedDob,
             height: h > 0 ? h : null,
-            activity_level: editActivity,
-            nutrition_goal: editGoal,
           };
           await useBodyStore.getState().updateProfile(session.user.id, safeUpdates);
-          Alert.alert('Note', 'Nom/Prénom non sauvegardés (colonnes manquantes en base), mais le reste est OK.');
         } else {
           throw storeError;
         }
