@@ -59,6 +59,7 @@ const ProfileScreen = () => {
   const [editGoal, setEditGoal] = useState('maintain');
   const [showRecordsModal, setShowRecordsModal] = useState(false);
   const [showQuickAddModal, setShowQuickAddModal] = useState(false);
+  const [quickAddInitialData, setQuickAddInitialData] = useState<any>(null);
   
   const navigation = useNavigation<any>();
 
@@ -416,15 +417,22 @@ const ProfileScreen = () => {
         onClose={() => setShowRecordsModal(false)}
         records={profile?.personal_records}
         onSave={handleSaveRecords}
-        onQuickAdd={() => setShowQuickAddModal(true)}
+        onQuickAdd={(data: any) => {
+          setQuickAddInitialData(data || null);
+          setShowQuickAddModal(true);
+        }}
       />
 
       {/* Quick Add Record Modal */}
       <Modal visible={showQuickAddModal} animationType="fade" transparent>
         <QuickAddRecordModal 
-          onClose={() => setShowQuickAddModal(false)}
+          onClose={() => {
+            setShowQuickAddModal(false);
+            setQuickAddInitialData(null);
+          }}
           onSave={handleSaveRecords}
           currentRecords={profile?.personal_records}
+          initialData={quickAddInitialData}
         />
       </Modal>
     </View>
@@ -532,15 +540,24 @@ const styles = StyleSheet.create({
 });
 
 // Modal Interne pour l'ajout rapide
-const QuickAddRecordModal = ({ onClose, onSave, currentRecords }: any) => {
-  const [type, setType] = useState<'official' | 'training_athle' | 'training_muscu'>('official');
-  const [discipline, setDiscipline] = useState('');
-  const [value, setValue] = useState('');
-  const [wind, setWind] = useState('');
+const QuickAddRecordModal = ({ onClose, onSave, currentRecords, initialData }: any) => {
+  const [type, setType] = useState<'official' | 'training_athle' | 'training_muscu'>(initialData?.type || 'official');
+  const [discipline, setDiscipline] = useState(initialData?.discipline || '');
+  const [value, setValue] = useState(initialData?.value || '');
+  const [wind, setWind] = useState(initialData?.wind || '');
 
   const disciplines = type === 'training_muscu' 
     ? ['Squat', 'Power Clean', 'Bench Press', 'Deadlift', 'Hip Thrust']
     : ['60m', '100m', '200m', '400m', 'Longueur', 'Triple'];
+
+  useEffect(() => {
+    if (initialData) {
+      setType(initialData.type);
+      setDiscipline(initialData.discipline);
+      setValue(initialData.value);
+      setWind(initialData.wind || '');
+    }
+  }, [initialData]);
 
   const handleSave = () => {
     if (!discipline || !value) {
@@ -565,38 +582,49 @@ const QuickAddRecordModal = ({ onClose, onSave, currentRecords }: any) => {
   return (
     <BlurView intensity={100} tint="dark" style={styles.modalOverlay}>
       <View style={[styles.modalContent, { height: 'auto', paddingBottom: 40 }]}>
-        <Text style={styles.modalTitle}>AJOUT RAPIDE RECORD</Text>
+        <Text style={styles.modalTitle}>{initialData ? 'MODIFIER RECORD' : 'AJOUTER UN RECORD'}</Text>
         
-        <ScrollView style={{ maxHeight: 500 }}>
-          <Text style={styles.inputLabel}>TYPE DE RECORD</Text>
-          <View style={styles.chipRow}>
-            {[
-              { id: 'official', label: 'COMPÉTITION' },
-              { id: 'training_athle', label: 'ENTRAÎNEMENT' },
-              { id: 'training_muscu', label: 'MUSCU' }
-            ].map(t => (
-              <TouchableOpacity 
-                key={t.id} 
-                style={[styles.miniChip, type === t.id && styles.miniChipActive]}
-                onPress={() => { setType(t.id as any); setDiscipline(''); }}
-              >
-                <Text style={[styles.miniChipText, type === t.id && styles.miniChipTextActive]}>{t.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+        <ScrollView style={{ maxHeight: 500 }} showsVerticalScrollIndicator={false}>
+          {!initialData && (
+            <>
+              <Text style={styles.inputLabel}>TYPE DE RECORD</Text>
+              <View style={styles.chipRow}>
+                {[
+                  { id: 'official', label: 'COMPÉTITION' },
+                  { id: 'training_athle', label: 'ENTRAÎNEMENT' },
+                  { id: 'training_muscu', label: 'MUSCU' }
+                ].map(t => (
+                  <TouchableOpacity 
+                    key={t.id} 
+                    style={[styles.miniChip, type === t.id && styles.miniChipActive]}
+                    onPress={() => { setType(t.id as any); setDiscipline(''); }}
+                  >
+                    <Text style={[styles.miniChipText, type === t.id && styles.miniChipTextActive]}>{t.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-          <Text style={[styles.inputLabel, { marginTop: 20 }]}>DISCIPLINE</Text>
-          <View style={styles.chipRow}>
-            {disciplines.map(d => (
-              <TouchableOpacity 
-                key={d} 
-                style={[styles.miniChip, discipline === d && styles.miniChipActive]}
-                onPress={() => setDiscipline(d)}
-              >
-                <Text style={[styles.miniChipText, discipline === d && styles.miniChipTextActive]}>{d.toUpperCase()}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+              <Text style={[styles.inputLabel, { marginTop: 20 }]}>DISCIPLINE</Text>
+              <View style={styles.chipRow}>
+                {disciplines.map(d => (
+                  <TouchableOpacity 
+                    key={d} 
+                    style={[styles.miniChip, discipline === d && styles.miniChipActive]}
+                    onPress={() => setDiscipline(d)}
+                  >
+                    <Text style={[styles.miniChipText, discipline === d && styles.miniChipTextActive]}>{d.toUpperCase()}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
+
+          {initialData && (
+            <View style={{ marginBottom: 20 }}>
+              <Text style={styles.inputLabel}>DISCIPLINE SÉLECTIONNÉE</Text>
+              <Text style={{ color: '#00E5FF', fontSize: 18, fontWeight: '900' }}>{discipline.toUpperCase()}</Text>
+            </View>
+          )}
 
           <View style={{ marginTop: 20 }}>
             <Text style={styles.inputLabel}>RÉSULTAT {type === 'training_muscu' ? '(KG)' : '(CHRONO)'}</Text>
@@ -625,7 +653,7 @@ const QuickAddRecordModal = ({ onClose, onSave, currentRecords }: any) => {
         </ScrollView>
 
         <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-          <Text style={styles.saveBtnText}>VALIDER LE RECORD</Text>
+          <Text style={styles.saveBtnText}>{initialData ? 'METTRE À JOUR' : 'VALIDER LE RECORD'}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
           <Text style={styles.cancelAddText}>ANNULER</Text>

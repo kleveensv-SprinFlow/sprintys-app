@@ -31,83 +31,53 @@ interface Props {
 export const RecordsManagerModal = ({ visible, onClose, records, onSave, onQuickAdd }: Props) => {
   const [activeTab, setActiveTab] = useState<'official' | 'training'>('official');
   const [activeTrainingSubTab, setActiveTrainingSubTab] = useState<'athle' | 'muscu'>('athle');
-  const [showAddList, setShowAddList] = useState(false);
-  
-  // Local state for editing
-  const [localRecords, setLocalRecords] = useState(records || { official: {}, training: { athle: {}, muscu: {} } });
-
-  const handleUpdateRecord = (category: string, sub: string | null, key: string, value: string, wind?: string) => {
-    const updated = { ...localRecords };
-    if (!updated[category]) updated[category] = {};
-    
-    if (sub) {
-      if (!updated[category][sub]) updated[category][sub] = {};
-      if (wind !== undefined) {
-         updated[category][sub][key] = { ...(updated[category][sub][key] || {}), value, wind };
-      } else {
-         updated[category][sub][key] = value;
-      }
-    } else {
-      if (wind !== undefined) {
-        updated[category][key] = { ...(updated[category][key] || {}), value, wind };
-      } else {
-        updated[category][key] = value;
-      }
-    }
-    setLocalRecords(updated);
-  };
 
   const renderOfficialItem = (discipline: string) => {
-    const data = localRecords.official?.[discipline] || { value: '', wind: '' };
+    const data = records?.official?.[discipline] || { value: '', wind: '' };
     return (
-      <View key={discipline} style={styles.recordItem}>
+      <TouchableOpacity 
+        key={discipline} 
+        style={styles.recordItem}
+        onPress={() => onQuickAdd({ type: 'official', discipline, ...data })}
+      >
         <Text style={styles.disciplineLabel}>{discipline.toUpperCase()}</Text>
-        <View style={styles.inputsRow}>
-          <View style={[styles.inputWrapper, { flex: 2 }]}>
+        <View style={styles.displayRow}>
+          <View style={styles.displayItem}>
             <Text style={styles.microLabel}>TEMPS</Text>
-            <TextInput
-              style={styles.textInput}
-              value={data.value}
-              onChangeText={(v) => handleUpdateRecord('official', null, discipline, v, data.wind)}
-              placeholder="00.00"
-              placeholderTextColor="rgba(255,255,255,0.2)"
-              keyboardType="numeric"
-            />
+            <Text style={styles.displayText}>{data.value || '--'}</Text>
           </View>
-          <View style={[styles.inputWrapper, { flex: 1 }]}>
+          <View style={styles.displayItem}>
             <Text style={styles.microLabel}>VENT</Text>
-            <TextInput
-              style={styles.textInput}
-              value={data.wind}
-              onChangeText={(v) => handleUpdateRecord('official', null, discipline, data.value, v)}
-              placeholder="+0.0"
-              placeholderTextColor="rgba(255,255,255,0.2)"
-              keyboardType="numbers-and-punctuation"
-            />
+            <Text style={styles.displayText}>{data.wind || '--'}</Text>
           </View>
+          <Ionicons name="pencil" size={16} color="rgba(255,255,255,0.2)" />
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
   const renderTrainingItem = (discipline: string, isMuscu = false) => {
     const cat = isMuscu ? 'muscu' : 'athle';
-    const data = localRecords.training?.[cat]?.[discipline] || '';
+    const data = records?.training?.[cat]?.[discipline] || '';
     return (
-      <View key={discipline} style={styles.recordItem}>
+      <TouchableOpacity 
+        key={discipline} 
+        style={styles.recordItem}
+        onPress={() => onQuickAdd({ 
+          type: isMuscu ? 'training_muscu' : 'training_athle', 
+          discipline, 
+          value: data 
+        })}
+      >
         <Text style={styles.disciplineLabel}>{discipline.toUpperCase()}</Text>
-        <View style={styles.inputWrapper}>
-          <Text style={styles.microLabel}>{isMuscu ? 'CHARGE (KG)' : 'CHRONO'}</Text>
-          <TextInput
-            style={styles.textInput}
-            value={data}
-            onChangeText={(v) => handleUpdateRecord('training', cat, discipline, v)}
-            placeholder={isMuscu ? "0" : "00.00"}
-            placeholderTextColor="rgba(255,255,255,0.2)"
-            keyboardType="numeric"
-          />
+        <View style={styles.displayRow}>
+          <View style={styles.displayItem}>
+            <Text style={styles.microLabel}>{isMuscu ? 'CHARGE (KG)' : 'CHRONO'}</Text>
+            <Text style={styles.displayText}>{data || '--'}</Text>
+          </View>
+          <Ionicons name="pencil" size={16} color="rgba(255,255,255,0.2)" />
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -163,22 +133,22 @@ export const RecordsManagerModal = ({ visible, onClose, records, onSave, onQuick
           <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
             <View style={styles.grid}>
               {activeTab === 'official' ? (
-                ATHLETICS_DISCIPLINES.filter(d => localRecords.official?.[d]?.value?.length > 0).map(renderOfficialItem)
+                ATHLETICS_DISCIPLINES.filter(d => records?.official?.[d]?.value?.length > 0).map(renderOfficialItem)
               ) : (
                 activeTrainingSubTab === 'athle' 
-                  ? ATHLETICS_DISCIPLINES.filter(d => localRecords.training?.athle?.[d]?.length > 0).map(d => renderTrainingItem(d))
-                  : MUSCU_EXERCISES.filter(e => localRecords.training?.muscu?.[e]?.length > 0).map(e => renderTrainingItem(e, true))
+                  ? ATHLETICS_DISCIPLINES.filter(d => records?.training?.athle?.[d]?.length > 0).map(d => renderTrainingItem(d))
+                  : MUSCU_EXERCISES.filter(e => records?.training?.muscu?.[e]?.length > 0).map(e => renderTrainingItem(e, true))
               )}
             </View>
             <View style={{ height: 40 }} />
           </ScrollView>
 
-          <TouchableOpacity style={styles.saveBtn} onPress={() => onSave(localRecords)}>
+          <TouchableOpacity style={styles.saveBtn} onPress={() => onQuickAdd()}>
             <LinearGradient
               colors={['#00E5FF', '#00B4D8']}
               style={styles.saveGradient}
             >
-              <Text style={styles.saveText}>ENREGISTRER MES RECORDS</Text>
+              <Text style={styles.saveText}>AJOUTER UN RECORD</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -246,6 +216,9 @@ const styles = StyleSheet.create({
   saveBtn: { marginTop: 16, borderRadius: 16, overflow: 'hidden' },
   saveGradient: { paddingVertical: 18, alignItems: 'center' },
   saveText: { color: '#000', fontSize: 14, fontWeight: '900', letterSpacing: 1 },
+  displayRow: { flexDirection: 'row', alignItems: 'center', gap: 20 },
+  displayItem: { flex: 1, gap: 4 },
+  displayText: { color: '#FFF', fontSize: 18, fontWeight: '800' },
   headerAddBtn: {
     width: 32,
     height: 32,
