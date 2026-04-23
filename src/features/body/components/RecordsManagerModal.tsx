@@ -30,6 +30,7 @@ interface Props {
 export const RecordsManagerModal = ({ visible, onClose, records, onSave }: Props) => {
   const [activeTab, setActiveTab] = useState<'official' | 'training'>('official');
   const [activeTrainingSubTab, setActiveTrainingSubTab] = useState<'athle' | 'muscu'>('athle');
+  const [showAddList, setShowAddList] = useState(false);
   
   // Local state for editing
   const [localRecords, setLocalRecords] = useState(records || { official: {}, training: { athle: {}, muscu: {} } });
@@ -109,6 +110,56 @@ export const RecordsManagerModal = ({ visible, onClose, records, onSave }: Props
     );
   };
 
+  const renderAddButton = () => {
+    const isTraining = activeTab === 'training';
+    const sub = isTraining ? activeTrainingSubTab : null;
+    const all = isTraining ? (sub === 'muscu' ? MUSCU_EXERCISES : ATHLETICS_DISCIPLINES) : ATHLETICS_DISCIPLINES;
+    
+    // Filtrer les disciplines déjà affichées (qui ont une valeur)
+    const existingKeys = isTraining 
+      ? Object.keys(localRecords.training?.[sub || 'athle'] || {}).filter(k => {
+          const val = localRecords.training[sub || 'athle'][k];
+          return typeof val === 'string' ? val.length > 0 : val?.value?.length > 0;
+        })
+      : Object.keys(localRecords.official || {}).filter(k => localRecords.official[k]?.value?.length > 0);
+
+    const remaining = all.filter(d => !existingKeys.includes(d));
+
+    if (remaining.length === 0) return null;
+
+    if (showAddList) {
+      return (
+        <View style={styles.addListContainer}>
+          <Text style={styles.addListTitle}>CHOISIR UNE DISCIPLINE</Text>
+          <View style={styles.addGrid}>
+            {remaining.map(d => (
+              <TouchableOpacity 
+                key={d} 
+                style={styles.addItem}
+                onPress={() => {
+                  handleUpdateRecord(isTraining ? 'training' : 'official', sub, d, '');
+                  setShowAddList(false);
+                }}
+              >
+                <Text style={styles.addItemText}>{d.toUpperCase()}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <TouchableOpacity style={styles.cancelAddBtn} onPress={() => setShowAddList(false)}>
+            <Text style={styles.cancelAddText}>ANNULER</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return (
+      <TouchableOpacity style={styles.addBtn} onPress={() => setShowAddList(true)}>
+        <Ionicons name="add-circle-outline" size={20} color="#00E5FF" />
+        <Text style={styles.addBtnText}>AJOUTER UNE DISCIPLINE</Text>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <BlurView intensity={100} tint="dark" style={styles.container}>
@@ -156,12 +207,13 @@ export const RecordsManagerModal = ({ visible, onClose, records, onSave }: Props
           <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
             <View style={styles.grid}>
               {activeTab === 'official' ? (
-                ATHLETICS_DISCIPLINES.map(renderOfficialItem)
+                ATHLETICS_DISCIPLINES.filter(d => localRecords.official?.[d]?.value?.length > 0).map(renderOfficialItem)
               ) : (
                 activeTrainingSubTab === 'athle' 
-                  ? ATHLETICS_DISCIPLINES.map(d => renderTrainingItem(d))
-                  : MUSCU_EXERCISES.map(e => renderTrainingItem(e, true))
+                  ? ATHLETICS_DISCIPLINES.filter(d => localRecords.training?.athle?.[d]?.length > 0).map(d => renderTrainingItem(d))
+                  : MUSCU_EXERCISES.filter(e => localRecords.training?.muscu?.[e]?.length > 0).map(e => renderTrainingItem(e, true))
               )}
+              {renderAddButton()}
             </View>
             <View style={{ height: 40 }} />
           </ScrollView>
@@ -239,4 +291,36 @@ const styles = StyleSheet.create({
   saveBtn: { marginTop: 16, borderRadius: 16, overflow: 'hidden' },
   saveGradient: { paddingVertical: 18, alignItems: 'center' },
   saveText: { color: '#000', fontSize: 14, fontWeight: '900', letterSpacing: 1 },
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 229, 255, 0.3)',
+    borderStyle: 'dashed',
+    gap: 8,
+    marginTop: 8,
+  },
+  addBtnText: { color: '#00E5FF', fontSize: 12, fontWeight: '800', letterSpacing: 1 },
+  addListContainer: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 24,
+    padding: 20,
+    marginTop: 8,
+  },
+  addListTitle: { color: 'rgba(255,255,255,0.4)', fontSize: 10, fontWeight: '900', marginBottom: 16, textAlign: 'center', letterSpacing: 1 },
+  addGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' },
+  addItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  addItemText: { color: '#FFF', fontSize: 10, fontWeight: '800' },
+  cancelAddBtn: { marginTop: 20, alignItems: 'center' },
+  cancelAddText: { color: '#FF453A', fontSize: 11, fontWeight: '800' },
 });
