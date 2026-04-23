@@ -24,6 +24,7 @@ import { AthleteIdentityCard } from '../features/body/components/AthleteIdentity
 import { ChecklistManagerCard } from '../features/body/components/ChecklistManagerCard';
 import { useBodyStore } from '../store/bodyStore';
 import { RecordsManagerModal } from '../features/body/components/RecordsManagerModal';
+import { CompetitionBagModal } from '../features/body/components/CompetitionBagModal';
 
 const { width } = Dimensions.get('window');
 
@@ -62,6 +63,7 @@ const ProfileScreen = () => {
   const [quickAddInitialData, setQuickAddInitialData] = useState<any>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedDetailData, setSelectedDetailData] = useState<any>(null);
+  const [showBagModal, setShowBagModal] = useState(false);
   
   const navigation = useNavigation<any>();
 
@@ -346,6 +348,27 @@ const ProfileScreen = () => {
           </LinearGradient>
         </TouchableOpacity>
 
+        <TouchableOpacity 
+          style={styles.recordsTriggerCard} 
+          onPress={() => setShowBagModal(true)}
+        >
+          <LinearGradient
+            colors={['rgba(191, 90, 242, 0.1)', 'rgba(0, 229, 255, 0.05)']}
+            style={styles.recordsCardContent}
+          >
+            <View style={[styles.recordsIconBg, { backgroundColor: 'rgba(191, 90, 242, 0.1)' }]}>
+              <Ionicons name="briefcase" size={24} color="#BF5AF2" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.recordsCardTitle}>MON SAC DE COMPÉTITION</Text>
+              <Text style={styles.recordsCardSub}>
+                {profile?.competition_bag?.length || 0} Objets • {profile?.competition_bag?.filter((i: any) => i.is_prepared).length || 0} Prêts
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.3)" />
+          </LinearGradient>
+        </TouchableOpacity>
+
         <ChecklistManagerCard />
 
         <TouchableOpacity style={styles.editBtn} onPress={() => setShowEditModal(true)}>
@@ -472,6 +495,13 @@ const ProfileScreen = () => {
         onClose={() => setShowDetailModal(false)}
         data={selectedDetailData}
         onDelete={handleDeleteRecordEntry}
+      />
+
+      <CompetitionBagModal
+        visible={showBagModal}
+        onClose={() => setShowBagModal(false)}
+        bagItems={profile?.competition_bag || []}
+        onUpdateBag={handleUpdateBag}
       />
     </View>
   );
