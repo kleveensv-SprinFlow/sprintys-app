@@ -219,6 +219,8 @@ const DashboardScreen = () => {
     
     return { label: 'PRÉPARATION', icon: 'timer', color: 'rgba(255,255,255,0.4)' };
   };
+
+  const toggleBagItem = async (itemName: string) => {
     if (!profile) return;
     try {
       const currentBag = profile.competition_bag || [];
