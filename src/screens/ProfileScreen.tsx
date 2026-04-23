@@ -246,7 +246,7 @@ const ProfileScreen = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <AthleteIdentityCard />
+        <AthleteIdentityCard onEdit={() => setShowEditModal(true)} />
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>

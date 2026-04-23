@@ -7,7 +7,7 @@ import { useBodyStore } from '../../../store/bodyStore';
 
 const { width } = Dimensions.get('window');
 
-export const AthleteIdentityCard = () => {
+export const AthleteIdentityCard = ({ onEdit }: { onEdit?: () => void }) => {
   const { profile, metrics } = useBodyStore();
   
   const currentWeight = metrics[0]?.weight || '--';
@@ -49,8 +49,8 @@ export const AthleteIdentityCard = () => {
               <Text style={styles.memberSince}>MEMBRE DEPUIS {new Date(profile?.created_at || Date.now()).getFullYear()}</Text>
             </View>
             
-            <TouchableOpacity style={styles.chipBtn}>
-              <Ionicons name="qr-code-outline" size={20} color="#00E5FF" />
+            <TouchableOpacity style={styles.chipBtn} onPress={onEdit}>
+              <Ionicons name="settings-outline" size={20} color="#00E5FF" />
             </TouchableOpacity>
           </View>
 
