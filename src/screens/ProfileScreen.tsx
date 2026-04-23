@@ -23,6 +23,7 @@ import { signOutUser } from '../services/authService';
 import { AthleteIdentityCard } from '../features/body/components/AthleteIdentityCard';
 import { ChecklistManagerCard } from '../features/body/components/ChecklistManagerCard';
 import { useBodyStore } from '../store/bodyStore';
+import { RecordsManagerModal } from '../features/body/components/RecordsManagerModal';
 
 const { width } = Dimensions.get('window');
 
@@ -56,6 +57,7 @@ const ProfileScreen = () => {
   const [editHeight, setEditHeight] = useState('');
   const [editActivity, setEditActivity] = useState('active');
   const [editGoal, setEditGoal] = useState('maintain');
+  const [showRecordsModal, setShowRecordsModal] = useState(false);
   
   const navigation = useNavigation<any>();
 
@@ -190,6 +192,32 @@ const ProfileScreen = () => {
     }
   };
 
+  const handleSaveRecords = async (newRecords: any) => {
+    setIsSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: session.user.id,
+          personal_records: newRecords,
+          updated_at: new Date().toISOString(),
+        });
+
+      if (error) throw error;
+
+      setShowRecordsModal(false);
+      fetchProfile();
+      Alert.alert('Succès', 'Tes records ont été mis à jour.');
+    } catch (error: any) {
+      Alert.alert('Erreur', error.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handlePickImage = async (useCamera = false) => {
     try {
       const permissionResult = useCamera 
@@ -267,31 +295,30 @@ const ProfileScreen = () => {
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.topTitle}>MON PROFIL</Text>
-        <TouchableOpacity onPress={showImageOptions} style={styles.backButton}>
-          <Ionicons name="camera" size={20} color="#FFFFFF" />
-        </TouchableOpacity>
+        <View style={{ width: 44 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <AthleteIdentityCard onEdit={() => setShowEditModal(true)} />
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>RECORD ROOM : SPRINT</Text>
-          </View>
-          <View style={styles.recordsGrid}>
-            {SPRINT_DISTANCES.map(d => renderRecordCard(d, records[d]))}
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>RECORD ROOM : MUSCULATION</Text>
-          </View>
-          <View style={styles.recordsGrid}>
-            {MUSCU_EXERCISES.map(e => renderRecordCard(e, records[e], true))}
-          </View>
-        </View>
+        <TouchableOpacity 
+          style={styles.recordsTriggerCard} 
+          onPress={() => setShowRecordsModal(true)}
+        >
+          <LinearGradient
+            colors={['rgba(0, 229, 255, 0.1)', 'rgba(191, 90, 242, 0.05)']}
+            style={styles.recordsCardContent}
+          >
+            <View style={styles.recordsIconBg}>
+              <Ionicons name="trophy" size={24} color="#00E5FF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.recordsCardTitle}>MES RECORDS</Text>
+              <Text style={styles.recordsCardSub}>Officiels & Entraînement</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.3)" />
+          </LinearGradient>
+        </TouchableOpacity>
 
         <ChecklistManagerCard />
 
@@ -371,22 +398,6 @@ const ProfileScreen = () => {
                   ))}
                 </View>
               </View>
-
-              <Text style={styles.modalSubTitle}>SPRINT (PB)</Text>
-              {SPRINT_DISTANCES.map(d => (
-                <View key={d} style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>{d.toUpperCase()}</Text>
-                  <TextInput style={styles.input} value={editRecords[d]} onChangeText={v => setEditRecords({...editRecords, [d]: v})} placeholder="--:--" placeholderTextColor="#555" keyboardType="numeric" />
-                </View>
-              ))}
-
-              <Text style={styles.modalSubTitle}>MUSCULATION (KG)</Text>
-              {MUSCU_EXERCISES.map(e => (
-                <View key={e} style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>{e.toUpperCase()}</Text>
-                  <TextInput style={styles.input} value={editRecords[e]} onChangeText={v => setEditRecords({...editRecords, [e]: v})} placeholder="0" placeholderTextColor="#555" keyboardType="numeric" />
-                </View>
-              ))}
             </ScrollView>
             
             <TouchableOpacity style={[styles.saveBtn, isSaving && { opacity: 0.7 }]} onPress={handleUpdateProfile} disabled={isSaving}>
@@ -398,6 +409,13 @@ const ProfileScreen = () => {
           </View>
         </BlurView>
       </Modal>
+
+      <RecordsManagerModal 
+        visible={showRecordsModal} 
+        onClose={() => setShowRecordsModal(false)}
+        records={profile?.personal_records}
+        onSave={handleSaveRecords}
+      />
     </View>
   );
 };
@@ -458,6 +476,39 @@ const styles = StyleSheet.create({
   saveBtnText: { color: '#000', fontSize: 15, fontWeight: '900' },
   cancelBtn: { paddingVertical: 16, alignItems: 'center' },
   cancelBtnText: { color: '#8E8E93', fontSize: 13, fontWeight: '700' },
+  recordsTriggerCard: {
+    marginBottom: 24,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  recordsCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    gap: 16,
+  },
+  recordsIconBg: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0, 229, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  recordsCardTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  recordsCardSub: {
+    color: 'rgba(255, 255, 255, 0.4)',
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 2,
+  },
 });
 
 export default ProfileScreen;
