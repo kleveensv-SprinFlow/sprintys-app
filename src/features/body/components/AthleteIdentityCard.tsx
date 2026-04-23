@@ -61,10 +61,6 @@ export const AthleteIdentityCard = ({ onEdit }: { onEdit?: () => void }) => {
               <Text style={styles.statValue}>{profile?.height || '--'} <Text style={styles.unit}>CM</Text></Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statLabel}>POIDS</Text>
-              <Text style={styles.statValue}>{currentWeight} <Text style={styles.unit}>KG</Text></Text>
-            </View>
-            <View style={styles.statItem}>
               <Text style={styles.statLabel}>ÂGE</Text>
               <Text style={styles.statValue}>{age} <Text style={styles.unit}>ANS</Text></Text>
             </View>

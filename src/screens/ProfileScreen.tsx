@@ -101,38 +101,35 @@ const ProfileScreen = () => {
         id: session.user.id,
         personal_records: editRecords,
         updated_at: new Date().toISOString(),
+        first_name: editFirstName,
+        last_name: editLastName,
+        dob: editDob,
+        height: parseFloat(editHeight),
+        activity_level: editActivity,
+        nutrition_goal: editGoal,
       };
 
-      if (profile && 'first_name' in profile) {
-        profileData.first_name = editFirstName;
-        profileData.last_name = editLastName;
-        profileData.dob = editDob;
-        profileData.height = parseFloat(editHeight);
-        profileData.activity_level = editActivity;
-        profileData.nutrition_goal = editGoal;
+      // --- CALCUL DES MACROS AUTOMATIQUE ---
+      const currentWeight = useBodyStore.getState().metrics[0]?.weight || 70;
+      const h = parseFloat(editHeight) || 175;
+      const dobYear = parseInt(editDob.split('-')[0]) || 1995;
+      const age = new Date().getFullYear() - dobYear;
 
-        // --- CALCUL DES MACROS AUTOMATIQUE ---
-        const currentWeight = useBodyStore.getState().metrics[0]?.weight || 70;
-        const h = parseFloat(editHeight) || 175;
-        const dobYear = parseInt(editDob.split('-')[0]) || 1995;
-        const age = new Date().getFullYear() - dobYear;
+      const bmr = (10 * currentWeight) + (6.25 * h) - (5 * age) + 5;
+      const multipliers: Record<string, number> = { sedentary: 1.2, active: 1.55, very_active: 1.725 };
+      const adjustments: Record<string, number> = { loss: -400, maintain: 0, gain: 300 };
 
-        const bmr = (10 * currentWeight) + (6.25 * h) - (5 * age) + 5;
-        const multipliers: Record<string, number> = { sedentary: 1.2, active: 1.55, very_active: 1.725 };
-        const adjustments: Record<string, number> = { loss: -400, maintain: 0, gain: 300 };
+      const tdee = bmr * (multipliers[editActivity] || 1.2);
+      const targetCalories = Math.round(tdee + (adjustments[editGoal] || 0));
 
-        const tdee = bmr * (multipliers[editActivity] || 1.2);
-        const targetCalories = Math.round(tdee + (adjustments[editGoal] || 0));
+      const p = Math.round(currentWeight * 2.2);
+      const f = Math.round(currentWeight * 1.0);
+      const c = Math.round((targetCalories - (p * 4) - (f * 9)) / 4);
 
-        const p = Math.round(currentWeight * 2.2);
-        const f = Math.round(currentWeight * 1.0);
-        const c = Math.round((targetCalories - (p * 4) - (f * 9)) / 4);
-
-        profileData.target_calories = targetCalories;
-        profileData.target_protein = p;
-        profileData.target_carbs = c;
-        profileData.target_fats = f;
-      }
+      profileData.target_calories = targetCalories;
+      profileData.target_protein = p;
+      profileData.target_carbs = c;
+      profileData.target_fats = f;
 
       const { error } = await supabase
         .from('profiles')
