@@ -195,7 +195,30 @@ const DashboardScreen = () => {
     setCheckedItems(prev => prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]);
   };
 
-  const toggleBagItem = async (itemName: string) => {
+  const calculateCurrentPhase = (comp: any) => {
+    if (!comp || !comp.competition_time) return null;
+    
+    const now = new Date();
+    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const raceTime = comp.competition_time;
+    const callRoomTime = comp.call_room_time || raceTime;
+
+    const subtractMinutes = (timeStr: string, minutes: number) => {
+      const [h, m] = timeStr.split(':').map(Number);
+      const date = new Date();
+      date.setHours(h, m - minutes, 0);
+      return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    };
+
+    if (currentTime > raceTime) return { label: 'DÉBRIEFING', icon: 'ribbon', color: '#8E8E93' };
+    if (currentTime > callRoomTime) return { label: 'SUR LA PISTE !', icon: 'flash', color: '#FFD700' };
+    if (currentTime > subtractMinutes(callRoomTime, 20)) return { label: 'CHAMBRE D\'APPEL', icon: 'exit', color: '#FF3B30' };
+    if (currentTime > subtractMinutes(raceTime, 90)) return { label: 'ÉCHAUFFEMENT', icon: 'walk', color: '#BF5AF2' };
+    if (currentTime > subtractMinutes(raceTime, 120)) return { label: 'ARRIVÉE STADE', icon: 'location', color: '#32ADE6' };
+    if (currentTime > subtractMinutes(raceTime, 240)) return { label: 'REPAS ATHLÈTE', icon: 'restaurant', color: '#00E5FF' };
+    
+    return { label: 'PRÉPARATION', icon: 'timer', color: 'rgba(255,255,255,0.4)' };
+  };
     if (!profile) return;
     try {
       const currentBag = profile.competition_bag || [];
@@ -356,32 +379,51 @@ const DashboardScreen = () => {
         )}
 
         {/* Jour J : Game Day */}
-        {todayCompetition && (
-          <BlurView intensity={60} tint="default" style={[styles.mainCard, styles.compFocusCard]}>
-            <Text style={styles.compFocusTitle}>🔥 JOUR DE COMPÉTITION</Text>
-            <Text style={styles.compFocusMain}>{todayCompetition.city?.toUpperCase() || 'STADE'}</Text>
-            
-            {todayCompetition.address && (
-              <TouchableOpacity style={styles.addressBtn} onPress={() => Linking.openURL(`geo:0,0?q=${todayCompetition.address}`)}>
-                <Ionicons name="location" size={14} color="#00E5FF" />
-                <Text style={styles.addressText}>{formatShortAddress(todayCompetition.address)}</Text>
-              </TouchableOpacity>
-            )}
+        {todayCompetition && (() => {
+          const phase = calculateCurrentPhase(todayCompetition);
+          return (
+            <TouchableOpacity 
+              activeOpacity={0.9} 
+              onPress={() => navigation.navigate('CompetitionDetail', { competition: todayCompetition })}
+            >
+              <BlurView intensity={80} tint="dark" style={[styles.mainCard, styles.compFocusCard]}>
+                <View style={styles.compHeader}>
+                  <View style={styles.compHeaderLeft}>
+                    <Text style={styles.compFocusTitle}>🔥 JOUR DE COMPÉTITION</Text>
+                    <Text style={styles.compFocusMain}>{todayCompetition.city?.toUpperCase() || 'STADE'}</Text>
+                  </View>
+                  {phase && (
+                    <View style={[styles.phaseBadge, { backgroundColor: phase.color + '20', borderColor: phase.color }]}>
+                      <Ionicons name={phase.icon as any} size={14} color={phase.color} />
+                      <Text style={[styles.phaseText, { color: phase.color }]}>{phase.label}</Text>
+                    </View>
+                  )}
+                </View>
+                
+                <View style={styles.nextStepRow}>
+                  <View style={styles.timeBox}>
+                    <Text style={styles.timeLabel}>COURSE</Text>
+                    <Text style={styles.raceTimeVal}>{todayCompetition.competition_time || '--:--'}</Text>
+                  </View>
+                  <View style={styles.stepDivider} />
+                  <View style={styles.actionBox}>
+                    <Text style={styles.actionLabel}>ÉTAPE ACTUELLE</Text>
+                    <Text style={styles.actionVal}>{phase?.label || 'EN PRÉPARATION'}</Text>
+                  </View>
+                </View>
 
-            {renderChecklist(profile?.competition_bag || [])}
+                <View style={styles.battlePlanBtn}>
+                  <Text style={styles.battlePlanText}>VOIR LE PLAN DE BATAILLE COMPLET</Text>
+                  <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.4)" />
+                </View>
 
-            <View style={styles.nutritionSection}>
-              <View style={styles.nutriAlert}>
-                <Text style={styles.nutriTime}>⏱️ {calculateMealTime(todayCompetition.competition_schedule) || 'H-4'}</Text>
-                <Text style={styles.nutriAdvice}>DERNIER GROS REPAS (GLUCIDES)</Text>
-              </View>
-              <View style={styles.nutriAlert}>
-                <Text style={styles.nutriTime}>⚡ H-1</Text>
-                <Text style={styles.nutriAdvice}>BOISSON D'EFFORT & ÉCHAUFFEMENT</Text>
-              </View>
-            </View>
-          </BlurView>
-        )}
+                <View style={styles.bagSectionMini}>
+                  {renderChecklist(profile?.competition_bag || [])}
+                </View>
+              </BlurView>
+            </TouchableOpacity>
+          );
+        })()}
 
         {/* --- SECTION DASHBOARD NORMAL --- */}
         
@@ -482,6 +524,21 @@ const styles = StyleSheet.create({
   checkText: { color: 'rgba(255,255,255,0.4)', fontSize: 13, fontWeight: '600' },
   checkTextActive: { color: '#FFF', textDecorationLine: 'line-through', opacity: 0.6 },
   emptyText: { color: '#555', fontSize: 11, fontWeight: '800' },
+  compHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
+  compHeaderLeft: { flex: 1 },
+  phaseBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1 },
+  phaseText: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
+  nextStepRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 16, marginBottom: 20 },
+  timeBox: { alignItems: 'center', width: 70 },
+  timeLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 9, fontWeight: '800', marginBottom: 4 },
+  raceTimeVal: { color: '#FFF', fontSize: 18, fontWeight: '900' },
+  stepDivider: { width: 1, height: 30, backgroundColor: 'rgba(255,255,255,0.1)', marginHorizontal: 15 },
+  actionBox: { flex: 1 },
+  actionLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 9, fontWeight: '800', marginBottom: 4 },
+  actionVal: { color: '#00E5FF', fontSize: 14, fontWeight: '800' },
+  battlePlanBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', marginBottom: 10 },
+  battlePlanText: { color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '700' },
+  bagSectionMini: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingTop: 15 },
   nutritionSection: { borderTopWidth: 1, borderTopColor: 'rgba(255, 255, 255, 0.1)', paddingTop: 20, gap: 12 },
   nutriAlert: { flexDirection: 'row', gap: 12, alignItems: 'center' },
   nutriTime: { color: '#00E5FF', fontSize: 12, fontWeight: '900', width: 55 },

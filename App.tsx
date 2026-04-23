@@ -17,6 +17,7 @@ import DayDetailScreen from './src/screens/DayDetailScreen';
 import WeatherDetailScreen from './src/screens/WeatherDetailScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import { BootScreen } from './src/screens/BootScreen';
+import CompetitionDetailScreen from './src/screens/CompetitionDetailScreen';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -100,6 +101,7 @@ export default function App() {
               <Stack.Screen name="DayDetail" component={DayDetailScreen} />
               <Stack.Screen name="WeatherDetail" component={WeatherDetailScreen} />
               <Stack.Screen name="Profile" component={ProfileScreen} />
+              <Stack.Screen name="CompetitionDetail" component={CompetitionDetailScreen} />
             </>
           ) : (
             <Stack.Screen name="Onboarding" component={OnboardingScreen} />

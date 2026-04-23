@@ -55,6 +55,33 @@ export const notificationService = {
     return identifier;
   },
 
+  scheduleEliteBattlePlan: async (raceTime: string, callRoomTime: string, city: string) => {
+    if (Platform.OS === 'web') return;
+
+    const [rh, rm] = raceTime.split(':').map(Number);
+    const [ch, cm] = callRoomTime.split(':').map(Number);
+    
+    const today = new Date();
+    
+    const scheduleAlert = async (hours: number, minutes: number, title: string, body: string, channel: string) => {
+      const trigger = new Date(today);
+      trigger.setHours(hours, minutes, 0, 0);
+      
+      if (trigger.getTime() < Date.now()) return;
+
+      await Notifications.scheduleNotificationAsync({
+        content: { title, body, android: { channelId: channel } },
+        trigger,
+      });
+    };
+
+    // Milestones
+    await scheduleAlert(rh - 4, rm, "🍽️ DERNIER REPAS", "Focus glucides lents pour ton énergie.", 'competition-reminders');
+    await scheduleAlert(rh - 2, rm, "🏟️ ARRIVÉE AU STADE", `C'est l'heure de l'élite à ${city.toUpperCase()}.`, 'competition-reminders');
+    await scheduleAlert(rh - 1, rm - 30, "🔥 DÉBUT ÉCHAUFFEMENT", "Active la machine. Focus et intensité.", 'competition-reminders');
+    await scheduleAlert(ch, cm - 10, "🏁 CHAMBRE D'APPEL DANS 10MIN", "Mise des pointes et vérification finale.", 'competition-reminders');
+  },
+
   cancelAllNotifications: async () => {
     await Notifications.cancelAllScheduledNotificationsAsync();
   }
