@@ -88,6 +88,24 @@ const ProfileScreen = () => {
     }
   };
 
+  const handleDobInputChange = (text: string) => {
+    // Supprimer tout ce qui n'est pas un chiffre
+    let cleaned = text.replace(/\D/g, '');
+    
+    // Limiter à 8 chiffres
+    if (cleaned.length > 8) cleaned = cleaned.slice(0, 8);
+    
+    // Ajouter les slashs
+    let formatted = cleaned;
+    if (cleaned.length > 4) {
+      formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}/${cleaned.slice(4)}`;
+    } else if (cleaned.length > 2) {
+      formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2)}`;
+    }
+    
+    setEditDob(formatted);
+  };
+
   const handleUpdateProfile = async () => {
     setIsSaving(true);
     try {
@@ -315,10 +333,11 @@ const ProfileScreen = () => {
                   <TextInput 
                     style={styles.input} 
                     value={editDob} 
-                    onChangeText={setEditDob} 
-                    placeholder="01/01/1995" 
+                    onChangeText={handleDobInputChange} 
+                    placeholder="21/06/2002" 
                     placeholderTextColor="#555" 
                     keyboardType="numeric"
+                    maxLength={10}
                   />
                 )}
                 {profile?.dob && <Text style={styles.inputNote}>Impossible de changer après enregistrement</Text>}
