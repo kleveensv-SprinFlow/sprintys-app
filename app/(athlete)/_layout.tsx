@@ -34,6 +34,13 @@ export default function TabsLayout() {
           title: 'Corps',
         }}
       />
+      <Tabs.Screen
+        name="assistant"
+        options={{
+          title: 'Assistant',
+          headerShown: false, // Custom header handled inside the component for better layout control
+        }}
+      />
     </Tabs>
   );
 }

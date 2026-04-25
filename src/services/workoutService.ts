@@ -53,4 +53,32 @@ export const workoutService = {
     if (error) throw error;
     return data;
   },
+
+  fetchRecentWorkoutsContext: async (athleteId: string, days: number = 7) => {
+    const dateLimit = new Date();
+    dateLimit.setDate(dateLimit.getDate() - days);
+
+    const { data, error } = await supabase
+      .from('workouts')
+      .select('type_seance, status, created_at')
+      .eq('athlete_id', athleteId)
+      .gte('created_at', dateLimit.toISOString())
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) return "Aucun entraînement récent.";
+
+    return data.map(w =>
+      `- ${new Date(w.created_at).toLocaleDateString()}: ${w.type_seance} (${w.status})`
+    ).join('\n');
+  },
+
+  // Note: Assuming a 'competitions' table exists or will exist.
+  // Using a placeholder return if table doesn't exist yet, but structured for future.
+  fetchUpcomingCompetitionsContext: async (athleteId: string, days: number = 7) => {
+    // Placeholder implementation since we don't have a competitions table yet in the schema we saw.
+    // Replace with real Supabase call when table is ready.
+    return "Aucune compétition prévue dans les 7 prochains jours.";
+  }
 };
