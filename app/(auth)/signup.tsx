@@ -5,7 +5,7 @@ import {
   KeyboardAvoidingView, 
   Platform 
 } from 'react-native';
-import { SignupForm } from '../../src/features/auth/components/SignupForm';
+import { RegisterMultiStep } from '../../src/features/auth/components/RegisterMultiStep';
 import { theme } from '../../src/core/theme';
 
 export default function SignupScreen() {
@@ -15,7 +15,7 @@ export default function SignupScreen() {
       style={styles.container}
     >
       <View style={styles.inner}>
-        <SignupForm />
+        <RegisterMultiStep />
       </View>
     </KeyboardAvoidingView>
   );
