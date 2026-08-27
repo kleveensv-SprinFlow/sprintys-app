@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, ScrollView } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Card } from '../../../shared/components/Card';
 import { useAuthStore, UserRole, SignupData } from '../../../store/authStore';
 import { useTheme } from '../../../core/theme';
@@ -88,7 +88,7 @@ export const RegisterMultiStep = () => {
          ))}
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <View style={styles.stepContainer}>
         {renderStep()}
 
         {error && <Text style={[styles.errorText, { color: theme.colors.error }]}>{error}</Text>}
@@ -103,7 +103,7 @@ export const RegisterMultiStep = () => {
             </Text>
           </TouchableOpacity>
         )}
-      </ScrollView>
+      </View>
     </Card>
   );
 };
@@ -111,12 +111,13 @@ export const RegisterMultiStep = () => {
 const styles = StyleSheet.create({
   card: {
     width: '100%',
-    maxHeight: '90%', // Prevent it from going off screen
+    flex: 1, // Let it expand up to its container
+    maxHeight: '85%', // Prevent it from going off screen
     borderRadius: 24, // softer edges like the image
     padding: 24,
   },
-  scrollContent: {
-    paddingBottom: 20,
+  stepContainer: {
+    flex: 1, // This is crucial for nested ScrollViews to work inside it
   },
   progressContainer: {
     flexDirection: 'row',

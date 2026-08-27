@@ -33,13 +33,18 @@ export const LoginForm = () => {
           keyboardType="email-address"
         />
 
-        <Input
-          label="Mot de passe"
-          placeholder="••••••••"
-          value={password}
-          onChangeText={(val) => { setPassword(val); clearError(); }}
-          secureTextEntry
-        />
+        <View style={styles.passwordContainer}>
+          <Input
+            label="Mot de passe"
+            placeholder="••••••••"
+            value={password}
+            onChangeText={(val) => { setPassword(val); clearError(); }}
+            secureTextEntry
+          />
+          <TouchableOpacity style={styles.forgotPasswordLink}>
+            <Text style={[styles.forgotPasswordText, { color: theme.colors.accent }]}>Mot de passe oublié ?</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {error && <Text style={[styles.errorText, { color: theme.colors.error }]}>{error}</Text>}
@@ -66,38 +71,50 @@ export const LoginForm = () => {
 const styles = StyleSheet.create({
   card: {
     width: '100%',
-    borderRadius: 24, // Softer radius like the new design
-    padding: 32,
+    borderRadius: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 32,
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: 4,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 15,
-    marginBottom: 32,
+    fontSize: 14,
+    marginBottom: 24,
     textAlign: 'center',
   },
   form: {
-    gap: 16,
-    marginBottom: 24,
+    gap: 12,
+    marginBottom: 20,
+  },
+  passwordContainer: {
+    // Allows positioning the forgot password link nicely
+  },
+  forgotPasswordLink: {
+    alignSelf: 'flex-end',
+    marginTop: 4,
+  },
+  forgotPasswordText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   button: {
-    marginTop: 8,
+    marginTop: 4,
   },
   errorText: {
     fontSize: 14,
-    marginBottom: 16,
+    marginBottom: 12,
     textAlign: 'center',
   },
   signupLink: {
-    marginTop: 32,
+    marginTop: 24,
     alignItems: 'center',
   },
   signupText: {
-    fontSize: 15,
+    fontSize: 14,
   },
   signupTextBold: {
     fontWeight: '700',
