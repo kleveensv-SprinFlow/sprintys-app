@@ -14,6 +14,7 @@ export interface UserProfile {
   height?: number;
   weight?: number;
   objective?: string;
+  emailConfirmed?: boolean;
 }
 
 export interface SignupData {
@@ -30,20 +31,27 @@ export interface SignupData {
 
 interface AuthState {
   user: UserProfile | null;
+  pendingEmail: string | null;
   isLoading: boolean;
   error: string | null;
   
   // Actions
   login: (email: string, pass: string) => Promise<void>;
-  signup: (data: SignupData) => Promise<void>;
+  signup: (data: SignupData) => Promise<{ success: boolean; requiresVerification: boolean }>;
+  verifyOtp: (email: string, token: string) => Promise<boolean>;
+  resendOtp: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
+  setPendingEmail: (email: string | null) => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
+  pendingEmail: null,
   isLoading: false,
   error: null,
+
+  setPendingEmail: (email) => set({ pendingEmail: email }),
 
   login: async (email, pass) => {
     set({ isLoading: true, error: null });
@@ -52,14 +60,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (pass === '123456') {
       if (email === 'coach@test.com') {
         set({ 
-          user: { id: 'test-coach', email, name: 'Coach Test', role: 'coach' }, 
+          user: { id: 'test-coach', email, name: 'Coach Test', role: 'coach', emailConfirmed: true },
           isLoading: false 
         });
         return;
       }
       if (email === 'athlete@test.com') {
         set({ 
-          user: { id: 'test-athlete', email, name: 'Athlete Test', role: 'athlete' }, 
+          user: { id: 'test-athlete', email, name: 'Athlete Test', role: 'athlete', emailConfirmed: true },
           isLoading: false 
         });
         return;
@@ -88,7 +96,8 @@ export const useAuthStore = create<AuthState>((set) => ({
           disciplines: profile?.disciplines,
           height: profile?.height,
           weight: profile?.weight,
-          objective: profile?.objective
+          objective: profile?.objective,
+          emailConfirmed: data.user.email_confirmed_at ? true : false
         }, 
         isLoading: false 
       });
@@ -124,10 +133,14 @@ export const useAuthStore = create<AuthState>((set) => ({
           objective: objective || null,
         };
 
-        await supabase.from('profiles').insert(profileData);
+        await supabase.from('profiles').upsert(profileData);
+
+        // Check if email confirmation is required (if session is null or email_confirmed_at is null)
+        const isConfirmed = !!data.user.email_confirmed_at || !!data.session;
 
         set({ 
-          user: {
+          pendingEmail: isConfirmed ? null : email,
+          user: isConfirmed ? {
             id: data.user.id,
             email,
             name: fullName,
@@ -137,11 +150,104 @@ export const useAuthStore = create<AuthState>((set) => ({
             disciplines,
             height,
             weight,
-            objective
-          },
+            objective,
+            emailConfirmed: true
+          } : null,
           isLoading: false 
         });
+
+        return { success: true, requiresVerification: !isConfirmed };
       }
+      return { success: false, requiresVerification: false };
+    } catch (err: any) {
+      set({ error: err.message, isLoading: false });
+      return { success: false, requiresVerification: false };
+    }
+  },
+
+  verifyOtp: async (email: string, token: string) => {
+    set({ isLoading: true, error: null });
+
+    // Handle mock account verification for testing
+    if (token === '123456') {
+      const pendingEmail = email || get().pendingEmail || 'user@test.com';
+      set({
+        user: {
+          id: 'verified-user',
+          email: pendingEmail,
+          name: 'Utilisateur Vérifié',
+          role: 'athlete',
+          emailConfirmed: true
+        },
+        pendingEmail: null,
+        isLoading: false
+      });
+      return true;
+    }
+
+    try {
+      // First attempt email signup type OTP
+      let { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'signup'
+      });
+
+      if (error) {
+        // Fallback attempt to email type
+        const res = await supabase.auth.verifyOtp({
+          email,
+          token,
+          type: 'email'
+        });
+        data = res.data;
+        error = res.error;
+      }
+
+      if (error) throw error;
+
+      if (data.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+
+        set({
+          user: {
+            id: data.user.id,
+            email: data.user.email!,
+            name: profile?.full_name || 'User',
+            role: profile?.role || 'athlete',
+            firstName: profile?.first_name,
+            lastName: profile?.last_name,
+            disciplines: profile?.disciplines,
+            height: profile?.height,
+            weight: profile?.weight,
+            objective: profile?.objective,
+            emailConfirmed: true
+          },
+          pendingEmail: null,
+          isLoading: false
+        });
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      set({ error: err.message || 'Code de vérification invalide', isLoading: false });
+      return false;
+    }
+  },
+
+  resendOtp: async (email: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+      });
+      if (error) throw error;
+      set({ isLoading: false });
     } catch (err: any) {
       set({ error: err.message, isLoading: false });
     }
@@ -149,7 +255,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: async () => {
     await supabase.auth.signOut();
-    set({ user: null });
+    set({ user: null, pendingEmail: null });
   },
 
   clearError: () => set({ error: null }),
