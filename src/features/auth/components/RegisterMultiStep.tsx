@@ -5,7 +5,6 @@ import { useAuthStore, UserRole, SignupData } from '../../../store/authStore';
 import { useTheme } from '../../../core/theme';
 import { useRouter } from 'expo-router';
 
-// We'll create the steps in separate files right after to keep this file clean
 import { StepRole } from './steps/StepRole';
 import { StepIdentity } from './steps/StepIdentity';
 import { StepDiscipline } from './steps/StepDiscipline';
@@ -34,7 +33,7 @@ export const RegisterMultiStep = () => {
   const handleSignup = async () => {
     if (!formData.email || !formData.pass || !formData.firstName || !formData.lastName) return;
 
-    await signup({
+    const res = await signup({
       email: formData.email,
       pass: formData.pass,
       firstName: formData.firstName,
@@ -45,6 +44,17 @@ export const RegisterMultiStep = () => {
       weight: formData.weight ? Number(formData.weight) : undefined,
       objective: formData.objective
     });
+
+    if (res.success) {
+      if (res.requiresVerification) {
+        router.push({
+          pathname: '/(auth)/verify-email',
+          params: { email: formData.email }
+        });
+      } else {
+        router.replace('/');
+      }
+    }
   };
 
   const renderStep = () => {

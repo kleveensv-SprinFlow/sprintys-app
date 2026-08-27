@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "sprintflow-v2",
+    "name": "Sprintflow",
     "slug": "sprintflow-v2",
     "scheme": "sprintflowv2",
     "version": "1.0.0",
@@ -26,7 +26,9 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.kleveens.sprintflowv2",
-      "permissions": ["INTERNET"]
+      "permissions": [
+        "INTERNET"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

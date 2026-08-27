@@ -4,7 +4,7 @@ import { useAuthStore } from '../src/store/authStore';
 import { SprintyFeedback } from '../src/features/sprinty/SprintyFeedback';
 
 export default function RootLayout() {
-  const { user, isLoading } = useAuthStore();
+  const { user, pendingEmail, isLoading } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();
 
@@ -12,9 +12,15 @@ export default function RootLayout() {
     if (isLoading) return;
 
     const inAuthGroup = segments[0] === '(auth)';
+    const isVerifyScreen = segments[1] === 'verify-email';
 
     setTimeout(() => {
-      if (!user && !inAuthGroup) {
+      if (pendingEmail && !isVerifyScreen) {
+        router.replace({
+          pathname: '/(auth)/verify-email',
+          params: { email: pendingEmail }
+        });
+      } else if (!user && !pendingEmail && !inAuthGroup) {
         router.replace('/login');
       } else if (user && inAuthGroup) {
         // Redirect based on role
@@ -25,7 +31,7 @@ export default function RootLayout() {
         }
       }
     }, 0);
-  }, [user, segments, isLoading]);
+  }, [user, pendingEmail, segments, isLoading]);
 
   return (
     <>
