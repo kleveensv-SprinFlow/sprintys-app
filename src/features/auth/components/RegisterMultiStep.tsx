@@ -1,65 +1,109 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View, ScrollView } from 'react-native';
 import { Card } from '../../../shared/components/Card';
-import { SignupStepOne } from './SignupStepOne';
-import { SignupStepTwo } from './SignupStepTwo';
-import { useAuthStore } from '../../../store/authStore';
-import { theme } from '../../../core/theme';
+import { useAuthStore, UserRole, SignupData } from '../../../store/authStore';
+import { useTheme } from '../../../core/theme';
 import { useRouter } from 'expo-router';
 
+// We'll create the steps in separate files right after to keep this file clean
+import { StepRole } from './steps/StepRole';
+import { StepIdentity } from './steps/StepIdentity';
+import { StepDiscipline } from './steps/StepDiscipline';
+import { StepPhysical } from './steps/StepPhysical';
+import { StepObjective } from './steps/StepObjective';
+import { StepAccount } from './steps/StepAccount';
+
 export const RegisterMultiStep = () => {
+  const theme = useTheme();
   const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    name: '',
-    role: 'athlete', // Default
+  const [formData, setFormData] = useState<Partial<SignupData>>({
+    role: 'athlete',
+    disciplines: [],
   });
 
   const { signup, isLoading, error } = useAuthStore();
   const router = useRouter();
 
-  const updateData = (newData: any) => {
+  const updateData = (newData: Partial<SignupData>) => {
     setFormData(prev => ({ ...prev, ...newData }));
   };
 
+  const handleNext = () => setStep(s => s + 1);
+  const handleBack = () => setStep(s => s - 1);
+
   const handleSignup = async () => {
-    await signup(
-      formData.email, 
-      formData.password, 
-      formData.name, 
-      formData.role as any
-    );
+    if (!formData.email || !formData.pass || !formData.firstName || !formData.lastName) return;
+
+    await signup({
+      email: formData.email,
+      pass: formData.pass,
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      role: formData.role as UserRole,
+      disciplines: formData.disciplines,
+      height: formData.height ? Number(formData.height) : undefined,
+      weight: formData.weight ? Number(formData.weight) : undefined,
+      objective: formData.objective
+    });
+  };
+
+  const renderStep = () => {
+    switch (step) {
+      case 1:
+        return <StepRole data={formData} updateData={updateData} onNext={handleNext} />;
+      case 2:
+        return <StepIdentity data={formData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
+      case 3:
+        return <StepDiscipline data={formData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
+      case 4:
+        return <StepPhysical data={formData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
+      case 5:
+        return <StepObjective data={formData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
+      case 6:
+        return <StepAccount
+                  data={formData}
+                  updateData={updateData}
+                  onSubmit={handleSignup}
+                  onBack={handleBack}
+                  isLoading={isLoading}
+               />;
+      default:
+        return null;
+    }
   };
 
   return (
-    <Card variant="glass" style={styles.card}>
-      {step === 1 ? (
-        <SignupStepOne 
-          data={formData} 
-          updateData={updateData} 
-          onNext={() => setStep(2)} 
-        />
-      ) : (
-        <SignupStepTwo 
-          data={formData} 
-          updateData={updateData} 
-          onBack={() => setStep(1)} 
-          onSubmit={handleSignup}
-          isLoading={isLoading}
-        />
-      )}
+    <Card variant="glass" style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
 
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {/* Progress Indicator */}
+      <View style={styles.progressContainer}>
+         {[1, 2, 3, 4, 5, 6].map(i => (
+           <View
+             key={i}
+             style={[
+               styles.progressDot,
+               { backgroundColor: i <= step ? theme.colors.accent : theme.colors.border }
+             ]}
+           />
+         ))}
+      </View>
 
-      <TouchableOpacity 
-        onPress={() => router.push('/login')}
-        style={styles.loginLink}
-      >
-        <Text style={styles.loginText}>
-          Déjà un compte ? <Text style={styles.loginTextBold}>Se connecter</Text>
-        </Text>
-      </TouchableOpacity>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {renderStep()}
+
+        {error && <Text style={[styles.errorText, { color: theme.colors.error }]}>{error}</Text>}
+
+        {step === 1 && (
+          <TouchableOpacity
+            onPress={() => router.push('/login')}
+            style={styles.loginLink}
+          >
+            <Text style={[styles.loginText, { color: theme.colors.textSecondary }]}>
+              Déjà un compte ? <Text style={[styles.loginTextBold, { color: theme.colors.accent }]}>Se connecter</Text>
+            </Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
     </Card>
   );
 };
@@ -67,23 +111,38 @@ export const RegisterMultiStep = () => {
 const styles = StyleSheet.create({
   card: {
     width: '100%',
+    maxHeight: '90%', // Prevent it from going off screen
+    borderRadius: 24, // softer edges like the image
+    padding: 24,
+  },
+  scrollContent: {
+    paddingBottom: 20,
+  },
+  progressContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+    gap: 8,
+  },
+  progressDot: {
+    height: 4,
+    width: 24,
+    borderRadius: 2,
   },
   errorText: {
-    color: theme.colors.error,
     fontSize: 14,
-    marginTop: theme.spacing.md,
+    marginTop: 16,
     textAlign: 'center',
   },
   loginLink: {
-    marginTop: theme.spacing.xl,
+    marginTop: 24,
     alignItems: 'center',
   },
   loginText: {
-    color: theme.colors.textSecondary,
     fontSize: 14,
   },
   loginTextBold: {
-    color: theme.colors.accent,
-    fontWeight: theme.typography.fontWeights.bold as any,
+    fontWeight: '700',
   },
 });

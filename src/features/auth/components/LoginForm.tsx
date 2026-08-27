@@ -4,10 +4,11 @@ import { Button } from '../../../shared/components/Button';
 import { Input } from '../../../shared/components/Input';
 import { Card } from '../../../shared/components/Card';
 import { useAuthStore } from '../../../store/authStore';
-import { theme } from '../../../core/theme';
+import { useTheme } from '../../../core/theme';
 import { useRouter } from 'expo-router';
 
 export const LoginForm = () => {
+  const theme = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { login, isLoading, error, clearError } = useAuthStore();
@@ -18,28 +19,30 @@ export const LoginForm = () => {
   };
 
   return (
-    <Card variant="glass" style={styles.card}>
-      <Text style={styles.title}>Connexion</Text>
-      <Text style={styles.subtitle}>Accédez à votre dashboard de performance</Text>
+    <Card variant="glass" style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+      <Text style={[styles.title, { color: theme.colors.text }]}>Connexion</Text>
+      <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Accédez à votre dashboard de performance</Text>
       
-      <Input
-        label="Email"
-        placeholder="votre@email.com"
-        value={email}
-        onChangeText={(val) => { setEmail(val); clearError(); }}
-        autoCapitalize="none"
-        keyboardType="email-address"
-      />
-      
-      <Input
-        label="Mot de passe"
-        placeholder="••••••••"
-        value={password}
-        onChangeText={(val) => { setPassword(val); clearError(); }}
-        secureTextEntry
-      />
+      <View style={styles.form}>
+        <Input
+          label="Email"
+          placeholder="votre@email.com"
+          value={email}
+          onChangeText={(val) => { setEmail(val); clearError(); }}
+          autoCapitalize="none"
+          keyboardType="email-address"
+        />
 
-      {error && <Text style={styles.errorText}>{error}</Text>}
+        <Input
+          label="Mot de passe"
+          placeholder="••••••••"
+          value={password}
+          onChangeText={(val) => { setPassword(val); clearError(); }}
+          secureTextEntry
+        />
+      </View>
+
+      {error && <Text style={[styles.errorText, { color: theme.colors.error }]}>{error}</Text>}
 
       <Button
         title="Se connecter"
@@ -52,8 +55,8 @@ export const LoginForm = () => {
         onPress={() => router.push('/signup')}
         style={styles.signupLink}
       >
-        <Text style={styles.signupText}>
-          Pas encore de compte ? <Text style={styles.signupTextBold}>S'inscrire</Text>
+        <Text style={[styles.signupText, { color: theme.colors.textSecondary }]}>
+          Pas encore de compte ? <Text style={[styles.signupTextBold, { color: theme.colors.accent }]}>S'inscrire</Text>
         </Text>
       </TouchableOpacity>
     </Card>
@@ -63,37 +66,40 @@ export const LoginForm = () => {
 const styles = StyleSheet.create({
   card: {
     width: '100%',
+    borderRadius: 24, // Softer radius like the new design
+    padding: 32,
   },
   title: {
-    color: theme.colors.text,
-    fontSize: 24,
-    fontWeight: theme.typography.fontWeights.bold as any,
-    marginBottom: 4,
+    fontSize: 28,
+    fontWeight: '700',
+    marginBottom: 8,
+    textAlign: 'center',
   },
   subtitle: {
-    color: theme.colors.textSecondary,
-    fontSize: 14,
-    marginBottom: theme.spacing.xl,
+    fontSize: 15,
+    marginBottom: 32,
+    textAlign: 'center',
+  },
+  form: {
+    gap: 16,
+    marginBottom: 24,
   },
   button: {
-    marginTop: theme.spacing.md,
+    marginTop: 8,
   },
   errorText: {
-    color: theme.colors.error,
     fontSize: 14,
-    marginBottom: theme.spacing.md,
+    marginBottom: 16,
     textAlign: 'center',
   },
   signupLink: {
-    marginTop: theme.spacing.xl,
+    marginTop: 32,
     alignItems: 'center',
   },
   signupText: {
-    color: theme.colors.textSecondary,
-    fontSize: 14,
+    fontSize: 15,
   },
   signupTextBold: {
-    color: theme.colors.accent,
-    fontWeight: theme.typography.fontWeights.bold as any,
+    fontWeight: '700',
   },
 });
