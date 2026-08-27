@@ -6,13 +6,15 @@ import {
   Platform 
 } from 'react-native';
 import { RegisterMultiStep } from '../../src/features/auth/components/RegisterMultiStep';
-import { theme } from '../../src/core/theme';
+import { useTheme } from '../../src/core/theme';
 
 export default function SignupScreen() {
+  const theme = useTheme();
+
   return (
     <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
       <View style={styles.inner}>
         <RegisterMultiStep />
@@ -24,11 +26,10 @@ export default function SignupScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   inner: {
     flex: 1,
-    padding: theme.spacing.xl,
+    padding: 24, // theme.spacing.xl
     justifyContent: 'center',
     alignItems: 'center',
   },

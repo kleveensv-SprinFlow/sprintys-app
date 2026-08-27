@@ -3,11 +3,29 @@ import { supabase } from '../services/supabase';
 
 export type UserRole = 'coach' | 'athlete';
 
-interface UserProfile {
+export interface UserProfile {
   id: string;
   email: string;
-  name: string;
+  name: string; // Will store "Prénom Nom"
   role: UserRole;
+  firstName?: string;
+  lastName?: string;
+  disciplines?: string[];
+  height?: number;
+  weight?: number;
+  objective?: string;
+}
+
+export interface SignupData {
+  email: string;
+  pass: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+  disciplines?: string[];
+  height?: number;
+  weight?: number;
+  objective?: string;
 }
 
 interface AuthState {
@@ -17,7 +35,7 @@ interface AuthState {
   
   // Actions
   login: (email: string, pass: string) => Promise<void>;
-  signup: (email: string, pass: string, name: string, role: UserRole) => Promise<void>;
+  signup: (data: SignupData) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -30,7 +48,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (email, pass) => {
     set({ isLoading: true, error: null });
     
-    // Simulate/Check Test Accounts as requested in Mission Task 5
+    // Simulate/Check Test Accounts
     if (pass === '123456') {
       if (email === 'coach@test.com') {
         set({ 
@@ -64,7 +82,13 @@ export const useAuthStore = create<AuthState>((set) => ({
           id: data.user.id, 
           email: data.user.email!, 
           name: profile?.full_name || 'User',
-          role: profile?.role || 'athlete'
+          role: profile?.role || 'athlete',
+          firstName: profile?.first_name,
+          lastName: profile?.last_name,
+          disciplines: profile?.disciplines,
+          height: profile?.height,
+          weight: profile?.weight,
+          objective: profile?.objective
         }, 
         isLoading: false 
       });
@@ -73,26 +97,48 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
-  signup: async (email, pass, name, role) => {
+  signup: async (signupData) => {
     set({ isLoading: true, error: null });
+    const { email, pass, firstName, lastName, role, disciplines, height, weight, objective } = signupData;
+    const fullName = `${firstName} ${lastName}`.trim();
+
     try {
       const { data, error } = await supabase.auth.signUp({ 
         email, 
         password: pass,
-        options: { data: { full_name: name, role } }
+        options: { data: { full_name: fullName, role } }
       });
       if (error) throw error;
 
       if (data.user) {
         // Create profile in DB
-        await supabase.from('profiles').insert({
+        const profileData = {
           id: data.user.id,
-          full_name: name,
-          role: role
-        });
+          full_name: fullName,
+          first_name: firstName,
+          last_name: lastName,
+          role: role,
+          disciplines: disciplines || null,
+          height: height || null,
+          weight: weight || null,
+          objective: objective || null,
+        };
+
+        await supabase.from('profiles').insert(profileData);
 
         set({ 
-          user: { id: data.user.id, email, name, role }, 
+          user: {
+            id: data.user.id,
+            email,
+            name: fullName,
+            role,
+            firstName,
+            lastName,
+            disciplines,
+            height,
+            weight,
+            objective
+          },
           isLoading: false 
         });
       }
