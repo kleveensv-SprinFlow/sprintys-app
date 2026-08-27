@@ -10,6 +10,7 @@ import { StepIdentity } from './steps/StepIdentity';
 import { StepDiscipline } from './steps/StepDiscipline';
 import { StepPhysical } from './steps/StepPhysical';
 import { StepObjective } from './steps/StepObjective';
+import { StepCoachGroup } from './steps/StepCoachGroup';
 import { StepAccount } from './steps/StepAccount';
 
 export const RegisterMultiStep = () => {
@@ -18,10 +19,14 @@ export const RegisterMultiStep = () => {
   const [formData, setFormData] = useState<Partial<SignupData>>({
     role: 'athlete',
     disciplines: [],
+    subgroups: [],
   });
 
   const { signup, isLoading, error } = useAuthStore();
   const router = useRouter();
+
+  const isCoach = formData.role === 'coach';
+  const totalSteps = isCoach ? 4 : 6;
 
   const updateData = (newData: Partial<SignupData>) => {
     setFormData(prev => ({ ...prev, ...newData }));
@@ -42,7 +47,9 @@ export const RegisterMultiStep = () => {
       disciplines: formData.disciplines,
       height: formData.height ? Number(formData.height) : undefined,
       weight: formData.weight ? Number(formData.weight) : undefined,
-      objective: formData.objective
+      objective: formData.objective,
+      groupName: formData.groupName,
+      subgroups: formData.subgroups,
     });
 
     if (res.success) {
@@ -58,36 +65,59 @@ export const RegisterMultiStep = () => {
   };
 
   const renderStep = () => {
-    switch (step) {
-      case 1:
-        return <StepRole data={formData} updateData={updateData} onNext={handleNext} />;
-      case 2:
-        return <StepIdentity data={formData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
-      case 3:
-        return <StepDiscipline data={formData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
-      case 4:
-        return <StepPhysical data={formData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
-      case 5:
-        return <StepObjective data={formData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
-      case 6:
-        return <StepAccount
-                  data={formData}
-                  updateData={updateData}
-                  onSubmit={handleSignup}
-                  onBack={handleBack}
-                  isLoading={isLoading}
-               />;
-      default:
-        return null;
+    if (isCoach) {
+      switch (step) {
+        case 1:
+          return <StepRole data={formData} updateData={updateData} onNext={handleNext} />;
+        case 2:
+          return <StepIdentity data={formData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
+        case 3:
+          return <StepCoachGroup data={formData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
+        case 4:
+          return <StepAccount
+                    data={formData}
+                    updateData={updateData}
+                    onSubmit={handleSignup}
+                    onBack={handleBack}
+                    isLoading={isLoading}
+                 />;
+        default:
+          return null;
+      }
+    } else {
+      switch (step) {
+        case 1:
+          return <StepRole data={formData} updateData={updateData} onNext={handleNext} />;
+        case 2:
+          return <StepIdentity data={formData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
+        case 3:
+          return <StepDiscipline data={formData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
+        case 4:
+          return <StepPhysical data={formData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
+        case 5:
+          return <StepObjective data={formData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
+        case 6:
+          return <StepAccount
+                    data={formData}
+                    updateData={updateData}
+                    onSubmit={handleSignup}
+                    onBack={handleBack}
+                    isLoading={isLoading}
+                 />;
+        default:
+          return null;
+      }
     }
   };
+
+  const dots = Array.from({ length: totalSteps }, (_, i) => i + 1);
 
   return (
     <Card variant="glass" style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
 
       {/* Progress Indicator */}
       <View style={styles.progressContainer}>
-         {[1, 2, 3, 4, 5, 6].map(i => (
+         {dots.map(i => (
            <View
              key={i}
              style={[
