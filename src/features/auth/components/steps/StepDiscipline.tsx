@@ -31,7 +31,7 @@ export const StepDiscipline = ({ data, updateData, onNext, onBack }: any) => {
       <Text style={[styles.title, { color: theme.colors.text }]}>Quelle est votre discipline ?</Text>
       <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Sélection multiple</Text>
 
-      <View style={styles.scrollWrapper}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {DISCIPLINES.map((section, idx) => (
           <View key={idx} style={styles.section}>
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>{section.category}</Text>
@@ -62,7 +62,7 @@ export const StepDiscipline = ({ data, updateData, onNext, onBack }: any) => {
             </View>
           </View>
         ))}
-      </View>
+      </ScrollView>
 
       <View style={styles.footer}>
         <Button title="Retour" variant="outline" onPress={onBack} style={styles.halfBtn} />
@@ -75,6 +75,7 @@ export const StepDiscipline = ({ data, updateData, onNext, onBack }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    minHeight: 400, // Make sure it takes up enough space but flexes
   },
   title: {
     fontSize: 24,
@@ -84,12 +85,15 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    marginBottom: 24,
+    marginBottom: 16,
     textAlign: 'center',
   },
-  scrollWrapper: {
-    height: 300, // Fixed height to scroll within card
+  scrollView: {
+    flex: 1,
     marginBottom: 24,
+  },
+  scrollContent: {
+    paddingBottom: 24, // extra padding at the bottom of the list
   },
   section: {
     marginBottom: 20,
@@ -117,7 +121,7 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     gap: 16,
-    marginTop: 'auto',
+    marginTop: 'auto', // Pushes the footer to the bottom
   },
   halfBtn: {
     flex: 1,
