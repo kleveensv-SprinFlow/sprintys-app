@@ -14,6 +14,8 @@ export interface UserProfile {
   height?: number;
   weight?: number;
   objective?: string;
+  groupName?: string;
+  subgroups?: string[];
   emailConfirmed?: boolean;
 }
 
@@ -27,6 +29,8 @@ export interface SignupData {
   height?: number;
   weight?: number;
   objective?: string;
+  groupName?: string;
+  subgroups?: string[];
 }
 
 interface AuthState {
@@ -97,6 +101,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           height: profile?.height,
           weight: profile?.weight,
           objective: profile?.objective,
+          groupName: profile?.group_name,
+          subgroups: profile?.subgroups,
           emailConfirmed: data.user.email_confirmed_at ? true : false
         }, 
         isLoading: false 
@@ -108,7 +114,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signup: async (signupData) => {
     set({ isLoading: true, error: null });
-    const { email, pass, firstName, lastName, role, disciplines, height, weight, objective } = signupData;
+    const { email, pass, firstName, lastName, role, disciplines, height, weight, objective, groupName, subgroups } = signupData;
     const fullName = `${firstName} ${lastName}`.trim();
 
     try {
@@ -127,10 +133,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           first_name: firstName,
           last_name: lastName,
           role: role,
-          disciplines: disciplines || null,
-          height: height || null,
-          weight: weight || null,
-          objective: objective || null,
+          disciplines: role === 'athlete' ? (disciplines || null) : null,
+          height: role === 'athlete' ? (height || null) : null,
+          weight: role === 'athlete' ? (weight || null) : null,
+          objective: role === 'athlete' ? (objective || null) : null,
+          group_name: role === 'coach' ? (groupName || null) : null,
+          subgroups: role === 'coach' ? (subgroups || null) : null,
         };
 
         await supabase.from('profiles').upsert(profileData);
@@ -151,6 +159,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             height,
             weight,
             objective,
+            groupName,
+            subgroups,
             emailConfirmed: true
           } : null,
           isLoading: false 
@@ -225,6 +235,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             height: profile?.height,
             weight: profile?.weight,
             objective: profile?.objective,
+            groupName: profile?.group_name,
+            subgroups: profile?.subgroups,
             emailConfirmed: true
           },
           pendingEmail: null,
