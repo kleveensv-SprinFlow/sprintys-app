@@ -120,7 +120,7 @@ export const RegisterMultiStep = () => {
   const dots = Array.from({ length: totalSteps }, (_, i) => i + 1);
 
   return (
-    <Card variant="glass" style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+    <Card variant="glass" style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }] as any}>
 
       {/* Progress Indicator */}
       <View style={styles.progressContainer}>

@@ -180,7 +180,7 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
           top_p: 0.9,
           stop: ["<|im_end|>"],
         },
-        (data) => {
+        (data: any) => {
           responseText += data.token;
         }
       );

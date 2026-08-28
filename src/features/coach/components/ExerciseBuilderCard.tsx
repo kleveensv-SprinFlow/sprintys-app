@@ -7,11 +7,12 @@ import { Input } from '../../../shared/components/Input';
 import { theme } from '../../../core/theme';
 
 interface Props {
+  blockId: string;
   exercise: BuilderExercise;
 }
 
-export const ExerciseBuilderCard: React.FC<Props> = ({ exercise }) => {
-  const { addSet, removeSet, updateSet, removeExercise } = useWorkoutBuilderStore();
+export const ExerciseBuilderCard: React.FC<Props> = ({ blockId, exercise }) => {
+  const { addSetToExercise, removeSetFromExercise, updateSet, removeExerciseFromBlock } = useWorkoutBuilderStore();
 
   const renderHeaderLabels = () => {
     switch (exercise.category) {
@@ -46,14 +47,14 @@ export const ExerciseBuilderCard: React.FC<Props> = ({ exercise }) => {
           <>
             <Input
               value={set.reps?.toString() || ''}
-              onChangeText={(val) => updateSet(exercise.id, setId, { reps: parseInt(val) || 0 })}
+              onChangeText={(val) => updateSet(blockId, exercise.id, setId, { reps: parseInt(val) || 0 })}
               keyboardType="numeric"
               containerStyle={styles.inputContainer}
               style={baseInputStyle}
             />
             <Input
               value={set.weight?.toString() || ''}
-              onChangeText={(val) => updateSet(exercise.id, setId, { weight: parseFloat(val) || 0 })}
+              onChangeText={(val) => updateSet(blockId, exercise.id, setId, { weight: parseFloat(val) || 0 })}
               keyboardType="numeric"
               containerStyle={styles.inputContainer}
               style={baseInputStyle}
@@ -66,14 +67,14 @@ export const ExerciseBuilderCard: React.FC<Props> = ({ exercise }) => {
           <>
             <Input
               value={set.distance?.toString() || ''}
-              onChangeText={(val) => updateSet(exercise.id, setId, { distance: parseInt(val) || 0 })}
+              onChangeText={(val) => updateSet(blockId, exercise.id, setId, { distance: parseInt(val) || 0 })}
               keyboardType="numeric"
               containerStyle={styles.inputContainer}
               style={baseInputStyle}
             />
             <Input
               value={set.duration || ''}
-              onChangeText={(val) => updateSet(exercise.id, setId, { duration: val })}
+              onChangeText={(val) => updateSet(blockId, exercise.id, setId, { duration: val })}
               placeholder="00:00"
               containerStyle={styles.inputContainer}
               style={baseInputStyle}
@@ -83,8 +84,8 @@ export const ExerciseBuilderCard: React.FC<Props> = ({ exercise }) => {
       case 'Escalier':
         return (
           <Input
-            value={set.steps?.toString() || ''}
-            onChangeText={(val) => updateSet(exercise.id, setId, { steps: parseInt(val) || 0 })}
+            value={(set as any).steps?.toString() || ''}
+            onChangeText={(val) => updateSet(blockId, exercise.id, setId, { reps: parseInt(val) || 0 })}
             keyboardType="numeric"
             containerStyle={styles.inputContainer}
             style={baseInputStyle}
@@ -102,7 +103,7 @@ export const ExerciseBuilderCard: React.FC<Props> = ({ exercise }) => {
           <Text style={styles.title}>{exercise.name.toUpperCase()}</Text>
           <Text style={styles.catText}>{exercise.category}</Text>
         </View>
-        <TouchableOpacity onPress={() => removeExercise(exercise.id)}>
+        <TouchableOpacity onPress={() => removeExerciseFromBlock(blockId, exercise.id)}>
           <Text style={styles.removeText}>SUPPRIMER</Text>
         </TouchableOpacity>
       </View>
@@ -117,14 +118,14 @@ export const ExerciseBuilderCard: React.FC<Props> = ({ exercise }) => {
         <View key={set.id} style={styles.setRow}>
           {renderSetFields(set, set.id)}
           <Input
-            value={set.restSeconds.toString()}
-            onChangeText={(val) => updateSet(exercise.id, set.id, { restSeconds: parseInt(val) || 0 })}
+            value={set.restSeconds?.toString() || ''}
+            onChangeText={(val) => updateSet(blockId, exercise.id, set.id, { restSeconds: parseInt(val) || 0 })}
             keyboardType="numeric"
             containerStyle={styles.inputContainer}
             style={{ height: 40, textAlign: 'center', fontSize: 14 }}
           />
           <TouchableOpacity 
-            onPress={() => removeSet(exercise.id, set.id)}
+            onPress={() => removeSetFromExercise(blockId, exercise.id, set.id)}
             style={styles.removeSetBtn}
           >
             <Text style={styles.removeIcon}>×</Text>
@@ -133,7 +134,7 @@ export const ExerciseBuilderCard: React.FC<Props> = ({ exercise }) => {
       ))}
 
       <TouchableOpacity 
-        onPress={() => addSet(exercise.id)}
+        onPress={() => addSetToExercise(blockId, exercise.id)}
         style={styles.addSetBtn}
       >
         <Text style={styles.addSetText}>+ AJOUTER SÉRIE</Text>

@@ -52,16 +52,18 @@ export default function VerifyEmailScreen() {
       <View style={styles.inner}>
         <Card
           variant="glass"
-          style={[
-            styles.card,
-            { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }
-          ]}
+          style={
+            [
+              styles.card,
+              { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }
+            ] as any
+          }
         >
           <View style={styles.iconContainer}>
             <Feather name="mail" size={48} color={theme.colors.accent} />
           </View>
 
-          <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
+          <Text style={[styles.title, { color: theme.colors.text }]}>
             Confirmation de votre compte
           </Text>
 
@@ -78,7 +80,7 @@ export default function VerifyEmailScreen() {
                 styles.input,
                 {
                   backgroundColor: theme.colors.background,
-                  color: theme.colors.textPrimary,
+                  color: theme.colors.text,
                   borderColor: theme.colors.border
                 }
               ]}

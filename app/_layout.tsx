@@ -12,7 +12,7 @@ export default function RootLayout() {
     if (isLoading) return;
 
     const inAuthGroup = segments[0] === '(auth)';
-    const isVerifyScreen = segments[1] === 'verify-email';
+    const isVerifyScreen = (segments as string[])[1] === 'verify-email';
 
     setTimeout(() => {
       if (pendingEmail && !isVerifyScreen) {

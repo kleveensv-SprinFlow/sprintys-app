@@ -19,7 +19,7 @@ export const LoginForm = () => {
   };
 
   return (
-    <Card variant="glass" style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+    <Card variant="glass" style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }] as any}>
       <Text style={[styles.title, { color: theme.colors.text }]}>Connexion</Text>
       <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Accédez à votre dashboard de performance</Text>
       

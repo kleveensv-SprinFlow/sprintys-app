@@ -108,7 +108,6 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.md,
   },
   headerTitle: {
-    color: theme.colors.text,
     fontSize: 14,
     fontWeight: theme.typography.fontWeights.bold as any,
     letterSpacing: 2,

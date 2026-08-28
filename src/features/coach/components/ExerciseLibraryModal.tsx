@@ -7,14 +7,22 @@ import { Button } from '../../../shared/components/Button';
 import { Input } from '../../../shared/components/Input';
 
 interface Props {
+  blockId: string;
   visible: boolean;
   onClose: () => void;
 }
 
 const TAGS = ['Haut du corps', 'Bas du corps', 'Ischios', 'Quadri', 'Haltérophilie'];
 
-export const ExerciseLibraryModal: React.FC<Props> = ({ visible, onClose }) => {
-  const { exerciseLibrary, addExerciseFromLibrary, addCustomExercise } = useWorkoutBuilderStore();
+const MOCK_LIBRARY: LibraryExercise[] = [
+  { id: '1', name: 'Développé Couché', category: 'Musculation', tags: ['Haut du corps'] },
+  { id: '2', name: 'Squat', category: 'Musculation', tags: ['Bas du corps', 'Quadri'] },
+  { id: '3', name: 'Soulevé de terre', category: 'Musculation', tags: ['Bas du corps', 'Ischios'] },
+  { id: '4', name: 'Arraché', category: 'Haltérophilie', tags: ['Haltérophilie', 'Haut du corps', 'Bas du corps'] },
+];
+
+export const ExerciseLibraryModal: React.FC<Props> = ({ blockId, visible, onClose }) => {
+  const { addExerciseToBlock } = useWorkoutBuilderStore();
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [customName, setCustomName] = useState('');
 
@@ -24,18 +32,18 @@ export const ExerciseLibraryModal: React.FC<Props> = ({ visible, onClose }) => {
     );
   };
 
-  const filteredLibrary = exerciseLibrary.filter(ex => 
+  const filteredLibrary = MOCK_LIBRARY.filter(ex => 
     selectedTags.length === 0 || selectedTags.every(t => ex.tags.includes(t))
   );
 
   const handleSelect = (ex: LibraryExercise) => {
-    addExerciseFromLibrary(ex);
+    addExerciseToBlock(blockId, ex.name, ex.category);
     onClose();
   };
 
   const handleAddCustom = () => {
     if (customName) {
-      addCustomExercise(customName);
+      addExerciseToBlock(blockId, customName, 'Général');
       setCustomName('');
       onClose();
     }

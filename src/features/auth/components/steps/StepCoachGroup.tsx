@@ -49,7 +49,7 @@ export const StepCoachGroup = ({ data, updateData, onNext, onBack }: StepCoachGr
 
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
+      <Text style={[styles.title, { color: theme.colors.text }]}>
         Créer votre premier groupe
       </Text>
       <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
@@ -58,7 +58,7 @@ export const StepCoachGroup = ({ data, updateData, onNext, onBack }: StepCoachGr
 
       {/* Main Group Name */}
       <View style={styles.inputGroup}>
-        <Text style={[styles.label, { color: theme.colors.textPrimary }]}>
+        <Text style={[styles.label, { color: theme.colors.text }]}>
           Nom du groupe principal *
         </Text>
         <TextInput
@@ -66,7 +66,7 @@ export const StepCoachGroup = ({ data, updateData, onNext, onBack }: StepCoachGr
             styles.input,
             {
               backgroundColor: theme.colors.background,
-              color: theme.colors.textPrimary,
+              color: theme.colors.text,
               borderColor: theme.colors.border,
             },
           ]}
@@ -79,7 +79,7 @@ export const StepCoachGroup = ({ data, updateData, onNext, onBack }: StepCoachGr
 
       {/* Subgroups section */}
       <View style={styles.subgroupsContainer}>
-        <Text style={[styles.label, { color: theme.colors.textPrimary }]}>
+        <Text style={[styles.label, { color: theme.colors.text }]}>
           Sous-groupes (optionnel)
         </Text>
         <Text style={[styles.subText, { color: theme.colors.textSecondary }]}>
@@ -94,7 +94,7 @@ export const StepCoachGroup = ({ data, updateData, onNext, onBack }: StepCoachGr
                 styles.subgroupInput,
                 {
                   backgroundColor: theme.colors.background,
-                  color: theme.colors.textPrimary,
+                  color: theme.colors.text,
                   borderColor: theme.colors.border,
                 },
               ]}
@@ -131,7 +131,7 @@ export const StepCoachGroup = ({ data, updateData, onNext, onBack }: StepCoachGr
           style={[styles.button, styles.backButton, { borderColor: theme.colors.border }]}
           onPress={onBack}
         >
-          <Text style={[styles.backButtonText, { color: theme.colors.textPrimary }]}>Retour</Text>
+          <Text style={[styles.backButtonText, { color: theme.colors.text }]}>Retour</Text>
         </TouchableOpacity>
 
         <TouchableOpacity

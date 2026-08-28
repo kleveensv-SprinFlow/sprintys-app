@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import uuid from 'react-native-uuid';
 import { animateLayout } from '../shared/utils/animations';
-import { WorkoutCategory } from '../features/workout/types';
+export type WorkoutCategory = 'Général' | 'Musculation' | 'Lactique' | 'Aérobie' | 'Escalier' | string;
 
 export interface BuilderSet {
   id: string;
@@ -30,6 +30,7 @@ export interface LibraryExercise {
   id: string;
   name: string;
   category: string;
+  tags: string[];
 }
 
 interface WorkoutBuilderState {

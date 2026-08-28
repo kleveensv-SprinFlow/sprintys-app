@@ -24,7 +24,7 @@ export default function CoachTabsLayout() {
           shadowRadius: 20,
           borderTopWidth: 0,
         },
-        tabBarActiveTintColor: theme.colors.primary, // Blue accent instead of Green
+        tabBarActiveTintColor: theme.colors.accent, // Blue accent instead of Green
         tabBarInactiveTintColor: '#94A3B8',
       }}
     >
