@@ -1,10 +1,11 @@
 import { Redirect } from 'expo-router';
 import { useAuthStore } from '../src/store/authStore';
 import { View, ActivityIndicator } from 'react-native';
-import { theme } from '../src/core/theme';
+import { useTheme } from '../src/core/theme';
 
 export default function Index() {
   const { user, isLoading } = useAuthStore();
+  const theme = useTheme();
 
   if (isLoading) {
     return (

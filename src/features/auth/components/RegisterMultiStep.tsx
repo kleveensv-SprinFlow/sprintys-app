@@ -18,6 +18,8 @@ export const RegisterMultiStep = () => {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<Partial<SignupData>>({
     role: 'athlete',
+    firstName: '',
+    lastName: '',
     disciplines: [],
     subgroups: [],
   });
@@ -29,6 +31,10 @@ export const RegisterMultiStep = () => {
   const totalSteps = isCoach ? 4 : 6;
 
   const updateData = (newData: Partial<SignupData>) => {
+    // Reset step to 1 if the user changes their role to avoid landing on a nonexistent step
+    if (newData.role && newData.role !== formData.role) {
+      setStep(1);
+    }
     setFormData(prev => ({ ...prev, ...newData }));
   };
 

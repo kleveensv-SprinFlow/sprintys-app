@@ -59,30 +59,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   login: async (email, pass) => {
     set({ isLoading: true, error: null });
-    
-    // Simulate/Check Test Accounts
-    if (pass === '123456') {
-      if (email === 'coach@test.com') {
-        set({ 
-          user: { id: 'test-coach', email, name: 'Coach Test', role: 'coach', emailConfirmed: true },
-          isLoading: false 
-        });
-        return;
-      }
-      if (email === 'athlete@test.com') {
-        set({ 
-          user: { id: 'test-athlete', email, name: 'Athlete Test', role: 'athlete', emailConfirmed: true },
-          isLoading: false 
-        });
-        return;
-      }
-    }
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
       if (error) throw error;
       
-      // Fetch role from profiles table (logical step)
+      // Fetch role from profiles table
       const { data: profile } = await supabase
         .from('profiles')
         .select('*')
@@ -178,25 +160,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   verifyOtp: async (email: string, token: string) => {
     set({ isLoading: true, error: null });
 
-    // Handle mock account verification for testing
-    if (token === '123456') {
-      const pendingEmail = email || get().pendingEmail || 'user@test.com';
-      set({
-        user: {
-          id: 'verified-user',
-          email: pendingEmail,
-          name: 'Utilisateur Vérifié',
-          role: 'athlete',
-          emailConfirmed: true
-        },
-        pendingEmail: null,
-        isLoading: false
-      });
-      return true;
-    }
-
     try {
-      // First attempt email signup type OTP
+      // Attempt signup OTP verification first
       let { data, error } = await supabase.auth.verifyOtp({
         email,
         token,
@@ -204,7 +169,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
 
       if (error) {
-        // Fallback attempt to email type
+        // Fallback to email type OTP
         const res = await supabase.auth.verifyOtp({
           email,
           token,
@@ -217,6 +182,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (error) throw error;
 
       if (data.user) {
+        // Fetch the real profile from DB to get the correct role
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
