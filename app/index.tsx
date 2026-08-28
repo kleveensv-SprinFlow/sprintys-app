@@ -4,13 +4,13 @@ import { View, ActivityIndicator } from 'react-native';
 import { useTheme } from '../src/core/theme';
 
 export default function Index() {
-  const { user, isLoading } = useAuthStore();
+  const { user, isLoading, isInitialized } = useAuthStore();
   const theme = useTheme();
 
-  if (isLoading) {
+  if (isLoading || !isInitialized) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
-        <ActivityIndicator color={theme.colors.accent} />
+        <ActivityIndicator color={theme.colors.accent} size="large" />
       </View>
     );
   }
@@ -25,3 +25,4 @@ export default function Index() {
 
   return <Redirect href="/(athlete)" />;
 }
+
