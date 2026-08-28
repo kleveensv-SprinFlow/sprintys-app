@@ -192,7 +192,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
     } catch (err: any) {
       set({ error: err.message || 'Erreur de connexion', isLoading: false });
-      throw err;
     }
   },
 

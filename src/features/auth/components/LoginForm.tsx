@@ -15,7 +15,11 @@ export const LoginForm = () => {
   const router = useRouter();
 
   const handleLogin = async () => {
-    await login(email, password);
+    try {
+      await login(email, password);
+    } catch (err) {
+      // L'erreur est déjà gérée par le store
+    }
   };
 
   return (
