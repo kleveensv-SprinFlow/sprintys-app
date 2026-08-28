@@ -1,19 +1,17 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
+import { useRouter } from 'expo-router';
 
 export const AthleteHeader = () => {
   const theme = useTheme();
-
-  const handlePress = () => {
-    Alert.alert('Interface en cours de dev', "Cette fonctionnalité n'est pas encore prête.");
-  };
+  const router = useRouter();
 
   return (
     <View style={styles.container}>
-      {/* Left: Group Logo (placeholder) */}
-      <TouchableOpacity onPress={handlePress} style={[styles.iconButton, { backgroundColor: theme.colors.surfaceLight }]}>
+      {/* Left: Group Logo */}
+      <TouchableOpacity onPress={() => router.push('/(athlete)/groups')} style={[styles.iconButton, { backgroundColor: theme.colors.surfaceLight }]}>
         <Feather name="users" size={24} color={theme.colors.text} />
       </TouchableOpacity>
 
@@ -24,8 +22,8 @@ export const AthleteHeader = () => {
         resizeMode="contain"
       />
 
-      {/* Right: Profile Logo (placeholder) */}
-      <TouchableOpacity onPress={handlePress} style={[styles.iconButton, { backgroundColor: theme.colors.surfaceLight }]}>
+      {/* Right: Profile Logo */}
+      <TouchableOpacity onPress={() => router.push('/(athlete)/settings')} style={[styles.iconButton, { backgroundColor: theme.colors.surfaceLight }]}>
         <Feather name="user" size={24} color={theme.colors.text} />
       </TouchableOpacity>
     </View>

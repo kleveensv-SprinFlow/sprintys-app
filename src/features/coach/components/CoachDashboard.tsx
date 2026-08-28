@@ -1,20 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, TextInput, ActivityIndicator, FlatList, Alert } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, TextInput, ActivityIndicator, FlatList, Alert, Modal } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../../../core/theme';
 import { useAuthStore } from '../../../store/authStore';
-import { useCoachStore, Team } from '../../../store/coach/coachStore';
+import { useCoachStore, Team, Subgroup } from '../../../store/coach/coachStore';
 import { ProfileAvatar } from '../../../shared/components/ProfileAvatar';
 import { useRouter } from 'expo-router';
 
 export const CoachDashboard: React.FC = () => {
   const { user } = useAuthStore();
-  const { teams, isLoading, fetchTeams, createTeam, teamMembers, fetchTeamMembers, fetchSubgroups } = useCoachStore();
+  const { teams, subgroups, isLoading, fetchTeams, createTeam, teamMembers, fetchTeamMembers, fetchSubgroups, createSubgroup, assignSubgroup } = useCoachStore();
   const router = useRouter();
 
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
   const [newTeamName, setNewTeamName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+
+  const [selectedAthlete, setSelectedAthlete] = useState<any | null>(null);
+  const [assignModalVisible, setAssignModalVisible] = useState(false);
+  const [newSubgroupName, setNewSubgroupName] = useState('');
+  const [isCreatingSubgroup, setIsCreatingSubgroup] = useState(false);
 
   useEffect(() => {
     fetchTeams();
@@ -118,28 +123,110 @@ export const CoachDashboard: React.FC = () => {
                 data={teamMembers}
                 keyExtractor={item => item.user_id}
                 showsVerticalScrollIndicator={false}
-                renderItem={({ item }) => (
-                  <View style={styles.athleteCard}>
-                    <View style={styles.athleteAvatar}>
-                      <Text style={styles.athleteInitials}>
-                        {item.profile?.first_name?.charAt(0) || 'A'}
-                        {item.profile?.last_name?.charAt(0) || ''}
-                      </Text>
-                    </View>
-                    <View style={styles.athleteInfo}>
-                      <Text style={styles.athleteName}>{item.profile?.full_name || 'Athlète inconnu'}</Text>
-                      <Text style={styles.subgroupBadge}>
-                        {item.subgroup_id ? 'Assigné' : 'Non assigné'}
-                      </Text>
-                    </View>
-                    <Feather name="chevron-right" size={20} color={theme.colors.textMuted} />
-                  </View>
-                )}
+                renderItem={({ item }) => {
+                  const subgroup = subgroups.find(s => s.id === item.subgroup_id);
+                  return (
+                    <TouchableOpacity 
+                      style={styles.athleteCard}
+                      onPress={() => {
+                        setSelectedAthlete(item);
+                        setAssignModalVisible(true);
+                      }}
+                    >
+                      <View style={styles.athleteAvatar}>
+                        <Text style={styles.athleteInitials}>
+                          {item.profile?.first_name?.charAt(0) || 'A'}
+                          {item.profile?.last_name?.charAt(0) || ''}
+                        </Text>
+                      </View>
+                      <View style={styles.athleteInfo}>
+                        <Text style={styles.athleteName}>{item.profile?.full_name || 'Athlète inconnu'}</Text>
+                        <Text style={styles.subgroupBadge}>
+                          {subgroup ? subgroup.name : 'Non assigné'}
+                        </Text>
+                      </View>
+                      <Feather name="chevron-right" size={20} color={theme.colors.textMuted} />
+                    </TouchableOpacity>
+                  );
+                }}
               />
             )}
           </View>
         )}
       </View>
+
+      {/* Assign Subgroup Modal */}
+      <Modal visible={assignModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                Assigner {selectedAthlete?.profile?.first_name}
+              </Text>
+              <TouchableOpacity onPress={() => setAssignModalVisible(false)}>
+                <Feather name="x" size={24} color={theme.colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalSubtitle}>Choisis un sous-groupe :</Text>
+
+            <ScrollView style={{ maxHeight: 200, marginBottom: 16 }}>
+              <TouchableOpacity 
+                style={[styles.subgroupOption, !selectedAthlete?.subgroup_id && styles.subgroupOptionSelected]}
+                onPress={() => {
+                  assignSubgroup(selectedAthlete.user_id, activeTeamId!, null);
+                  setAssignModalVisible(false);
+                }}
+              >
+                <Text style={styles.subgroupOptionText}>Aucun (Global)</Text>
+              </TouchableOpacity>
+              
+              {subgroups.map(sg => (
+                <TouchableOpacity 
+                  key={sg.id}
+                  style={[styles.subgroupOption, selectedAthlete?.subgroup_id === sg.id && styles.subgroupOptionSelected]}
+                  onPress={() => {
+                    assignSubgroup(selectedAthlete.user_id, activeTeamId!, sg.id);
+                    setAssignModalVisible(false);
+                  }}
+                >
+                  <Text style={styles.subgroupOptionText}>{sg.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {isCreatingSubgroup ? (
+              <View style={styles.createSgRow}>
+                <TextInput 
+                  style={styles.sgInput} 
+                  placeholder="Nom (ex: Sprint)" 
+                  placeholderTextColor={theme.colors.textMuted}
+                  value={newSubgroupName}
+                  onChangeText={setNewSubgroupName}
+                  autoFocus
+                />
+                <TouchableOpacity 
+                  style={styles.sgSaveBtn}
+                  onPress={async () => {
+                    if (newSubgroupName.trim() && activeTeamId) {
+                      await createSubgroup(activeTeamId, newSubgroupName.trim());
+                      setNewSubgroupName('');
+                      setIsCreatingSubgroup(false);
+                    }
+                  }}
+                >
+                  <Text style={{ color: '#fff' }}>OK</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.createSgBtn} onPress={() => setIsCreatingSubgroup(true)}>
+                <Feather name="plus" size={16} color={theme.colors.accent} />
+                <Text style={styles.createSgText}>Créer un sous-groupe</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -215,4 +302,42 @@ const styles = StyleSheet.create({
   athleteInfo: { flex: 1 },
   athleteName: { color: theme.colors.text, fontSize: 16, fontWeight: '600', marginBottom: 4 },
   subgroupBadge: { color: theme.colors.textMuted, fontSize: 12 },
+
+  // Modal Styles
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { 
+    backgroundColor: theme.colors.surface, 
+    borderTopLeftRadius: 24, 
+    borderTopRightRadius: 24, 
+    padding: 24, 
+    maxHeight: '80%' 
+  },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: theme.colors.text },
+  modalSubtitle: { fontSize: 14, color: theme.colors.textSecondary, marginBottom: 20 },
+  subgroupOption: {
+    padding: 16, backgroundColor: theme.colors.surfaceLight, 
+    borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: 'transparent'
+  },
+  subgroupOptionSelected: {
+    borderColor: theme.colors.accent, backgroundColor: theme.colors.accent + '20'
+  },
+  subgroupOptionText: { color: theme.colors.text, fontSize: 16, fontWeight: '500' },
+  
+  createSgBtn: { 
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', 
+    padding: 16, backgroundColor: theme.colors.surfaceLight, borderRadius: 12, 
+    marginTop: 8, borderStyle: 'dashed', borderWidth: 1, borderColor: theme.colors.border 
+  },
+  createSgText: { color: theme.colors.accent, marginLeft: 8, fontWeight: 'bold' },
+  
+  createSgRow: { flexDirection: 'row', gap: 10, marginTop: 8 },
+  sgInput: { 
+    flex: 1, backgroundColor: theme.colors.surfaceLight, color: theme.colors.text, 
+    paddingHorizontal: 16, height: 50, borderRadius: 12 
+  },
+  sgSaveBtn: { 
+    backgroundColor: theme.colors.accent, paddingHorizontal: 20, 
+    justifyContent: 'center', alignItems: 'center', borderRadius: 12 
+  }
 });
