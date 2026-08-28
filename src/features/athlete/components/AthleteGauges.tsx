@@ -1,15 +1,41 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Svg, { Circle, Path, G } from 'react-native-svg';
 import { useTheme } from '../../../core/theme';
 import { Feather } from '@expo/vector-icons';
+import { CheckInModal } from '../../checkin/components/CheckInModal';
+import { useCheckInStore } from '../../../store/checkInStore';
+import { useAuthStore } from '../../../store/authStore';
 
 export const AthleteGauges = () => {
   const theme = useTheme();
+  const [modalVisible, setModalVisible] = useState(false);
+  
+  const { user } = useAuthStore();
+  const { startCheckIn, loadHistory, todayHealthScore } = useCheckInStore();
+
+  useEffect(() => {
+    if (user?.id) {
+      loadHistory(user.id);
+    }
+  }, [user]);
 
   const handleCheckIn = () => {
-    Alert.alert('Interface en cours de dev', "Cette fonctionnalité n'est pas encore prête.");
+    if (user?.id) {
+      startCheckIn(user.id);
+      setModalVisible(true);
+    }
   };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 70) return theme.colors.success;
+    if (score >= 40) return theme.colors.warning;
+    return theme.colors.error;
+  };
+
+  const scoreValue = todayHealthScore !== null ? todayHealthScore : 0;
+  const scoreColor = todayHealthScore !== null ? getScoreColor(scoreValue) : theme.colors.border;
+  const showScore = todayHealthScore !== null;
 
   const drawSemiCircle = (percentage: number, color: string, radius: number, strokeWidth: number) => {
     const circum = Math.PI * radius;
@@ -81,11 +107,19 @@ export const AthleteGauges = () => {
 
       {/* Center Gauge: Main Circular Gauge with Check-in */}
       <View style={styles.mainGaugeContainer}>
-        {drawCircle(60, theme.colors.success, 70, 12)}
-        <TouchableOpacity style={[styles.checkInButton, { backgroundColor: theme.colors.surfaceLight }]} onPress={handleCheckIn} activeOpacity={0.8}>
-          <Feather name="check" size={32} color={theme.colors.success} />
-          <Text style={[styles.checkInText, { color: theme.colors.text }]}>CHECK IN</Text>
-        </TouchableOpacity>
+        {drawCircle(scoreValue, scoreColor, 70, 12)}
+        
+        {showScore ? (
+          <View style={styles.scoreContent}>
+            <Text style={[styles.scoreValue, { color: scoreColor }]}>{scoreValue}%</Text>
+            <Text style={[styles.scoreLabel, { color: theme.colors.textMuted }]}>SANTÉ</Text>
+          </View>
+        ) : (
+          <TouchableOpacity style={[styles.checkInButton, { backgroundColor: theme.colors.surfaceLight }]} onPress={handleCheckIn} activeOpacity={0.8}>
+            <Feather name="check" size={32} color={theme.colors.success} />
+            <Text style={[styles.checkInText, { color: theme.colors.text }]}>CHECK IN</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Right Gauge: Prochaine Compétition (Semi-circle) */}
@@ -96,6 +130,8 @@ export const AthleteGauges = () => {
           <Text style={[styles.gaugeLabel, { color: theme.colors.textMuted }]}>Compétition</Text>
         </View>
       </View>
+      
+      <CheckInModal visible={modalVisible} onClose={() => setModalVisible(false)} />
     </View>
   );
 };
@@ -146,6 +182,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     marginTop: 4,
+    letterSpacing: 1,
+  },
+  scoreContent: {
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scoreValue: {
+    fontSize: 32,
+    fontWeight: 'bold',
+  },
+  scoreLabel: {
+    fontSize: 12,
+    fontWeight: 'bold',
     letterSpacing: 1,
   },
 });
