@@ -1,4 +1,4 @@
-﻿import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Platform } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -103,7 +103,7 @@ const TabItem = ({
       accessibilityRole="button"
       accessibilityState={isFocused ? { selected: true } : {}}
       accessibilityLabel={tab.label}
-      testID={	ab-}
+      testID={`tab-${tab.name}`}
       onPress={handlePress}
       onLongPress={onLongPress}
       activeOpacity={0.8}
