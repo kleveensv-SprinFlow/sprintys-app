@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { theme } from '../../src/core/theme';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { Platform } from 'react-native';
 
 export default function TabsLayout() {
@@ -10,19 +10,19 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarShowLabel: false,
         tabBarStyle: {
-          position: 'absolute',
-          bottom: Platform.OS === 'ios' ? 30 : 20,
-          left: 20,
-          right: 20,
           backgroundColor: '#FFFFFF',
-          borderRadius: 30,
-          height: 65,
+          height: Platform.OS === 'ios' ? 85 : 65,
           elevation: 10,
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: 10 },
+          shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.08,
-          shadowRadius: 20,
+          shadowRadius: 10,
           borderTopWidth: 0,
+        },
+        tabBarItemStyle: {
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingTop: Platform.OS === 'ios' ? 10 : 0,
         },
         tabBarActiveTintColor: theme.colors.accent,
         tabBarInactiveTintColor: '#A0AEC0',
@@ -37,13 +37,13 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="calendar"
         options={{
-          tabBarIcon: ({ color }) => <Feather name="grid" size={24} color={color} />,
+          tabBarIcon: ({ color }) => <Feather name="calendar" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="nutrition"
         options={{
-          tabBarIcon: ({ color }) => <Feather name="list" size={24} color={color} />,
+          tabBarIcon: ({ color }) => <Ionicons name="restaurant-outline" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -57,6 +57,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="workout" options={{ href: null }} />
       <Tabs.Screen name="body" options={{ href: null }} />
       <Tabs.Screen name="assistant" options={{ href: null }} />
+      <Tabs.Screen name="assistant/index" options={{ href: null }} />
     </Tabs>
   );
 }
