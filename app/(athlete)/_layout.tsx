@@ -19,26 +19,25 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
+          title: 'Accueil',
         }}
       />
       <Tabs.Screen
-        name="workout"
+        name="calendar"
         options={{
-          title: 'Séance',
+          title: 'Calendrier',
         }}
       />
       <Tabs.Screen
-        name="body"
+        name="nutrition"
         options={{
-          title: 'Corps',
+          title: 'Nutrition',
         }}
       />
       <Tabs.Screen
-        name="assistant"
+        name="message"
         options={{
-          title: 'Assistant',
-          headerShown: false, // Custom header handled inside the component for better layout control
+          title: 'Message',
         }}
       />
     </Tabs>

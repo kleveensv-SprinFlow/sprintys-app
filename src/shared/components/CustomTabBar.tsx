@@ -4,33 +4,29 @@ import {
   TouchableOpacity, 
   StyleSheet, 
   Platform, 
-  Animated 
+  Animated,
+  Alert
 } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { theme } from '../../core/theme';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import Svg, { Path, Circle } from 'react-native-svg';
+import { Feather } from '@expo/vector-icons';
 
 const TabIcon = ({ name, isFocused }: { name: string, isFocused: boolean }) => {
   const color = isFocused ? theme.colors.accent : theme.colors.textMuted;
   
   switch (name) {
     case 'index':
-      return (
-        <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <Path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-          <Circle cx="9" cy="7" r="4" />
-          <Path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-          <Path d="M16 3.13a4 4 0 0 1 0 7.75" />
-        </Svg>
-      );
+      return <Feather name="home" size={24} color={color} />;
+    case 'calendar':
+      return <Feather name="calendar" size={24} color={color} />;
+    case 'nutrition':
+      return <Feather name="heart" size={24} color={color} />; // Heart or coffee for nutrition
+    case 'message':
+      return <Feather name="message-square" size={24} color={color} />;
     default:
-      return (
-        <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <Circle cx="12" cy="12" r="10" />
-        </Svg>
-      );
+      return <Feather name="circle" size={24} color={color} />;
   }
 };
 
@@ -63,7 +59,11 @@ export const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, 
 
               if (!isFocused && !event.defaultPrevented) {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                navigation.navigate(route.name);
+                if (route.name !== 'index') {
+                  Alert.alert("Interface en cours de dev", "Cette fonctionnalité n'est pas encore prête.");
+                } else {
+                  navigation.navigate(route.name);
+                }
               }
             };
 
