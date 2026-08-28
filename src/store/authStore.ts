@@ -18,6 +18,14 @@ export interface UserProfile {
   groupName?: string;
   subgroups?: string[];
   emailConfirmed?: boolean;
+  activityLevel?: string;
+  startWeight?: number;
+  targetWeight?: number;
+  weeklyWeightGoal?: number;
+  manualKcalGoal?: number;
+  mealDistribution?: { petit_dejeuner: number, dejeuner: number, diner: number, collation: number };
+  currentFlowStreak?: number;
+  lastFlowDate?: string;
 }
 
 export interface SignupData {
@@ -88,7 +96,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           objective: profile?.objective,
           groupName: profile?.group_name,
           subgroups: profile?.subgroups,
-          emailConfirmed: data.user.email_confirmed_at ? true : false
+          emailConfirmed: data.user.email_confirmed_at ? true : false,
+          activityLevel: profile?.activity_level,
+          startWeight: profile?.start_weight,
+          targetWeight: profile?.target_weight,
+          weeklyWeightGoal: profile?.weekly_weight_goal,
+          manualKcalGoal: profile?.manual_kcal_goal,
+          mealDistribution: profile?.meal_distribution,
+          currentFlowStreak: profile?.current_flow_streak,
+          lastFlowDate: profile?.last_flow_date
         }, 
         isLoading: false 
       });
@@ -209,7 +225,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             objective: profile?.objective,
             groupName: profile?.group_name,
             subgroups: profile?.subgroups,
-            emailConfirmed: true
+            emailConfirmed: true,
+            activityLevel: profile?.activity_level,
+            startWeight: profile?.start_weight,
+            targetWeight: profile?.target_weight,
+            weeklyWeightGoal: profile?.weekly_weight_goal,
+            manualKcalGoal: profile?.manual_kcal_goal,
+            mealDistribution: profile?.meal_distribution,
+            currentFlowStreak: profile?.current_flow_streak,
+            lastFlowDate: profile?.last_flow_date
           },
           pendingEmail: null,
           isLoading: false
