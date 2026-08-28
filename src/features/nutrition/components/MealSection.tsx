@@ -8,7 +8,7 @@ import { useAuthStore } from '../../../store/authStore';
 
 export const MealSection: React.FC = () => {
   const theme = useTheme();
-  const mealLogs = useNutritionStore((state) => state.mealLogs);
+  const { mealLogs, openSearchModal } = useNutritionStore();
   const user = useAuthStore((state) => state.user);
 
   const mealDistribution = user?.mealDistribution || {
@@ -24,8 +24,7 @@ export const MealSection: React.FC = () => {
   ];
 
   const handleAddFood = (type: MealType) => {
-    // Navigation to add food page, passing mealType.
-    console.log(`Add food to ${type}`);
+    openSearchModal(type);
   };
 
   return (

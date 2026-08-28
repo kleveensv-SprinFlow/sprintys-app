@@ -9,6 +9,10 @@ interface NutritionState {
   isLoading: boolean;
   error: string | null;
 
+  // UI State
+  isSearchModalOpen: boolean;
+  activeSearchMealType: MealType | null;
+
   // Actions
   setCurrentDate: (date: string) => void;
   fetchMealLogs: (date: string) => Promise<void>;
@@ -21,6 +25,9 @@ interface NutritionState {
     manual_kcal_goal: number;
     meal_distribution: MealDistribution;
   }>) => Promise<void>;
+
+  openSearchModal: (mealType: MealType) => void;
+  closeSearchModal: () => void;
 }
 
 export const useNutritionStore = create<NutritionState>((set, get) => ({
@@ -28,6 +35,11 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
   mealLogs: [],
   isLoading: false,
   error: null,
+  isSearchModalOpen: false,
+  activeSearchMealType: null,
+
+  openSearchModal: (mealType) => set({ isSearchModalOpen: true, activeSearchMealType: mealType }),
+  closeSearchModal: () => set({ isSearchModalOpen: false, activeSearchMealType: null }),
 
   setCurrentDate: (date: string) => {
     set({ currentDate: date });

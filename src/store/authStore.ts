@@ -27,6 +27,7 @@ export interface UserProfile {
   mealDistribution?: { petit_dejeuner: number, dejeuner: number, diner: number, collation: number };
   currentFlowStreak?: number;
   lastFlowDate?: string;
+  nextCompetitionDate?: string;
 }
 
 export interface SignupData {
@@ -88,6 +89,7 @@ const buildUserProfile = (authUser: any, profile: any): UserProfile => {
     mealDistribution: profile?.meal_distribution,
     currentFlowStreak: profile?.current_flow_streak,
     lastFlowDate: profile?.last_flow_date,
+    nextCompetitionDate: profile?.next_competition_date,
   };
 };
 

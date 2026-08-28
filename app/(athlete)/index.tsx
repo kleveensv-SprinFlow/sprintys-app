@@ -5,9 +5,15 @@ import { AthleteHeader } from '../../src/features/athlete/components/AthleteHead
 import { AthleteGauges } from '../../src/features/athlete/components/AthleteGauges';
 import { SessionCarousel } from '../../src/features/athlete/components/SessionCarousel';
 import { AthleteWeatherCard } from '../../src/features/athlete/components/AthleteWeatherCard';
+import { useNutritionStore } from '../../src/store/nutrition/nutritionStore';
 
 export default function DashboardScreen() {
   const theme = useTheme();
+  const { fetchMealLogs, currentDate } = useNutritionStore();
+
+  React.useEffect(() => {
+    fetchMealLogs(currentDate);
+  }, []);
   
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>

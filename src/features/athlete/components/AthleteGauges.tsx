@@ -6,6 +6,7 @@ import { Feather } from '@expo/vector-icons';
 import { CheckInModal } from '../../checkin/components/CheckInModal';
 import { useCheckInStore } from '../../../store/checkInStore';
 import { useAuthStore } from '../../../store/authStore';
+import { useNutritionStore } from '../../../store/nutrition/nutritionStore';
 
 export const AthleteGauges = () => {
   const theme = useTheme();
@@ -13,6 +14,7 @@ export const AthleteGauges = () => {
   
   const { user } = useAuthStore();
   const { startCheckIn, loadHistory, todayHealthScore } = useCheckInStore();
+  const { mealLogs } = useNutritionStore();
 
   useEffect(() => {
     if (user?.id) {
@@ -36,6 +38,42 @@ export const AthleteGauges = () => {
   const scoreValue = todayHealthScore !== null ? todayHealthScore : 0;
   const scoreColor = todayHealthScore !== null ? getScoreColor(scoreValue) : theme.colors.border;
   const showScore = todayHealthScore !== null;
+
+  // Calcul Jauge Nutrition (Gauche)
+  const kcalGoal = user?.manualKcalGoal || 2000;
+  const consumedKcal = mealLogs.reduce((sum, log) => sum + Number(log.calories), 0);
+  const nutritionPercentage = Math.min(100, Math.round((consumedKcal / kcalGoal) * 100)) || 0;
+
+  // Calcul Jauge Compétition (Droite)
+  let compValue = "Off";
+  let compLabel = "Vacances";
+  let compPercentage = 0;
+  let compColor = theme.colors.border;
+
+  if (user?.nextCompetitionDate) {
+    const compDate = new Date(user.nextCompetitionDate);
+    const today = new Date();
+    const diffTime = compDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+      compValue = "J-Jour";
+      compLabel = "Compétition";
+      compPercentage = 100;
+      compColor = theme.colors.success;
+    } else if (diffDays > 0) {
+      compValue = `J-${diffDays}`;
+      compLabel = "Compétition";
+      // Remplissage progressif sur 60 jours
+      compPercentage = Math.max(5, 100 - (diffDays / 60) * 100); 
+      compColor = diffDays <= 7 ? theme.colors.error : theme.colors.warning;
+    } else {
+      compValue = "Fini";
+      compLabel = "Récupération";
+      compPercentage = 100;
+      compColor = theme.colors.success;
+    }
+  }
 
   const drawSemiCircle = (percentage: number, color: string, radius: number, strokeWidth: number) => {
     const circum = Math.PI * radius;
@@ -96,12 +134,12 @@ export const AthleteGauges = () => {
 
   return (
     <View style={styles.container}>
-      {/* Left Gauge: Objectif (Semi-circle) */}
+      {/* Left Gauge: Nutrition (Semi-circle) */}
       <View style={styles.sideGaugeContainer}>
-        {drawSemiCircle(75, theme.colors.accent, 40, 8)}
+        {drawSemiCircle(nutritionPercentage, theme.colors.accent, 40, 8)}
         <View style={styles.sideGaugeContent}>
-          <Text style={[styles.gaugeValue, { color: theme.colors.text }]}>75%</Text>
-          <Text style={[styles.gaugeLabel, { color: theme.colors.textMuted }]}>Objectif</Text>
+          <Text style={[styles.gaugeValue, { color: theme.colors.text }]}>{nutritionPercentage}%</Text>
+          <Text style={[styles.gaugeLabel, { color: theme.colors.textMuted }]}>Nutrition</Text>
         </View>
       </View>
 
@@ -124,10 +162,10 @@ export const AthleteGauges = () => {
 
       {/* Right Gauge: Prochaine Compétition (Semi-circle) */}
       <View style={styles.sideGaugeContainer}>
-        {drawSemiCircle(40, theme.colors.warning, 40, 8)}
+        {drawSemiCircle(compPercentage, compColor, 40, 8)}
         <View style={styles.sideGaugeContent}>
-          <Text style={[styles.gaugeValue, { color: theme.colors.text }]}>J-12</Text>
-          <Text style={[styles.gaugeLabel, { color: theme.colors.textMuted }]}>Compétition</Text>
+          <Text style={[styles.gaugeValue, { color: theme.colors.text }]}>{compValue}</Text>
+          <Text style={[styles.gaugeLabel, { color: theme.colors.textMuted }]}>{compLabel}</Text>
         </View>
       </View>
       

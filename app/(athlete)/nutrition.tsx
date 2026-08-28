@@ -7,6 +7,7 @@ import { DateSelector } from '../../src/features/nutrition/components/DateSelect
 import { NutritionSummary } from '../../src/features/nutrition/components/NutritionSummary';
 import { MealSection } from '../../src/features/nutrition/components/MealSection';
 import { FloatingAddButton } from '../../src/features/nutrition/components/FloatingAddButton';
+import { FoodSearchModal } from '../../src/features/nutrition/components/FoodSearchModal';
 import { NutritionSettingsModal } from '../../src/features/nutrition/components/NutritionSettingsModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../src/store/authStore';
@@ -34,6 +35,7 @@ export default function NutritionScreen() {
       </ScrollView>
 
       <FloatingAddButton />
+      <FoodSearchModal />
 
       <NutritionSettingsModal
         visible={settingsVisible}

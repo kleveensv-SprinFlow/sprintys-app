@@ -16,43 +16,46 @@ export const weatherAdviceService = {
     if (weather.temperature < 5) {
       advices.push({
         id: 'thermal-layer',
-        message: "Conditions critiques (<5°C) : Couches thermiques compressives et gants techniques indispensables pour maintenir la thermorégulation périphérique.",
+        message: "Froid extrême (<5°C) : Collant long, couches thermiques, et gants. Allonge ton échauffement de +10 à 15 min. Reste couvert entre tes séries.",
         priority: 10,
       });
-    } else if (weather.temperature < 12) {
+    } else if (weather.temperature < 15) {
       advices.push({
         id: 'mid-layer',
-        message: "Fraîcheur détectée : Opte pour un textile respirant à manches longues pour éviter le refroidissement musculaire post-effort.",
+        message: `Frais (${weather.temperature}°C) : Prévois un haut à manches longues et un bas de survêtement pour l'échauffement (+5 min recommandées).`,
         priority: 7,
       });
     } else if (weather.temperature > 28) {
       advices.push({
         id: 'heat-safety',
-        message: "Stress thermique élevé : Augmentation du ratio d'hydratation (électrolytes) requise. Attention à la dérive cardiaque.",
+        message: "Forte chaleur : Hydratation maximale (électrolytes). Privilégie l'ombre sur les recups. Risque de dérive cardiaque accru.",
         priority: 9,
       });
     }
 
-    // 2. Wind Analysis
+    // 2. Conditions & Rain Analysis
+    if (weather.condition === 'rainy' || weather.condition === 'showers' || weather.condition === 'stormy') {
+      advices.push({
+        id: 'rain-spikes',
+        message: "Piste mouillée : Attention aux appuis fuyants en virage. Opte pour des pointes de 9mm si tu fais du sprint, ou garde tes baskets si l'eau stagne.",
+        priority: 9,
+      });
+    }
+
+    // 3. Wind Analysis
     if (weather.windSpeed > 25) {
       advices.push({
         id: 'wind-breaker',
-        message: `Vent soutenu (${weather.windSpeed} km/h) : Coupe-vent technique requis pour optimiser l'aérodynamisme et prévenir l'effet de convection thermique.`,
+        message: `Vent fort (${weather.windSpeed} km/h) : Coupe-vent indispensable. Demande au coach d'inverser le sens de la ligne droite si c'est de face.`,
         priority: 8,
       });
     }
 
-    // 3. Time / Visibility Analysis
+    // 4. Time Analysis
     if (isNight) {
       advices.push({
         id: 'night-safety',
-        message: "Session nocturne : Textile à haute visibilité et bandes réfléchissantes obligatoires pour la sécurité périmétrique.",
-        priority: 10,
-      });
-    } else if (hour < 9) {
-      advices.push({
-        id: 'morning-routine',
-        message: "Éveil musculaire matinal : Temps d'échauffement dynamique prolongé (+5 min) pour optimiser la viscosité synoviale.",
+        message: "Session de nuit : Sois prudent sur les obstacles (cônes, haies). L'obscurité altère l'appréciation des distances.",
         priority: 6,
       });
     }
