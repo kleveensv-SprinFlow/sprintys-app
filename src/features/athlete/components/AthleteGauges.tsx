@@ -1,10 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import Svg, { Circle, Path, G } from 'react-native-svg';
-import { theme } from '../../../core/theme';
+import { useTheme } from '../../../core/theme';
 import { Feather } from '@expo/vector-icons';
 
 export const AthleteGauges = () => {
+  const theme = useTheme();
+
   const handleCheckIn = () => {
     Alert.alert('Interface en cours de dev', "Cette fonctionnalité n'est pas encore prête.");
   };
@@ -18,7 +20,7 @@ export const AthleteGauges = () => {
           <Path
             d={`M${strokeWidth/2},${radius + strokeWidth/2} a${radius},${radius} 0 0,1 ${radius*2},0`}
             fill="none"
-            stroke="rgba(255,255,255,0.1)"
+            stroke={theme.colors.border}
             strokeWidth={strokeWidth}
             strokeLinecap="round"
           />
@@ -47,7 +49,7 @@ export const AthleteGauges = () => {
             cy={radius + strokeWidth/2}
             r={radius}
             fill="none"
-            stroke="rgba(255,255,255,0.1)"
+            stroke={theme.colors.border}
             strokeWidth={strokeWidth}
           />
           <Circle
@@ -72,17 +74,17 @@ export const AthleteGauges = () => {
       <View style={styles.sideGaugeContainer}>
         {drawSemiCircle(75, theme.colors.accent, 40, 8)}
         <View style={styles.sideGaugeContent}>
-          <Text style={styles.gaugeValue}>75%</Text>
-          <Text style={styles.gaugeLabel}>Objectif</Text>
+          <Text style={[styles.gaugeValue, { color: theme.colors.text }]}>75%</Text>
+          <Text style={[styles.gaugeLabel, { color: theme.colors.textMuted }]}>Objectif</Text>
         </View>
       </View>
 
       {/* Center Gauge: Main Circular Gauge with Check-in */}
       <View style={styles.mainGaugeContainer}>
         {drawCircle(60, theme.colors.success, 70, 12)}
-        <TouchableOpacity style={styles.checkInButton} onPress={handleCheckIn} activeOpacity={0.8}>
-          <Feather name="check" size={32} color="#fff" />
-          <Text style={styles.checkInText}>CHECK IN</Text>
+        <TouchableOpacity style={[styles.checkInButton, { backgroundColor: theme.colors.surfaceLight }]} onPress={handleCheckIn} activeOpacity={0.8}>
+          <Feather name="check" size={32} color={theme.colors.success} />
+          <Text style={[styles.checkInText, { color: theme.colors.text }]}>CHECK IN</Text>
         </TouchableOpacity>
       </View>
 
@@ -90,8 +92,8 @@ export const AthleteGauges = () => {
       <View style={styles.sideGaugeContainer}>
         {drawSemiCircle(40, theme.colors.warning, 40, 8)}
         <View style={styles.sideGaugeContent}>
-          <Text style={styles.gaugeValue}>J-12</Text>
-          <Text style={styles.gaugeLabel}>Compétition</Text>
+          <Text style={[styles.gaugeValue, { color: theme.colors.text }]}>J-12</Text>
+          <Text style={[styles.gaugeLabel, { color: theme.colors.textMuted }]}>Compétition</Text>
         </View>
       </View>
     </View>
@@ -103,8 +105,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.xl,
+    paddingHorizontal: 16,
+    paddingVertical: 24,
   },
   sideGaugeContainer: {
     alignItems: 'center',
@@ -118,12 +120,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   gaugeValue: {
-    color: theme.colors.text,
     fontSize: 14,
     fontWeight: 'bold',
   },
   gaugeLabel: {
-    color: theme.colors.textMuted,
     fontSize: 10,
     textTransform: 'uppercase',
     marginTop: 2,
@@ -139,12 +139,10 @@ const styles = StyleSheet.create({
     width: 110,
     height: 110,
     borderRadius: 55,
-    backgroundColor: 'rgba(255,255,255,0.08)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   checkInText: {
-    color: theme.colors.text,
     fontSize: 12,
     fontWeight: 'bold',
     marginTop: 4,

@@ -1,14 +1,16 @@
 import React from 'react';
 import { StyleSheet, SafeAreaView, ScrollView, View } from 'react-native';
-import { theme } from '../../src/core/theme';
+import { useTheme } from '../../src/core/theme';
 import { AthleteHeader } from '../../src/features/athlete/components/AthleteHeader';
 import { AthleteGauges } from '../../src/features/athlete/components/AthleteGauges';
 import { SessionCarousel } from '../../src/features/athlete/components/SessionCarousel';
 import { AthleteWeatherCard } from '../../src/features/athlete/components/AthleteWeatherCard';
 
 export default function DashboardScreen() {
+  const theme = useTheme();
+  
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
         <AthleteHeader />
         
@@ -28,7 +30,6 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#050505', // Deep dark background for premium feel
   },
   safeArea: {
     flex: 1,
@@ -37,3 +38,4 @@ const styles = StyleSheet.create({
     paddingBottom: 120, // Extra space for the custom tab bar at the bottom
   },
 });
+

@@ -1,9 +1,11 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { theme } from '../../../core/theme';
+import { useTheme } from '../../../core/theme';
 
 export const AthleteHeader = () => {
+  const theme = useTheme();
+
   const handlePress = () => {
     Alert.alert('Interface en cours de dev', "Cette fonctionnalité n'est pas encore prête.");
   };
@@ -11,7 +13,7 @@ export const AthleteHeader = () => {
   return (
     <View style={styles.container}>
       {/* Left: Group Logo (placeholder) */}
-      <TouchableOpacity onPress={handlePress} style={styles.iconButton}>
+      <TouchableOpacity onPress={handlePress} style={[styles.iconButton, { backgroundColor: theme.colors.surfaceLight }]}>
         <Feather name="users" size={24} color={theme.colors.text} />
       </TouchableOpacity>
 
@@ -23,7 +25,7 @@ export const AthleteHeader = () => {
       />
 
       {/* Right: Profile Logo (placeholder) */}
-      <TouchableOpacity onPress={handlePress} style={styles.iconButton}>
+      <TouchableOpacity onPress={handlePress} style={[styles.iconButton, { backgroundColor: theme.colors.surfaceLight }]}>
         <Feather name="user" size={24} color={theme.colors.text} />
       </TouchableOpacity>
     </View>
@@ -35,15 +37,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.xl,
-    paddingTop: theme.spacing.xxl,
-    paddingBottom: theme.spacing.md,
+    paddingHorizontal: 24, // theme.spacing.xl
+    paddingTop: 32, // theme.spacing.xxl
+    paddingBottom: 12, // theme.spacing.md
   },
   iconButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     justifyContent: 'center',
     alignItems: 'center',
   },

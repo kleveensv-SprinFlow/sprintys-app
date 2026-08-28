@@ -1,11 +1,11 @@
 import React, { useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { theme } from '../../../core/theme';
+import { useTheme } from '../../../core/theme';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.75;
-const SNAP_INTERVAL = CARD_WIDTH + theme.spacing.md;
+const SNAP_INTERVAL = CARD_WIDTH + 12; // theme.spacing.md is 12
 
 const MOCK_SESSIONS = [
   { id: '1', date: 'J-3', title: 'Endurance', duration: '45 min', intensity: 'Faible' },
@@ -18,6 +18,7 @@ const MOCK_SESSIONS = [
 ];
 
 export const SessionCarousel = () => {
+  const theme = useTheme();
   const scrollRef = useRef<ScrollView>(null);
   const [activeIndex, setActiveIndex] = useState(3); // Default to Aujourd'hui
 
@@ -39,15 +40,15 @@ export const SessionCarousel = () => {
     <View style={styles.container}>
       {/* Navigation Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => scrollTo('left')} style={styles.navButton}>
+        <TouchableOpacity onPress={() => scrollTo('left')} style={[styles.navButton, { backgroundColor: theme.colors.surfaceLight }]}>
           <Feather name="chevron-left" size={24} color={theme.colors.text} />
         </TouchableOpacity>
         
         <View style={styles.dateContainer}>
-          <Text style={styles.dateText}>{MOCK_SESSIONS[activeIndex]?.date}</Text>
+          <Text style={[styles.dateText, { color: theme.colors.text }]}>{MOCK_SESSIONS[activeIndex]?.date}</Text>
         </View>
 
-        <TouchableOpacity onPress={() => scrollTo('right')} style={styles.navButton}>
+        <TouchableOpacity onPress={() => scrollTo('right')} style={[styles.navButton, { backgroundColor: theme.colors.surfaceLight }]}>
           <Feather name="chevron-right" size={24} color={theme.colors.text} />
         </TouchableOpacity>
       </View>
@@ -67,23 +68,23 @@ export const SessionCarousel = () => {
         {MOCK_SESSIONS.map((session, index) => {
           const isActive = index === activeIndex;
           return (
-            <View key={session.id} style={[styles.card, isActive && styles.activeCard]}>
+            <View key={session.id} style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: isActive ? theme.colors.accent : theme.colors.border }, isActive && styles.activeCard]}>
               <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>{session.title}</Text>
+                <Text style={[styles.cardTitle, { color: theme.colors.text }]}>{session.title}</Text>
                 <Feather name="activity" size={20} color={isActive ? theme.colors.accent : theme.colors.textMuted} />
               </View>
               <View style={styles.cardBody}>
                 <View style={styles.infoRow}>
                   <Feather name="clock" size={14} color={theme.colors.textSecondary} />
-                  <Text style={styles.infoText}>{session.duration}</Text>
+                  <Text style={[styles.infoText, { color: theme.colors.textSecondary }]}>{session.duration}</Text>
                 </View>
                 <View style={styles.infoRow}>
                   <Feather name="zap" size={14} color={theme.colors.textSecondary} />
-                  <Text style={styles.infoText}>{session.intensity}</Text>
+                  <Text style={[styles.infoText, { color: theme.colors.textSecondary }]}>{session.intensity}</Text>
                 </View>
               </View>
               {isActive && (
-                <View style={styles.activeIndicator} />
+                <View style={[styles.activeIndicator, { backgroundColor: theme.colors.accent }]} />
               )}
             </View>
           );
@@ -95,20 +96,19 @@ export const SessionCarousel = () => {
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: theme.spacing.xl,
+    marginVertical: 24,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.lg,
-    marginBottom: theme.spacing.md,
+    paddingHorizontal: 16,
+    marginBottom: 12,
   },
   navButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.05)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -117,7 +117,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dateText: {
-    color: theme.colors.text,
     fontSize: 18,
     fontWeight: 'bold',
     textTransform: 'uppercase',
@@ -125,43 +124,37 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: (width - CARD_WIDTH) / 2, // Center first and last items
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: 8,
   },
   card: {
     width: CARD_WIDTH,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.lg,
-    marginRight: theme.spacing.md,
+    borderRadius: 16,
+    padding: 16,
+    marginRight: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   activeCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderColor: theme.colors.accent,
     transform: [{ scale: 1.02 }],
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing.md,
+    marginBottom: 12,
   },
   cardTitle: {
-    color: theme.colors.text,
     fontSize: 18,
     fontWeight: 'bold',
   },
   cardBody: {
-    gap: theme.spacing.sm,
+    gap: 8,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.sm,
+    gap: 8,
   },
   infoText: {
-    color: theme.colors.textSecondary,
     fontSize: 14,
   },
   activeIndicator: {
@@ -170,7 +163,6 @@ const styles = StyleSheet.create({
     left: '20%',
     right: '20%',
     height: 3,
-    backgroundColor: theme.colors.accent,
     borderTopLeftRadius: 3,
     borderTopRightRadius: 3,
   },

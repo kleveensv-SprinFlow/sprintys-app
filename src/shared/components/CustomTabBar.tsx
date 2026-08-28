@@ -8,12 +8,13 @@ import {
   Alert
 } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { theme } from '../../core/theme';
+import { useTheme } from '../../core/theme';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 
 const TabIcon = ({ name, isFocused }: { name: string, isFocused: boolean }) => {
+  const theme = useTheme();
   const color = isFocused ? theme.colors.accent : theme.colors.textMuted;
   
   switch (name) {
@@ -67,7 +68,7 @@ export const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, 
               }
             };
 
-            if (['profile', 'assign/[id]', 'athlete/[id]'].includes(route.name)) return null;
+            if (!['index', 'calendar', 'nutrition', 'message'].includes(route.name)) return null;
 
             return (
               <TouchableOpacity
