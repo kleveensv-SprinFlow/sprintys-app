@@ -30,6 +30,13 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ runner.os }}-android
 
       - name: Install dependencies
         run: npm ci
@@ -40,7 +47,13 @@ jobs:
           echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}" >> .env
 
       - name: Expo Prebuild (Generate Android Folder)
-        run: npx expo prebuild -p android --clean
+        run: npx expo prebuild -p android --no-install
+
+      - name: Enable Gradle parallel and cache
+        run: |
+          mkdir -p ~/.gradle
+          echo "org.gradle.parallel=true" >> ~/.gradle/gradle.properties
+          echo "org.gradle.caching=true" >> ~/.gradle/gradle.properties
 
       - name: Build APK with Gradle
         working-directory: android
