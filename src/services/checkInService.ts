@@ -17,6 +17,7 @@ export interface CheckInData {
   sleep_hours: number;
   pains: PainInfo[];
   health_score: number;
+  menstruation?: boolean;
 }
 
 export const checkInService = {
@@ -34,6 +35,7 @@ export const checkInService = {
         sleep_hours: data.sleep_hours,
         pains: data.pains,
         health_score: data.health_score,
+        menstruation: data.menstruation || false,
       }, { onConflict: 'athlete_id, date' })
       .select()
       .single();

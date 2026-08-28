@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../../core/theme';
 import { Feather } from '@expo/vector-icons';
 import { useCheckInStore } from '../../../store/checkInStore';
+import { useAuthStore } from '../../../store/authStore';
+import { Switch } from 'react-native';
 
 interface SleepStepProps {
   onNext: () => void;
@@ -10,7 +12,9 @@ interface SleepStepProps {
 
 export const SleepStep = ({ onNext }: SleepStepProps) => {
   const theme = useTheme();
-  const { currentCheckIn, updateSleep } = useCheckInStore();
+  const { currentCheckIn, updateSleep, setMenstruation } = useCheckInStore();
+  const { user } = useAuthStore();
+  const isFemale = user?.gender === 'femme';
   
   // Format HH:MM
   const [bedtime, setBedtime] = useState(currentCheckIn?.bedtime || '23:00');
@@ -111,6 +115,21 @@ export const SleepStep = ({ onNext }: SleepStepProps) => {
         </Text>
       </View>
 
+      {isFemale && (
+        <View style={[styles.menstruationCard, { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border }]}>
+          <View style={styles.menstruationInfo}>
+            <Text style={[styles.menstruationTitle, { color: theme.colors.text }]}>Cycle Menstruel</Text>
+            <Text style={[styles.menstruationSubtitle, { color: theme.colors.textSecondary }]}>Êtes-vous en période de règles ?</Text>
+          </View>
+          <Switch
+            value={currentCheckIn?.menstruation || false}
+            onValueChange={setMenstruation}
+            trackColor={{ false: theme.colors.border, true: theme.colors.accent }}
+            thumbColor={'#FFF'}
+          />
+        </View>
+      )}
+
       <TouchableOpacity 
         style={[styles.button, { backgroundColor: theme.colors.accent }]} 
         onPress={handleNext}
@@ -185,6 +204,27 @@ const styles = StyleSheet.create({
   resultValue: {
     fontSize: 32,
     fontWeight: 'bold',
+  },
+  menstruationCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 40,
+  },
+  menstruationInfo: {
+    flex: 1,
+    paddingRight: 16,
+  },
+  menstruationTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  menstruationSubtitle: {
+    fontSize: 13,
   },
   button: {
     flexDirection: 'row',

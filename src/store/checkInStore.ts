@@ -11,6 +11,9 @@ interface CheckInState {
   // Actions
   startCheckIn: (athleteId: string) => void;
   updateSleep: (bedtime: string, wakeup_time: string, sleep_hours: number) => void;
+  setBedtime: (time: string) => void;
+  setWakeupTime: (time: string) => void;
+  setMenstruation: (isMenstruating: boolean) => void;
   addPain: (pain: PainInfo) => void;
   removePain: (muscle_id: string) => void;
   submitCheckIn: () => Promise<boolean>;
@@ -36,6 +39,7 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
         wakeup_time: '07:00',
         sleep_hours: 8,
         pains: [],
+        menstruation: false,
       }
     });
   },
@@ -53,6 +57,21 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
       };
     });
   },
+
+  setBedtime: (time) => set((state) => {
+    if (!state.currentCheckIn) return state;
+    return { currentCheckIn: { ...state.currentCheckIn, bedtime: time } };
+  }),
+
+  setWakeupTime: (time) => set((state) => {
+    if (!state.currentCheckIn) return state;
+    return { currentCheckIn: { ...state.currentCheckIn, wakeup_time: time } };
+  }),
+
+  setMenstruation: (isMenstruating) => set((state) => {
+    if (!state.currentCheckIn) return state;
+    return { currentCheckIn: { ...state.currentCheckIn, menstruation: isMenstruating } };
+  }),
 
   addPain: (pain) => {
     set((state) => {

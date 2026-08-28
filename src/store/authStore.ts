@@ -10,6 +10,7 @@ export interface UserProfile {
   role: UserRole;
   firstName?: string;
   lastName?: string;
+  gender?: 'homme' | 'femme';
   disciplines?: string[];
   height?: number;
   weight?: number;
@@ -25,6 +26,7 @@ export interface SignupData {
   firstName: string;
   lastName: string;
   role: UserRole;
+  gender: 'homme' | 'femme';
   disciplines?: string[];
   height?: number;
   weight?: number;
@@ -79,6 +81,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           role: profile?.role || 'athlete',
           firstName: profile?.first_name,
           lastName: profile?.last_name,
+          gender: profile?.gender,
           disciplines: profile?.disciplines,
           height: profile?.height,
           weight: profile?.weight,
@@ -96,7 +99,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signup: async (signupData) => {
     set({ isLoading: true, error: null });
-    const { email, pass, firstName, lastName, role, disciplines, height, weight, objective, groupName, subgroups } = signupData;
+    const { email, pass, firstName, lastName, role, gender, disciplines, height, weight, objective, groupName, subgroups } = signupData;
     const fullName = `${firstName} ${lastName}`.trim();
 
     try {
@@ -115,6 +118,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           first_name: firstName,
           last_name: lastName,
           role: role,
+          gender: gender,
           disciplines: role === 'athlete' ? (disciplines || null) : null,
           height: role === 'athlete' ? (height || null) : null,
           weight: role === 'athlete' ? (weight || null) : null,
@@ -137,6 +141,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             role,
             firstName,
             lastName,
+            gender,
             disciplines,
             height,
             weight,
@@ -197,6 +202,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             role: profile?.role || 'athlete',
             firstName: profile?.first_name,
             lastName: profile?.last_name,
+            gender: profile?.gender,
             disciplines: profile?.disciplines,
             height: profile?.height,
             weight: profile?.weight,

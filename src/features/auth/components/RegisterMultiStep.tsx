@@ -50,6 +50,7 @@ export const RegisterMultiStep = () => {
       firstName: formData.firstName,
       lastName: formData.lastName,
       role: formData.role as UserRole,
+      gender: formData.gender as 'homme' | 'femme',
       disciplines: formData.disciplines,
       height: formData.height ? Number(formData.height) : undefined,
       weight: formData.weight ? Number(formData.weight) : undefined,

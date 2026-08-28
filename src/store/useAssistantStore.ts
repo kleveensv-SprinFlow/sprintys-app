@@ -1,9 +1,15 @@
 import { create } from 'zustand';
-import { initLlama, LlamaContext } from 'llama.rn';
-import { getSystemPrompt } from '../services/assistantService'; // We will create this
+import { getSystemPrompt } from '../services/assistantService';
+import { Platform } from 'react-native';
 
 // Use any to bypass the missing type declaration issue while keeping functionality
-const FileSystem = require('expo-file-system') as any;
+let FileSystem: any = null;
+if (Platform.OS !== 'web') {
+  FileSystem = require('expo-file-system');
+}
+
+// Typings fallback
+type LlamaContext = any;
 
 export interface Message {
   id: string;
@@ -45,7 +51,6 @@ interface AssistantState {
 
 const MODEL_URL = 'https://huggingface.co/Qwen/Qwen1.5-0.5B-Chat-GGUF/resolve/main/qwen1_5-0_5b-chat-q4_k_m.gguf'; // Example lightweight model
 const MODEL_FILENAME = 'qwen1.5-0.5b-chat.gguf';
-const MODEL_PATH = `${FileSystem.documentDirectory || ''}${MODEL_FILENAME}`;
 
 export const useAssistantStore = create<AssistantState>((set, get) => ({
   messages: [],
@@ -85,10 +90,16 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
   },
 
   loadModel: async () => {
+    if (Platform.OS === 'web') {
+      console.warn("LLaMA n'est pas supporté sur le web. Le modèle ne sera pas chargé.");
+      return;
+    }
+
     try {
       const state = get();
       if (state.isModelLoaded && state.modelContext) return;
 
+      const MODEL_PATH = `${FileSystem.documentDirectory || ''}${MODEL_FILENAME}`;
       const fileInfo = await FileSystem.getInfoAsync(MODEL_PATH);
 
       if (!fileInfo.exists) {
@@ -107,6 +118,9 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
         await downloadResumable.downloadAsync();
         set({ isDownloading: false, downloadProgress: 1 });
       }
+
+      // Dynamic require to prevent web metro crash
+      const { initLlama } = require('llama.rn');
 
       // Initialize Llama context
       const context = await initLlama({
