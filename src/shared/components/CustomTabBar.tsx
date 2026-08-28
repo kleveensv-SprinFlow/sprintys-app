@@ -32,9 +32,11 @@ const TabIcon = ({ name, isFocused }: { name: string, isFocused: boolean }) => {
 };
 
 export const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
+  const theme = useTheme();
+  
   return (
     <View style={styles.container}>
-      <BlurView intensity={30} tint="dark" style={styles.blur}>
+      <BlurView intensity={30} tint={theme.isDark ? "dark" : "light"} style={styles.blur}>
         <View style={styles.tabBar}>
           {state.routes.map((route, index) => {
             const { options } = descriptors[route.key];
@@ -60,7 +62,7 @@ export const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, 
 
               if (!isFocused && !event.defaultPrevented) {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                if (route.name !== 'index') {
+                if (['nutrition', 'message'].includes(route.name)) {
                   Alert.alert("Interface en cours de dev", "Cette fonctionnalité n'est pas encore prête.");
                 } else {
                   navigation.navigate(route.name);
@@ -80,7 +82,7 @@ export const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, 
                 <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
                   <TabIcon name={route.name} isFocused={isFocused} />
                 </Animated.View>
-                {isFocused && <View style={styles.activeDot} />}
+                {isFocused && <View style={[styles.activeDot, { backgroundColor: theme.colors.accent }]} />}
               </TouchableOpacity>
             );
           })}
@@ -132,7 +134,6 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: theme.colors.accent,
     position: 'absolute',
     bottom: -8,
   },

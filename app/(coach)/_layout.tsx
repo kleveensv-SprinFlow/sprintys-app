@@ -1,5 +1,4 @@
 import { Tabs } from 'expo-router';
-import { theme } from '../../src/core/theme';
 import { CustomTabBar } from '../../src/shared/components/CustomTabBar';
 
 export default function CoachTabsLayout() {
@@ -20,6 +19,12 @@ export default function CoachTabsLayout() {
         name="index"
         options={{
           title: 'Athlètes',
+        }}
+      />
+      <Tabs.Screen
+        name="calendar"
+        options={{
+          title: 'Calendrier',
         }}
       />
       <Tabs.Screen

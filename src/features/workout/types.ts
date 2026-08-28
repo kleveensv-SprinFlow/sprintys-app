@@ -22,8 +22,15 @@ export interface WorkoutSession {
   name: string;
   startTime: number;
   endTime?: number;
-  exercises: Exercise[];
+  exercises: Exercise[]; // Keep for backwards compatibility
+  blocks?: WorkoutBlock[];
   status: 'active' | 'completed' | 'cancelled';
+}
+
+export interface WorkoutBlock {
+  id: string;
+  name: string; // e.g., 'Échauffement', 'Vitesse maximale'
+  exercises: Exercise[];
 }
 
 export interface WorkoutHistoryItem {
