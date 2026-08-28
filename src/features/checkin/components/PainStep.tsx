@@ -1,138 +1,218 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Modal, TextInput } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
-import { FRONT_MUSCLES, BACK_MUSCLES } from 'body-muscles';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { useTheme } from '../../../core/theme';
 import { Feather } from '@expo/vector-icons';
 import { useCheckInStore } from '../../../store/checkInStore';
-import { PainInfo } from '../../../services/checkInService';
-import { useSprintyStore } from '../../../store/sprintyStore';
 
 interface PainStepProps {
   onBack: () => void;
   onSubmit: () => void;
 }
 
-const PAIN_TYPES = ['courbature', 'raideur', 'élongation', 'tendinite', 'claquage', 'déchirure', 'autre'];
+const BODY_SECTIONS = [
+  {
+    id: 'jambes',
+    name: 'Jambes',
+    icon: 'activity',
+    zones: [
+      { id: 'quadriceps', name: 'Quadriceps', sides: true },
+      { id: 'ischios', name: 'Ischio-jambiers', sides: true },
+      { id: 'mollets', name: 'Mollets', sides: true },
+      { id: 'adducteurs', name: 'Adducteurs', sides: true },
+      { id: 'fessiers', name: 'Fessiers', sides: true },
+      { id: 'hanches', name: 'Hanches', sides: true },
+      { id: 'genoux', name: 'Genoux', sides: true },
+      { id: 'chevilles', name: 'Chevilles', sides: true },
+      { id: 'pieds', name: 'Pieds', sides: true }
+    ]
+  },
+  {
+    id: 'tronc',
+    name: 'Tronc',
+    icon: 'server',
+    zones: [
+      { id: 'lombaires', name: 'Lombaires', sides: true },
+      { id: 'abdominaux', name: 'Abdominaux', sides: false },
+      { id: 'obliques', name: 'Obliques', sides: true },
+      { id: 'pectoraux', name: 'Pectoraux', sides: true },
+      { id: 'haut_dos', name: 'Haut du dos', sides: false },
+      { id: 'cotes', name: 'Côtes', sides: true }
+    ]
+  },
+  {
+    id: 'epaules_bras',
+    name: 'Épaules & bras',
+    icon: 'git-commit',
+    zones: [
+      { id: 'epaules', name: 'Épaules', sides: true },
+      { id: 'biceps', name: 'Biceps', sides: true },
+      { id: 'triceps', name: 'Triceps', sides: true },
+      { id: 'avant_bras', name: 'Avant-bras', sides: true },
+      { id: 'poignets', name: 'Poignets', sides: true },
+      { id: 'mains', name: 'Mains', sides: true }
+    ]
+  },
+  {
+    id: 'cou_tete',
+    name: 'Cou & tête',
+    icon: 'smile',
+    zones: [
+      { id: 'cou', name: 'Cou', sides: false },
+      { id: 'machoire', name: 'Mâchoire', sides: true },
+      { id: 'tete', name: 'Tête', sides: false }
+    ]
+  }
+];
+
+const PAIN_STATES = [
+  { label: 'Aucun problème', intensity: 0, color: '#10B981' },
+  { label: 'Légère gêne', intensity: 3, color: '#FBBF24' },
+  { label: 'Gêne modérée', intensity: 5, color: '#F59E0B' },
+  { label: 'Douleur', intensity: 7, color: '#F97316' },
+  { label: 'Douleur importante', intensity: 9, color: '#EF4444' }
+];
+
+const SIDES = ['Gauche', 'Droit', 'Les deux'] as const;
 
 export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
   const theme = useTheme();
   const { currentCheckIn, addPain, removePain } = useCheckInStore();
-  const { isLoading } = useSprintyStore(); // or checkInStore loading
-
-  const [viewSide, setViewSide] = useState<'front' | 'back'>('front');
-  const [selectedMuscle, setSelectedMuscle] = useState<{ id: string, name: string } | null>(null);
-
-  // Form state
-  const [painType, setPainType] = useState('courbature');
-  const [intensity, setIntensity] = useState(5);
-  const [comment, setComment] = useState('');
-
-  const muscles = viewSide === 'front' ? FRONT_MUSCLES : BACK_MUSCLES;
   const currentPains = currentCheckIn?.pains || [];
 
-  const handleMusclePress = (id: string, name: string) => {
-    // If it's already recorded, pre-fill the form
-    const existingPain = currentPains.find(p => p.muscle_id === id);
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  
+  // Modal State
+  const [selectedZone, setSelectedZone] = useState<{ id: string, name: string, sides: boolean } | null>(null);
+  const [activeState, setActiveState] = useState<string>('Aucun problème');
+  const [activeSide, setActiveSide] = useState<'Gauche' | 'Droit' | 'Les deux' | null>(null);
+
+  const handleZonePress = (zone: any) => {
+    const existingPain = currentPains.find(p => p.muscle_id === zone.id);
     if (existingPain) {
-      setPainType(existingPain.type);
-      setIntensity(existingPain.intensity);
-      setComment(existingPain.comment || '');
+      setActiveState(existingPain.type);
+      setActiveSide(existingPain.side || null);
     } else {
-      setPainType('courbature');
-      setIntensity(5);
-      setComment('');
+      setActiveState('Aucun problème');
+      setActiveSide(null);
     }
-    setSelectedMuscle({ id, name });
+    setSelectedZone(zone);
   };
 
-  const handleSavePain = () => {
-    if (!selectedMuscle) return;
-    
-    addPain({
-      muscle_id: selectedMuscle.id,
-      muscle_name: selectedMuscle.name,
-      type: painType,
-      intensity,
-      comment
-    });
-    setSelectedMuscle(null);
-  };
+  const handleSaveZone = () => {
+    if (!selectedZone) return;
 
-  const handleRemovePain = (id: string) => {
-    removePain(id);
-    if (selectedMuscle?.id === id) {
-      setSelectedMuscle(null);
+    if (activeState === 'Aucun problème') {
+      removePain(selectedZone.id);
+    } else {
+      const stateObj = PAIN_STATES.find(s => s.label === activeState);
+      const intensity = stateObj ? stateObj.intensity : 0;
+      
+      addPain({
+        muscle_id: selectedZone.id,
+        muscle_name: selectedZone.name,
+        type: activeState,
+        intensity,
+        side: (selectedZone.sides && activeState !== 'Aucun problème') ? (activeSide || undefined) : undefined
+      });
     }
+
+    setSelectedZone(null);
   };
 
   const getIntensityColor = (level: number) => {
-    if (level <= 3) return theme.colors.warning; // Light yellow/orange
-    if (level <= 7) return '#F97316'; // Orange
-    return theme.colors.error; // Red
+    if (level <= 3) return theme.colors.warning;
+    if (level <= 7) return '#F97316';
+    return theme.colors.error;
   };
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.title, { color: theme.colors.text }]}>Douleurs</Text>
+      <Text style={[styles.title, { color: theme.colors.text }]}>Corps & Douleurs</Text>
       <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-        Touchez un muscle pour signaler une gêne ou douleur.
+        Signalez rapidement toute gêne musculaire ou articulaire.
       </Text>
 
-      <View style={[styles.toggleContainer, { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border }]}>
-        <TouchableOpacity 
-          style={[styles.toggleButton, viewSide === 'front' && { backgroundColor: theme.colors.surface }]}
-          onPress={() => setViewSide('front')}
-        >
-          <Text style={[styles.toggleText, viewSide === 'front' ? { color: theme.colors.text, fontWeight: 'bold' } : { color: theme.colors.textMuted }]}>
-            Avant
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.toggleButton, viewSide === 'back' && { backgroundColor: theme.colors.surface }]}
-          onPress={() => setViewSide('back')}
-        >
-          <Text style={[styles.toggleText, viewSide === 'back' ? { color: theme.colors.text, fontWeight: 'bold' } : { color: theme.colors.textMuted }]}>
-            Arrière
-          </Text>
-        </TouchableOpacity>
-      </View>
+      <ScrollView style={styles.sectionsList} showsVerticalScrollIndicator={false}>
+        {BODY_SECTIONS.map((section) => {
+          const isExpanded = expandedSection === section.id;
+          const painsInSection = currentPains.filter(p => section.zones.some(z => z.id === p.muscle_id));
 
-      <View style={styles.bodyMapContainer}>
-        <Svg viewBox="0 0 200 400" width="100%" height="100%">
-          {muscles.map((muscle) => {
-            const pain = currentPains.find(p => p.muscle_id === muscle.id);
-            const isSelected = selectedMuscle?.id === muscle.id;
-            
-            let fillColor = theme.colors.border;
-            if (isSelected) fillColor = theme.colors.accent;
-            else if (pain) fillColor = getIntensityColor(pain.intensity);
+          return (
+            <View key={section.id} style={styles.sectionContainer}>
+              <TouchableOpacity 
+                style={[
+                  styles.sectionHeader, 
+                  { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border },
+                  isExpanded && { borderColor: theme.colors.accent, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }
+                ]}
+                activeOpacity={0.7}
+                onPress={() => setExpandedSection(isExpanded ? null : section.id)}
+              >
+                <View style={styles.sectionHeaderLeft}>
+                  <View style={[styles.iconBox, { backgroundColor: theme.colors.background }]}>
+                    <Feather name={section.icon as any} size={20} color={theme.colors.text} />
+                  </View>
+                  <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>{section.name}</Text>
+                  {painsInSection.length > 0 && (
+                    <View style={[styles.badge, { backgroundColor: theme.colors.error }]}>
+                      <Text style={styles.badgeText}>{painsInSection.length}</Text>
+                    </View>
+                  )}
+                </View>
+                <Feather name={isExpanded ? "chevron-up" : "chevron-down"} size={20} color={theme.colors.textMuted} />
+              </TouchableOpacity>
 
-            return (
-              <Path
-                key={muscle.id}
-                d={muscle.path}
-                fill={fillColor}
-                stroke={theme.colors.background}
-                strokeWidth={1}
-                onPress={() => handleMusclePress(muscle.id, muscle.name)}
-              />
-            );
-          })}
-        </Svg>
-      </View>
+              {isExpanded && (
+                <View style={[styles.zonesContainer, { borderColor: theme.colors.border, borderTopWidth: 0 }]}>
+                  {section.zones.map((zone, index) => {
+                    const pain = currentPains.find(p => p.muscle_id === zone.id);
+                    const isLast = index === section.zones.length - 1;
 
-      <ScrollView style={styles.painsList} horizontal showsHorizontalScrollIndicator={false}>
-        {currentPains.map(pain => (
-          <View key={pain.muscle_id} style={[styles.painChip, { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border }]}>
-            <View style={[styles.intensityDot, { backgroundColor: getIntensityColor(pain.intensity) }]} />
-            <Text style={[styles.painChipText, { color: theme.colors.text }]}>{pain.muscle_name}</Text>
-            <TouchableOpacity onPress={() => removePain(pain.muscle_id)} style={styles.removePainBtn}>
-              <Feather name="x" size={14} color={theme.colors.textMuted} />
-            </TouchableOpacity>
-          </View>
-        ))}
+                    return (
+                      <TouchableOpacity 
+                        key={zone.id} 
+                        style={[styles.zoneRow, !isLast && { borderBottomWidth: 1, borderBottomColor: theme.colors.background }]}
+                        onPress={() => handleZonePress(zone)}
+                      >
+                        <Text style={[styles.zoneName, { color: theme.colors.text }]}>{zone.name}</Text>
+                        
+                        {pain ? (
+                          <View style={styles.zoneStateBadge}>
+                            <View style={[styles.intensityDot, { backgroundColor: getIntensityColor(pain.intensity) }]} />
+                            <Text style={[styles.zoneStateText, { color: theme.colors.textSecondary }]}>
+                              {pain.type} {pain.side ? `(${pain.side})` : ''}
+                            </Text>
+                          </View>
+                        ) : (
+                          <Feather name="plus-circle" size={20} color={theme.colors.textMuted} />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          );
+        })}
       </ScrollView>
+
+      {/* Selected zones summary chips */}
+      {currentPains.length > 0 && (
+        <View style={styles.summaryContainer}>
+          <Text style={[styles.summaryTitle, { color: theme.colors.textSecondary }]}>Zones signalées ({currentPains.length})</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.summaryList}>
+            {currentPains.map(pain => (
+              <View key={pain.muscle_id} style={[styles.painChip, { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border }]}>
+                <View style={[styles.intensityDot, { backgroundColor: getIntensityColor(pain.intensity) }]} />
+                <Text style={[styles.painChipText, { color: theme.colors.text }]}>{pain.muscle_name}</Text>
+                <TouchableOpacity onPress={() => removePain(pain.muscle_id)} style={styles.removePainBtn}>
+                  <Feather name="x" size={14} color={theme.colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       <View style={styles.footer}>
         <TouchableOpacity style={styles.backBtn} onPress={onBack}>
@@ -142,87 +222,81 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
           style={[styles.submitBtn, { backgroundColor: theme.colors.success }]} 
           onPress={onSubmit}
         >
-          <Text style={styles.submitBtnText}>Enregistrer ({currentPains.length} douleur{currentPains.length !== 1 && 's'})</Text>
+          <Text style={styles.submitBtnText}>Terminer le Check-In</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Pain Details Modal */}
-      <Modal visible={!!selectedMuscle} transparent animationType="slide">
+      {/* Zone Details Modal */}
+      <Modal visible={!!selectedZone} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>{selectedMuscle?.name}</Text>
-              <TouchableOpacity onPress={() => setSelectedMuscle(null)}>
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>{selectedZone?.name}</Text>
+              <TouchableOpacity onPress={() => setSelectedZone(null)}>
                 <Feather name="x" size={24} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
-            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Type de douleur</Text>
-            <View style={styles.typeGrid}>
-              {PAIN_TYPES.map(type => (
-                <TouchableOpacity 
-                  key={type}
-                  style={[
-                    styles.typeChip, 
-                    { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border },
-                    painType === type && { backgroundColor: theme.colors.accent + '20', borderColor: theme.colors.accent }
-                  ]}
-                  onPress={() => setPainType(type)}
-                >
-                  <Text style={[
-                    styles.typeChipText, 
-                    { color: theme.colors.textSecondary },
-                    painType === type && { color: theme.colors.accent, fontWeight: 'bold' }
-                  ]}>
-                    {type}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>État de la zone</Text>
+            <View style={styles.statesList}>
+              {PAIN_STATES.map(state => {
+                const isActive = activeState === state.label;
+                return (
+                  <TouchableOpacity 
+                    key={state.label}
+                    style={[
+                      styles.stateRow, 
+                      { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border },
+                      isActive && { borderColor: state.color, backgroundColor: state.color + '15' }
+                    ]}
+                    onPress={() => setActiveState(state.label)}
+                  >
+                    <View style={[styles.stateIndicator, { backgroundColor: state.color }]} />
+                    <Text style={[
+                      styles.stateText, 
+                      { color: theme.colors.textSecondary },
+                      isActive && { color: theme.colors.text, fontWeight: 'bold' }
+                    ]}>
+                      {state.label}
+                    </Text>
+                    {isActive && <Feather name="check" size={18} color={state.color} style={{ marginLeft: 'auto' }} />}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
-            <Text style={[styles.label, { color: theme.colors.textSecondary, marginTop: 24 }]}>Intensité ({intensity}/10)</Text>
-            <View style={styles.intensityContainer}>
-              {[1,2,3,4,5,6,7,8,9,10].map(val => (
-                <TouchableOpacity 
-                  key={val}
-                  style={[
-                    styles.intensityBox,
-                    { backgroundColor: theme.colors.surfaceLight },
-                    intensity === val && { backgroundColor: getIntensityColor(val) }
-                  ]}
-                  onPress={() => setIntensity(val)}
-                >
-                  <Text style={[
-                    styles.intensityText, 
-                    { color: intensity === val ? '#FFF' : theme.colors.textSecondary }
-                  ]}>
-                    {val}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={[styles.label, { color: theme.colors.textSecondary, marginTop: 24 }]}>Commentaire (optionnel)</Text>
-            <TextInput
-              style={[styles.input, { color: theme.colors.text, backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border }]}
-              value={comment}
-              onChangeText={setComment}
-              placeholder="Ex: Douleur apparue pendant le squat"
-              placeholderTextColor={theme.colors.textMuted}
-            />
+            {/* Conditionally show Side selection if there is a problem AND it's a bilateral zone */}
+            {(activeState !== 'Aucun problème' && selectedZone?.sides) && (
+              <View style={styles.sideSection}>
+                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Côté affecté</Text>
+                <View style={styles.sideGrid}>
+                  {SIDES.map(side => (
+                    <TouchableOpacity 
+                      key={side}
+                      style={[
+                        styles.sideChip, 
+                        { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border },
+                        activeSide === side && { backgroundColor: theme.colors.accent + '20', borderColor: theme.colors.accent }
+                      ]}
+                      onPress={() => setActiveSide(side)}
+                    >
+                      <Text style={[
+                        styles.sideChipText, 
+                        { color: theme.colors.textSecondary },
+                        activeSide === side && { color: theme.colors.accent, fontWeight: 'bold' }
+                      ]}>
+                        {side}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
 
             <View style={styles.modalActions}>
-              {currentPains.some(p => p.muscle_id === selectedMuscle?.id) && (
-                <TouchableOpacity 
-                  style={styles.deleteBtn} 
-                  onPress={() => handleRemovePain(selectedMuscle!.id)}
-                >
-                  <Text style={[styles.deleteBtnText, { color: theme.colors.error }]}>Supprimer</Text>
-                </TouchableOpacity>
-              )}
               <TouchableOpacity 
                 style={[styles.saveBtn, { backgroundColor: theme.colors.accent }]} 
-                onPress={handleSavePain}
+                onPress={handleSaveZone}
               >
                 <Text style={styles.saveBtnText}>Valider</Text>
               </TouchableOpacity>
@@ -249,31 +323,92 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 24,
   },
-  toggleContainer: {
+  sectionsList: {
+    flex: 1,
+  },
+  sectionContainer: {
+    marginBottom: 12,
+  },
+  sectionHeader: {
     flexDirection: 'row',
-    borderRadius: 12,
-    padding: 4,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
     borderWidth: 1,
-    marginBottom: 24,
   },
-  toggleButton: {
-    flex: 1,
-    paddingVertical: 10,
+  sectionHeaderLeft: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 8,
+    gap: 12,
   },
-  toggleText: {
-    fontSize: 14,
-  },
-  bodyMapContainer: {
-    flex: 1,
-    alignItems: 'center',
+  iconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     justifyContent: 'center',
-    marginBottom: 16,
+    alignItems: 'center',
   },
-  painsList: {
-    maxHeight: 50,
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  badge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badgeText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  zonesContainer: {
+    borderWidth: 1,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  zoneRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+  },
+  zoneName: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  zoneStateBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  intensityDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  zoneStateText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  
+  summaryContainer: {
+    marginTop: 16,
     marginBottom: 24,
+  },
+  summaryTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    marginBottom: 12,
+  },
+  summaryList: {
+    maxHeight: 50,
   },
   painChip: {
     flexDirection: 'row',
@@ -285,22 +420,19 @@ const styles = StyleSheet.create({
     marginRight: 8,
     gap: 8,
   },
-  intensityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
   painChipText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '500',
   },
   removePainBtn: {
     padding: 2,
   },
+
   footer: {
     flexDirection: 'row',
     gap: 16,
     marginBottom: 40,
+    marginTop: 'auto',
   },
   backBtn: {
     width: 60,
@@ -336,6 +468,7 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingBottom: 48,
     borderTopWidth: 1,
+    maxHeight: '90%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -344,7 +477,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
   },
   label: {
@@ -353,60 +486,52 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textTransform: 'uppercase',
   },
-  typeGrid: {
+  statesList: {
+    gap: 8,
+    marginBottom: 24,
+  },
+  stateRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 12,
+  },
+  stateIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  stateText: {
+    fontSize: 15,
+  },
+  sideSection: {
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  sideGrid: {
+    flexDirection: 'row',
     gap: 8,
   },
-  typeChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+  sideChip: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
     borderWidth: 1,
-  },
-  typeChipText: {
-    fontSize: 13,
-  },
-  intensityContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  intensityBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    justifyContent: 'center',
     alignItems: 'center',
   },
-  intensityText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
+  sideChipText: {
     fontSize: 14,
   },
   modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 32,
-  },
-  deleteBtn: {
-    padding: 12,
-  },
-  deleteBtnText: {
-    fontWeight: '600',
+    marginTop: 16,
   },
   saveBtn: {
-    paddingHorizontal: 32,
-    paddingVertical: 16,
+    paddingVertical: 18,
     borderRadius: 16,
-    flex: 1,
     alignItems: 'center',
-    marginLeft: 16,
+    width: '100%',
   },
   saveBtnText: {
     color: '#FFF',

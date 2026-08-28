@@ -6,6 +6,7 @@ export interface PainInfo {
   type: string;
   intensity: number;
   comment?: string;
+  side?: 'Gauche' | 'Droit' | 'Les deux';
 }
 
 export interface CheckInData {
@@ -137,9 +138,9 @@ export const checkInService = {
         // Base penalty from intensity (1-10)
         let penalty = pain.intensity * 5; 
         
-        // Extra multiplier for severe types
-        if (pain.type === 'déchirure' || pain.type === 'claquage') penalty *= 2;
-        if (pain.type === 'tendinite' || pain.type === 'élongation') penalty *= 1.5;
+        // Extra multiplier for severe types (backward compatible + new types)
+        if (['déchirure', 'claquage', 'Douleur importante'].includes(pain.type)) penalty *= 2;
+        if (['tendinite', 'élongation', 'Douleur'].includes(pain.type)) penalty *= 1.5;
         
         totalPenalty += penalty;
       }
