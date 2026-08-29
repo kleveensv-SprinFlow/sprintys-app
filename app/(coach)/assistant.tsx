@@ -89,73 +89,75 @@ export default function AssistantScreen() {
   };
 
   // -------------------------
-  // Écran de téléchargement
-  // -------------------------
-  if (!isModelReady) {
-    const percentage = Math.round(downloadProgress * 100);
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background, justifyContent: 'center', alignItems: 'center' }]}>
-        <View style={styles.downloadCard}>
-          <Feather name="cpu" size={60} color={theme.colors.accent} style={{ marginBottom: 20 }} />
-          <Text style={[styles.downloadTitle, { color: theme.colors.text }]}>Intelligence Artificielle Locale</Text>
-          <Text style={[styles.downloadDesc, { color: theme.colors.textSecondary }]}>
-            Pour fonctionner sans internet et protéger vos données de coaching, l'assistant a besoin de télécharger son modèle neuronal (environ 300 Mo).
-          </Text>
-          
-          {isDownloadingModel ? (
-            <View style={styles.progressContainer}>
-              <View style={styles.progressBarBg}>
-                <View style={[styles.progressBarFill, { width: `${percentage}%`, backgroundColor: theme.colors.accent }]} />
-              </View>
-              <Text style={[styles.progressText, { color: theme.colors.text }]}>Téléchargement en cours... {percentage}%</Text>
-            </View>
-          ) : (
-            <TouchableOpacity 
-              style={[styles.downloadBtn, { backgroundColor: theme.colors.accent }]}
-              onPress={downloadModel}
-            >
-              <Feather name="download" size={20} color="#FFF" style={{ marginRight: 10 }} />
-              <Text style={styles.downloadBtnText}>Télécharger l'Assistant</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  // -------------------------
-  // Écran de Chat principal
+  // Écran principal (Tchat + État de téléchargement)
   // -------------------------
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* HEADER */}
+      {/* HEADER - Toujours visible */}
       <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
         <View style={styles.headerTitleBox}>
           <Feather name="cpu" size={28} color={theme.colors.accent} />
           <View style={{ marginLeft: 12 }}>
             <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Coach Copilot</Text>
-            <Text style={[styles.headerSubtitle, { color: theme.colors.success }]}>Connecté à Internet</Text>
+            <Text style={[styles.headerSubtitle, { color: isModelReady ? theme.colors.success : theme.colors.textSecondary }]}>
+              {isModelReady ? "IA Locale Prête" : "En attente d'installation"}
+            </Text>
           </View>
         </View>
       </View>
 
-      {/* CHAT LIST */}
       <KeyboardAvoidingView 
         style={styles.chatContainer} 
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        <FlatList
-          data={messages}
-          keyExtractor={(item) => item.id}
-          renderItem={renderMessage}
-          inverted // Le plus récent en bas
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-        />
+        {/* Si le modèle n'est pas prêt, on affiche la carte d'installation au lieu des messages */}
+        {!isModelReady ? (
+          <View style={styles.installContainer}>
+            <View style={[styles.richCard, { backgroundColor: theme.colors.surface, alignItems: 'center', padding: 24 }]}>
+              <View style={[styles.avatarContainer, { width: 64, height: 64, borderRadius: 32, marginBottom: 20 }]}>
+                <Feather name="shield" size={32} color={theme.colors.background} />
+              </View>
+              <Text style={[styles.cardTitle, { color: theme.colors.text, fontSize: 20, marginBottom: 12, textAlign: 'center' }]}>
+                Confidentialité Absolue
+              </Text>
+              <Text style={[styles.cardSubtitle, { color: theme.colors.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 24 }]}>
+                Pour garantir la sécurité de vos données d'entraînement, l'assistant fonctionne 100% hors-ligne. Vous devez installer le moteur IA sur votre appareil.
+              </Text>
+
+              {isDownloadingModel ? (
+                <View style={styles.progressContainer}>
+                  <View style={styles.progressBarBg}>
+                    <View style={[styles.progressBarFill, { width: `${Math.round(downloadProgress * 100)}%`, backgroundColor: theme.colors.accent }]} />
+                  </View>
+                  <Text style={[styles.progressText, { color: theme.colors.text }]}>
+                    Installation en cours... {Math.round(downloadProgress * 100)}%
+                  </Text>
+                </View>
+              ) : (
+                <TouchableOpacity 
+                  style={[styles.downloadBtn, { backgroundColor: theme.colors.accent, width: '100%', justifyContent: 'center' }]}
+                  onPress={downloadModel}
+                >
+                  <Feather name="download" size={20} color="#FFF" style={{ marginRight: 10 }} />
+                  <Text style={styles.downloadBtnText}>Installer le modèle de l'IA (300 Mo)</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        ) : (
+          <FlatList
+            data={messages}
+            keyExtractor={(item) => item.id}
+            renderItem={renderMessage}
+            inverted // Le plus récent en bas
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
 
         {/* TYPING INDICATOR */}
-        {isTyping && (
+        {isModelReady && isTyping && (
           <View style={styles.typingIndicator}>
             <View style={styles.avatarContainer}>
               <Feather name="cpu" size={20} color={theme.colors.background} />
@@ -167,24 +169,26 @@ export default function AssistantScreen() {
         )}
 
         {/* INPUT BAR */}
-        <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface }]}>
-          <TextInput
-            style={[styles.input, { color: theme.colors.text }]}
-            placeholder="Demandez-moi d'analyser le groupe, ou cherchez une course..."
-            placeholderTextColor={theme.colors.textSecondary}
-            value={inputText}
-            onChangeText={setInputText}
-            multiline
-            maxLength={500}
-          />
-          <TouchableOpacity 
-            style={[styles.sendButton, { backgroundColor: inputText.trim() ? theme.colors.accent : theme.colors.border }]}
-            onPress={handleSend}
-            disabled={!inputText.trim() || isTyping}
-          >
-            <Feather name="send" size={20} color="#FFF" />
-          </TouchableOpacity>
-        </View>
+        {isModelReady && (
+          <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface }]}>
+            <TextInput
+              style={[styles.input, { color: theme.colors.text }]}
+              placeholder="Demandez-moi d'analyser le groupe, ou cherchez une course..."
+              placeholderTextColor={theme.colors.textSecondary}
+              value={inputText}
+              onChangeText={setInputText}
+              multiline
+              maxLength={500}
+            />
+            <TouchableOpacity 
+              style={[styles.sendButton, { backgroundColor: inputText.trim() ? theme.colors.accent : theme.colors.border }]}
+              onPress={handleSend}
+              disabled={!inputText.trim() || isTyping}
+            >
+              <Feather name="send" size={20} color="#FFF" />
+            </TouchableOpacity>
+          </View>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -221,6 +225,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 20,
     paddingBottom: 100, // Espace pour la bottom tab bar
+  },
+  installContainer: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 40,
+    alignItems: 'center',
   },
   messageWrapper: {
     flexDirection: 'row',
