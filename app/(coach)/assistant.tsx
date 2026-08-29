@@ -5,17 +5,8 @@ import { theme } from '../../src/core/theme';
 import { useAssistantStore, ChatMessage } from '../../src/store/coach/assistantStore';
 
 export default function AssistantScreen() {
-  const { 
-    messages, isTyping, sendMessage, 
-    isModelReady, isDownloadingModel, downloadProgress, 
-    checkModelExists, downloadModel 
-  } = useAssistantStore();
-  
+  const { messages, isTyping, sendMessage } = useAssistantStore();
   const [inputText, setInputText] = useState('');
-
-  React.useEffect(() => {
-    checkModelExists();
-  }, []);
 
   const handleSend = () => {
     if (inputText.trim()) {
@@ -89,7 +80,7 @@ export default function AssistantScreen() {
   };
 
   // -------------------------
-  // Écran principal (Tchat + État de téléchargement)
+  // Écran principal (Tchat)
   // -------------------------
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -99,8 +90,8 @@ export default function AssistantScreen() {
           <Feather name="cpu" size={28} color={theme.colors.accent} />
           <View style={{ marginLeft: 12 }}>
             <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Coach Copilot</Text>
-            <Text style={[styles.headerSubtitle, { color: isModelReady ? theme.colors.success : theme.colors.textSecondary }]}>
-              {isModelReady ? "IA Locale Prête" : "En attente d'installation"}
+            <Text style={[styles.headerSubtitle, { color: theme.colors.success }]}>
+              IA Connectée (API)
             </Text>
           </View>
         </View>
@@ -111,53 +102,17 @@ export default function AssistantScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        {/* Si le modèle n'est pas prêt, on affiche la carte d'installation au lieu des messages */}
-        {!isModelReady ? (
-          <View style={styles.installContainer}>
-            <View style={[styles.richCard, { backgroundColor: theme.colors.surface, alignItems: 'center', padding: 24 }]}>
-              <View style={[styles.avatarContainer, { width: 64, height: 64, borderRadius: 32, marginBottom: 20 }]}>
-                <Feather name="shield" size={32} color={theme.colors.background} />
-              </View>
-              <Text style={[styles.cardTitle, { color: theme.colors.text, fontSize: 20, marginBottom: 12, textAlign: 'center' }]}>
-                Confidentialité Absolue
-              </Text>
-              <Text style={[styles.cardSubtitle, { color: theme.colors.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 24 }]}>
-                Pour garantir la sécurité de vos données d'entraînement, l'assistant fonctionne 100% hors-ligne. Vous devez installer le moteur IA sur votre appareil.
-              </Text>
-
-              {isDownloadingModel ? (
-                <View style={styles.progressContainer}>
-                  <View style={styles.progressBarBg}>
-                    <View style={[styles.progressBarFill, { width: `${Math.round(downloadProgress * 100)}%`, backgroundColor: theme.colors.accent }]} />
-                  </View>
-                  <Text style={[styles.progressText, { color: theme.colors.text }]}>
-                    Installation en cours... {Math.round(downloadProgress * 100)}%
-                  </Text>
-                </View>
-              ) : (
-                <TouchableOpacity 
-                  style={[styles.downloadBtn, { backgroundColor: theme.colors.accent, width: '100%', justifyContent: 'center' }]}
-                  onPress={downloadModel}
-                >
-                  <Feather name="download" size={20} color="#FFF" style={{ marginRight: 10 }} />
-                  <Text style={styles.downloadBtnText}>Installer le modèle de l'IA (300 Mo)</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-        ) : (
-          <FlatList
-            data={messages}
-            keyExtractor={(item) => item.id}
-            renderItem={renderMessage}
-            inverted // Le plus récent en bas
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-          />
-        )}
+        <FlatList
+          data={messages}
+          keyExtractor={(item) => item.id}
+          renderItem={renderMessage}
+          inverted // Le plus récent en bas
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
 
         {/* TYPING INDICATOR */}
-        {isModelReady && isTyping && (
+        {isTyping && (
           <View style={styles.typingIndicator}>
             <View style={styles.avatarContainer}>
               <Feather name="cpu" size={20} color={theme.colors.background} />
@@ -169,26 +124,25 @@ export default function AssistantScreen() {
         )}
 
         {/* INPUT BAR */}
-        {isModelReady && (
-          <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface }]}>
-            <TextInput
-              style={[styles.input, { color: theme.colors.text }]}
-              placeholder="Demandez-moi d'analyser le groupe, ou cherchez une course..."
-              placeholderTextColor={theme.colors.textSecondary}
-              value={inputText}
-              onChangeText={setInputText}
-              multiline
-              maxLength={500}
-            />
-            <TouchableOpacity 
-              style={[styles.sendButton, { backgroundColor: inputText.trim() ? theme.colors.accent : theme.colors.border }]}
-              onPress={handleSend}
-              disabled={!inputText.trim() || isTyping}
-            >
-              <Feather name="send" size={20} color="#FFF" />
-            </TouchableOpacity>
-          </View>
-        )}
+        <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface }]}>
+          <TextInput
+            style={[styles.input, { color: theme.colors.text }]}
+            placeholder="Demandez-moi d'analyser le groupe, ou cherchez une course..."
+            placeholderTextColor={theme.colors.textSecondary}
+            value={inputText}
+            onChangeText={setInputText}
+            multiline
+            maxLength={500}
+            editable={!isTyping}
+          />
+          <TouchableOpacity 
+            style={[styles.sendButton, { backgroundColor: inputText.trim() ? theme.colors.accent : theme.colors.border }]}
+            onPress={handleSend}
+            disabled={!inputText.trim() || isTyping}
+          >
+            <Feather name="send" size={20} color="#FFF" />
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

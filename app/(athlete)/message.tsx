@@ -1,78 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../../src/core/theme';
-import * as FileSystem from 'expo-file-system';
-import { initLlama, LlamaContext } from 'llama.rn';
 import { buildSystemPrompt } from '../../src/services/aiContextBuilder';
 
-const MODEL_URL = 'https://huggingface.co/Qwen/Qwen1.5-0.5B-Chat-GGUF/resolve/main/qwen1_5-0_5b-chat-q4_k_m.gguf?download=true';
-const MODEL_NAME = 'qwen0.5b-chat.gguf';
-const MODEL_PATH = `${FileSystem.documentDirectory}${MODEL_NAME}`;
-
 export default function MessageScreen() {
-  const [messages, setMessages] = useState([{ role: 'system', content: '' }, { role: 'assistant', content: "Salut ! Je suis Sprinty. Je suis en train de m'échauffer..." }]);
+  const [messages, setMessages] = useState([
+    { role: 'system', content: buildSystemPrompt() }, 
+    { role: 'assistant', content: "Salut ! Je suis Sprinty, ton coach IA personnel. Je suis prêt à t'accompagner. Que veux-tu faire aujourd'hui ?" }
+  ]);
   const [inputText, setInputText] = useState('');
-  
-  const [downloadProgress, setDownloadProgress] = useState(0);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [isModelReady, setIsModelReady] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   
-  const llamaContext = useRef<LlamaContext | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
-  useEffect(() => {
-    setupModel();
-    return () => {
-      if (llamaContext.current) {
-        llamaContext.current.release();
-      }
-    };
-  }, []);
-
-  const setupModel = async () => {
-    try {
-      const fileInfo = await FileSystem.getInfoAsync(MODEL_PATH);
-      
-      if (!fileInfo.exists) {
-        setIsDownloading(true);
-        const downloadResumable = FileSystem.createDownloadResumable(
-          MODEL_URL,
-          MODEL_PATH,
-          {},
-          (downloadProgress) => {
-            const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
-            setDownloadProgress(progress);
-          }
-        );
-        await downloadResumable.downloadAsync();
-        setIsDownloading(false);
-      }
-
-      // Initialize LLM
-      llamaContext.current = await initLlama({
-        model: MODEL_PATH,
-        use_mlock: true,
-        n_ctx: 2048, // context window
-      });
-
-      // Mettre à jour le message système avec le contexte réel
-      const systemPrompt = buildSystemPrompt();
-      setMessages([
-        { role: 'system', content: systemPrompt },
-        { role: 'assistant', content: "Salut ! Je suis Sprinty, ton coach IA personnel. Je suis prêt à t'accompagner. Que veux-tu faire aujourd'hui ?" }
-      ]);
-      setIsModelReady(true);
-
-    } catch (err) {
-      console.error("Erreur d'initialisation de l'IA:", err);
-      setIsDownloading(false);
-    }
-  };
-
   const sendMessage = async () => {
-    if (!inputText.trim() || !isModelReady || isTyping) return;
+    if (!inputText.trim() || isTyping) return;
 
     const userText = inputText.trim();
     setInputText('');
@@ -81,30 +24,16 @@ export default function MessageScreen() {
     setIsTyping(true);
 
     try {
-      // Format prompt for ChatML (Qwen format)
-      let prompt = '';
-      newMessages.forEach(msg => {
-        prompt += `<|im_start|>${msg.role}\n${msg.content}<|im_end|>\n`;
-      });
-      prompt += `<|im_start|>assistant\n`;
-
-      let assistantResponse = '';
-      setMessages(prev => [...prev, { role: 'assistant', content: '...' }]);
-
-      // Generate response stream
-      await llamaContext.current?.completion({ prompt, n_predict: 200 }, (result) => {
-        assistantResponse += result.token;
-        setMessages(prev => {
-          const updated = [...prev];
-          updated[updated.length - 1].content = assistantResponse;
-          return updated;
-        });
-      });
+      // TODO: Call OpenAI/Groq API here
+      // For now, simulate network delay
+      setTimeout(() => {
+        setMessages(prev => [...prev, { role: 'assistant', content: 'Désolé, l\'API n\'est pas encore configurée. Je ne peux pas répondre pour le moment.' }]);
+        setIsTyping(false);
+      }, 1000);
 
     } catch (err) {
       console.error(err);
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Désolé, j\'ai eu un problème de réseau neuronal.' }]);
-    } finally {
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Désolé, j\'ai eu un problème de réseau.' }]);
       setIsTyping(false);
     }
   };
@@ -113,20 +42,8 @@ export default function MessageScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Assistant & Coach</Text>
-        <Text style={styles.subtitle}>{isModelReady ? 'IA On-Device (Qwen) Prête ⚡' : 'Chargement...'}</Text>
+        <Text style={styles.subtitle}>Prêt ⚡</Text>
       </View>
-
-      {isDownloading && (
-        <View style={styles.downloadContainer}>
-          <ActivityIndicator color={theme.colors.accent} size="large" />
-          <Text style={styles.downloadText}>Téléchargement de l'IA locale...</Text>
-          <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFill, { width: `${downloadProgress * 100}%` }]} />
-          </View>
-          <Text style={styles.progressValue}>{Math.round(downloadProgress * 100)}% (350 Mo)</Text>
-          <Text style={styles.downloadDesc}>Ceci n'arrive qu'une seule fois. L'IA fonctionnera ensuite 100% hors-ligne.</Text>
-        </View>
-      )}
 
       <ScrollView 
         style={styles.chatArea} 
@@ -134,30 +51,35 @@ export default function MessageScreen() {
         ref={scrollViewRef}
         onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
       >
-        {!isDownloading && messages.filter(m => m.role !== 'system').map((msg, index) => (
+        {messages.filter(m => m.role !== 'system').map((msg, index) => (
           <View key={index} style={msg.role === 'user' ? styles.messageBubbleRight : styles.messageBubbleLeft}>
             <Text style={[styles.messageText, msg.role === 'user' && { color: '#FFF' }]}>
               {msg.content}
             </Text>
           </View>
         ))}
+        {isTyping && (
+          <View style={styles.messageBubbleLeft}>
+            <Text style={styles.messageText}>...</Text>
+          </View>
+        )}
       </ScrollView>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={styles.inputArea}>
-          <TouchableOpacity style={styles.attachBtn} disabled={!isModelReady}>
-            <Feather name="plus" size={24} color={isModelReady ? theme.colors.textMuted : theme.colors.border} />
+          <TouchableOpacity style={styles.attachBtn}>
+            <Feather name="plus" size={24} color={theme.colors.textMuted} />
           </TouchableOpacity>
           <TextInput
             style={styles.input}
-            placeholder={isModelReady ? "Écris un message..." : "Initialisation IA..."}
+            placeholder="Écris un message..."
             placeholderTextColor={theme.colors.textMuted}
             multiline
             value={inputText}
             onChangeText={setInputText}
-            editable={isModelReady && !isTyping}
+            editable={!isTyping}
           />
-          <TouchableOpacity style={[styles.sendBtn, (!isModelReady || !inputText.trim()) && { opacity: 0.5 }]} onPress={sendMessage} disabled={!isModelReady || isTyping}>
+          <TouchableOpacity style={[styles.sendBtn, (!inputText.trim()) && { opacity: 0.5 }]} onPress={sendMessage} disabled={isTyping || !inputText.trim()}>
             <Feather name="send" size={20} color="#FFF" />
           </TouchableOpacity>
         </View>
@@ -196,14 +118,5 @@ const styles = StyleSheet.create({
   sendBtn: {
     backgroundColor: theme.colors.accent, width: 44, height: 44,
     borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginLeft: 12, marginBottom: 2
-  },
-  downloadContainer: {
-    padding: 30, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.surface,
-    margin: 20, borderRadius: 16, borderWidth: 1, borderColor: theme.colors.border
-  },
-  downloadText: { color: theme.colors.text, fontSize: 16, fontWeight: 'bold', marginTop: 16, marginBottom: 12 },
-  progressBarBg: { width: '100%', height: 8, backgroundColor: theme.colors.background, borderRadius: 4, overflow: 'hidden' },
-  progressBarFill: { height: '100%', backgroundColor: theme.colors.accent },
-  progressValue: { color: theme.colors.accent, fontWeight: 'bold', marginTop: 8 },
-  downloadDesc: { color: theme.colors.textSecondary, textAlign: 'center', fontSize: 12, marginTop: 16 }
+  }
 });
