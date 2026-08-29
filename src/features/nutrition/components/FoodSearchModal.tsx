@@ -16,6 +16,7 @@ import { useNutritionStore } from '../../../store/nutrition/nutritionStore';
 import { openFoodFactsService, OFFProduct } from '../../../services/openFoodFactsService';
 import { useDebounce } from '../../../shared/hooks/useDebounce';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { FoodDetailSheet } from './FoodDetailSheet';
 
 export const FoodSearchModal: React.FC = () => {
   const theme = useTheme();
@@ -28,6 +29,8 @@ export const FoodSearchModal: React.FC = () => {
   
   const [permission, requestPermission] = useCameraPermissions();
   const debouncedQuery = useDebounce(searchQuery, 500);
+
+  const [selectedProduct, setSelectedProduct] = useState<OFFProduct | null>(null);
 
   useEffect(() => {
     if (debouncedQuery.trim().length > 2) {
@@ -50,7 +53,7 @@ export const FoodSearchModal: React.FC = () => {
     try {
       const product = await openFoodFactsService.getFoodByBarcode(data);
       if (product) {
-        handleSelectProduct(product);
+        setSelectedProduct(product);
       } else {
         Alert.alert("Introuvable", "Ce produit n'a pas été trouvé dans la base de données.");
       }
@@ -72,27 +75,24 @@ export const FoodSearchModal: React.FC = () => {
     setMode('barcode');
   };
 
-  const handleSelectProduct = async (product: OFFProduct) => {
-    if (!activeSearchMealType) return;
+  const handleConfirmAdd = async (totalGrams: number, calories: number, pro: number, glu: number, lip: number) => {
+    if (!activeSearchMealType || !selectedProduct) return;
     
     setIsLoading(true);
-    // Pour l'instant on ajoute la portion par défaut (100g) pour débloquer l'utilisateur
-    const quantity = 100; 
-    const multiplier = quantity / 100;
-
     await addMealLog({
       meal_type: activeSearchMealType,
       consumed_at: currentDate,
-      food_id: product.id,
-      custom_food_name: product.name,
-      quantity_g: quantity,
-      calories: product.macros_100g.calories * multiplier,
-      proteines: product.macros_100g.proteines * multiplier,
-      glucides: product.macros_100g.glucides * multiplier,
-      lipides: product.macros_100g.lipides * multiplier,
+      food_id: selectedProduct.id,
+      custom_food_name: selectedProduct.name,
+      quantity_g: totalGrams,
+      calories,
+      proteines: pro,
+      glucides: glu,
+      lipides: lip,
     });
     
     setIsLoading(false);
+    setSelectedProduct(null);
     closeSearchModal();
   };
 
@@ -101,6 +101,14 @@ export const FoodSearchModal: React.FC = () => {
   return (
     <Modal visible={isSearchModalOpen} animationType="slide" presentationStyle="pageSheet">
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        
+        <FoodDetailSheet 
+          product={selectedProduct} 
+          visible={!!selectedProduct} 
+          onClose={() => setSelectedProduct(null)}
+          onAdd={handleConfirmAdd}
+        />
+
         {mode === 'barcode' ? (
           <View style={{ flex: 1 }}>
             <CameraView 
@@ -179,7 +187,7 @@ export const FoodSearchModal: React.FC = () => {
                   renderItem={({ item }) => (
                     <TouchableOpacity 
                       style={[styles.resultItem, { borderBottomColor: theme.colors.border }]}
-                      onPress={() => handleSelectProduct(item)}
+                      onPress={() => setSelectedProduct(item)}
                     >
                       {item.image_url ? (
                         <Image source={{ uri: item.image_url }} style={styles.productImage} />
