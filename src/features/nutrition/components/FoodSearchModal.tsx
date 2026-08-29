@@ -1,14 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, FlatList, Image, ActivityIndicator, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import { useTheme } from '../../../core/theme';
-import { useNutritionStore } from '../../../store/nutrition/nutritionStore';
-import { openFoodFactsService, OFFProduct } from '../../../services/openFoodFactsService';
-import { useDebounce } from '../../../shared/hooks/useDebounce';
-// import { BarcodeScanner } from './BarcodeScanner'; // To be implemented
-// import { FoodDetailSheet } from './FoodDetailSheet'; // To be implemented
-
-import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, FlatList, Image, ActivityIndicator, SafeAreaView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
@@ -18,19 +8,32 @@ import { useDebounce } from '../../../shared/hooks/useDebounce';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { FoodDetailSheet } from './FoodDetailSheet';
 
+type TabType = 'recents' | 'frequents' | 'repas';
+
 export const FoodSearchModal: React.FC = () => {
   const theme = useTheme();
-  const { isSearchModalOpen, closeSearchModal, activeSearchMealType, addMealLog, currentDate } = useNutritionStore();
+  const { 
+    isSearchModalOpen, closeSearchModal, activeSearchMealType, 
+    addMealLog, currentDate,
+    fetchHistory, recentFoods, frequentFoods, savedMeals
+  } = useNutritionStore();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState<OFFProduct[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [mode, setMode] = useState<'text' | 'barcode' | 'ai'>('text');
+  const [mode, setMode] = useState<'text' | 'barcode'>('text');
+  const [activeTab, setActiveTab] = useState<TabType>('recents');
   
   const [permission, requestPermission] = useCameraPermissions();
   const debouncedQuery = useDebounce(searchQuery, 500);
 
   const [selectedProduct, setSelectedProduct] = useState<OFFProduct | null>(null);
+
+  useEffect(() => {
+    if (isSearchModalOpen) {
+      fetchHistory();
+    }
+  }, [isSearchModalOpen]);
 
   useEffect(() => {
     if (debouncedQuery.trim().length > 2) {
@@ -96,7 +99,33 @@ export const FoodSearchModal: React.FC = () => {
     closeSearchModal();
   };
 
+  const renderProductItem = ({ item }: { item: OFFProduct }) => (
+    <TouchableOpacity 
+      style={[styles.resultItem, { borderBottomColor: theme.colors.border }]}
+      onPress={() => setSelectedProduct(item)}
+    >
+      {item.image_url ? (
+        <Image source={{ uri: item.image_url }} style={styles.productImage} />
+      ) : (
+        <View style={[styles.productImagePlaceholder, { backgroundColor: theme.colors.surface }]}>
+          <Feather name="image" size={24} color={theme.colors.textSecondary} />
+        </View>
+      )}
+      <View style={styles.productInfo}>
+        <Text style={[styles.productName, { color: theme.colors.text }]} numberOfLines={1}>
+          {item.name}
+        </Text>
+        <Text style={[styles.productBrand, { color: theme.colors.textSecondary }]}>
+          {item.brand || 'Aliment'} • {item.macros_100g?.calories || 0} kcal / 100g
+        </Text>
+      </View>
+      <Feather name="plus-circle" size={24} color={theme.colors.accent} />
+    </TouchableOpacity>
+  );
+
   if (!isSearchModalOpen) return null;
+
+  const isSearching = searchQuery.trim().length > 0;
 
   return (
     <Modal visible={isSearchModalOpen} animationType="slide" presentationStyle="pageSheet">
@@ -130,14 +159,14 @@ export const FoodSearchModal: React.FC = () => {
             {/* HEADER */}
             <View style={styles.header}>
               <TouchableOpacity onPress={closeSearchModal} style={styles.iconButton}>
-                <Feather name="x" size={24} color={theme.colors.text} />
+                <Feather name="chevron-down" size={28} color={theme.colors.text} />
               </TouchableOpacity>
               <Text style={[styles.title, { color: theme.colors.text }]}>
                 {activeSearchMealType === 'petit_dejeuner' ? 'Petit Déjeuner' :
                  activeSearchMealType === 'dejeuner' ? 'Déjeuner' :
                  activeSearchMealType === 'diner' ? 'Dîner' : 'Collation'}
               </Text>
-              <View style={{ width: 24 }} />
+              <View style={{ width: 28 }} />
             </View>
 
             {/* SEARCH BAR & QUICK ACTIONS */}
@@ -150,75 +179,134 @@ export const FoodSearchModal: React.FC = () => {
                   placeholderTextColor={theme.colors.textSecondary}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
-                  autoFocus={mode === 'text'}
+                  autoFocus={false}
                 />
-                {searchQuery.length > 0 && (
+                {searchQuery.length > 0 ? (
                   <TouchableOpacity onPress={() => setSearchQuery('')}>
                     <Feather name="x-circle" size={18} color={theme.colors.textSecondary} />
                   </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity onPress={openScanner}>
+                    <Feather name="maximize" size={20} color={theme.colors.accent} />
+                  </TouchableOpacity>
                 )}
               </View>
+            </View>
 
-              <View style={styles.quickActions}>
-                <TouchableOpacity style={[styles.actionButton, { backgroundColor: theme.colors.surface }]} onPress={openScanner}>
-                  <Feather name="maximize" size={20} color={theme.colors.accent} />
-                  <Text style={[styles.actionText, { color: theme.colors.text }]}>Scanner</Text>
+            {/* TABS (Only show if not typing a search query) */}
+            {!isSearching && (
+              <View style={styles.tabsContainer}>
+                <TouchableOpacity 
+                  style={[styles.tabBtn, activeTab === 'recents' && { borderBottomColor: theme.colors.accent }]}
+                  onPress={() => setActiveTab('recents')}
+                >
+                  <Text style={[styles.tabText, { color: activeTab === 'recents' ? theme.colors.accent : theme.colors.textSecondary }]}>Récents</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.actionButton, { backgroundColor: theme.colors.surface, opacity: 0.5 }]}>
-                  <Feather name="camera" size={20} color={theme.colors.accent} />
-                  <Text style={[styles.actionText, { color: theme.colors.text }]}>Photo IA</Text>
+                <TouchableOpacity 
+                  style={[styles.tabBtn, activeTab === 'frequents' && { borderBottomColor: theme.colors.accent }]}
+                  onPress={() => setActiveTab('frequents')}
+                >
+                  <Text style={[styles.tabText, { color: activeTab === 'frequents' ? theme.colors.accent : theme.colors.textSecondary }]}>Fréquents</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.actionButton, { backgroundColor: theme.colors.surface, opacity: 0.5 }]}>
-                  <Feather name="mic" size={20} color={theme.colors.accent} />
-                  <Text style={[styles.actionText, { color: theme.colors.text }]}>Dicter</Text>
+                <TouchableOpacity 
+                  style={[styles.tabBtn, activeTab === 'repas' && { borderBottomColor: theme.colors.accent }]}
+                  onPress={() => setActiveTab('repas')}
+                >
+                  <Text style={[styles.tabText, { color: activeTab === 'repas' ? theme.colors.accent : theme.colors.textSecondary }]}>Mes Repas</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            )}
 
             {/* RESULTS LIST */}
             <View style={styles.resultsContainer}>
               {isLoading ? (
                 <ActivityIndicator size="large" color={theme.colors.accent} style={{ marginTop: 40 }} />
-              ) : results.length > 0 ? (
-                <FlatList
-                  data={results}
-                  keyExtractor={(item, index) => `${item.id}-${index}`}
-                  keyboardShouldPersistTaps="handled"
-                  renderItem={({ item }) => (
-                    <TouchableOpacity 
-                      style={[styles.resultItem, { borderBottomColor: theme.colors.border }]}
-                      onPress={() => setSelectedProduct(item)}
-                    >
-                      {item.image_url ? (
-                        <Image source={{ uri: item.image_url }} style={styles.productImage} />
-                      ) : (
-                        <View style={[styles.productImagePlaceholder, { backgroundColor: theme.colors.surface }]}>
-                          <Feather name="image" size={24} color={theme.colors.textSecondary} />
-                        </View>
-                      )}
-                      <View style={styles.productInfo}>
-                        <Text style={[styles.productName, { color: theme.colors.text }]} numberOfLines={1}>
-                          {item.name}
-                        </Text>
-                        <Text style={[styles.productBrand, { color: theme.colors.textSecondary }]}>
-                          {item.brand || 'Marque inconnue'} • {item.macros_100g.calories} kcal / 100g
+              ) : isSearching ? (
+                /* OPENFOODFACTS SEARCH RESULTS */
+                results.length > 0 ? (
+                  <FlatList
+                    data={results}
+                    keyExtractor={(item, index) => `${item.id}-${index}`}
+                    keyboardShouldPersistTaps="handled"
+                    renderItem={renderProductItem}
+                  />
+                ) : searchQuery.length > 2 ? (
+                  <Text style={[styles.noResults, { color: theme.colors.textSecondary }]}>
+                    Aucun produit trouvé. Essayez de scanner le code-barres.
+                  </Text>
+                ) : null
+              ) : (
+                /* TABS CONTENT */
+                <>
+                  {activeTab === 'recents' && (
+                    recentFoods.length > 0 ? (
+                      <FlatList
+                        data={recentFoods}
+                        keyExtractor={(item, index) => `recent-${item.id}-${index}`}
+                        keyboardShouldPersistTaps="handled"
+                        renderItem={renderProductItem}
+                      />
+                    ) : (
+                      <View style={styles.emptyState}>
+                        <Feather name="clock" size={40} color={theme.colors.textSecondary} style={{ opacity: 0.5, marginBottom: 15 }} />
+                        <Text style={[styles.emptyStateText, { color: theme.colors.textSecondary }]}>
+                          Vos aliments récents apparaîtront ici.
                         </Text>
                       </View>
-                      <Feather name="plus-circle" size={24} color={theme.colors.accent} />
-                    </TouchableOpacity>
+                    )
                   )}
-                />
-              ) : searchQuery.length > 2 ? (
-                <Text style={[styles.noResults, { color: theme.colors.textSecondary }]}>
-                  Aucun produit trouvé. Essayez de scanner le code-barres.
-                </Text>
-              ) : (
-                <View style={styles.emptyState}>
-                  <Feather name="search" size={48} color={theme.colors.textSecondary} style={{ opacity: 0.5, marginBottom: 15 }} />
-                  <Text style={[styles.emptyStateText, { color: theme.colors.textSecondary }]}>
-                    Recherchez un aliment ou scannez un produit pour l'ajouter à votre repas.
-                  </Text>
-                </View>
+
+                  {activeTab === 'frequents' && (
+                    frequentFoods.length > 0 ? (
+                      <FlatList
+                        data={frequentFoods}
+                        keyExtractor={(item, index) => `freq-${item.id}-${index}`}
+                        keyboardShouldPersistTaps="handled"
+                        renderItem={renderProductItem}
+                      />
+                    ) : (
+                      <View style={styles.emptyState}>
+                        <Feather name="star" size={40} color={theme.colors.textSecondary} style={{ opacity: 0.5, marginBottom: 15 }} />
+                        <Text style={[styles.emptyStateText, { color: theme.colors.textSecondary }]}>
+                          Les aliments que vous mangez souvent apparaîtront ici.
+                        </Text>
+                      </View>
+                    )
+                  )}
+
+                  {activeTab === 'repas' && (
+                    savedMeals.length > 0 ? (
+                      <FlatList
+                        data={savedMeals}
+                        keyExtractor={(item) => `meal-${item.id}`}
+                        keyboardShouldPersistTaps="handled"
+                        renderItem={({ item }) => (
+                          <View style={[styles.mealItem, { borderBottomColor: theme.colors.border }]}>
+                            <View style={styles.mealInfo}>
+                              <Text style={[styles.productName, { color: theme.colors.text }]}>{item.name}</Text>
+                              <Text style={[styles.productBrand, { color: theme.colors.textSecondary }]}>
+                                {item.saved_meal_items?.length || 0} aliment(s)
+                              </Text>
+                            </View>
+                            <TouchableOpacity style={[styles.addMealBtn, { backgroundColor: theme.colors.accent }]}>
+                              <Feather name="plus" size={20} color="#FFF" />
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                      />
+                    ) : (
+                      <View style={styles.emptyState}>
+                        <Feather name="list" size={40} color={theme.colors.textSecondary} style={{ opacity: 0.5, marginBottom: 15 }} />
+                        <Text style={[styles.emptyStateText, { color: theme.colors.textSecondary }]}>
+                          Vous n'avez pas encore sauvegardé de repas.
+                        </Text>
+                        <TouchableOpacity style={[styles.createMealBtn, { borderColor: theme.colors.accent }]}>
+                          <Text style={[styles.createMealText, { color: theme.colors.accent }]}>Créer un repas</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )
+                  )}
+                </>
               )}
             </View>
           </KeyboardAvoidingView>
@@ -249,7 +337,7 @@ const styles = StyleSheet.create({
   },
   searchSection: {
     paddingHorizontal: 20,
-    paddingBottom: 15,
+    paddingBottom: 10,
   },
   searchInputContainer: {
     flexDirection: 'row',
@@ -257,30 +345,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     height: 50,
     borderRadius: 12,
-    marginBottom: 15,
   },
   searchInput: {
     flex: 1,
     marginLeft: 10,
     fontSize: 16,
   },
-  quickActions: {
+  tabsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
   },
-  actionButton: {
+  tabBtn: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     paddingVertical: 12,
-    borderRadius: 10,
-    gap: 8,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
   },
-  actionText: {
-    fontSize: 13,
+  tabText: {
     fontWeight: '600',
+    fontSize: 14,
   },
   resultsContainer: {
     flex: 1,
@@ -290,6 +375,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 15,
     borderBottomWidth: 1,
+  },
+  mealItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+  },
+  mealInfo: {
+    flex: 1,
+  },
+  addMealBtn: {
+    padding: 8,
+    borderRadius: 20,
   },
   productImage: {
     width: 50,
@@ -326,11 +424,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 40,
+    paddingTop: 40,
   },
   emptyStateText: {
     textAlign: 'center',
     fontSize: 15,
     lineHeight: 22,
+    marginBottom: 20,
+  },
+  createMealBtn: {
+    borderWidth: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  createMealText: {
+    fontWeight: 'bold',
   },
   scannerOverlay: {
     ...StyleSheet.absoluteFillObject,
