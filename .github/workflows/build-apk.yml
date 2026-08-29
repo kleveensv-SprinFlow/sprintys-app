@@ -54,9 +54,14 @@ jobs:
           mkdir -p ~/.gradle
           echo "org.gradle.parallel=true" >> ~/.gradle/gradle.properties
           echo "org.gradle.caching=true" >> ~/.gradle/gradle.properties
+          
+      - name: Restrict Architecture to arm64-v8a
+        run: echo "reactNativeArchitectures=arm64-v8a" >> android/gradle.properties
 
       - name: Build APK with Gradle
         working-directory: android
+        env:
+          NDK_CCACHE: ccache
         run: ./gradlew assembleRelease --build-cache
 
       - name: Upload APK Artifact
