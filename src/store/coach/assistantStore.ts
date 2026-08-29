@@ -55,35 +55,46 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
   simulateAIResponse: (userText: string) => {
     set({ isTyping: true });
 
-    setTimeout(() => {
+    setTimeout(async () => {
       let aiMessage: ChatMessage;
       const lowerText = userText.toLowerCase();
 
-      if (lowerText.includes('compèt') || lowerText.includes('competition') || lowerText.includes('cherche')) {
-        aiMessage = {
-          id: generateId(),
-          role: 'assistant',
-          type: 'competition_card',
-          content: "J'ai cherché sur le web pour des compétitions. Voici ce que j'ai trouvé :",
-          data: [
-            {
-              id: 'comp-1',
-              name: 'Meeting Elite de Montreuil',
-              date: '14 Mai 2026',
-              location: 'Stade Jean Delbert, Montreuil',
-              events: '100m, 200m, 400m',
-              url: 'https://meeting-montreuil.com'
-            }
-          ],
-          timestamp: new Date(),
-        };
-      } 
-      else {
+      try {
+        const { fetchOpenAIResponse } = require('../../services/aiService');
+        
+        const formattedMessages = get().messages
+          .filter(m => m.id !== 'msg-welcome') // On peut ignorer le message de bienvenue statique si on veut, ou le garder. On le garde pour l'exemple.
+          .slice(0, 5) // On prend les 5 derniers messages
+          .reverse() // L'ordre dans FlatList est inversé
+          .map(m => ({
+            role: m.role,
+            content: m.content
+          }));
+
+        // Ajout du message actuel
+        formattedMessages.push({ role: 'user', content: userText });
+
+        const systemPrompt = "Tu es Coach Copilot, un assistant IA expert en athlétisme, conçu pour aider les entraîneurs à gérer leurs athlètes, planifier des entraînements (Lactique, Vitesse, Force, etc.) et trouver des compétitions. Sois concis, professionnel et proactif.";
+        
+        const responseText = await fetchOpenAIResponse(formattedMessages, systemPrompt);
+
         aiMessage = {
           id: generateId(),
           role: 'assistant',
           type: 'text',
-          content: "Message bien reçu. L'API est prête à être connectée.",
+          content: responseText.trim(),
+          timestamp: new Date(),
+        };
+
+        // Optionnel : Tu peux toujours injecter des cartes riches si l'IA retourne un JSON spécifique ou un mot-clé (à coder plus tard).
+        
+      } catch (error) {
+        console.error(error);
+        aiMessage = {
+          id: generateId(),
+          role: 'assistant',
+          type: 'text',
+          content: "Désolé, je n'ai pas pu joindre le serveur d'IA.",
           timestamp: new Date(),
         };
       }
@@ -92,6 +103,6 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
         messages: [aiMessage, ...state.messages],
         isTyping: false
       }));
-    }, 1500); 
+    }, 100);  
   }
 }));

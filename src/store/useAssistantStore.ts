@@ -81,11 +81,18 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
     try {
       const systemPrompt = getSystemPrompt(userContext);
 
-      // TODO: Replace this simulation with an actual fetch call to OpenAI/Groq API
-      // Example: fetch('https://api.groq.com/openai/v1/chat/completions', { ... })
+      const formattedMessages = [
+        ...messages.slice(-4).map(m => ({
+          role: m.sender,
+          content: m.text
+        })),
+        { role: 'user', content: userText }
+      ];
+
+      const { fetchOpenAIResponse } = require('../services/aiService');
+      const responseText = await fetchOpenAIResponse(formattedMessages, systemPrompt);
       
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API delay
-      let finalResponse = "J'ai bien reçu votre message. (L'appel API doit être configuré avec une clé valide).";
+      let finalResponse = responseText.trim();
       let isAction = false;
       let actionPayload = null;
 
