@@ -14,49 +14,63 @@ export const MentalStep = ({ onNext, onBack }: MentalStepProps) => {
   const theme = useTheme();
   const { currentCheckIn, updateMental } = useCheckInStore();
 
-  const [stress, setStress] = useState(5);
-  const [fatigue, setFatigue] = useState(5);
+  // Dans l'UI, 10 est toujours positif (Énergie, Sérénité, Motivation)
+  // En base de données, c'est l'inverse pour la fatigue et le stress.
+  const [energy, setEnergy] = useState(5);
+  const [serenity, setSerenity] = useState(5);
   const [motivation, setMotivation] = useState(5);
 
   useEffect(() => {
     if (currentCheckIn) {
-      setStress(currentCheckIn.stress_level || 5);
-      setFatigue(currentCheckIn.fatigue_level || 5);
+      setEnergy(11 - (currentCheckIn.fatigue_level || 6));
+      setSerenity(11 - (currentCheckIn.stress_level || 6));
       setMotivation(currentCheckIn.motivation_level || 5);
     }
   }, [currentCheckIn]);
 
   const handleNext = () => {
-    updateMental(stress, fatigue, motivation);
+    const fatigue_level = 11 - energy;
+    const stress_level = 11 - serenity;
+    updateMental(stress_level, fatigue_level, motivation);
     onNext();
   };
 
-  const renderSlider = (label: string, value: number, setValue: (val: number) => void, minLabel: string, maxLabel: string, color: string, icon: any) => (
-    <View style={styles.sliderContainer}>
-      <View style={styles.sliderHeader}>
-        <View style={styles.sliderTitleRow}>
-          <Feather name={icon} size={20} color={color} />
-          <Text style={styles.sliderLabel}>{label}</Text>
+  const getColorByValue = (val: number) => {
+    if (val <= 3) return theme.colors.error;
+    if (val <= 7) return '#F97316'; // Orange
+    return theme.colors.success;
+  };
+
+  const renderSlider = (label: string, value: number, setValue: (val: number) => void, minLabel: string, maxLabel: string, icon: any) => {
+    const color = getColorByValue(value);
+    
+    return (
+      <View style={[styles.sliderContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        <View style={styles.sliderHeader}>
+          <View style={styles.sliderTitleRow}>
+            <Feather name={icon} size={20} color={color} />
+            <Text style={[styles.sliderLabel, { color: theme.colors.text }]}>{label}</Text>
+          </View>
+          <Text style={[styles.sliderValue, { color }]}>{value}/10</Text>
         </View>
-        <Text style={[styles.sliderValue, { color }]}>{value}/10</Text>
+        <Slider
+          style={styles.slider}
+          minimumValue={1}
+          maximumValue={10}
+          step={1}
+          value={value}
+          onValueChange={setValue}
+          minimumTrackTintColor={color}
+          maximumTrackTintColor={theme.colors.border}
+          thumbTintColor={color}
+        />
+        <View style={styles.sliderFooter}>
+          <Text style={[styles.sliderExtremity, { color: theme.colors.textMuted }]}>{minLabel}</Text>
+          <Text style={[styles.sliderExtremity, { color: theme.colors.textMuted }]}>{maxLabel}</Text>
+        </View>
       </View>
-      <Slider
-        style={styles.slider}
-        minimumValue={1}
-        maximumValue={10}
-        step={1}
-        value={value}
-        onValueChange={setValue}
-        minimumTrackTintColor={color}
-        maximumTrackTintColor={theme.colors.border}
-        thumbTintColor={color}
-      />
-      <View style={styles.sliderFooter}>
-        <Text style={styles.sliderExtremity}>{minLabel}</Text>
-        <Text style={styles.sliderExtremity}>{maxLabel}</Text>
-      </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -64,40 +78,37 @@ export const MentalStep = ({ onNext, onBack }: MentalStepProps) => {
         <TouchableOpacity onPress={onBack} style={styles.iconButton}>
           <Feather name="arrow-left" size={24} color={theme.colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>État mental</Text>
+        <Text style={[styles.title, { color: theme.colors.text }]}>État mental</Text>
         <View style={styles.iconButton} />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.subtitle}>Comment te sens-tu globalement aujourd'hui ?</Text>
+        <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Comment te sens-tu globalement aujourd'hui ?</Text>
 
         {renderSlider(
-          "Niveau de Fatigue", 
-          fatigue, 
-          setFatigue, 
-          "En pleine forme", 
+          "Niveau d'Énergie", 
+          energy, 
+          setEnergy, 
           "Épuisé(e)", 
-          theme.colors.warning, 
-          "battery"
+          "En pleine forme", 
+          "battery-charging"
         )}
 
         {renderSlider(
-          "Niveau de Stress", 
-          stress, 
-          setStress, 
-          "Détendu(e)", 
+          "Niveau de Sérénité", 
+          serenity, 
+          setSerenity, 
           "Très stressé(e)", 
-          theme.colors.error, 
-          "activity"
+          "Détendu(e)", 
+          "smile"
         )}
 
         {renderSlider(
-          "Motivation pour l'entraînement", 
+          "Motivation", 
           motivation, 
           setMotivation, 
           "Aucune envie", 
           "Ultra motivé(e)", 
-          theme.colors.success, 
           "zap"
         )}
 
@@ -120,21 +131,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10,
   },
   iconButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 20, fontWeight: 'bold', color: '#FFF' },
+  title: { fontSize: 20, fontWeight: 'bold' },
   content: { flex: 1, paddingHorizontal: 24, paddingTop: 10 },
-  subtitle: { fontSize: 16, color: '#A0A0A0', marginBottom: 30, textAlign: 'center' },
+  subtitle: { fontSize: 16, marginBottom: 30, textAlign: 'center' },
   
   sliderContainer: {
-    backgroundColor: '#1A1A1A', padding: 20, borderRadius: 16, marginBottom: 20,
-    borderWidth: 1, borderColor: '#333'
+    padding: 20, borderRadius: 16, marginBottom: 20, borderWidth: 1
   },
   sliderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
   sliderTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  sliderLabel: { fontSize: 16, fontWeight: 'bold', color: '#FFF' },
+  sliderLabel: { fontSize: 16, fontWeight: 'bold' },
   sliderValue: { fontSize: 18, fontWeight: 'bold' },
   slider: { width: '100%', height: 40 },
   sliderFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 },
-  sliderExtremity: { fontSize: 12, color: '#666' },
+  sliderExtremity: { fontSize: 12 },
 
   footer: { padding: 24, paddingBottom: 40 },
   button: {

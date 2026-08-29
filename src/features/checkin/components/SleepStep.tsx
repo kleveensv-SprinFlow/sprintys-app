@@ -69,7 +69,7 @@ export const SleepStep = ({ onNext, onClose }: SleepStepProps) => {
         <TouchableOpacity onPress={onClose} style={styles.iconButton}>
           <Feather name="x" size={24} color={theme.colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Sommeil</Text>
+        <Text style={[styles.title, { color: theme.colors.text }]}>Sommeil</Text>
         <View style={styles.iconButton} />
       </View>
 
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10,
   },
   iconButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 20, fontWeight: 'bold', color: '#FFF' },
+  title: { fontSize: 20, fontWeight: 'bold' },
   content: { flex: 1, paddingHorizontal: 24, paddingTop: 10 },
   subtitle: { fontSize: 16, marginBottom: 30, textAlign: 'center' },
   inputContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20, gap: 16 },
