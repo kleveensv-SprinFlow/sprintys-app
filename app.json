@@ -35,7 +35,13 @@
     },
     "plugins": [
       "expo-router",
-      "llama.rn"
+      "llama.rn",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Sprintflow to access your camera to scan food barcodes."
+        }
+      ]
     ]
   }
 }
