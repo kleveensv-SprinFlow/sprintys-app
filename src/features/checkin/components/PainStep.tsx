@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Modal } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Modal, TextInput } from 'react-native';
 import { useTheme } from '../../../core/theme';
 import { Feather } from '@expo/vector-icons';
 import { useCheckInStore } from '../../../store/checkInStore';
+import Slider from '@react-native-community/slider';
 
 interface PainStepProps {
   onBack: () => void;
@@ -64,36 +65,38 @@ const BODY_SECTIONS = [
   }
 ];
 
-const PAIN_STATES = [
-  { label: 'Aucun problème', intensity: 0, color: '#10B981' },
-  { label: 'Légère gêne', intensity: 3, color: '#FBBF24' },
-  { label: 'Gêne modérée', intensity: 5, color: '#F59E0B' },
-  { label: 'Douleur', intensity: 7, color: '#F97316' },
-  { label: 'Douleur importante', intensity: 9, color: '#EF4444' }
+const PAIN_TYPES = [
+  'Courbature', 'Contracture', 'Élongation', 'Déchirure', 'Articulaire', 'Autre'
 ];
 
-const SIDES = ['Gauche', 'Droit', 'Les deux'] as const;
+const SIDES = ['Gauche', 'Droit', 'Bilatéral'] as const;
 
 export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
   const theme = useTheme();
-  const { currentCheckIn, addPain, removePain } = useCheckInStore();
+  const { currentCheckIn, addPain, removePain, isLoading } = useCheckInStore();
   const currentPains = currentCheckIn?.pains || [];
 
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   
   // Modal State
   const [selectedZone, setSelectedZone] = useState<{ id: string, name: string, sides: boolean } | null>(null);
-  const [activeState, setActiveState] = useState<string>('Aucun problème');
-  const [activeSide, setActiveSide] = useState<'Gauche' | 'Droit' | 'Les deux' | null>(null);
+  const [activeType, setActiveType] = useState<string>('Courbature');
+  const [activeSide, setActiveSide] = useState<'Gauche' | 'Droit' | 'Bilatéral'>('Gauche');
+  const [intensity, setIntensity] = useState<number>(3);
+  const [comment, setComment] = useState<string>('');
 
   const handleZonePress = (zone: any) => {
     const existingPain = currentPains.find(p => p.muscle_id === zone.id);
     if (existingPain) {
-      setActiveState(existingPain.type);
-      setActiveSide(existingPain.side || null);
+      setActiveType(existingPain.type);
+      setActiveSide((existingPain.side as any) || 'Gauche');
+      setIntensity(existingPain.intensity || 3);
+      setComment(existingPain.comment || '');
     } else {
-      setActiveState('Aucun problème');
-      setActiveSide(null);
+      setActiveType('Courbature');
+      setActiveSide('Gauche');
+      setIntensity(3);
+      setComment('');
     }
     setSelectedZone(zone);
   };
@@ -101,20 +104,14 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
   const handleSaveZone = () => {
     if (!selectedZone) return;
 
-    if (activeState === 'Aucun problème') {
-      removePain(selectedZone.id);
-    } else {
-      const stateObj = PAIN_STATES.find(s => s.label === activeState);
-      const intensity = stateObj ? stateObj.intensity : 0;
-      
-      addPain({
-        muscle_id: selectedZone.id,
-        muscle_name: selectedZone.name,
-        type: activeState,
-        intensity,
-        side: (selectedZone.sides && activeState !== 'Aucun problème') ? (activeSide || undefined) : undefined
-      });
-    }
+    addPain({
+      muscle_id: selectedZone.id,
+      muscle_name: selectedZone.name,
+      type: activeType,
+      intensity,
+      side: selectedZone.sides ? activeSide : undefined,
+      comment: comment.trim() !== '' ? comment.trim() : undefined
+    });
 
     setSelectedZone(null);
   };
@@ -129,7 +126,7 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
     <View style={styles.container}>
       <Text style={[styles.title, { color: theme.colors.text }]}>Corps & Douleurs</Text>
       <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-        Signalez rapidement toute gêne musculaire ou articulaire.
+        Signale les zones douloureuses avec précision (Optionnel).
       </Text>
 
       <ScrollView style={styles.sectionsList} showsVerticalScrollIndicator={false}>
@@ -180,7 +177,7 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
                           <View style={styles.zoneStateBadge}>
                             <View style={[styles.intensityDot, { backgroundColor: getIntensityColor(pain.intensity) }]} />
                             <Text style={[styles.zoneStateText, { color: theme.colors.textSecondary }]}>
-                              {pain.type} {pain.side ? `(${pain.side})` : ''}
+                              {pain.intensity}/10 - {pain.type}
                             </Text>
                           </View>
                         ) : (
@@ -196,7 +193,6 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
         })}
       </ScrollView>
 
-      {/* Selected zones summary chips */}
       {currentPains.length > 0 && (
         <View style={styles.summaryContainer}>
           <Text style={[styles.summaryTitle, { color: theme.colors.textSecondary }]}>Zones signalées ({currentPains.length})</Text>
@@ -219,88 +215,128 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
           <Feather name="arrow-left" size={24} color={theme.colors.textSecondary} />
         </TouchableOpacity>
         <TouchableOpacity 
-          style={[styles.submitBtn, { backgroundColor: theme.colors.success }]} 
+          style={[styles.submitBtn, { backgroundColor: theme.colors.success }, isLoading && { opacity: 0.7 }]} 
           onPress={onSubmit}
+          disabled={isLoading}
         >
-          <Text style={styles.submitBtnText}>Terminer le Check-In</Text>
+          <Text style={styles.submitBtnText}>{isLoading ? 'Envoi...' : 'Terminer le Check-In'}</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Zone Details Modal */}
       <Modal visible={!!selectedZone} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>{selectedZone?.name}</Text>
-              <TouchableOpacity onPress={() => setSelectedZone(null)}>
-                <Feather name="x" size={24} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: theme.colors.text }]}>{selectedZone?.name}</Text>
+                <TouchableOpacity onPress={() => setSelectedZone(null)}>
+                  <Feather name="x" size={24} color={theme.colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
 
-            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>État de la zone</Text>
-            <View style={styles.statesList}>
-              {PAIN_STATES.map(state => {
-                const isActive = activeState === state.label;
-                return (
-                  <TouchableOpacity 
-                    key={state.label}
-                    style={[
-                      styles.stateRow, 
-                      { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border },
-                      isActive && { borderColor: state.color, backgroundColor: state.color + '15' }
-                    ]}
-                    onPress={() => setActiveState(state.label)}
-                  >
-                    <View style={[styles.stateIndicator, { backgroundColor: state.color }]} />
-                    <Text style={[
-                      styles.stateText, 
-                      { color: theme.colors.textSecondary },
-                      isActive && { color: theme.colors.text, fontWeight: 'bold' }
-                    ]}>
-                      {state.label}
-                    </Text>
-                    {isActive && <Feather name="check" size={18} color={state.color} style={{ marginLeft: 'auto' }} />}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+              {/* Intensity Slider */}
+              <View style={styles.sliderSection}>
+                <View style={styles.sliderHeader}>
+                  <Text style={[styles.label, { color: theme.colors.textSecondary, marginBottom: 0 }]}>Intensité</Text>
+                  <Text style={[styles.sliderValue, { color: getIntensityColor(intensity) }]}>{intensity}/10</Text>
+                </View>
+                <Slider
+                  style={styles.slider}
+                  minimumValue={1}
+                  maximumValue={10}
+                  step={1}
+                  value={intensity}
+                  onValueChange={setIntensity}
+                  minimumTrackTintColor={getIntensityColor(intensity)}
+                  maximumTrackTintColor={theme.colors.border}
+                  thumbTintColor={getIntensityColor(intensity)}
+                />
+              </View>
 
-            {/* Conditionally show Side selection if there is a problem AND it's a bilateral zone */}
-            {(activeState !== 'Aucun problème' && selectedZone?.sides) && (
-              <View style={styles.sideSection}>
-                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Côté affecté</Text>
-                <View style={styles.sideGrid}>
-                  {SIDES.map(side => (
+              {/* Type Selection */}
+              <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Type de gêne</Text>
+              <View style={styles.typesGrid}>
+                {PAIN_TYPES.map(type => {
+                  const isActive = activeType === type;
+                  return (
                     <TouchableOpacity 
-                      key={side}
+                      key={type}
                       style={[
-                        styles.sideChip, 
+                        styles.typeChip, 
                         { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border },
-                        activeSide === side && { backgroundColor: theme.colors.accent + '20', borderColor: theme.colors.accent }
+                        isActive && { borderColor: theme.colors.accent, backgroundColor: theme.colors.accent + '20' }
                       ]}
-                      onPress={() => setActiveSide(side)}
+                      onPress={() => setActiveType(type)}
                     >
                       <Text style={[
-                        styles.sideChipText, 
+                        styles.typeChipText, 
                         { color: theme.colors.textSecondary },
-                        activeSide === side && { color: theme.colors.accent, fontWeight: 'bold' }
-                      ]}>
-                        {side}
-                      </Text>
+                        isActive && { color: theme.colors.accent, fontWeight: 'bold' }
+                      ]}>{type}</Text>
                     </TouchableOpacity>
-                  ))}
-                </View>
+                  );
+                })}
               </View>
-            )}
 
-            <View style={styles.modalActions}>
-              <TouchableOpacity 
-                style={[styles.saveBtn, { backgroundColor: theme.colors.accent }]} 
-                onPress={handleSaveZone}
-              >
-                <Text style={styles.saveBtnText}>Valider</Text>
-              </TouchableOpacity>
-            </View>
+              {/* Side Selection */}
+              {selectedZone?.sides && (
+                <View style={styles.sideSection}>
+                  <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Côté affecté</Text>
+                  <View style={styles.sideGrid}>
+                    {SIDES.map(side => (
+                      <TouchableOpacity 
+                        key={side}
+                        style={[
+                          styles.sideChip, 
+                          { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border },
+                          activeSide === side && { backgroundColor: theme.colors.accent + '20', borderColor: theme.colors.accent }
+                        ]}
+                        onPress={() => setActiveSide(side)}
+                      >
+                        <Text style={[
+                          styles.sideChipText, 
+                          { color: theme.colors.textSecondary },
+                          activeSide === side && { color: theme.colors.accent, fontWeight: 'bold' }
+                        ]}>{side}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {/* Comment */}
+              <Text style={[styles.label, { color: theme.colors.textSecondary, marginTop: 10 }]}>Commentaire (Requis si intensité > 5)</Text>
+              <TextInput
+                style={[styles.textInput, { backgroundColor: theme.colors.surfaceLight, color: theme.colors.text, borderColor: theme.colors.border }]}
+                placeholder="Ex: Apparue sur mon dernier 60m..."
+                placeholderTextColor={theme.colors.textMuted}
+                value={comment}
+                onChangeText={setComment}
+                multiline
+                textAlignVertical="top"
+              />
+
+              <View style={styles.modalActions}>
+                {currentPains.some(p => p.muscle_id === selectedZone?.id) && (
+                  <TouchableOpacity 
+                    style={[styles.removeBtn, { backgroundColor: theme.colors.error + '20' }]} 
+                    onPress={() => {
+                      removePain(selectedZone!.id);
+                      setSelectedZone(null);
+                    }}
+                  >
+                    <Text style={[styles.removeBtnText, { color: theme.colors.error }]}>Supprimer</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity 
+                  style={[styles.saveBtn, { backgroundColor: theme.colors.accent, flex: 1 }]} 
+                  onPress={handleSaveZone}
+                  disabled={intensity > 5 && comment.trim() === ''}
+                >
+                  <Text style={styles.saveBtnText}>Valider</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -309,233 +345,59 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 40,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    marginBottom: 24,
-  },
-  sectionsList: {
-    flex: 1,
-  },
-  sectionContainer: {
-    marginBottom: 12,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  sectionHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  iconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  badge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  badgeText: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  zonesContainer: {
-    borderWidth: 1,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  zoneRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-  },
-  zoneName: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  zoneStateBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  intensityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  zoneStateText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
+  container: { flex: 1, paddingHorizontal: 24, paddingTop: 40 },
+  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 8 },
+  subtitle: { fontSize: 16, marginBottom: 24 },
+  sectionsList: { flex: 1 },
+  sectionContainer: { marginBottom: 12 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderRadius: 16, borderWidth: 1 },
+  sectionHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  iconBox: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  sectionTitle: { fontSize: 18, fontWeight: '600' },
+  badge: { width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  badgeText: { color: '#FFF', fontSize: 12, fontWeight: 'bold' },
+  zonesContainer: { borderWidth: 1, borderBottomLeftRadius: 16, borderBottomRightRadius: 16, paddingHorizontal: 16, paddingVertical: 8 },
+  zoneRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14 },
+  zoneName: { fontSize: 16, fontWeight: '500' },
+  zoneStateBadge: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  intensityDot: { width: 8, height: 8, borderRadius: 4 },
+  zoneStateText: { fontSize: 12, fontWeight: '500' },
+  summaryContainer: { marginTop: 16, marginBottom: 24 },
+  summaryTitle: { fontSize: 13, fontWeight: '600', textTransform: 'uppercase', marginBottom: 12 },
+  summaryList: { maxHeight: 50 },
+  painChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, marginRight: 8, gap: 8 },
+  painChipText: { fontSize: 13, fontWeight: '500' },
+  removePainBtn: { padding: 2 },
+  footer: { flexDirection: 'row', gap: 16, marginBottom: 40, marginTop: 'auto' },
+  backBtn: { width: 60, height: 60, borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB', justifyContent: 'center', alignItems: 'center' },
+  submitBtn: { flex: 1, height: 60, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  submitBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
   
-  summaryContainer: {
-    marginTop: 16,
-    marginBottom: 24,
-  },
-  summaryTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    marginBottom: 12,
-  },
-  summaryList: {
-    maxHeight: 50,
-  },
-  painChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginRight: 8,
-    gap: 8,
-  },
-  painChipText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  removePainBtn: {
-    padding: 2,
-  },
-
-  footer: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 40,
-    marginTop: 'auto',
-  },
-  backBtn: {
-    width: 60,
-    height: 60,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  submitBtn: {
-    flex: 1,
-    height: 60,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  submitBtnText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 48, borderTopWidth: 1, maxHeight: '90%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  modalTitle: { fontSize: 22, fontWeight: 'bold' },
   
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    padding: 24,
-    paddingBottom: 48,
-    borderTopWidth: 1,
-    maxHeight: '90%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 12,
-    textTransform: 'uppercase',
-  },
-  statesList: {
-    gap: 8,
-    marginBottom: 24,
-  },
-  stateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 12,
-  },
-  stateIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  stateText: {
-    fontSize: 15,
-  },
-  sideSection: {
-    marginTop: 8,
-    marginBottom: 24,
-  },
-  sideGrid: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  sideChip: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  sideChipText: {
-    fontSize: 14,
-  },
-  modalActions: {
-    marginTop: 16,
-  },
-  saveBtn: {
-    paddingVertical: 18,
-    borderRadius: 16,
-    alignItems: 'center',
-    width: '100%',
-  },
-  saveBtnText: {
-    color: '#FFF',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
+  label: { fontSize: 14, fontWeight: '600', marginBottom: 12, textTransform: 'uppercase' },
+  sliderSection: { marginBottom: 24 },
+  sliderHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  sliderValue: { fontSize: 18, fontWeight: 'bold' },
+  slider: { width: '100%', height: 40 },
+  
+  typesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
+  typeChip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
+  typeChipText: { fontSize: 14 },
+  
+  sideSection: { marginBottom: 24 },
+  sideGrid: { flexDirection: 'row', gap: 8 },
+  sideChip: { flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, alignItems: 'center' },
+  sideChipText: { fontSize: 14 },
+  
+  textInput: { height: 100, borderRadius: 12, borderWidth: 1, padding: 16, fontSize: 15, marginBottom: 24 },
+  
+  modalActions: { flexDirection: 'row', gap: 12 },
+  removeBtn: { paddingVertical: 18, paddingHorizontal: 24, borderRadius: 16, alignItems: 'center' },
+  removeBtnText: { fontWeight: 'bold', fontSize: 16 },
+  saveBtn: { paddingVertical: 18, borderRadius: 16, alignItems: 'center' },
+  saveBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
 });

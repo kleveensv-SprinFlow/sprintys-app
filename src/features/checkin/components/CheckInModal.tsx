@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal, StyleSheet, View, SafeAreaView } from 'react-native';
 import { useTheme } from '../../../core/theme';
 import { SleepStep } from './SleepStep';
+import { MentalStep } from './MentalStep';
 import { PainStep } from './PainStep';
 import { useCheckInStore } from '../../../store/checkInStore';
 
@@ -21,8 +22,8 @@ export const CheckInModal = ({ visible, onClose }: CheckInModalProps) => {
     onClose();
   };
 
-  const handleNext = () => setStep(2);
-  const handleBack = () => setStep(1);
+  const handleNext = () => setStep(step + 1);
+  const handleBack = () => setStep(step - 1);
 
   const handleSubmit = async () => {
     const success = await submitCheckIn();
@@ -41,8 +42,9 @@ export const CheckInModal = ({ visible, onClose }: CheckInModalProps) => {
     >
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.content}>
-          {step === 1 && <SleepStep onNext={handleNext} />}
-          {step === 2 && <PainStep onBack={handleBack} onSubmit={handleSubmit} />}
+          {step === 1 && <SleepStep onNext={handleNext} onClose={handleClose} />}
+          {step === 2 && <MentalStep onNext={handleNext} onBack={handleBack} />}
+          {step === 3 && <PainStep onBack={handleBack} onSubmit={handleSubmit} />}
         </View>
       </SafeAreaView>
     </Modal>

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { checkInService, CheckInData, PainInfo } from '../services/checkInService';
 import { useSprintyStore } from './sprintyStore';
+import { useAuthStore } from './authStore';
 
 interface CheckInState {
   currentCheckIn: Partial<CheckInData> | null;
@@ -10,9 +11,8 @@ interface CheckInState {
   
   // Actions
   startCheckIn: (athleteId: string) => void;
-  updateSleep: (bedtime: string, wakeup_time: string, sleep_hours: number) => void;
-  setBedtime: (time: string) => void;
-  setWakeupTime: (time: string) => void;
+  updateSleep: (bedtime: string, wakeup_time: string, sleep_hours: number, sleep_quality: number) => void;
+  updateMental: (stress: number, fatigue: number, motivation: number) => void;
   setMenstruation: (isMenstruating: boolean) => void;
   addPain: (pain: PainInfo) => void;
   removePain: (muscle_id: string) => void;
@@ -28,23 +28,28 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
   isLoading: false,
 
   startCheckIn: (athleteId) => {
-    // Format YYYY-MM-DD
     const today = new Date().toISOString().split('T')[0];
+    const user = useAuthStore.getState().user;
+    const isFemale = user?.profile?.gender === 'female' || user?.profile?.gender === 'Femme';
     
     set({
       currentCheckIn: {
         athlete_id: athleteId,
         date: today,
-        bedtime: '23:00', // default values
+        bedtime: '23:00',
         wakeup_time: '07:00',
         sleep_hours: 8,
+        sleep_quality: 3, // Défaut : Moyen
+        stress_level: 5,
+        fatigue_level: 5,
+        motivation_level: 5,
         pains: [],
-        menstruation: false,
+        menstruation: isFemale ? false : undefined, // Défini seulement si femme
       }
     });
   },
 
-  updateSleep: (bedtime, wakeup_time, sleep_hours) => {
+  updateSleep: (bedtime, wakeup_time, sleep_hours, sleep_quality) => {
     set((state) => {
       if (!state.currentCheckIn) return state;
       return {
@@ -53,20 +58,25 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
           bedtime,
           wakeup_time,
           sleep_hours,
+          sleep_quality
         }
       };
     });
   },
 
-  setBedtime: (time) => set((state) => {
-    if (!state.currentCheckIn) return state;
-    return { currentCheckIn: { ...state.currentCheckIn, bedtime: time } };
-  }),
-
-  setWakeupTime: (time) => set((state) => {
-    if (!state.currentCheckIn) return state;
-    return { currentCheckIn: { ...state.currentCheckIn, wakeup_time: time } };
-  }),
+  updateMental: (stress, fatigue, motivation) => {
+    set((state) => {
+      if (!state.currentCheckIn) return state;
+      return {
+        currentCheckIn: {
+          ...state.currentCheckIn,
+          stress_level: stress,
+          fatigue_level: fatigue,
+          motivation_level: motivation
+        }
+      };
+    });
+  },
 
   setMenstruation: (isMenstruating) => set((state) => {
     if (!state.currentCheckIn) return state;
@@ -76,9 +86,7 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
   addPain: (pain) => {
     set((state) => {
       if (!state.currentCheckIn) return state;
-      
       const currentPains = state.currentCheckIn.pains || [];
-      // Remove if already exists for this muscle, then add new one
       const newPains = currentPains.filter(p => p.muscle_id !== pain.muscle_id);
       newPains.push(pain);
       
@@ -94,7 +102,6 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
   removePain: (muscle_id) => {
     set((state) => {
       if (!state.currentCheckIn) return state;
-      
       const currentPains = state.currentCheckIn.pains || [];
       const newPains = currentPains.filter(p => p.muscle_id !== muscle_id);
       
@@ -113,25 +120,38 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
 
     set({ isLoading: true });
     try {
-      const checkInToSubmit = state.currentCheckIn as Omit<CheckInData, 'health_score'>;
+      // On s'assure que toutes les données obligatoires sont présentes (avec fallback)
+      const baseData = {
+        ...state.currentCheckIn,
+        bedtime: state.currentCheckIn.bedtime || '23:00',
+        wakeup_time: state.currentCheckIn.wakeup_time || '07:00',
+        sleep_hours: state.currentCheckIn.sleep_hours || 8,
+        sleep_quality: state.currentCheckIn.sleep_quality || 3,
+        stress_level: state.currentCheckIn.stress_level || 5,
+        fatigue_level: state.currentCheckIn.fatigue_level || 5,
+        motivation_level: state.currentCheckIn.motivation_level || 5,
+        pains: state.currentCheckIn.pains || [],
+      } as Omit<CheckInData, 'health_score'|'sleep_score'|'physical_score'|'mental_score'>;
       
-      // Calculate score with history
-      const score = checkInService.calculateHealthScore(checkInToSubmit, state.history);
+      // Calcule tous les scores
+      const scores = checkInService.calculateScores(baseData, state.history);
       
       const fullData: CheckInData = {
-        ...checkInToSubmit,
-        health_score: score,
-      } as CheckInData;
+        ...baseData,
+        health_score: scores.health,
+        sleep_score: scores.sleep,
+        physical_score: scores.physical,
+        mental_score: scores.mental,
+      };
 
       const savedData = await checkInService.upsertCheckIn(fullData);
       
-      // Update history and UI state
       const newHistory = [...state.history.filter(h => h.date !== savedData.date), savedData];
       
       set({ 
         currentCheckIn: null, 
         history: newHistory,
-        todayHealthScore: score,
+        todayHealthScore: scores.health,
         isLoading: false 
       });
       
@@ -149,8 +169,6 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
     set({ isLoading: true });
     try {
       const history = await checkInService.fetchRecentCheckIns(athleteId, 6);
-      
-      // Check if we have a score for today
       const today = new Date().toISOString().split('T')[0];
       const todayCheckIn = history.find(h => h.date === today);
       

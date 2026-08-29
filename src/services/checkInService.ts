@@ -3,22 +3,35 @@ import { supabase } from './supabase';
 export interface PainInfo {
   muscle_id: string;
   muscle_name: string;
-  type: string;
-  intensity: number;
+  type: string; // 'Courbature', 'Contracture', 'Élongation', 'Déchirure', 'Articulaire', 'Autre'
+  intensity: number; // 1 to 10
   comment?: string;
-  side?: 'Gauche' | 'Droit' | 'Les deux';
+  side?: 'Gauche' | 'Droit' | 'Bilatéral' | 'Aucun';
 }
 
 export interface CheckInData {
   id?: string;
   athlete_id: string;
   date: string;
+  // Pilier 1 : Sommeil
   bedtime: string;
   wakeup_time: string;
   sleep_hours: number;
+  sleep_quality: number; // 1 to 5
+  // Pilier 2 : Physique (Douleurs)
   pains: PainInfo[];
-  health_score: number;
+  // Pilier 3 : Mental
+  stress_level: number; // 1 to 10
+  fatigue_level: number; // 1 to 10
+  motivation_level: number; // 1 to 10
+  // Pilier 4 : Cycle (Femmes)
   menstruation?: boolean;
+  
+  // Scores
+  health_score: number; // Score global (Readiness)
+  sleep_score?: number;
+  physical_score?: number;
+  mental_score?: number;
 }
 
 export const checkInService = {
@@ -34,9 +47,16 @@ export const checkInService = {
         bedtime: data.bedtime,
         wakeup_time: data.wakeup_time,
         sleep_hours: data.sleep_hours,
+        sleep_quality: data.sleep_quality,
         pains: data.pains,
-        health_score: data.health_score,
+        stress_level: data.stress_level,
+        fatigue_level: data.fatigue_level,
+        motivation_level: data.motivation_level,
         menstruation: data.menstruation || false,
+        health_score: data.health_score,
+        sleep_score: data.sleep_score,
+        physical_score: data.physical_score,
+        mental_score: data.mental_score,
       }, { onConflict: 'athlete_id, date' })
       .select()
       .single();
@@ -75,21 +95,25 @@ export const checkInService = {
   },
 
   /**
-   * Calculate health score based on check-in data and history
+   * Calculate all scores based on check-in data and history
    */
-  calculateHealthScore(currentCheckIn: Omit<CheckInData, 'health_score'>, history: CheckInData[] = []): number {
-    // 1. Calculate base score for current check-in
-    const dailyScore = this.calculateDailyScore(currentCheckIn);
+  calculateScores(currentCheckIn: Omit<CheckInData, 'health_score'|'sleep_score'|'physical_score'|'mental_score'>, history: CheckInData[] = []): { health: number, sleep: number, physical: number, mental: number } {
+    const dailyScores = this.calculateDailyScores(currentCheckIn);
 
     if (history.length === 0) {
-      return Math.round(dailyScore);
+      return {
+        health: Math.round(dailyScores.readiness),
+        sleep: Math.round(dailyScores.sleep),
+        physical: Math.round(dailyScores.physical),
+        mental: Math.round(dailyScores.mental)
+      };
     }
 
-    // 2. Weighted average with history (up to 5 previous days)
-    // Weights: Today=35%, J-1=25%, J-2=17%, J-3=11%, J-4=7%, J-5=5%
-    const weights = [0.35, 0.25, 0.17, 0.11, 0.07, 0.05];
+    // Weighted average with history (up to 5 previous days)
+    // Weights: Today=40%, J-1=25%, J-2=15%, J-3=10%, J-4=6%, J-5=4%
+    const weights = [0.40, 0.25, 0.15, 0.10, 0.06, 0.04];
     
-    let totalScore = dailyScore * weights[0];
+    let totalScore = dailyScores.readiness * weights[0];
     let totalWeight = weights[0];
 
     const todayStr = currentCheckIn.date;
@@ -104,51 +128,76 @@ export const checkInService = {
       const weightIndex = index + 1; // Start at J-1
       if (weightIndex < weights.length) {
         const weight = weights[weightIndex];
-        // Use the saved health_score if available, otherwise calculate it
-        const score = checkIn.health_score || this.calculateDailyScore(checkIn);
+        const score = checkIn.health_score; 
         totalScore += score * weight;
         totalWeight += weight;
       }
     });
 
-    // Normalize score if we don't have full history
-    const finalScore = totalScore / totalWeight;
+    const finalReadiness = totalScore / totalWeight;
     
-    return Math.round(finalScore);
+    return {
+      health: Math.round(finalReadiness),
+      sleep: Math.round(dailyScores.sleep),
+      physical: Math.round(dailyScores.physical),
+      mental: Math.round(dailyScores.mental)
+    };
   },
 
   /**
-   * Helper: Calculate single day score
+   * Helper: Calculate single day sub-scores
    */
-  calculateDailyScore(checkIn: Omit<CheckInData, 'health_score'>): number {
-    // A. Sleep Score (40% weight) - Ideal is 8 hours
-    // Subtract 12.5 points per hour of deviation from 8
+  calculateDailyScores(checkIn: Omit<CheckInData, 'health_score'|'sleep_score'|'physical_score'|'mental_score'>) {
+    // 1. Sommeil (Sleep Score) - Basé sur la durée (Idéal 8h) et la qualité (1-5)
     const sleepDeviation = Math.abs(checkIn.sleep_hours - 8);
-    let sleepScore = Math.max(0, 100 - (sleepDeviation * 12.5));
+    const durationScore = Math.max(0, 100 - (sleepDeviation * 12.5)); // 8h = 100, 6h = 75, 4h = 50
+    const qualityScore = (checkIn.sleep_quality / 5) * 100;
+    const sleepScore = (durationScore * 0.6) + (qualityScore * 0.4);
 
-    // B. Pain Count Score (30% weight) - 0 is 100, 5+ is 0
+    // 2. Physique (Douleurs)
     const painCount = checkIn.pains?.length || 0;
-    let painCountScore = Math.max(0, 100 - (painCount * 20));
+    let physicalScore = 100;
 
-    // C. Pain Severity Score (30% weight)
-    let painSeverityScore = 100;
     if (painCount > 0) {
+      let maxPenalty = 0;
       let totalPenalty = 0;
+      
       for (const pain of checkIn.pains) {
         // Base penalty from intensity (1-10)
-        let penalty = pain.intensity * 5; 
+        let penalty = pain.intensity * 8; // Une douleur à 10 enlève 80 points direct.
         
-        // Extra multiplier for severe types (backward compatible + new types)
-        if (['déchirure', 'claquage', 'Douleur importante'].includes(pain.type)) penalty *= 2;
-        if (['tendinite', 'élongation', 'Douleur'].includes(pain.type)) penalty *= 1.5;
+        // Multiplicateurs de gravité
+        if (['Déchirure', 'Claquage', 'Articulaire'].includes(pain.type)) penalty *= 1.5;
+        if (['Élongation', 'Tendinite'].includes(pain.type)) penalty *= 1.2;
+        if (['Courbature'].includes(pain.type)) penalty *= 0.8; // Les courbatures sont "normales"
         
         totalPenalty += penalty;
+        if (penalty > maxPenalty) maxPenalty = penalty;
       }
-      const avgPenalty = totalPenalty / painCount;
-      painSeverityScore = Math.max(0, 100 - avgPenalty);
+      
+      // On prend la douleur la plus forte + un petit malus pour les autres douleurs
+      const aggregatedPenalty = maxPenalty + (totalPenalty - maxPenalty) * 0.3;
+      physicalScore = Math.max(0, 100 - aggregatedPenalty);
     }
 
-    // Combine (40%, 30%, 30%)
-    return (sleepScore * 0.4) + (painCountScore * 0.3) + (painSeverityScore * 0.3);
+    // 3. Mental (Stress, Fatigue, Motivation)
+    // Fatigue (1=bien, 10=épuisé) -> Inversé
+    const fatigueScore = Math.max(0, 100 - ((checkIn.fatigue_level - 1) * 11)); 
+    // Stress (1=zen, 10=panique) -> Inversé
+    const stressScore = Math.max(0, 100 - ((checkIn.stress_level - 1) * 11));
+    // Motivation (1=flemme, 10=feu) -> Direct
+    const motivationScore = (checkIn.motivation_level / 10) * 100;
+
+    const mentalScore = (fatigueScore * 0.4) + (stressScore * 0.3) + (motivationScore * 0.3);
+
+    // READINESS GLOBAL (Pondération: Physique 45%, Sommeil 35%, Mental 20%)
+    const readiness = (physicalScore * 0.45) + (sleepScore * 0.35) + (mentalScore * 0.20);
+
+    return {
+      sleep: sleepScore,
+      physical: physicalScore,
+      mental: mentalScore,
+      readiness: readiness
+    };
   }
 };
