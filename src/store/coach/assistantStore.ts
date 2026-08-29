@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import * as FileSystem from 'expo-file-system';
 
 export type MessageRole = 'user' | 'assistant';
 export type MessageType = 'text' | 'competition_card' | 'workout_card';
@@ -8,16 +9,29 @@ export interface ChatMessage {
   role: MessageRole;
   type: MessageType;
   content: string;
-  data?: any; // Pour stocker les données riches (ex: liste de compétitions)
+  data?: any;
   timestamp: Date;
 }
 
 interface AssistantState {
   messages: ChatMessage[];
   isTyping: boolean;
+  
+  // Model management
+  isModelReady: boolean;
+  isDownloadingModel: boolean;
+  downloadProgress: number;
+
   sendMessage: (text: string) => void;
   simulateAIResponse: (userText: string) => void;
+  checkModelExists: () => Promise<void>;
+  downloadModel: () => Promise<void>;
 }
+
+// Model URI (Using a very small model like TinyLlama or Qwen 0.5B for mobile)
+const MODEL_URL = 'https://huggingface.co/Qwen/Qwen1.5-0.5B-Chat-GGUF/resolve/main/qwen1_5-0_5b-chat-q4_k_m.gguf';
+const MODEL_FILENAME = 'qwen1_5-0_5b-chat-q4_k_m.gguf';
+const MODEL_PATH = `${FileSystem.documentDirectory}${MODEL_FILENAME}`;
 
 // Fonction utilitaire pour générer un ID unique
 const generateId = () => Math.random().toString(36).substring(2, 9);
@@ -36,6 +50,46 @@ const initialMessages: ChatMessage[] = [
 export const useAssistantStore = create<AssistantState>((set, get) => ({
   messages: initialMessages,
   isTyping: false,
+  isModelReady: false,
+  isDownloadingModel: false,
+  downloadProgress: 0,
+
+  checkModelExists: async () => {
+    try {
+      const info = await FileSystem.getInfoAsync(MODEL_PATH);
+      set({ isModelReady: info.exists });
+    } catch (e) {
+      console.error('Error checking model:', e);
+      set({ isModelReady: false });
+    }
+  },
+
+  downloadModel: async () => {
+    set({ isDownloadingModel: true, downloadProgress: 0 });
+    
+    try {
+      const downloadResumable = FileSystem.createDownloadResumable(
+        MODEL_URL,
+        MODEL_PATH,
+        {},
+        (downloadProgress) => {
+          const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
+          set({ downloadProgress: progress });
+        }
+      );
+
+      const result = await downloadResumable.downloadAsync();
+      
+      if (result?.uri) {
+        set({ isModelReady: true, isDownloadingModel: false, downloadProgress: 1 });
+      } else {
+        throw new Error('Download failed');
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      set({ isDownloadingModel: false, downloadProgress: 0 });
+    }
+  },
 
   sendMessage: (text: string) => {
     const newMessage: ChatMessage = {

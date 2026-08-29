@@ -5,8 +5,17 @@ import { theme } from '../../src/core/theme';
 import { useAssistantStore, ChatMessage } from '../../src/store/coach/assistantStore';
 
 export default function AssistantScreen() {
-  const { messages, isTyping, sendMessage } = useAssistantStore();
+  const { 
+    messages, isTyping, sendMessage, 
+    isModelReady, isDownloadingModel, downloadProgress, 
+    checkModelExists, downloadModel 
+  } = useAssistantStore();
+  
   const [inputText, setInputText] = useState('');
+
+  React.useEffect(() => {
+    checkModelExists();
+  }, []);
 
   const handleSend = () => {
     if (inputText.trim()) {
@@ -79,6 +88,44 @@ export default function AssistantScreen() {
     );
   };
 
+  // -------------------------
+  // Écran de téléchargement
+  // -------------------------
+  if (!isModelReady) {
+    const percentage = Math.round(downloadProgress * 100);
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background, justifyContent: 'center', alignItems: 'center' }]}>
+        <View style={styles.downloadCard}>
+          <Feather name="cpu" size={60} color={theme.colors.accent} style={{ marginBottom: 20 }} />
+          <Text style={[styles.downloadTitle, { color: theme.colors.text }]}>Intelligence Artificielle Locale</Text>
+          <Text style={[styles.downloadDesc, { color: theme.colors.textSecondary }]}>
+            Pour fonctionner sans internet et protéger vos données de coaching, l'assistant a besoin de télécharger son modèle neuronal (environ 300 Mo).
+          </Text>
+          
+          {isDownloadingModel ? (
+            <View style={styles.progressContainer}>
+              <View style={styles.progressBarBg}>
+                <View style={[styles.progressBarFill, { width: `${percentage}%`, backgroundColor: theme.colors.accent }]} />
+              </View>
+              <Text style={[styles.progressText, { color: theme.colors.text }]}>Téléchargement en cours... {percentage}%</Text>
+            </View>
+          ) : (
+            <TouchableOpacity 
+              style={[styles.downloadBtn, { backgroundColor: theme.colors.accent }]}
+              onPress={downloadModel}
+            >
+              <Feather name="download" size={20} color="#FFF" style={{ marginRight: 10 }} />
+              <Text style={styles.downloadBtnText}>Télécharger l'Assistant</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // -------------------------
+  // Écran de Chat principal
+  // -------------------------
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* HEADER */}
@@ -312,4 +359,54 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: 'bold',
   },
+  downloadCard: {
+    padding: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    maxWidth: '85%',
+  },
+  downloadTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  downloadDesc: {
+    fontSize: 15,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 30,
+  },
+  downloadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 30,
+  },
+  downloadBtnText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  progressContainer: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  progressBarBg: {
+    width: '100%',
+    height: 12,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginBottom: 10,
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 6,
+  },
+  progressText: {
+    fontSize: 14,
+    fontWeight: '600',
+  }
 });
