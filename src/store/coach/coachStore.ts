@@ -19,13 +19,15 @@ export interface TeamMember {
   user_id: string;
   team_id: string;
   subgroup_id: string | null;
-  profile: any; // We'll join with profiles
+  status: 'pending' | 'approved';
+  profile: any;
 }
 
 interface CoachState {
   teams: Team[];
   subgroups: Subgroup[];
   teamMembers: TeamMember[];
+  pendingMembers: TeamMember[];
   isLoading: boolean;
   error: string | null;
 
@@ -35,15 +37,15 @@ interface CoachState {
   createSubgroup: (teamId: string, name: string) => Promise<Subgroup | null>;
   fetchTeamMembers: (teamId: string) => Promise<void>;
   assignSubgroup: (userId: string, teamId: string, subgroupId: string | null) => Promise<void>;
+  approveAthlete: (userId: string, teamId: string) => Promise<void>;
+  rejectAthlete: (userId: string, teamId: string) => Promise<void>;
 }
 
-// Helper pour générer un code court (ex: A7X-9BQ)
-const generateInviteCode = () => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+// Génère un code à 8 chiffres (ex: 48291037)
+const generateInviteCode = (): string => {
   let code = '';
-  for (let i = 0; i < 6; i++) {
-    if (i === 3) code += '-';
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  for (let i = 0; i < 8; i++) {
+    code += Math.floor(Math.random() * 10).toString();
   }
   return code;
 };
@@ -52,6 +54,7 @@ export const useCoachStore = create<CoachState>((set, get) => ({
   teams: [],
   subgroups: [],
   teamMembers: [],
+  pendingMembers: [],
   isLoading: false,
   error: null,
 
@@ -132,28 +135,32 @@ export const useCoachStore = create<CoachState>((set, get) => ({
   fetchTeamMembers: async (teamId: string) => {
     set({ isLoading: true, error: null });
     try {
-      // Jointure avec la table profiles pour récupérer les infos de l'athlète
       const { data, error } = await supabase
         .from('team_members')
         .select(`
           user_id,
           team_id,
           subgroup_id,
+          status,
           profiles:user_id (id, full_name, first_name, last_name)
         `)
         .eq('team_id', teamId);
 
       if (error) throw error;
       
-      // Mappage pour aplatir le profile
-      const members = data.map((item: any) => ({
+      const allMembers = data.map((item: any) => ({
         user_id: item.user_id,
         team_id: item.team_id,
         subgroup_id: item.subgroup_id,
+        status: item.status || 'approved',
         profile: item.profiles
       }));
 
-      set({ teamMembers: members, isLoading: false });
+      // Séparer les membres approuvés des demandes en attente
+      const approved = allMembers.filter((m: TeamMember) => m.status === 'approved');
+      const pending = allMembers.filter((m: TeamMember) => m.status === 'pending');
+
+      set({ teamMembers: approved, pendingMembers: pending, isLoading: false });
     } catch (err: any) {
       set({ error: err.message, isLoading: false });
     }
@@ -168,11 +175,50 @@ export const useCoachStore = create<CoachState>((set, get) => ({
         
       if (error) throw error;
 
-      // Update local state
       set((state) => ({
         teamMembers: state.teamMembers.map((m) => 
           m.user_id === userId && m.team_id === teamId ? { ...m, subgroup_id: subgroupId } : m
         )
+      }));
+    } catch (err: any) {
+      set({ error: err.message });
+    }
+  },
+
+  approveAthlete: async (userId: string, teamId: string) => {
+    try {
+      const { error } = await supabase
+        .from('team_members')
+        .update({ status: 'approved' })
+        .match({ user_id: userId, team_id: teamId });
+        
+      if (error) throw error;
+
+      // Déplacer de pending vers teamMembers
+      set((state) => {
+        const approvedMember = state.pendingMembers.find(m => m.user_id === userId && m.team_id === teamId);
+        if (!approvedMember) return state;
+        return {
+          pendingMembers: state.pendingMembers.filter(m => !(m.user_id === userId && m.team_id === teamId)),
+          teamMembers: [...state.teamMembers, { ...approvedMember, status: 'approved' as const }]
+        };
+      });
+    } catch (err: any) {
+      set({ error: err.message });
+    }
+  },
+
+  rejectAthlete: async (userId: string, teamId: string) => {
+    try {
+      const { error } = await supabase
+        .from('team_members')
+        .delete()
+        .match({ user_id: userId, team_id: teamId });
+        
+      if (error) throw error;
+
+      set((state) => ({
+        pendingMembers: state.pendingMembers.filter(m => !(m.user_id === userId && m.team_id === teamId))
       }));
     } catch (err: any) {
       set({ error: err.message });
