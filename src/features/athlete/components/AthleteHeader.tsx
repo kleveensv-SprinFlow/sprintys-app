@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import { useRouter } from 'expo-router';
+import { SprintyLogo } from '../../../shared/components/SprintyLogo';
 
 export const AthleteHeader = () => {
   const theme = useTheme();
@@ -15,12 +16,8 @@ export const AthleteHeader = () => {
         <Feather name="users" size={24} color={theme.colors.text} />
       </TouchableOpacity>
 
-      {/* Center: Main Logo */}
-      <Image 
-        source={{ uri: 'https://tmmhznwstzmgnwoqlgqu.supabase.co/storage/v1/object/public/logo/sans%20fond.png' }}
-        style={styles.logo}
-        resizeMode="contain"
-      />
+      {/* Center: Main Logo (SVG) */}
+      <SprintyLogo width={120} height={40} />
 
       {/* Right: Profile Logo */}
       <TouchableOpacity onPress={() => router.push('/(athlete)/settings')} style={[styles.iconButton, { backgroundColor: theme.colors.surfaceLight }]}>
@@ -35,9 +32,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 24, // theme.spacing.xl
-    paddingTop: 32, // theme.spacing.xxl
-    paddingBottom: 12, // theme.spacing.md
+    paddingHorizontal: 24,
+    paddingTop: 32,
+    paddingBottom: 12,
   },
   iconButton: {
     width: 40,
@@ -45,9 +42,5 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  logo: {
-    height: 40,
-    width: 150,
   },
 });
