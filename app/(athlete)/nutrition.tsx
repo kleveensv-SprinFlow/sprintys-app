@@ -6,7 +6,6 @@ import { NutritionHeader } from '../../src/features/nutrition/components/Nutriti
 import { DateSelector } from '../../src/features/nutrition/components/DateSelector';
 import { NutritionSummary } from '../../src/features/nutrition/components/NutritionSummary';
 import { MealSection } from '../../src/features/nutrition/components/MealSection';
-import { FloatingAddButton } from '../../src/features/nutrition/components/FloatingAddButton';
 import { FoodSearchModal } from '../../src/features/nutrition/components/FoodSearchModal';
 import { NutritionSettingsModal } from '../../src/features/nutrition/components/NutritionSettingsModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,7 +33,6 @@ export default function NutritionScreen() {
         <MealSection />
       </ScrollView>
 
-      <FloatingAddButton />
       <FoodSearchModal />
 
       <NutritionSettingsModal

@@ -1,13 +1,15 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import { useNutritionStore } from '../../../store/nutrition/nutritionStore';
 import { MealType } from '../types';
 import { useAuthStore } from '../../../store/authStore';
+import { useRouter } from 'expo-router';
 
 export const MealSection: React.FC = () => {
   const theme = useTheme();
+  const router = useRouter();
   const { mealLogs, openSearchModal } = useNutritionStore();
   const user = useAuthStore((state) => state.user);
 
@@ -27,6 +29,10 @@ export const MealSection: React.FC = () => {
     openSearchModal(type);
   };
 
+  const navigateToMealDetail = (type: MealType) => {
+    router.push(`/meal/${type}`);
+  };
+
   return (
     <View style={styles.container}>
       {meals.map((meal) => {
@@ -35,7 +41,15 @@ export const MealSection: React.FC = () => {
         const targetKcal = Math.round((kcalGoal * mealDistribution[meal.type]) / 100);
 
         return (
-          <View key={meal.type} style={[styles.mealCard, { backgroundColor: theme.colors.surface }]}>
+          <Pressable 
+            key={meal.type} 
+            style={({ pressed }) => [
+              styles.mealCard, 
+              { backgroundColor: theme.colors.surface },
+              pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }
+            ]}
+            onPress={() => navigateToMealDetail(meal.type)}
+          >
             <View style={styles.mealHeader}>
               <View style={styles.mealTitleRow}>
                 <Feather name={meal.icon} size={20} color={theme.colors.text} style={styles.icon} />
@@ -50,7 +64,7 @@ export const MealSection: React.FC = () => {
               <View style={styles.foodList}>
                 {logs.map((log) => (
                   <View key={log.id} style={styles.foodItem}>
-                    <Text style={[styles.foodName, { color: theme.colors.text }]}>
+                    <Text style={[styles.foodName, { color: theme.colors.text }]} numberOfLines={1}>
                       {log.custom_food_name || log.food_id || 'Aliment inconnu'}
                     </Text>
                     <Text style={[styles.foodKcal, { color: theme.colors.textSecondary }]}>
@@ -61,14 +75,18 @@ export const MealSection: React.FC = () => {
               </View>
             ) : null}
 
-            <TouchableOpacity
+            {/* Stop propagation on the add button so it doesn't navigate to detail page */}
+            <Pressable
               style={[styles.addButton, { backgroundColor: theme.colors.background }]}
-              onPress={() => handleAddFood(meal.type)}
+              onPress={(e) => {
+                e.stopPropagation(); // Empêche le clic de se propager à la carte
+                handleAddFood(meal.type);
+              }}
             >
               <Feather name="plus" size={16} color={theme.colors.accent} />
               <Text style={[styles.addButtonText, { color: theme.colors.accent }]}>Ajouter un aliment</Text>
-            </TouchableOpacity>
-          </View>
+            </Pressable>
+          </Pressable>
         );
       })}
     </View>
@@ -78,7 +96,7 @@ export const MealSection: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
-    paddingBottom: 100, // Espace pour le bouton flottant
+    paddingBottom: 30, // Espace propre
     gap: 15,
   },
   mealCard: {
