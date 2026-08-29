@@ -63,6 +63,7 @@ export default function MessageScreen() {
               <Text style={[styles.messageText, msg.role === 'user' && { color: '#FFF' }]}>
                 {msg.content}
               </Text>
+            </View>
           ))}
           {isTyping && <AILoadingIndicator />}
         </ScrollView>
