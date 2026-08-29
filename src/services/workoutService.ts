@@ -43,6 +43,26 @@ export const workoutService = {
     return data;
   },
 
+  fetchUpcomingWorkouts: async (athleteId: string, daysAhead: number = 7) => {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 1); // Inclure hier pour le contexte
+    startDate.setHours(0,0,0,0);
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + daysAhead);
+    endDate.setHours(23,59,59,999);
+
+    const { data, error } = await supabase
+      .from('workouts')
+      .select('*')
+      .eq('athlete_id', athleteId)
+      .gte('date_prevue', startDate.toISOString())
+      .lte('date_prevue', endDate.toISOString())
+      .order('date_prevue', { ascending: true });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
   completeWorkout: async (workoutId: string) => {
     const { data, error } = await supabase
       .from('workouts')

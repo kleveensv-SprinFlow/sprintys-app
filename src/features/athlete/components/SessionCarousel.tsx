@@ -1,40 +1,107 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
+import { useWorkoutStore } from '../../../store/workoutStore';
+import { useAuthStore } from '../../../store/authStore';
+import { useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.75;
 const SNAP_INTERVAL = CARD_WIDTH + 12; // theme.spacing.md is 12
 
-const MOCK_SESSIONS = [
-  { id: '1', date: 'J-3', title: 'Endurance', duration: '45 min', intensity: 'Faible' },
-  { id: '2', date: 'J-2', title: 'Fractionné', duration: '60 min', intensity: 'Haute' },
-  { id: '3', date: 'Hier', title: 'Récupération', duration: '30 min', intensity: 'Très Faible' },
-  { id: '4', date: "Aujourd'hui", title: 'Séance Sprint', duration: '90 min', intensity: 'Maximale', active: true },
-  { id: '5', date: 'Demain', title: 'Repos Actif', duration: '20 min', intensity: 'Faible' },
-  { id: '6', date: 'J+2', title: 'Musculation', duration: '60 min', intensity: 'Moyenne' },
-  { id: '7', date: 'J+3', title: 'Endurance Fondamentale', duration: '120 min', intensity: 'Moyenne' },
-];
-
 export const SessionCarousel = () => {
   const theme = useTheme();
   const scrollRef = useRef<ScrollView>(null);
-  const [activeIndex, setActiveIndex] = useState(3); // Default to Aujourd'hui
+  const router = useRouter();
+  
+  const { user } = useAuthStore();
+  const { upcomingWorkouts, loadUpcomingWorkouts } = useWorkoutStore();
+  
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    if (user?.id) {
+      loadUpcomingWorkouts(user.id);
+    }
+  }, [user]);
+
+  // Find the index of the workout closest to today to set as default active
+  useEffect(() => {
+    if (upcomingWorkouts.length > 0) {
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      
+      let closestIndex = 0;
+      let smallestDiff = Infinity;
+
+      upcomingWorkouts.forEach((w, index) => {
+        const date = new Date(w.date_prevue);
+        date.setHours(0,0,0,0);
+        const diff = Math.abs(date.getTime() - today.getTime());
+        if (diff < smallestDiff) {
+          smallestDiff = diff;
+          closestIndex = index;
+        }
+      });
+
+      setActiveIndex(closestIndex);
+      // Wait for render before scrolling
+      setTimeout(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTo({ x: closestIndex * SNAP_INTERVAL, animated: false });
+        }
+      }, 100);
+    }
+  }, [upcomingWorkouts]);
 
   const handleScroll = (event: any) => {
     const x = event.nativeEvent.contentOffset.x;
     const index = Math.round(x / SNAP_INTERVAL);
-    if (index !== activeIndex) {
+    if (index !== activeIndex && index >= 0 && index < upcomingWorkouts.length) {
       setActiveIndex(index);
     }
   };
 
   const scrollTo = (direction: 'left' | 'right') => {
-    if (!scrollRef.current) return;
-    const newIndex = direction === 'left' ? Math.max(0, activeIndex - 1) : Math.min(MOCK_SESSIONS.length - 1, activeIndex + 1);
+    if (!scrollRef.current || upcomingWorkouts.length === 0) return;
+    const newIndex = direction === 'left' ? Math.max(0, activeIndex - 1) : Math.min(upcomingWorkouts.length - 1, activeIndex + 1);
     scrollRef.current.scrollTo({ x: newIndex * SNAP_INTERVAL, animated: true });
   };
+
+  const formatDateLabel = (dateString: string) => {
+    const d = new Date(dateString);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const target = new Date(d);
+    target.setHours(0,0,0,0);
+
+    const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return "Aujourd'hui";
+    if (diffDays === -1) return "Hier";
+    if (diffDays === 1) return "Demain";
+    if (diffDays > 1) return `J+${diffDays}`;
+    return `J${diffDays}`; // e.g. J-2
+  };
+
+  const startSession = (workoutId: string) => {
+    // Navigates to the workout runner or calendar view depending on the app flow
+    // For now, let's redirect to calendar to view it
+    router.push('/(athlete)/calendar');
+  };
+
+  if (upcomingWorkouts.length === 0) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.emptyCard}>
+          <Feather name="calendar" size={32} color={theme.colors.textMuted} />
+          <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>Aucune séance planifiée</Text>
+          <Text style={[styles.emptySubText, { color: theme.colors.textMuted }]}>Profite de ton repos ou contacte ton coach.</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -45,7 +112,9 @@ export const SessionCarousel = () => {
         </TouchableOpacity>
         
         <View style={styles.dateContainer}>
-          <Text style={[styles.dateText, { color: theme.colors.text }]}>{MOCK_SESSIONS[activeIndex]?.date}</Text>
+          <Text style={[styles.dateText, { color: theme.colors.text }]}>
+            {formatDateLabel(upcomingWorkouts[activeIndex]?.date_prevue)}
+          </Text>
         </View>
 
         <TouchableOpacity onPress={() => scrollTo('right')} style={[styles.navButton, { backgroundColor: theme.colors.surfaceLight }]}>
@@ -62,31 +131,58 @@ export const SessionCarousel = () => {
         decelerationRate="fast"
         contentContainerStyle={styles.scrollContent}
         onMomentumScrollEnd={handleScroll}
-        // Center the active card initially by simulating offset
-        contentOffset={{ x: 3 * SNAP_INTERVAL, y: 0 }}
       >
-        {MOCK_SESSIONS.map((session, index) => {
+        {upcomingWorkouts.map((workout, index) => {
           const isActive = index === activeIndex;
+          
+          let durationStr = "N/A";
+          let intensityStr = "N/A";
+
+          // Calculate summary based on blocks or exercises
+          let volume = 0;
+          if (workout.blocks && workout.blocks.length > 0) {
+             volume = workout.blocks.length;
+             durationStr = `${volume * 15} min`; // Rough estimation
+             intensityStr = "Variable";
+          } else if (workout.exercises && workout.exercises.length > 0) {
+             volume = workout.exercises.length;
+             durationStr = `${volume * 10} min`;
+             intensityStr = "Variable";
+          }
+
           return (
-            <View key={session.id} style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: isActive ? theme.colors.accent : theme.colors.border }, isActive && styles.activeCard]}>
+            <TouchableOpacity 
+              key={workout.id} 
+              activeOpacity={0.9}
+              onPress={() => startSession(workout.id)}
+              style={[
+                styles.card, 
+                { backgroundColor: theme.colors.surface, borderColor: isActive ? theme.colors.accent : theme.colors.border }, 
+                isActive && styles.activeCard
+              ]}
+            >
               <View style={styles.cardHeader}>
-                <Text style={[styles.cardTitle, { color: theme.colors.text }]}>{session.title}</Text>
-                <Feather name="activity" size={20} color={isActive ? theme.colors.accent : theme.colors.textMuted} />
+                <Text style={[styles.cardTitle, { color: theme.colors.text }]} numberOfLines={1}>{workout.type_seance}</Text>
+                <Feather 
+                  name={workout.status === 'completed' ? 'check-circle' : 'activity'} 
+                  size={20} 
+                  color={workout.status === 'completed' ? theme.colors.success : isActive ? theme.colors.accent : theme.colors.textMuted} 
+                />
               </View>
               <View style={styles.cardBody}>
                 <View style={styles.infoRow}>
                   <Feather name="clock" size={14} color={theme.colors.textSecondary} />
-                  <Text style={[styles.infoText, { color: theme.colors.textSecondary }]}>{session.duration}</Text>
+                  <Text style={[styles.infoText, { color: theme.colors.textSecondary }]}>{durationStr}</Text>
                 </View>
                 <View style={styles.infoRow}>
-                  <Feather name="zap" size={14} color={theme.colors.textSecondary} />
-                  <Text style={[styles.infoText, { color: theme.colors.textSecondary }]}>{session.intensity}</Text>
+                  <Feather name="layers" size={14} color={theme.colors.textSecondary} />
+                  <Text style={[styles.infoText, { color: theme.colors.textSecondary }]}>{volume > 0 ? `${volume} Blocs/Exos` : 'Aucun détail'}</Text>
                 </View>
               </View>
-              {isActive && (
+              {isActive && workout.status !== 'completed' && (
                 <View style={[styles.activeIndicator, { backgroundColor: theme.colors.accent }]} />
               )}
-            </View>
+            </TouchableOpacity>
           );
         })}
       </ScrollView>
@@ -95,75 +191,24 @@ export const SessionCarousel = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    marginVertical: 24,
+  container: { marginVertical: 24 },
+  emptyCard: {
+    marginHorizontal: 16, padding: 32, borderRadius: 20, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center', gap: 12
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 12,
-  },
-  navButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dateContainer: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  dateText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-  },
-  scrollContent: {
-    paddingHorizontal: (width - CARD_WIDTH) / 2, // Center first and last items
-    paddingVertical: 8,
-  },
-  card: {
-    width: CARD_WIDTH,
-    borderRadius: 16,
-    padding: 16,
-    marginRight: 12,
-    borderWidth: 1,
-  },
-  activeCard: {
-    transform: [{ scale: 1.02 }],
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  cardBody: {
-    gap: 8,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  infoText: {
-    fontSize: 14,
-  },
-  activeIndicator: {
-    position: 'absolute',
-    bottom: -1,
-    left: '20%',
-    right: '20%',
-    height: 3,
-    borderTopLeftRadius: 3,
-    borderTopRightRadius: 3,
-  },
+  emptyText: { fontSize: 18, fontWeight: 'bold' },
+  emptySubText: { fontSize: 14, textAlign: 'center' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, marginBottom: 12 },
+  navButton: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  dateContainer: { flex: 1, alignItems: 'center' },
+  dateText: { fontSize: 18, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 2 },
+  scrollContent: { paddingHorizontal: (width - CARD_WIDTH) / 2, paddingVertical: 8 },
+  card: { width: CARD_WIDTH, borderRadius: 16, padding: 16, marginRight: 12, borderWidth: 1 },
+  activeCard: { transform: [{ scale: 1.02 }] },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  cardTitle: { fontSize: 18, fontWeight: 'bold', flex: 1, marginRight: 8 },
+  cardBody: { gap: 8 },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  infoText: { fontSize: 14 },
+  activeIndicator: { position: 'absolute', bottom: -1, left: '20%', right: '20%', height: 3, borderTopLeftRadius: 3, borderTopRightRadius: 3 },
 });

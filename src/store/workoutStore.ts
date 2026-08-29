@@ -8,12 +8,14 @@ import uuid from 'react-native-uuid';
 interface WorkoutState {
   activeSession: WorkoutSession | null;
   pendingWorkout: any | null;
+  upcomingWorkouts: any[];
   history: WorkoutHistoryItem[];
   timer: number;
   isLoading: boolean;
   
   // Actions
   loadPendingWorkout: (athleteId: string) => Promise<void>;
+  loadUpcomingWorkouts: (athleteId: string) => Promise<void>;
   startWorkout: (name: string) => void;
   startAssignedWorkout: (supabaseWorkout: any) => void;
   addExercise: (name: string) => void;
@@ -28,6 +30,7 @@ interface WorkoutState {
 export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   activeSession: null,
   pendingWorkout: null,
+  upcomingWorkouts: [],
   history: [],
   timer: 0,
   isLoading: false,
@@ -40,6 +43,15 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     } catch (error) {
       useSprintyStore.getState().showFeedback('error', "Impossible de récupérer votre séance planifiée.");
       set({ isLoading: false });
+    }
+  },
+
+  loadUpcomingWorkouts: async (athleteId) => {
+    try {
+      const workouts = await workoutService.fetchUpcomingWorkouts(athleteId);
+      set({ upcomingWorkouts: workouts });
+    } catch (error) {
+      console.error(error);
     }
   },
 
