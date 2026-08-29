@@ -1,5 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, View, StyleSheet, Image } from 'react-native';
+import { Animated, View, StyleSheet } from 'react-native';
+import Svg, { Defs, LinearGradient, Stop, Path } from 'react-native-svg';
+
+const AnimatedSvg = Animated.createAnimatedComponent(Svg);
 
 export default function AILoadingIndicator() {
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -8,13 +11,13 @@ export default function AILoadingIndicator() {
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
-          toValue: 1.2,
-          duration: 800,
+          toValue: 1.15,
+          duration: 1000,
           useNativeDriver: true,
         }),
         Animated.timing(pulseAnim, {
           toValue: 1,
-          duration: 800,
+          duration: 1000,
           useNativeDriver: true,
         }),
       ])
@@ -23,20 +26,52 @@ export default function AILoadingIndicator() {
 
   return (
     <View style={styles.container}>
-      <Animated.Image 
-        source={require('../../assets/logo.png')} 
-        style={[
-          styles.logo,
-          {
-            transform: [{ scale: pulseAnim }],
-            opacity: pulseAnim.interpolate({
-              inputRange: [1, 1.2],
-              outputRange: [0.5, 1], // Effet de lueur/respiration
-            })
-          }
-        ]}
-        resizeMode="contain"
-      />
+      <AnimatedSvg
+        width="40"
+        height="32"
+        viewBox="0 0 1272.6 1016.6"
+        style={{
+          transform: [{ scale: pulseAnim }],
+          opacity: pulseAnim.interpolate({
+            inputRange: [1, 1.15],
+            outputRange: [0.5, 1],
+          })
+        }}
+      >
+        <Defs>
+          <LinearGradient id="SVGID_1_" x1="425.9615" y1="236.7952" x2="834.2552" y2="764.4951" gradientUnits="userSpaceOnUse">
+            <Stop offset="0.00620048" stopColor="#0023AB" />
+            <Stop offset="0.1804" stopColor="#0026AE" />
+            <Stop offset="0.3255" stopColor="#0031B7" />
+            <Stop offset="0.46" stopColor="#0042C6" />
+            <Stop offset="0.5875" stopColor="#005ADB" />
+            <Stop offset="0.6502" stopColor="#0069E8" />
+            <Stop offset="1" stopColor="#00DCFD" />
+          </LinearGradient>
+        </Defs>
+        <Path
+          fill="url(#SVGID_1_)"
+          d="M908.1,89.4c80.6,0,161.2,0,241.8,0c0.8,0,1.7,0,2.5,0c3.1,0.2,6.9-0.8,8.2,3.1c1.3,3.8-2.5,5-4.8,6.7
+c-39.7,30-79.6,59.8-119.3,89.9c-16,12.2-32,24.5-48.3,36.4c-20.5,15.1-43.9,22.6-68.8,26.1c-7,1-13.9,1-20.9,1
+c-77.9,0-155.9,0.2-233.8,0c-23-0.1-43.4,7.1-62.5,19.4c-19.6,12.6-37,27.7-51.7,45.9c-8.6,10.7-14.6,22.6-16.7,36.3
+c-2.9,19.6,8.9,37.3,28.4,43.1c9.1,2.7,18.3,3.1,27.7,3.1c84.4,0,168.9-0.4,253.3,0.2c41.6,0.3,81.9,8.1,118.7,28.7
+c31.8,17.8,56.7,41.9,67.4,78c7.9,26.6,6.2,52.7-4.5,78.2c-11.1,26.4-29.5,47.2-50.4,66.2c-17,15.5-35.1,29.7-53.7,43.1
+c-17.4,12.5-35.4,24.3-53.4,36c-25.5,16.5-51.6,31.8-77.9,46.8c-20.6,11.7-41.2,23.1-62.2,34.1c-25.7,13.4-51.5,26.6-77.8,38.7
+c-37.3,17.1-76,29.5-116.6,35.6c-37,5.6-74.1,7.7-111.5,7.2c-1.5,0-3,0-4.5-0.1c-2.2-0.1-4.6,0-5.4-2.6c-0.9-2.6,1.2-3.9,2.9-5.2
+c18.1-13.3,36.2-26.6,54.3-40c25.8-19.1,51.6-38.4,77.4-57.4c33.5-24.7,67.1-49.3,100.5-74c32.5-24,65-48.1,97.4-72.4
+c9.9-7.4,19.7-14.8,28.2-23.8c4.6-4.9,8.6-10.2,11.7-16.2c8.9-17.4,3.4-35.9-13.3-46.5c-16-10.2-33.6-14.6-52.2-14.7
+c-103.9-0.1-207.9,0-311.8,0c-14,0-28,0.8-41.8-2c-40.5-8.1-70.2-29.3-82.6-70.1c-7.8-25.6-4.3-51.1,4.9-75.9
+c9.8-26.5,25.3-49.5,45.2-69.4c36.9-36.8,74-73.5,111.2-110c19-18.6,37.7-37.7,57.7-55.2c18.6-16.3,38.7-30.6,60.8-41.7
+c37-18.5,76.2-27.2,117.6-26.9C755.8,89.7,831.9,89.4,908.1,89.4z
+
+M193.5,919.4c34.9-6.3,68.7-16,101.3-30c39.7-17,76.1-39.8,110.8-65.2
+c27.6-20.3,54.9-41,82.1-62c30-23.2,59.7-46.8,89.4-70.5c20.7-16.5,41-33.4,61.5-50.2
+c1.7-1.4,4.2-2.8,3.2-5.6c-0.9-2.7-3.6-2.7-5.9-2.9c-31.1-3.1-61.4,0.8-91.3,9.6
+c-41.2,12.2-78.9,32.1-115.2,54.5C378.3,728.6,330,764,281.3,798.9
+c-46.7,33.5-93,67.4-139.5,101.1c-9,6.5-18.1,13.1-27,19.7c-1.7,1.3-3.7,2.7-2.7,5.3
+c0.8,2.1,2.8,2.2,4.6,2.2c2.8,0,5.7,0,8.5,0C148.1,925.5,170.9,923.5,193.5,919.4z"
+        />
+      </AnimatedSvg>
     </View>
   );
 }
@@ -48,9 +83,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignSelf: 'flex-start',
     marginBottom: 10,
-  },
-  logo: {
-    width: 36,
-    height: 36,
   }
 });
