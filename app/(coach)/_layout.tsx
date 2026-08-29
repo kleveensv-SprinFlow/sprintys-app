@@ -47,9 +47,9 @@ export default function CoachTabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="assistant"
         options={{
-          tabBarIcon: ({ color }) => <Feather name="settings" size={24} color={color} />,
+          tabBarIcon: ({ color }) => <Feather name="cpu" size={24} color={color} />,
         }}
       />
       
