@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, SafeAreaView, TextInput, TouchableOpacity, Keyb
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../../src/core/theme';
 import { buildSystemPrompt } from '../../src/services/aiContextBuilder';
+import AILoadingIndicator from '../../src/components/AILoadingIndicator';
 
 export default function MessageScreen() {
   const [messages, setMessages] = useState([
@@ -62,13 +63,8 @@ export default function MessageScreen() {
               <Text style={[styles.messageText, msg.role === 'user' && { color: '#FFF' }]}>
                 {msg.content}
               </Text>
-            </View>
           ))}
-          {isTyping && (
-            <View style={styles.messageBubbleLeft}>
-              <Text style={styles.messageText}>...</Text>
-            </View>
-          )}
+          {isTyping && <AILoadingIndicator />}
         </ScrollView>
 
         <View style={styles.inputArea}>

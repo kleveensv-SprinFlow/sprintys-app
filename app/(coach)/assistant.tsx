@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, Keyboard
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../../src/core/theme';
 import { useAssistantStore, ChatMessage } from '../../src/store/coach/assistantStore';
+import AILoadingIndicator from '../../src/components/AILoadingIndicator';
 
 export default function AssistantScreen() {
   const { messages, isTyping, sendMessage } = useAssistantStore();
@@ -113,14 +114,7 @@ export default function AssistantScreen() {
 
         {/* TYPING INDICATOR */}
         {isTyping && (
-          <View style={styles.typingIndicator}>
-            <View style={styles.avatarContainer}>
-              <Feather name="cpu" size={20} color={theme.colors.background} />
-            </View>
-            <View style={[styles.messageBubble, styles.messageBubbleAssistant, { paddingHorizontal: 16 }]}>
-              <Text style={{ color: theme.colors.textSecondary, fontStyle: 'italic' }}>Recherche en cours...</Text>
-            </View>
-          </View>
+          <AILoadingIndicator />
         )}
 
         {/* INPUT BAR */}
