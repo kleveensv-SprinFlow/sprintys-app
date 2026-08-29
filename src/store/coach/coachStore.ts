@@ -39,6 +39,8 @@ interface CoachState {
   assignSubgroup: (userId: string, teamId: string, subgroupId: string | null) => Promise<void>;
   approveAthlete: (userId: string, teamId: string) => Promise<void>;
   rejectAthlete: (userId: string, teamId: string) => Promise<void>;
+  subscribeToTeam: (teamId: string) => void;
+  unsubscribe: () => void;
 }
 
 // Génère un code à 8 chiffres (ex: 48291037)
@@ -222,6 +224,37 @@ export const useCoachStore = create<CoachState>((set, get) => ({
       }));
     } catch (err: any) {
       set({ error: err.message });
+    }
+  },
+
+  subscribeToTeam: (teamId: string) => {
+    // Écouter les changements en temps réel sur la table team_members pour ce groupe
+    const channel = supabase
+      .channel(`team-${teamId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'team_members',
+          filter: `team_id=eq.${teamId}`,
+        },
+        () => {
+          // À chaque modification (nouvel athlète, approbation, départ), on recharge la liste
+          get().fetchTeamMembers(teamId);
+        }
+      )
+      .subscribe();
+
+    // Stocker le channel pour pouvoir le désabonner plus tard
+    (get() as any)._channel = channel;
+  },
+
+  unsubscribe: () => {
+    const channel = (get() as any)._channel;
+    if (channel) {
+      supabase.removeChannel(channel);
+      (get() as any)._channel = null;
     }
   },
 }));

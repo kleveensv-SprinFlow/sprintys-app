@@ -14,7 +14,8 @@ export const CoachDashboard: React.FC = () => {
     fetchTeams, createTeam, 
     teamMembers, pendingMembers, fetchTeamMembers, 
     fetchSubgroups, createSubgroup, assignSubgroup,
-    approveAthlete, rejectAthlete
+    approveAthlete, rejectAthlete,
+    subscribeToTeam, unsubscribe
   } = useCoachStore();
   const router = useRouter();
 
@@ -43,7 +44,11 @@ export const CoachDashboard: React.FC = () => {
     if (activeTeamId) {
       fetchTeamMembers(activeTeamId);
       fetchSubgroups(activeTeamId);
+      subscribeToTeam(activeTeamId);
     }
+    return () => {
+      unsubscribe();
+    };
   }, [activeTeamId]);
 
   const handleCreateTeam = async () => {
