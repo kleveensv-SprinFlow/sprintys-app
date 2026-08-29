@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import Svg, { Circle, Path, G } from 'react-native-svg';
 import { useTheme } from '../../../core/theme';
 import { Feather } from '@expo/vector-icons';
 import { CheckInModal } from '../../checkin/components/CheckInModal';
@@ -39,12 +38,12 @@ export const AthleteGauges = () => {
   const scoreColor = todayHealthScore !== null ? getScoreColor(scoreValue) : theme.colors.border;
   const showScore = todayHealthScore !== null;
 
-  // Calcul Jauge Nutrition (Gauche)
+  // Calcul Jauge Nutrition
   const kcalGoal = user?.manualKcalGoal || 2000;
   const consumedKcal = mealLogs.reduce((sum, log) => sum + Number(log.calories), 0);
   const nutritionPercentage = Math.min(100, Math.round((consumedKcal / kcalGoal) * 100)) || 0;
 
-  // Calcul Jauge Compétition (Droite)
+  // Calcul Jauge Compétition
   let compValue = "Off";
   let compLabel = "Vacances";
   let compPercentage = 0;
@@ -64,7 +63,6 @@ export const AthleteGauges = () => {
     } else if (diffDays > 0) {
       compValue = `J-${diffDays}`;
       compLabel = "Compétition";
-      // Remplissage progressif sur 60 jours
       compPercentage = Math.max(5, 100 - (diffDays / 60) * 100); 
       compColor = diffDays <= 7 ? theme.colors.error : theme.colors.warning;
     } else {
@@ -75,100 +73,80 @@ export const AthleteGauges = () => {
     }
   }
 
-  const drawSemiCircle = (percentage: number, color: string, radius: number, strokeWidth: number) => {
-    const circum = Math.PI * radius;
-    const strokeDashoffset = circum - (percentage / 100) * circum;
-    return (
-      <Svg width={radius * 2 + strokeWidth} height={radius + strokeWidth} viewBox={`0 0 ${radius * 2 + strokeWidth} ${radius + strokeWidth}`}>
-        <G rotation="-180" origin={`${radius + strokeWidth/2}, ${radius + strokeWidth/2}`}>
-          <Path
-            d={`M${strokeWidth/2},${radius + strokeWidth/2} a${radius},${radius} 0 0,1 ${radius*2},0`}
-            fill="none"
-            stroke={theme.colors.border}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-          />
-          <Path
-            d={`M${strokeWidth/2},${radius + strokeWidth/2} a${radius},${radius} 0 0,1 ${radius*2},0`}
-            fill="none"
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeDasharray={circum}
-            strokeDashoffset={strokeDashoffset}
-          />
-        </G>
-      </Svg>
-    );
-  };
-
-  const drawCircle = (percentage: number, color: string, radius: number, strokeWidth: number) => {
-    const circum = 2 * Math.PI * radius;
-    const strokeDashoffset = circum - (percentage / 100) * circum;
-    return (
-      <Svg width={radius * 2 + strokeWidth} height={radius * 2 + strokeWidth} viewBox={`0 0 ${radius * 2 + strokeWidth} ${radius * 2 + strokeWidth}`}>
-        <G rotation="-90" origin={`${radius + strokeWidth/2}, ${radius + strokeWidth/2}`}>
-          <Circle
-            cx={radius + strokeWidth/2}
-            cy={radius + strokeWidth/2}
-            r={radius}
-            fill="none"
-            stroke={theme.colors.border}
-            strokeWidth={strokeWidth}
-          />
-          <Circle
-            cx={radius + strokeWidth/2}
-            cy={radius + strokeWidth/2}
-            r={radius}
-            fill="none"
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeDasharray={circum}
-            strokeDashoffset={strokeDashoffset}
-          />
-        </G>
-      </Svg>
-    );
-  };
-
   return (
     <View style={styles.container}>
-      {/* Left Gauge: Nutrition (Semi-circle) */}
-      <View style={styles.sideGaugeContainer}>
-        {drawSemiCircle(nutritionPercentage, theme.colors.accent, 40, 8)}
-        <View style={styles.sideGaugeContent}>
-          <Text style={[styles.gaugeValue, { color: theme.colors.text }]}>{nutritionPercentage}%</Text>
-          <Text style={[styles.gaugeLabel, { color: theme.colors.textMuted }]}>Nutrition</Text>
-        </View>
-      </View>
-
-      {/* Center Gauge: Main Circular Gauge with Check-in */}
-      <View style={styles.mainGaugeContainer}>
-        {drawCircle(scoreValue, scoreColor, 70, 12)}
-        
-        {showScore ? (
-          <View style={styles.scoreContent}>
-            <Text style={[styles.scoreValue, { color: scoreColor }]}>{scoreValue}%</Text>
-            <Text style={[styles.scoreLabel, { color: theme.colors.textMuted }]}>SANTÉ</Text>
+      
+      {/* 1. Main Pill: Check-In / Readiness */}
+      <TouchableOpacity 
+        style={[
+          styles.mainPill, 
+          { backgroundColor: theme.colors.surface, borderColor: showScore ? scoreColor : theme.colors.border }
+        ]} 
+        onPress={handleCheckIn}
+        activeOpacity={0.8}
+      >
+        {!showScore ? (
+          <View style={styles.mainPillContent}>
+            <View style={[styles.iconCircle, { backgroundColor: theme.colors.accent + '20' }]}>
+              <Feather name="activity" size={24} color={theme.colors.accent} />
+            </View>
+            <View style={styles.mainPillText}>
+              <Text style={[styles.mainTitle, { color: theme.colors.text }]}>Faire le Check-In</Text>
+              <Text style={[styles.mainSubtitle, { color: theme.colors.textMuted }]}>Évalue ta forme du jour</Text>
+            </View>
+            <Feather name="chevron-right" size={24} color={theme.colors.textMuted} />
           </View>
         ) : (
-          <TouchableOpacity style={[styles.checkInButton, { backgroundColor: theme.colors.surfaceLight }]} onPress={handleCheckIn} activeOpacity={0.8}>
-            <Feather name="check" size={32} color={theme.colors.success} />
-            <Text style={[styles.checkInText, { color: theme.colors.text }]}>CHECK IN</Text>
-          </TouchableOpacity>
+          <View style={styles.mainPillContent}>
+            <View style={[styles.scoreCircle, { borderColor: scoreColor }]}>
+              <Text style={[styles.scoreValueText, { color: scoreColor }]}>{scoreValue}</Text>
+            </View>
+            <View style={styles.mainPillText}>
+              <Text style={[styles.mainTitle, { color: theme.colors.text }]}>Forme du jour</Text>
+              <Text style={[styles.mainSubtitle, { color: theme.colors.textMuted }]}>
+                {scoreValue >= 70 ? 'Prêt à performer' : scoreValue >= 40 ? 'À surveiller' : 'Repos conseillé'}
+              </Text>
+            </View>
+            <Feather name="edit-2" size={20} color={theme.colors.textMuted} />
+          </View>
         )}
+      </TouchableOpacity>
+
+      {/* 2. Secondary Pills Row */}
+      <View style={styles.secondaryRow}>
+        
+        {/* Nutrition Pill */}
+        <View style={[styles.secondaryPill, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+          <View style={styles.secondaryHeader}>
+            <View style={styles.secondaryTitleRow}>
+              <Feather name="zap" size={14} color={theme.colors.accent} />
+              <Text style={[styles.secondaryTitle, { color: theme.colors.textSecondary }]}>Nutrition</Text>
+            </View>
+            <Text style={[styles.secondaryValue, { color: theme.colors.text }]}>{nutritionPercentage}%</Text>
+          </View>
+          {/* Progress Bar */}
+          <View style={[styles.progressBarBg, { backgroundColor: theme.colors.background }]}>
+            <View style={[styles.progressBarFill, { width: `${nutritionPercentage}%`, backgroundColor: theme.colors.accent }]} />
+          </View>
+        </View>
+
+        {/* Competition Pill */}
+        <View style={[styles.secondaryPill, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+          <View style={styles.secondaryHeader}>
+            <View style={styles.secondaryTitleRow}>
+              <Feather name="flag" size={14} color={compColor} />
+              <Text style={[styles.secondaryTitle, { color: theme.colors.textSecondary }]}>{compLabel}</Text>
+            </View>
+            <Text style={[styles.secondaryValue, { color: theme.colors.text }]}>{compValue}</Text>
+          </View>
+          {/* Progress Bar */}
+          <View style={[styles.progressBarBg, { backgroundColor: theme.colors.background }]}>
+            <View style={[styles.progressBarFill, { width: `${compPercentage}%`, backgroundColor: compColor }]} />
+          </View>
+        </View>
+
       </View>
 
-      {/* Right Gauge: Prochaine Compétition (Semi-circle) */}
-      <View style={styles.sideGaugeContainer}>
-        {drawSemiCircle(compPercentage, compColor, 40, 8)}
-        <View style={styles.sideGaugeContent}>
-          <Text style={[styles.gaugeValue, { color: theme.colors.text }]}>{compValue}</Text>
-          <Text style={[styles.gaugeLabel, { color: theme.colors.textMuted }]}>{compLabel}</Text>
-        </View>
-      </View>
-      
       <CheckInModal visible={modalVisible} onClose={() => setModalVisible(false)} />
     </View>
   );
@@ -176,64 +154,101 @@ export const AthleteGauges = () => {
 
 const styles = StyleSheet.create({
   container: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    gap: 12, // Espace entre la grosse pilule et la ligne du bas
+  },
+  
+  // Main Pill
+  mainPill: {
+    width: '100%',
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  mainPillContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scoreCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scoreValueText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  mainPillText: {
+    flex: 1,
+  },
+  mainTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  mainSubtitle: {
+    fontSize: 13,
+  },
+
+  // Secondary Row
+  secondaryRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  secondaryPill: {
+    flex: 1,
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 16,
+    justifyContent: 'space-between',
+  },
+  secondaryHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    paddingHorizontal: 16,
-    paddingVertical: 24,
+    marginBottom: 12,
   },
-  sideGaugeContainer: {
+  secondaryTitleRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    height: 60,
+    gap: 6,
   },
-  sideGaugeContent: {
-    position: 'absolute',
-    bottom: -15,
-    alignItems: 'center',
-  },
-  gaugeValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  gaugeLabel: {
-    fontSize: 10,
+  secondaryTitle: {
+    fontSize: 12,
+    fontWeight: '600',
     textTransform: 'uppercase',
-    marginTop: 2,
   },
-  mainGaugeContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    top: -10,
-  },
-  checkInButton: {
-    position: 'absolute',
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkInText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginTop: 4,
-    letterSpacing: 1,
-  },
-  scoreContent: {
-    position: 'absolute',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scoreValue: {
-    fontSize: 32,
+  secondaryValue: {
+    fontSize: 16,
     fontWeight: 'bold',
   },
-  scoreLabel: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    letterSpacing: 1,
+  
+  // Progress Bars
+  progressBarBg: {
+    height: 6,
+    width: '100%',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 3,
   },
 });
