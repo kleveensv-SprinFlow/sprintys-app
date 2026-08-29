@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 20,
     paddingVertical: 20,
-    paddingBottom: 100, // Espace pour la bottom tab bar
+    paddingBottom: 20,
   },
   installContainer: {
     flex: 1,
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginHorizontal: 20,
-    marginBottom: 100, // Espace pour la tab bar
+    marginBottom: 20,
     borderRadius: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },

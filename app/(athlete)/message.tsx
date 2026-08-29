@@ -24,16 +24,17 @@ export default function MessageScreen() {
     setIsTyping(true);
 
     try {
-      // TODO: Call OpenAI/Groq API here
-      // For now, simulate network delay
-      setTimeout(() => {
-        setMessages(prev => [...prev, { role: 'assistant', content: 'Désolé, l\'API n\'est pas encore configurée. Je ne peux pas répondre pour le moment.' }]);
-        setIsTyping(false);
-      }, 1000);
-
+      const { fetchOpenAIResponse } = require('../../src/services/aiService');
+      const response = await fetchOpenAIResponse(
+        newMessages.slice(1).map(m => ({ role: m.role, content: m.content })),
+        messages[0].content
+      );
+      
+      setMessages(prev => [...prev, { role: 'assistant', content: response.trim() }]);
     } catch (err) {
       console.error(err);
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Désolé, j\'ai eu un problème de réseau.' }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: "Désolé, problème de connexion avec l'API." }]);
+    } finally {
       setIsTyping(false);
     }
   };
@@ -45,27 +46,31 @@ export default function MessageScreen() {
         <Text style={styles.subtitle}>Prêt ⚡</Text>
       </View>
 
-      <ScrollView 
-        style={styles.chatArea} 
-        contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
-        ref={scrollViewRef}
-        onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        {messages.filter(m => m.role !== 'system').map((msg, index) => (
-          <View key={index} style={msg.role === 'user' ? styles.messageBubbleRight : styles.messageBubbleLeft}>
-            <Text style={[styles.messageText, msg.role === 'user' && { color: '#FFF' }]}>
-              {msg.content}
-            </Text>
-          </View>
-        ))}
-        {isTyping && (
-          <View style={styles.messageBubbleLeft}>
-            <Text style={styles.messageText}>...</Text>
-          </View>
-        )}
-      </ScrollView>
+        <ScrollView 
+          style={styles.chatArea} 
+          contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+          ref={scrollViewRef}
+          onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+        >
+          {messages.filter(m => m.role !== 'system').map((msg, index) => (
+            <View key={index} style={msg.role === 'user' ? styles.messageBubbleRight : styles.messageBubbleLeft}>
+              <Text style={[styles.messageText, msg.role === 'user' && { color: '#FFF' }]}>
+                {msg.content}
+              </Text>
+            </View>
+          ))}
+          {isTyping && (
+            <View style={styles.messageBubbleLeft}>
+              <Text style={styles.messageText}>...</Text>
+            </View>
+          )}
+        </ScrollView>
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={styles.inputArea}>
           <TouchableOpacity style={styles.attachBtn}>
             <Feather name="plus" size={24} color={theme.colors.textMuted} />
