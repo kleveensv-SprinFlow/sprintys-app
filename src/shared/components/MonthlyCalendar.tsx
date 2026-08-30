@@ -17,6 +17,33 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({ selectedDate, 
   const theme = useTheme();
   const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
 
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const opacityAnim = useRef(new Animated.Value(1)).current;
+
+  const handleSwipe = (direction: 'left' | 'right') => {
+    const toValue = direction === 'left' ? -50 : 50;
+    
+    Animated.parallel([
+      Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue, duration: 150, useNativeDriver: true })
+    ]).start(() => {
+      if (direction === 'left') {
+        setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+      } else {
+        setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+      }
+      
+      slideAnim.setValue(-toValue);
+      
+      Animated.parallel([
+        Animated.timing(opacityAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: 0, duration: 200, useNativeDriver: true })
+      ]).start();
+    });
+    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
   // Swipe detection using PanResponder
   const panResponder = useRef(
     PanResponder.create({
@@ -27,11 +54,9 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({ selectedDate, 
       },
       onPanResponderRelease: (evt, gestureState) => {
         if (gestureState.dx > 50) {
-          // Swipe right -> previous month
-          handlePrevMonth();
+          handleSwipe('right');
         } else if (gestureState.dx < -50) {
-          // Swipe left -> next month
-          handleNextMonth();
+          handleSwipe('left');
         }
       },
     })
@@ -75,16 +100,6 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({ selectedDate, 
     return days;
   }, [currentMonth]);
 
-  const handlePrevMonth = () => {
-    setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-
-  const handleNextMonth = () => {
-    setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-
   const isSameDay = (d1: Date, d2: Date) => {
     return d1.getFullYear() === d2.getFullYear() &&
            d1.getMonth() === d2.getMonth() &&
@@ -96,21 +111,21 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({ selectedDate, 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
     if (date.getMonth() !== currentMonth.getMonth()) {
-      setCurrentMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+      const isNext = date > currentMonth;
+      handleSwipe(isNext ? 'left' : 'right');
     }
   };
 
   const monthNames = [
-    'JANV.', 'FÉVR.', 'MARS', 'AVR.', 'MAI', 'JUIN',
-    'JUIL.', 'AOÛT', 'SEPT.', 'OCT.', 'NOV.', 'DÉC.'
+    'JANVIER', 'FÉVRIER', 'MARS', 'AVRIL', 'MAI', 'JUIN',
+    'JUILLET', 'AOÛT', 'SEPTEMBRE', 'OCTOBRE', 'NOVEMBRE', 'DÉCEMBRE'
   ];
 
   return (
     <View style={styles.container} {...panResponder.panHandlers}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={[styles.screenTitle, { color: theme.colors.text }]}>Calendrier</Text>
-        <Text style={[styles.monthText, { color: theme.colors.accent }]}>
+      {/* Month text */}
+      <View style={styles.monthContainer}>
+        <Text style={[styles.monthText, { color: theme.colors.text }]}>
           {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
         </Text>
       </View>
@@ -131,7 +146,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({ selectedDate, 
       </View>
 
       {/* Calendar Grid */}
-      <View style={styles.grid}>
+      <Animated.View style={[styles.grid, { opacity: opacityAnim, transform: [{ translateX: slideAnim }] }]}>
         {calendarDays.map((item, index) => {
           const isSelected = isSameDay(item.date, selectedDate);
           const hasEvent = markedDates.some(d => isSameDay(d, item.date));
@@ -164,7 +179,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({ selectedDate, 
             </TouchableOpacity>
           );
         })}
-      </View>
+      </Animated.View>
     </View>
   );
 };
@@ -173,23 +188,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    paddingTop: 16,
+    paddingTop: 8,
   },
-  header: {
-    paddingHorizontal: 24,
-    marginBottom: 24,
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-  },
-  screenTitle: {
-    fontSize: 28,
-    fontWeight: '900',
-    letterSpacing: -0.5,
+  monthContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
   },
   monthText: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '800',
     letterSpacing: 1,
   },
   daysOfWeek: {

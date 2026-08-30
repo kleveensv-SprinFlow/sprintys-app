@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity, Modal, ScrollView, Animated } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/core/theme';
+import { Header } from '../../src/shared/components/Header';
 import { MonthlyCalendar } from '../../src/shared/components/MonthlyCalendar';
 import { WorkoutCard } from '../../src/shared/components/WorkoutCard';
 import { HybridWorkoutBuilder } from '../../src/features/calendar/components/HybridWorkoutBuilder';
@@ -15,7 +15,6 @@ const MONTH_NAMES_SHORT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'ju
 
 export default function CoachCalendarScreen() {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
   
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -78,7 +77,8 @@ export default function CoachCalendarScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background, paddingTop: Math.max(insets.top, 20) }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Header title="Calendrier" />
       
       {/* Full-screen Calendar */}
       <MonthlyCalendar 

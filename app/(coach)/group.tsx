@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Modal, TextInput, Alert, Animated } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, Animated } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { theme } from '../../src/core/theme';
+import { useTheme, theme } from '../../src/core/theme';
+import { Header } from '../../src/shared/components/Header';
+import { supabase } from '../../src/services/supabase';
 import { useCoachStore } from '../../src/store/coach/coachStore';
 import { useAuthStore } from '../../src/store/authStore';
 
@@ -281,10 +283,8 @@ export default function CoachGroupsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Équipe</Text>
-      </View>
+    <View style={styles.container}>
+      <Header title="Équipe" />
 
       {activeTeamId ? renderTeamDetails() : renderTeamList()}
 
@@ -371,7 +371,7 @@ export default function CoachGroupsScreen() {
         </View>
       </Modal>
 
-    </SafeAreaView>
+    </View>
   );
 }
 
