@@ -23,11 +23,8 @@ interface ExerciseSet {
 }
 
 interface StrengthExercise {
-  id: string; // our internal id
-  db_exercise_id: string; // from exercise_library
-  name_fr: string;
-  name_en: string;
-  image: string;
+  id: string;
+  name: string;
   sets: ExerciseSet[];
   notes: string;
 }
@@ -48,50 +45,20 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
   const [isSaving, setIsSaving] = useState(false);
   const [showTargetModal, setShowTargetModal] = useState(false);
 
-  // Search Library Modal
-  const [showLibraryModal, setShowLibraryModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [libraryResults, setLibraryResults] = useState<any[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-
-  useEffect(() => {
-    if (showLibraryModal) {
-      searchExercises(searchQuery);
-    }
-  }, [searchQuery, showLibraryModal]);
-
-  const searchExercises = async (query: string) => {
-    setIsSearching(true);
-    try {
-      let q = supabase.from('exercise_library').select('id, name_fr, name_en, images').limit(20);
-      if (query.trim().length > 0) {
-        q = q.or(`name_fr.ilike.%${query}%,name_en.ilike.%${query}%`);
-      }
-      const { data, error } = await q;
-      if (error) throw error;
-      setLibraryResults(data || []);
-    } catch (err) {
-      console.warn("Erreur recherche exos:", err);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const handleAddExerciseFromLibrary = (libEx: any) => {
+  const handleAddExercise = () => {
     const newEx: StrengthExercise = {
       id: Math.random().toString(36).substring(2, 9),
-      db_exercise_id: libEx.id,
-      name_fr: libEx.name_fr || libEx.name_en,
-      name_en: libEx.name_en,
-      image: (libEx.images && libEx.images.length > 0) ? libEx.images[0] : '',
+      name: '',
       notes: '',
       sets: [
         { id: Math.random().toString(36).substring(2, 9), reps: '8', targetWeight: '70%', rest: '2:00', tempo: '2010' }
       ]
     };
     setExercises([...exercises, newEx]);
-    setShowLibraryModal(false);
-    setSearchQuery('');
+  };
+
+  const updateExerciseName = (exId: string, text: string) => {
+    setExercises(exercises.map(ex => ex.id === exId ? { ...ex, name: text } : ex));
   };
 
   const addSetToExercise = (exId: string) => {
@@ -211,16 +178,17 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
         {exercises.map((ex, exIndex) => (
           <View key={ex.id} style={styles.exerciseCard}>
             <View style={styles.exHeader}>
-              {ex.image ? (
-                <Image source={{ uri: 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/' + ex.image }} style={styles.exThumbnail} />
-              ) : (
-                <View style={styles.exThumbnailPlaceholder}>
-                  <Feather name="image" size={20} color={theme.colors.textMuted} />
-                </View>
-              )}
+              <View style={styles.exThumbnailPlaceholder}>
+                <Feather name="activity" size={20} color={theme.colors.textMuted} />
+              </View>
               <View style={styles.exTitleContainer}>
-                <Text style={styles.exNameFr}>{ex.name_fr}</Text>
-                {ex.name_en !== ex.name_fr && <Text style={styles.exNameEn}>{ex.name_en}</Text>}
+                <TextInput
+                  style={styles.exNameInput}
+                  value={ex.name}
+                  onChangeText={(t) => updateExerciseName(ex.id, t)}
+                  placeholder="Nom de l'exercice (ex: Squat)"
+                  placeholderTextColor={theme.colors.textMuted}
+                />
               </View>
               <TouchableOpacity onPress={() => removeExercise(ex.id)} style={styles.exRemoveBtn}>
                 <Feather name="trash-2" size={20} color={theme.colors.error} />
@@ -268,9 +236,9 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
           </View>
         ))}
 
-        <TouchableOpacity style={styles.addExerciseBtn} onPress={() => setShowLibraryModal(true)}>
-          <Feather name="search" size={20} color={theme.colors.accent} />
-          <Text style={styles.addExerciseText}>Chercher un exercice</Text>
+        <TouchableOpacity style={styles.addExerciseBtn} onPress={handleAddExercise}>
+          <Feather name="plus-circle" size={20} color={theme.colors.accent} />
+          <Text style={styles.addExerciseText}>Ajouter un exercice</Text>
         </TouchableOpacity>
 
         <View style={{ height: 100 }} />
@@ -288,7 +256,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
                   <Text style={styles.targetOptionText}>{t.name}</Text>
                 </TouchableOpacity>
               ))}
-              <Text style={styles.modalSubtitle}>Sous-groupes</Text>
+              <Text style={styles.modalSubtitle}>Sous-groupe</Text>
               {subgroups.filter(sg => sg.team_id === selectedTeamId).map(sg => (
                 <TouchableOpacity key={sg.id} style={styles.targetOption} onPress={() => { setSelectedSubgroupId(sg.id); setTargetType('subgroup'); setShowTargetModal(false); }}>
                   <Text style={styles.targetOptionText}>{sg.name}</Text>
@@ -299,54 +267,6 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
               <Text style={styles.modalCancelText}>Fermer</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
-
-      {/* MODAL RECHERCHE BIBLIOTHÈQUE */}
-      <Modal visible={showLibraryModal} animationType="slide" presentationStyle="pageSheet">
-        <View style={styles.libContainer}>
-          <View style={styles.libHeader}>
-            <TouchableOpacity onPress={() => setShowLibraryModal(false)} style={styles.iconButton}>
-              <Feather name="chevron-down" size={24} color={theme.colors.text} />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Bibliothèque d'Exercices</Text>
-            <View style={{ width: 40 }} />
-          </View>
-          
-          <View style={styles.searchBar}>
-            <Feather name="search" size={20} color={theme.colors.textMuted} />
-            <TextInput
-              style={styles.searchInput}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Rechercher (ex: Squat, Développé...)"
-              placeholderTextColor={theme.colors.textMuted}
-              autoFocus
-            />
-          </View>
-
-          <ScrollView style={{ flex: 1, padding: 16 }}>
-            {isSearching ? (
-              <ActivityIndicator size="large" color={theme.colors.accent} style={{ marginTop: 40 }} />
-            ) : libraryResults.length === 0 ? (
-              <Text style={styles.emptyText}>Aucun exercice trouvé.</Text>
-            ) : (
-              libraryResults.map(res => (
-                <TouchableOpacity key={res.id} style={styles.libResultCard} onPress={() => handleAddExerciseFromLibrary(res)}>
-                  {res.images && res.images.length > 0 ? (
-                    <Image source={{ uri: 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/' + res.images[0] }} style={styles.libResultImg} />
-                  ) : (
-                    <View style={styles.exThumbnailPlaceholder} />
-                  )}
-                  <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={styles.libResultNameFr}>{res.name_fr || res.name_en}</Text>
-                    {res.name_en !== res.name_fr && <Text style={styles.libResultNameEn}>{res.name_en}</Text>}
-                  </View>
-                  <Feather name="plus-circle" size={24} color={theme.colors.accent} />
-                </TouchableOpacity>
-              ))
-            )}
-          </ScrollView>
         </View>
       </Modal>
 
@@ -384,8 +304,7 @@ const styles = StyleSheet.create({
   exThumbnail: { width: 48, height: 48, borderRadius: 8, backgroundColor: '#FFF' },
   exThumbnailPlaceholder: { width: 48, height: 48, borderRadius: 8, backgroundColor: theme.colors.surfaceLight, justifyContent: 'center', alignItems: 'center' },
   exTitleContainer: { flex: 1, marginLeft: 12 },
-  exNameFr: { fontSize: 16, fontWeight: 'bold', color: theme.colors.text },
-  exNameEn: { fontSize: 12, color: theme.colors.textMuted, marginTop: 2 },
+  exNameInput: { fontSize: 16, fontWeight: 'bold', color: theme.colors.text, padding: 8, backgroundColor: theme.colors.surfaceLight, borderRadius: 8 },
   exRemoveBtn: { padding: 8 },
   exNotes: { backgroundColor: theme.colors.surfaceLight, color: theme.colors.text, padding: 12, borderRadius: 8, fontSize: 14, marginBottom: 16 },
   
@@ -400,17 +319,6 @@ const styles = StyleSheet.create({
 
   addExerciseBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, backgroundColor: theme.colors.accent + '15', borderRadius: 16, borderWidth: 1, borderColor: theme.colors.accent },
   addExerciseText: { color: theme.colors.accent, fontSize: 16, fontWeight: 'bold' },
-
-  // Library Modal
-  libContainer: { flex: 1, backgroundColor: theme.colors.background },
-  libHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 24, paddingBottom: 16 },
-  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface, marginHorizontal: 24, paddingHorizontal: 16, borderRadius: 12, height: 50, borderWidth: 1, borderColor: theme.colors.border },
-  searchInput: { flex: 1, color: theme.colors.text, fontSize: 16, marginLeft: 12 },
-  libResultCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface, padding: 12, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: theme.colors.border },
-  libResultImg: { width: 50, height: 50, borderRadius: 8, backgroundColor: '#FFF' },
-  libResultNameFr: { fontSize: 16, fontWeight: 'bold', color: theme.colors.text },
-  libResultNameEn: { fontSize: 13, color: theme.colors.textMuted, marginTop: 4 },
-  emptyText: { textAlign: 'center', color: theme.colors.textMuted, marginTop: 40, fontSize: 16 },
 
   // Target Modal (Duplicated for speed)
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },

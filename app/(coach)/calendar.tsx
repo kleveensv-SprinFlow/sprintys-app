@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Text, ActivityIndicator, TouchableOpacity, Modal, Alert } from 'react-native';
 import { useTheme } from '../../src/core/theme';
-import { HorizontalCalendar } from '../../src/shared/components/HorizontalCalendar';
+import { MonthlyCalendar } from '../../src/shared/components/MonthlyCalendar';
 import { WorkoutCard } from '../../src/shared/components/WorkoutCard';
 import { HybridWorkoutBuilder } from '../../src/features/calendar/components/HybridWorkoutBuilder';
 import { StrengthWorkoutBuilder } from '../../src/features/calendar/components/StrengthWorkoutBuilder';
@@ -28,6 +28,8 @@ export default function CoachCalendarScreen() {
   const fetchWorkouts = async (date: Date) => {
     setIsLoading(true);
     
+    // Pour une vue mensuelle, on pourrait charger tout le mois, 
+    // mais pour l'instant on garde le chargement journalier pour l'affichage détaillé en dessous.
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
     
@@ -92,7 +94,7 @@ export default function CoachCalendarScreen() {
         <Feather name="settings" size={16} color={theme.colors.textMuted} />
       </View>
 
-      <HorizontalCalendar 
+      <MonthlyCalendar 
         selectedDate={selectedDate} 
         onSelectDate={setSelectedDate}
         markedDates={getMarkedDates()}

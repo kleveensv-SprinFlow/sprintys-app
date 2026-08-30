@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Text, ActivityIndicator } from 'react-native';
 import { useTheme } from '../../src/core/theme';
-import { HorizontalCalendar } from '../../src/shared/components/HorizontalCalendar';
+import { MonthlyCalendar } from '../../src/shared/components/MonthlyCalendar';
 import { WorkoutCard } from '../../src/shared/components/WorkoutCard';
 import { WorkoutDetailModal } from '../../src/features/calendar/components/WorkoutDetailModal';
 import { supabase } from '../../src/services/supabase';
@@ -34,10 +34,13 @@ export default function CalendarScreen() {
     endOfDay.setHours(23, 59, 59, 999);
 
     try {
+      // Pour l'instant on récupère simplement les séances de la journée cible
+      // Si on voulait avoir les points sur tout le mois, il faudrait faire une 
+      // requête séparée qui récupère les dates du mois complet, mais on garde ça simple.
       const { data, error } = await supabase
         .from('workouts')
         .select('*')
-        .eq('athlete_id', user!.id)
+        .or(`athlete_id.eq.${user!.id},team_id.in.(select team_id from team_members where user_id='${user!.id}'),subgroup_id.in.(select subgroup_id from team_members where user_id='${user!.id}')`)
         .gte('date_prevue', startOfDay.toISOString())
         .lte('date_prevue', endOfDay.toISOString())
         .order('date_prevue', { ascending: true });
@@ -73,7 +76,7 @@ export default function CalendarScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <HorizontalCalendar 
+      <MonthlyCalendar 
         selectedDate={selectedDate} 
         onSelectDate={setSelectedDate}
         markedDates={getMarkedDates()}
