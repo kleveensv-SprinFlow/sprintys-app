@@ -1,45 +1,48 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, TextInput, ActivityIndicator, FlatList, Alert, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Modal, TextInput, Alert, Animated } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../../src/core/theme';
+import { useCoachStore } from '../../src/store/coach/coachStore';
 import { useAuthStore } from '../../src/store/authStore';
-import { useCoachStore, Team, Subgroup } from '../../src/store/coach/coachStore';
-import { ProfileAvatar } from '../../src/shared/components/ProfileAvatar';
-import { useRouter } from 'expo-router';
 
-export default function CoachGroupScreen() {
+export default function CoachGroupsScreen() {
   const { user } = useAuthStore();
   const { 
-    teams, subgroups, isLoading, 
-    fetchTeams, createTeam, 
-    teamMembers, pendingMembers, fetchTeamMembers, 
-    fetchSubgroups, createSubgroup, assignSubgroup,
-    approveAthlete, rejectAthlete,
-    subscribeToTeam, unsubscribe
+    teams, fetchTeams, createTeam, updateTeam, deleteTeam,
+    subgroups, fetchSubgroups, createSubgroup, updateSubgroup, deleteSubgroup,
+    teamMembers, pendingMembers, fetchTeamMembers, approveAthlete, rejectAthlete, removeAthlete, assignSubgroup,
+    subscribeToTeam, unsubscribe 
   } = useCoachStore();
-  const router = useRouter();
 
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'members' | 'subgroups' | 'pending' | 'settings'>('members');
+  
+  const [isCreatingTeam, setIsCreatingTeam] = useState(false);
   const [newTeamName, setNewTeamName] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
+  
+  // States for Modals
+  const [modalType, setModalType] = useState<'none' | 'rename_team' | 'create_sg' | 'rename_sg' | 'change_sg'>('none');
+  const [tempValue, setTempValue] = useState('');
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
 
-  const [selectedAthlete, setSelectedAthlete] = useState<any | null>(null);
-  const [assignModalVisible, setAssignModalVisible] = useState(false);
-  const [newSubgroupName, setNewSubgroupName] = useState('');
-  const [isCreatingSubgroup, setIsCreatingSubgroup] = useState(false);
-
-  const [qrModalVisible, setQrModalVisible] = useState(false);
-
+  // Load initial teams
   useEffect(() => {
     fetchTeams();
   }, []);
 
+  // Auto-create from signup if no teams exist
   useEffect(() => {
-    if (teams.length > 0 && !activeTeamId) {
-      setActiveTeamId(teams[0].id);
+    if (teams.length === 0 && user?.groupName && !isCreatingTeam) {
+      setIsCreatingTeam(true);
+      createTeam(user.groupName).then((newTeam) => {
+        if (newTeam && user.subgroups && user.subgroups.length > 0) {
+          Promise.all(user.subgroups.map(sg => createSubgroup(newTeam.id, sg)));
+        }
+      }).finally(() => setIsCreatingTeam(false));
     }
-  }, [teams]);
+  }, [teams.length, user?.groupName]);
 
+  // Handle entering a team
   useEffect(() => {
     if (activeTeamId) {
       fetchTeamMembers(activeTeamId);
@@ -51,427 +54,594 @@ export default function CoachGroupScreen() {
     };
   }, [activeTeamId]);
 
-  // Auto-création du groupe si le coach l'a défini à l'inscription
-  useEffect(() => {
-    if (!isLoading && teams.length === 0 && user?.groupName && !isCreating) {
-      createTeam(user.groupName).then((newTeam) => {
-        if (newTeam) setActiveTeamId(newTeam.id);
-      });
-    }
-  }, [isLoading, teams.length, user]);
-
   const handleCreateTeam = async () => {
     if (!newTeamName.trim()) return;
-    const newTeam = await createTeam(newTeamName.trim());
-    if (newTeam) {
-      setNewTeamName('');
-      setIsCreating(false);
-      setActiveTeamId(newTeam.id);
-    }
+    setIsCreatingTeam(true);
+    await createTeam(newTeamName.trim());
+    setNewTeamName('');
+    setIsCreatingTeam(false);
+    setModalType('none');
   };
 
-  const handleApprove = async (userId: string) => {
+  const handleDeleteTeam = () => {
     if (!activeTeamId) return;
-    await approveAthlete(userId, activeTeamId);
-  };
-
-  const handleReject = async (userId: string) => {
-    if (!activeTeamId) return;
-    Alert.alert('Refuser', 'Veux-tu refuser cette demande ?', [
+    Alert.alert('Supprimer le groupe', 'Êtes-vous sûr ? Cette action est irréversible.', [
       { text: 'Annuler', style: 'cancel' },
-      { text: 'Refuser', style: 'destructive', onPress: () => rejectAthlete(userId, activeTeamId) }
+      { text: 'Supprimer', style: 'destructive', onPress: async () => {
+        await deleteTeam(activeTeamId);
+        setActiveTeamId(null);
+      }}
     ]);
   };
 
+  const handleRemoveAthlete = (userId: string) => {
+    if (!activeTeamId) return;
+    Alert.alert('Exclure l\'athlète', 'Voulez-vous vraiment exclure cet athlète du groupe ?', [
+      { text: 'Annuler', style: 'cancel' },
+      { text: 'Exclure', style: 'destructive', onPress: () => removeAthlete(userId, activeTeamId) }
+    ]);
+  };
+
+  const renderTeamList = () => (
+    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <Text style={styles.sectionTitle}>Mes Groupes</Text>
+      
+      {teams.map(team => (
+        <TouchableOpacity 
+          key={team.id} 
+          style={styles.teamCard}
+          activeOpacity={0.8}
+          onPress={() => setActiveTeamId(team.id)}
+        >
+          <View style={styles.teamCardHeader}>
+            <Text style={styles.teamCardTitle}>{team.name}</Text>
+            <Feather name="chevron-right" size={20} color={theme.colors.textMuted} />
+          </View>
+          <View style={styles.teamCardFooter}>
+            <View style={styles.teamCodeBadge}>
+              <Feather name="key" size={12} color={theme.colors.accent} />
+              <Text style={styles.teamCodeText}>{team.invite_code}</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      ))}
+
+      <TouchableOpacity 
+        style={styles.createBtn}
+        onPress={() => setModalType('create_sg')} // Wait, we use a single modal state. Let's use it for create team if no active team
+      >
+        <Feather name="plus" size={20} color={theme.colors.text} />
+        <Text style={styles.createBtnText}>Nouveau Groupe</Text>
+      </TouchableOpacity>
+    </ScrollView>
+  );
+
   const activeTeam = teams.find(t => t.id === activeTeamId);
+
+  const renderTeamDetails = () => {
+    if (!activeTeam) return null;
+
+    return (
+      <View style={{ flex: 1 }}>
+        {/* Detail Header */}
+        <View style={styles.detailHeader}>
+          <TouchableOpacity onPress={() => setActiveTeamId(null)} style={styles.backBtn}>
+            <Feather name="arrow-left" size={24} color={theme.colors.text} />
+          </TouchableOpacity>
+          <View style={{ flex: 1, paddingHorizontal: 16 }}>
+            <Text style={styles.detailTitle}>{activeTeam.name}</Text>
+            <Text style={styles.detailSubtitle}>Code: {activeTeam.invite_code}</Text>
+          </View>
+        </View>
+
+        {/* Tabs */}
+        <View style={styles.tabsRow}>
+          <TouchableOpacity style={[styles.tabBtn, activeTab === 'members' && styles.tabBtnActive]} onPress={() => setActiveTab('members')}>
+            <Text style={[styles.tabText, activeTab === 'members' && styles.tabTextActive]}>Membres</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.tabBtn, activeTab === 'subgroups' && styles.tabBtnActive]} onPress={() => setActiveTab('subgroups')}>
+            <Text style={[styles.tabText, activeTab === 'subgroups' && styles.tabTextActive]}>Sous-groupes</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.tabBtn, activeTab === 'pending' && styles.tabBtnActive]} onPress={() => setActiveTab('pending')}>
+            <Text style={[styles.tabText, activeTab === 'pending' && styles.tabTextActive]}>
+              Demandes {pendingMembers.length > 0 && `(${pendingMembers.length})`}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.tabBtn, activeTab === 'settings' && styles.tabBtnActive]} onPress={() => setActiveTab('settings')}>
+            <Text style={[styles.tabText, activeTab === 'settings' && styles.tabTextActive]}>Paramètres</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Tab Content */}
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          
+          {activeTab === 'members' && (
+            <>
+              {teamMembers.length === 0 ? (
+                <Text style={styles.emptyText}>Aucun athlète dans ce groupe.</Text>
+              ) : (
+                teamMembers.map(member => {
+                  const sg = subgroups.find(s => s.id === member.subgroup_id);
+                  return (
+                    <View key={member.user_id} style={styles.rowCard}>
+                      <View style={styles.avatar}>
+                        <Text style={styles.avatarText}>{member.profile?.first_name?.charAt(0) || ''}</Text>
+                      </View>
+                      <View style={styles.rowInfo}>
+                        <Text style={styles.rowTitle}>{member.profile?.full_name}</Text>
+                        <Text style={styles.rowSubtitle}>{sg ? sg.name : 'Aucun sous-groupe'}</Text>
+                      </View>
+                      <TouchableOpacity 
+                        onPress={() => {
+                          setSelectedEntityId(member.user_id);
+                          setModalType('change_sg');
+                        }}
+                        style={styles.actionBtnIcon}
+                      >
+                        <Feather name="layers" size={18} color={theme.colors.textSecondary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleRemoveAthlete(member.user_id)} style={styles.actionBtnIcon}>
+                        <Feather name="user-x" size={18} color={theme.colors.error} />
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })
+              )}
+            </>
+          )}
+
+          {activeTab === 'subgroups' && (
+            <>
+              <TouchableOpacity 
+                style={styles.createBtn}
+                onPress={() => { setModalType('create_sg'); setTempValue(''); }}
+              >
+                <Feather name="plus" size={18} color={theme.colors.text} />
+                <Text style={styles.createBtnText}>Ajouter un sous-groupe</Text>
+              </TouchableOpacity>
+
+              {subgroups.length === 0 ? (
+                <Text style={styles.emptyText}>Aucun sous-groupe.</Text>
+              ) : (
+                subgroups.map(sg => (
+                  <View key={sg.id} style={styles.rowCard}>
+                    <View style={styles.rowInfo}>
+                      <Text style={styles.rowTitle}>{sg.name}</Text>
+                    </View>
+                    <TouchableOpacity 
+                      onPress={() => { setSelectedEntityId(sg.id); setTempValue(sg.name); setModalType('rename_sg'); }}
+                      style={styles.actionBtnIcon}
+                    >
+                      <Feather name="edit-2" size={18} color={theme.colors.textSecondary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      onPress={() => {
+                        Alert.alert('Supprimer', 'Supprimer ce sous-groupe ?', [
+                          { text: 'Annuler', style: 'cancel' },
+                          { text: 'Supprimer', style: 'destructive', onPress: () => deleteSubgroup(sg.id) }
+                        ]);
+                      }}
+                      style={styles.actionBtnIcon}
+                    >
+                      <Feather name="trash-2" size={18} color={theme.colors.error} />
+                    </TouchableOpacity>
+                  </View>
+                ))
+              )}
+            </>
+          )}
+
+          {activeTab === 'pending' && (
+            <>
+              {pendingMembers.length === 0 ? (
+                <Text style={styles.emptyText}>Aucune demande en attente.</Text>
+              ) : (
+                pendingMembers.map(member => (
+                  <View key={member.user_id} style={styles.rowCard}>
+                    <View style={styles.avatar}>
+                      <Text style={styles.avatarText}>{member.profile?.first_name?.charAt(0) || ''}</Text>
+                    </View>
+                    <View style={styles.rowInfo}>
+                      <Text style={styles.rowTitle}>{member.profile?.full_name}</Text>
+                      <Text style={styles.rowSubtitle}>Demande d'accès</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => approveAthlete(member.user_id, activeTeam.id)} style={[styles.actionBtnIcon, { backgroundColor: theme.colors.success + '20' }]}>
+                      <Feather name="check" size={20} color={theme.colors.success} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => rejectAthlete(member.user_id, activeTeam.id)} style={[styles.actionBtnIcon, { backgroundColor: theme.colors.error + '20' }]}>
+                      <Feather name="x" size={20} color={theme.colors.error} />
+                    </TouchableOpacity>
+                  </View>
+                ))
+              )}
+            </>
+          )}
+
+          {activeTab === 'settings' && (
+            <View style={{ gap: 16 }}>
+              <TouchableOpacity 
+                style={styles.settingsBtn}
+                onPress={() => { setTempValue(activeTeam.name); setModalType('rename_team'); }}
+              >
+                <Feather name="edit-3" size={20} color={theme.colors.text} />
+                <Text style={styles.settingsBtnText}>Renommer le groupe</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={[styles.settingsBtn, { borderColor: theme.colors.error + '50' }]} onPress={handleDeleteTeam}>
+                <Feather name="trash" size={20} color={theme.colors.error} />
+                <Text style={[styles.settingsBtnText, { color: theme.colors.error }]}>Supprimer le groupe</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          
+          <View style={{ height: 100 }} />
+        </ScrollView>
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.welcome}>VOS ÉQUIPES</Text>
-        <Text style={styles.title}>Gestion des athlètes</Text>
+        <Text style={styles.title}>Équipe</Text>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {isLoading && teams.length === 0 ? (
-          <ActivityIndicator size="large" color={theme.colors.accent} style={{ marginTop: 40 }} />
-        ) : teams.length === 0 || isCreating ? (
-          /* === CRÉATION DE GROUPE === */
-          <View style={styles.createTeamCard}>
-            <View style={styles.iconCircle}>
-              <Feather name="shield" size={32} color={theme.colors.accent} />
-            </View>
-            <Text style={styles.createTitle}>Créer un groupe d'entraînement</Text>
-            <Text style={styles.createSubtitle}>
-              Un code à 8 chiffres sera généré automatiquement pour inviter tes athlètes.
-            </Text>
-            
-            <TextInput
-              style={styles.input}
-              placeholder="Nom du groupe (ex: UAVH, Pôle France)"
-              placeholderTextColor={theme.colors.textSecondary}
-              value={newTeamName}
-              onChangeText={setNewTeamName}
-            />
-            
-            <TouchableOpacity style={styles.createButton} onPress={handleCreateTeam}>
-              <Text style={styles.createButtonText}>Créer le groupe</Text>
-            </TouchableOpacity>
-            
-            {isCreating && teams.length > 0 && (
-              <TouchableOpacity style={{ marginTop: 15 }} onPress={() => setIsCreating(false)}>
-                <Text style={{ color: theme.colors.textSecondary, textAlign: 'center' }}>Annuler</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        ) : (
-          /* === TABLEAU DE BORD DU GROUPE === */
-          <View style={styles.teamContainer}>
+      {activeTeamId ? renderTeamDetails() : renderTeamList()}
 
-            {/* En-tête du groupe avec code */}
-            <View style={styles.teamHeaderRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.teamName}>{activeTeam?.name}</Text>
-                <TouchableOpacity 
-                  style={styles.codeBadge}
-                  onPress={() => setQrModalVisible(true)}
-                >
-                  <Feather name="key" size={14} color={theme.colors.accent} />
-                  <Text style={styles.codeText}>{activeTeam?.invite_code}</Text>
-                  <Feather name="maximize" size={14} color={theme.colors.textMuted} />
-                </TouchableOpacity>
-              </View>
-              <TouchableOpacity onPress={() => setIsCreating(true)} style={styles.addTeamButton}>
-                <Feather name="plus" size={20} color={theme.colors.text} />
-              </TouchableOpacity>
-            </View>
-
-            {/* === SECTION DEMANDES EN ATTENTE === */}
-            {pendingMembers.length > 0 && (
-              <>
-                <View style={styles.sectionHeader}>
-                  <View style={styles.pendingBadge}>
-                    <Feather name="bell" size={16} color={theme.colors.warning} />
-                    <Text style={styles.pendingSectionTitle}>
-                      Demandes en attente ({pendingMembers.length})
-                    </Text>
-                  </View>
-                </View>
-
-                {pendingMembers.map(member => (
-                  <View key={member.user_id} style={styles.pendingCard}>
-                    <View style={styles.pendingAvatar}>
-                      <Text style={styles.pendingInitials}>
-                        {member.profile?.first_name?.charAt(0) || '?'}
-                        {member.profile?.last_name?.charAt(0) || ''}
-                      </Text>
-                    </View>
-                    <View style={styles.pendingInfo}>
-                      <Text style={styles.pendingName}>
-                        {member.profile?.full_name || 'Athlète inconnu'}
-                      </Text>
-                      <Text style={styles.pendingStatus}>Souhaite rejoindre le groupe</Text>
-                    </View>
-                    <View style={styles.pendingActions}>
-                      <TouchableOpacity 
-                        style={styles.approveBtn}
-                        onPress={() => handleApprove(member.user_id)}
-                      >
-                        <Feather name="check" size={20} color="#FFF" />
-                      </TouchableOpacity>
-                      <TouchableOpacity 
-                        style={styles.rejectBtn}
-                        onPress={() => handleReject(member.user_id)}
-                      >
-                        <Feather name="x" size={20} color={theme.colors.error} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ))}
-              </>
-            )}
-
-            {/* === SECTION ATHLÈTES APPROUVÉS === */}
-            <View style={[styles.sectionHeader, { marginTop: pendingMembers.length > 0 ? 24 : 0 }]}>
-              <Text style={styles.sectionTitle}>Athlètes ({teamMembers.length})</Text>
-            </View>
-
-            {teamMembers.length === 0 ? (
-              <View style={styles.emptyAthletes}>
-                <Feather name="users" size={32} color={theme.colors.textMuted} style={{ marginBottom: 10 }} />
-                <Text style={{ color: theme.colors.textSecondary, textAlign: 'center' }}>
-                  Aucun athlète dans ce groupe. Partage-leur le code {activeTeam?.invite_code}.
-                </Text>
-              </View>
-            ) : (
-              teamMembers.map(item => {
-                const subgroup = subgroups.find(s => s.id === item.subgroup_id);
-                return (
-                  <TouchableOpacity 
-                    key={item.user_id}
-                    style={styles.athleteCard}
-                    onPress={() => {
-                      setSelectedAthlete(item);
-                      setAssignModalVisible(true);
-                    }}
-                  >
-                    <View style={styles.athleteAvatar}>
-                      <Text style={styles.athleteInitials}>
-                        {item.profile?.first_name?.charAt(0) || 'A'}
-                        {item.profile?.last_name?.charAt(0) || ''}
-                      </Text>
-                    </View>
-                    <View style={styles.athleteInfo}>
-                      <Text style={styles.athleteName}>{item.profile?.full_name || 'Athlète inconnu'}</Text>
-                      <Text style={styles.subgroupBadgeText}>
-                        {subgroup ? subgroup.name : 'Non assigné'}
-                      </Text>
-                    </View>
-                    <Feather name="chevron-right" size={20} color={theme.colors.textMuted} />
-                  </TouchableOpacity>
-                );
-              })
-            )}
-
-            {/* Espace pour la tabbar */}
-            <View style={{ height: 120 }} />
-          </View>
-        )}
-      </ScrollView>
-
-      {/* === MODAL QR CODE === */}
-      <Modal visible={qrModalVisible} transparent animationType="fade">
+      {/* REUSABLE MODAL FOR INPUTS */}
+      <Modal visible={modalType !== 'none' && modalType !== 'change_sg'} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={styles.qrModalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Code d'invitation</Text>
-              <TouchableOpacity onPress={() => setQrModalVisible(false)}>
-                <Feather name="x" size={24} color={theme.colors.text} />
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
+            <Text style={styles.modalTitle}>
+              {modalType === 'rename_team' ? 'Renommer le groupe' :
+               modalType === 'rename_sg' ? 'Renommer le sous-groupe' :
+               'Nouveau nom'}
+            </Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: theme.colors.background, color: theme.colors.text }]}
+              value={tempValue}
+              onChangeText={setTempValue}
+              placeholder="Ex: Pôle Sprint"
+              placeholderTextColor={theme.colors.textMuted}
+              autoFocus
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancel} onPress={() => setModalType('none')}>
+                <Text style={styles.modalCancelText}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalSave, { backgroundColor: theme.colors.accent }]}
+                onPress={async () => {
+                  if (!tempValue.trim()) return;
+                  if (modalType === 'rename_team' && activeTeamId) {
+                    await updateTeam(activeTeamId, tempValue.trim());
+                  } else if (modalType === 'rename_sg' && selectedEntityId) {
+                    await updateSubgroup(selectedEntityId, tempValue.trim());
+                  } else if (modalType === 'create_sg' && activeTeamId) {
+                    await createSubgroup(activeTeamId, tempValue.trim());
+                  } else if (modalType === 'create_sg' && !activeTeamId) {
+                    // C'est la création de team
+                    await createTeam(tempValue.trim());
+                  }
+                  setModalType('none');
+                }}
+              >
+                <Text style={styles.modalSaveText}>Enregistrer</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.qrDesc}>
-              Montre ce code ou dicte-le à tes athlètes pour qu'ils rejoignent "{activeTeam?.name}".
-            </Text>
-            <View style={styles.bigCodeContainer}>
-              <Text style={styles.bigCode}>{activeTeam?.invite_code}</Text>
-            </View>
-            <Text style={styles.qrHint}>
-              L'athlète entre ce code dans l'application et tu recevras une demande d'approbation.
-            </Text>
           </View>
         </View>
       </Modal>
 
-      {/* === MODAL ASSIGNATION SOUS-GROUPE === */}
-      <Modal visible={assignModalVisible} transparent animationType="slide">
+      {/* MODAL FOR ASSIGNING SUBGROUP */}
+      <Modal visible={modalType === 'change_sg'} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                Assigner {selectedAthlete?.profile?.first_name}
-              </Text>
-              <TouchableOpacity onPress={() => setAssignModalVisible(false)}>
-                <Feather name="x" size={24} color={theme.colors.text} />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.modalSubtitle}>Choisis un sous-groupe :</Text>
-
-            <ScrollView style={{ maxHeight: 200, marginBottom: 16 }}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
+            <Text style={styles.modalTitle}>Assigner un sous-groupe</Text>
+            
+            <ScrollView style={{ maxHeight: 300, marginTop: 16 }}>
               <TouchableOpacity 
-                style={[styles.subgroupOption, !selectedAthlete?.subgroup_id && styles.subgroupOptionSelected]}
+                style={[styles.sgOption, { borderColor: theme.colors.border }]}
                 onPress={() => {
-                  assignSubgroup(selectedAthlete.user_id, activeTeamId!, null);
-                  setAssignModalVisible(false);
+                  if (selectedEntityId && activeTeamId) assignSubgroup(selectedEntityId, activeTeamId, null);
+                  setModalType('none');
                 }}
               >
-                <Text style={styles.subgroupOptionText}>Aucun (Global)</Text>
+                <Text style={styles.sgOptionText}>Aucun sous-groupe</Text>
               </TouchableOpacity>
-              
+
               {subgroups.map(sg => (
                 <TouchableOpacity 
                   key={sg.id}
-                  style={[styles.subgroupOption, selectedAthlete?.subgroup_id === sg.id && styles.subgroupOptionSelected]}
+                  style={[styles.sgOption, { borderColor: theme.colors.border }]}
                   onPress={() => {
-                    assignSubgroup(selectedAthlete.user_id, activeTeamId!, sg.id);
-                    setAssignModalVisible(false);
+                    if (selectedEntityId && activeTeamId) assignSubgroup(selectedEntityId, activeTeamId, sg.id);
+                    setModalType('none');
                   }}
                 >
-                  <Text style={styles.subgroupOptionText}>{sg.name}</Text>
+                  <Text style={styles.sgOptionText}>{sg.name}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
 
-            {isCreatingSubgroup ? (
-              <View style={styles.createSgRow}>
-                <TextInput 
-                  style={styles.sgInput} 
-                  placeholder="Nom (ex: Sprint Court)" 
-                  placeholderTextColor={theme.colors.textMuted}
-                  value={newSubgroupName}
-                  onChangeText={setNewSubgroupName}
-                  autoFocus
-                />
-                <TouchableOpacity 
-                  style={styles.sgSaveBtn}
-                  onPress={async () => {
-                    if (newSubgroupName.trim() && activeTeamId) {
-                      await createSubgroup(activeTeamId, newSubgroupName.trim());
-                      setNewSubgroupName('');
-                      setIsCreatingSubgroup(false);
-                    }
-                  }}
-                >
-                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>OK</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity style={styles.createSgBtn} onPress={() => setIsCreatingSubgroup(true)}>
-                <Feather name="plus" size={16} color={theme.colors.accent} />
-                <Text style={styles.createSgText}>Créer un sous-groupe</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity style={[styles.modalCancel, { marginTop: 16 }]} onPress={() => setModalType('none')}>
+              <Text style={styles.modalCancelText}>Annuler</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
+
     </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background },
-  header: { padding: 24, paddingTop: 50, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  welcome: { color: theme.colors.accent, fontSize: 12, fontWeight: 'bold', letterSpacing: 2 },
-  title: { color: theme.colors.text, fontSize: 28, fontWeight: 'bold', marginTop: 4 },
-  content: { flex: 1, paddingHorizontal: 24 },
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 32,
+    paddingBottom: 16,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+  },
+  content: {
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: theme.colors.textMuted,
+    letterSpacing: 1,
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  teamCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginBottom: 12,
+  },
+  teamCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  teamCardTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+  },
+  teamCardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  teamCodeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.accent + '20',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 8,
+  },
+  teamCodeText: {
+    color: theme.colors.accent,
+    fontWeight: 'bold',
+    fontSize: 14,
+    letterSpacing: 2,
+  },
+  createBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    backgroundColor: theme.colors.surfaceLight,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderStyle: 'dashed',
+    marginBottom: 12,
+  },
+  createBtnText: {
+    color: theme.colors.text,
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
   
-  // Création
-  createTeamCard: {
-    backgroundColor: theme.colors.surface, padding: 24, borderRadius: 20,
-    borderWidth: 1, borderColor: theme.colors.border, alignItems: 'center', marginTop: 20,
+  // Detail View
+  detailHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    marginBottom: 20,
   },
-  iconCircle: {
-    width: 64, height: 64, borderRadius: 32, backgroundColor: theme.colors.surfaceLight,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+  backBtn: {
+    width: 40, height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.surfaceLight,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  createTitle: { color: theme.colors.text, fontSize: 20, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' },
-  createSubtitle: { color: theme.colors.textSecondary, fontSize: 14, textAlign: 'center', marginBottom: 24, lineHeight: 20 },
+  detailTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+  },
+  detailSubtitle: {
+    fontSize: 14,
+    color: theme.colors.accent,
+    fontWeight: '600',
+    marginTop: 2,
+    letterSpacing: 1,
+  },
+  tabsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    marginBottom: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabBtnActive: {
+    borderBottomColor: theme.colors.accent,
+  },
+  tabText: {
+    fontSize: 13,
+    color: theme.colors.textMuted,
+    fontWeight: '600',
+  },
+  tabTextActive: {
+    color: theme.colors.accent,
+  },
+  
+  // Row Cards
+  rowCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  avatar: {
+    width: 44, height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.colors.surfaceLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  avatarText: {
+    color: theme.colors.textSecondary,
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  rowInfo: {
+    flex: 1,
+  },
+  rowTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  rowSubtitle: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+  },
+  actionBtnIcon: {
+    width: 36, height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surfaceLight,
+    marginLeft: 8,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: theme.colors.textMuted,
+    marginTop: 40,
+    fontStyle: 'italic',
+  },
+
+  // Settings
+  settingsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  settingsBtnText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: theme.colors.text,
+    marginLeft: 12,
+  },
+
+  // Modals
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    borderRadius: 24,
+    padding: 24,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFF',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
   input: {
-    width: '100%', backgroundColor: theme.colors.surfaceLight, color: theme.colors.text,
-    padding: 16, borderRadius: 12, fontSize: 16, marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    marginBottom: 24,
   },
-  createButton: { width: '100%', backgroundColor: theme.colors.accent, padding: 16, borderRadius: 12, alignItems: 'center' },
-  createButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
-
-  // Groupe
-  teamContainer: { flex: 1 },
-  teamHeaderRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
-    backgroundColor: theme.colors.surface, padding: 20, borderRadius: 16,
-    borderWidth: 1, borderColor: theme.colors.border, marginBottom: 24,
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
   },
-  teamName: { color: theme.colors.text, fontSize: 24, fontWeight: 'bold', marginBottom: 10 },
-  codeBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: theme.colors.surfaceLight, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10,
-    alignSelf: 'flex-start',
+  modalCancel: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
-  codeText: { color: theme.colors.accent, fontSize: 16, fontWeight: 'bold', letterSpacing: 2 },
-  addTeamButton: {
-    backgroundColor: theme.colors.surfaceLight, width: 40, height: 40,
-    borderRadius: 20, alignItems: 'center', justifyContent: 'center'
+  modalCancelText: {
+    color: '#FFF',
+    fontWeight: 'bold',
   },
-
-  // Pending
-  sectionHeader: { marginBottom: 12 },
-  sectionTitle: { color: theme.colors.text, fontSize: 18, fontWeight: 'bold' },
-  pendingBadge: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  pendingSectionTitle: { color: theme.colors.warning, fontSize: 16, fontWeight: 'bold' },
-  pendingCard: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface,
-    padding: 14, borderRadius: 14, marginBottom: 10,
-    borderWidth: 1, borderColor: theme.colors.warning + '30',
+  modalSave: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
   },
-  pendingAvatar: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: theme.colors.warning + '20',
-    alignItems: 'center', justifyContent: 'center', marginRight: 12,
+  modalSaveText: {
+    color: '#FFF',
+    fontWeight: 'bold',
   },
-  pendingInitials: { color: theme.colors.warning, fontWeight: 'bold', fontSize: 16 },
-  pendingInfo: { flex: 1 },
-  pendingName: { color: theme.colors.text, fontSize: 15, fontWeight: '600', marginBottom: 2 },
-  pendingStatus: { color: theme.colors.textMuted, fontSize: 12 },
-  pendingActions: { flexDirection: 'row', gap: 8 },
-  approveBtn: {
-    width: 38, height: 38, borderRadius: 19, backgroundColor: theme.colors.success,
-    alignItems: 'center', justifyContent: 'center',
+  sgOption: {
+    padding: 16,
+    borderWidth: 1,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
-  rejectBtn: {
-    width: 38, height: 38, borderRadius: 19, backgroundColor: theme.colors.error + '15',
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.colors.error + '30',
-  },
-
-  // Athlètes approuvés
-  emptyAthletes: {
-    padding: 30, backgroundColor: theme.colors.surface, borderRadius: 16,
-    alignItems: 'center', borderWidth: 1, borderColor: theme.colors.border, borderStyle: 'dashed'
-  },
-  athleteCard: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface,
-    padding: 16, borderRadius: 12, marginBottom: 10,
-  },
-  athleteAvatar: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: theme.colors.surfaceLight,
-    alignItems: 'center', justifyContent: 'center', marginRight: 12,
-  },
-  athleteInitials: { color: theme.colors.text, fontWeight: 'bold', fontSize: 16 },
-  athleteInfo: { flex: 1 },
-  athleteName: { color: theme.colors.text, fontSize: 16, fontWeight: '600', marginBottom: 4 },
-  subgroupBadgeText: { color: theme.colors.textMuted, fontSize: 12 },
-
-  // Modales
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  modalContent: { 
-    backgroundColor: theme.colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, 
-    padding: 24, maxHeight: '80%' 
-  },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', color: theme.colors.text },
-  modalSubtitle: { fontSize: 14, color: theme.colors.textSecondary, marginBottom: 20 },
-
-  // QR Modal
-  qrModalContent: {
-    backgroundColor: theme.colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 24, alignItems: 'center',
-  },
-  qrDesc: { color: theme.colors.textSecondary, fontSize: 14, textAlign: 'center', marginTop: 8, marginBottom: 30 },
-  bigCodeContainer: {
-    backgroundColor: theme.colors.background, borderRadius: 20, padding: 30,
-    borderWidth: 2, borderColor: theme.colors.accent, marginBottom: 20, width: '100%', alignItems: 'center'
-  },
-  bigCode: { fontSize: 40, fontWeight: 'bold', color: theme.colors.accent, letterSpacing: 6 },
-  qrHint: { color: theme.colors.textMuted, fontSize: 12, textAlign: 'center', marginBottom: 30 },
-
-  // Sous-groupes (modale)
-  subgroupOption: {
-    padding: 16, backgroundColor: theme.colors.surfaceLight,
-    borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: 'transparent'
-  },
-  subgroupOptionSelected: { borderColor: theme.colors.accent, backgroundColor: theme.colors.accent + '20' },
-  subgroupOptionText: { color: theme.colors.text, fontSize: 16, fontWeight: '500' },
-  createSgBtn: { 
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', 
-    padding: 16, backgroundColor: theme.colors.surfaceLight, borderRadius: 12, 
-    marginTop: 8, borderStyle: 'dashed', borderWidth: 1, borderColor: theme.colors.border 
-  },
-  createSgText: { color: theme.colors.accent, marginLeft: 8, fontWeight: 'bold' },
-  createSgRow: { flexDirection: 'row', gap: 10, marginTop: 8 },
-  sgInput: { 
-    flex: 1, backgroundColor: theme.colors.surfaceLight, color: theme.colors.text, 
-    paddingHorizontal: 16, height: 50, borderRadius: 12 
-  },
-  sgSaveBtn: { 
-    backgroundColor: theme.colors.accent, paddingHorizontal: 20, 
-    justifyContent: 'center', alignItems: 'center', borderRadius: 12 
+  sgOptionText: {
+    color: '#FFF',
+    fontSize: 16,
+    textAlign: 'center',
+    fontWeight: '500',
   }
 });

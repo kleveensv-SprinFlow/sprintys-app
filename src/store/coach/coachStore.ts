@@ -34,13 +34,18 @@ interface CoachState {
 
   fetchTeams: () => Promise<void>;
   createTeam: (name: string) => Promise<Team | null>;
+  updateTeam: (teamId: string, name: string) => Promise<void>;
+  deleteTeam: (teamId: string) => Promise<void>;
   fetchSubgroups: (teamId: string) => Promise<void>;
   createSubgroup: (teamId: string, name: string) => Promise<Subgroup | null>;
+  updateSubgroup: (subgroupId: string, name: string) => Promise<void>;
+  deleteSubgroup: (subgroupId: string) => Promise<void>;
   fetchTeamMembers: (teamId: string) => Promise<void>;
   fetchTeamCheckIns: (teamId: string, dateStr: string) => Promise<void>;
   assignSubgroup: (userId: string, teamId: string, subgroupId: string | null) => Promise<void>;
   approveAthlete: (userId: string, teamId: string) => Promise<void>;
   rejectAthlete: (userId: string, teamId: string) => Promise<void>;
+  removeAthlete: (userId: string, teamId: string) => Promise<void>;
   subscribeToTeam: (teamId: string) => void;
   unsubscribe: () => void;
 }
@@ -107,6 +112,33 @@ export const useCoachStore = create<CoachState>((set, get) => ({
     }
   },
 
+  updateTeam: async (teamId: string, name: string) => {
+    try {
+      const { error } = await supabase.from('teams').update({ name }).eq('id', teamId);
+      if (error) throw error;
+      set((state) => ({
+        teams: state.teams.map(t => t.id === teamId ? { ...t, name } : t)
+      }));
+    } catch (err: any) {
+      set({ error: err.message });
+    }
+  },
+
+  deleteTeam: async (teamId: string) => {
+    try {
+      const { error } = await supabase.from('teams').delete().eq('id', teamId);
+      if (error) throw error;
+      set((state) => ({
+        teams: state.teams.filter(t => t.id !== teamId),
+        subgroups: state.subgroups.filter(sg => sg.team_id !== teamId),
+        teamMembers: state.teamMembers.filter(m => m.team_id !== teamId),
+        pendingMembers: state.pendingMembers.filter(m => m.team_id !== teamId)
+      }));
+    } catch (err: any) {
+      set({ error: err.message });
+    }
+  },
+
   fetchSubgroups: async (teamId: string) => {
     try {
       const { data, error } = await supabase
@@ -134,6 +166,31 @@ export const useCoachStore = create<CoachState>((set, get) => ({
     } catch (err: any) {
       set({ error: err.message });
       return null;
+    }
+  },
+
+  updateSubgroup: async (subgroupId: string, name: string) => {
+    try {
+      const { error } = await supabase.from('subgroups').update({ name }).eq('id', subgroupId);
+      if (error) throw error;
+      set((state) => ({
+        subgroups: state.subgroups.map(sg => sg.id === subgroupId ? { ...sg, name } : sg)
+      }));
+    } catch (err: any) {
+      set({ error: err.message });
+    }
+  },
+
+  deleteSubgroup: async (subgroupId: string) => {
+    try {
+      const { error } = await supabase.from('subgroups').delete().eq('id', subgroupId);
+      if (error) throw error;
+      set((state) => ({
+        subgroups: state.subgroups.filter(sg => sg.id !== subgroupId),
+        teamMembers: state.teamMembers.map(m => m.subgroup_id === subgroupId ? { ...m, subgroup_id: null } : m)
+      }));
+    } catch (err: any) {
+      set({ error: err.message });
     }
   },
 
@@ -246,6 +303,23 @@ export const useCoachStore = create<CoachState>((set, get) => ({
 
       set((state) => ({
         pendingMembers: state.pendingMembers.filter(m => !(m.user_id === userId && m.team_id === teamId))
+      }));
+    } catch (err: any) {
+      set({ error: err.message });
+    }
+  },
+
+  removeAthlete: async (userId: string, teamId: string) => {
+    try {
+      const { error } = await supabase
+        .from('team_members')
+        .delete()
+        .match({ user_id: userId, team_id: teamId });
+        
+      if (error) throw error;
+
+      set((state) => ({
+        teamMembers: state.teamMembers.filter(m => !(m.user_id === userId && m.team_id === teamId))
       }));
     } catch (err: any) {
       set({ error: err.message });
