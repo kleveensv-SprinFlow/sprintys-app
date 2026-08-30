@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Text, ActivityIndicator, TouchableOpacity, Modal } from 'react-native';
+import { View, StyleSheet, ScrollView, Text, ActivityIndicator, TouchableOpacity, Modal, Alert } from 'react-native';
 import { useTheme } from '../../src/core/theme';
 import { HorizontalCalendar } from '../../src/shared/components/HorizontalCalendar';
 import { WorkoutCard } from '../../src/shared/components/WorkoutCard';
 import { HybridWorkoutBuilder } from '../../src/features/calendar/components/HybridWorkoutBuilder';
+import { StrengthWorkoutBuilder } from '../../src/features/calendar/components/StrengthWorkoutBuilder';
 import { supabase } from '../../src/services/supabase';
 import { useAuthStore } from '../../src/store/authStore';
 import { Feather } from '@expo/vector-icons';
@@ -16,7 +17,7 @@ export default function CoachCalendarScreen() {
   const [isLoading, setIsLoading] = useState(true);
   
   // For building new sessions
-  const [isBuilderVisible, setIsBuilderVisible] = useState(false);
+  const [builderType, setBuilderType] = useState<'none' | 'hybrid' | 'strength'>('none');
 
   useEffect(() => {
     if (user?.id) {
@@ -56,8 +57,29 @@ export default function CoachCalendarScreen() {
   };
 
   const handleSaveWorkout = () => {
-    setIsBuilderVisible(false);
-    fetchWorkouts(selectedDate); // Refresh the list
+    setBuilderType('none');
+    fetchWorkouts(selectedDate);
+  };
+
+  const handleAddPress = () => {
+    Alert.alert(
+      "Type de séance",
+      "Quel type de séance souhaitez-vous créer ?",
+      [
+        {
+          text: "Séance Terrain/Piste",
+          onPress: () => setBuilderType('hybrid')
+        },
+        {
+          text: "Séance Musculation",
+          onPress: () => setBuilderType('strength')
+        },
+        {
+          text: "Annuler",
+          style: "cancel"
+        }
+      ]
+    );
   };
 
   return (
@@ -89,7 +111,7 @@ export default function CoachCalendarScreen() {
             
             <TouchableOpacity 
               style={[styles.addButton, { backgroundColor: theme.colors.accent }]}
-              onPress={() => setIsBuilderVisible(true)}
+              onPress={handleAddPress}
             >
               <Feather name="plus" size={20} color="#fff" />
               <Text style={styles.addButtonText}>Ajouter une séance</Text>
@@ -101,7 +123,7 @@ export default function CoachCalendarScreen() {
               <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>
                 {workouts.length} séance(s) prévue(s)
               </Text>
-              <TouchableOpacity onPress={() => setIsBuilderVisible(true)}>
+              <TouchableOpacity onPress={handleAddPress}>
                 <Feather name="plus-circle" size={24} color={theme.colors.accent} />
               </TouchableOpacity>
             </View>
@@ -111,6 +133,9 @@ export default function CoachCalendarScreen() {
               const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
               
               let summary = w.description ? (w.description.substring(0, 50) + '...') : '';
+              if (w.exercises && Array.isArray(w.exercises) && w.exercises.length > 0) {
+                summary = `${w.exercises.length} exercices (Musculation)`;
+              }
 
               return (
                 <WorkoutCard 
@@ -130,11 +155,19 @@ export default function CoachCalendarScreen() {
         )}
       </ScrollView>
 
-      {/* Full screen modal for the Fast Builder */}
-      <Modal visible={isBuilderVisible} animationType="slide" presentationStyle="formSheet">
+      {/* Modals for Builders */}
+      <Modal visible={builderType === 'hybrid'} animationType="slide" presentationStyle="formSheet">
         <HybridWorkoutBuilder 
           date={selectedDate}
-          onClose={() => setIsBuilderVisible(false)}
+          onClose={() => setBuilderType('none')}
+          onSave={handleSaveWorkout}
+        />
+      </Modal>
+
+      <Modal visible={builderType === 'strength'} animationType="slide" presentationStyle="formSheet">
+        <StrengthWorkoutBuilder 
+          date={selectedDate}
+          onClose={() => setBuilderType('none')}
           onSave={handleSaveWorkout}
         />
       </Modal>
