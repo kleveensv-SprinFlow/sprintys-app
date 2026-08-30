@@ -24,7 +24,7 @@ export default function RootLayout() {
         params: { email: pendingEmail }
       });
     } else if (!user && !pendingEmail && !inAuthGroup) {
-      router.replace('/login');
+      router.replace('/(auth)/login');
     } else if (user && inAuthGroup) {
       // Redirect based on role
       if (user.role === 'coach') {

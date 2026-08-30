@@ -142,7 +142,7 @@ export const RegisterMultiStep = () => {
 
         {step === 1 && (
           <TouchableOpacity
-            onPress={() => router.push('/login')}
+            onPress={() => router.push('/(auth)/login')}
             style={styles.loginLink}
           >
             <Text style={[styles.loginText, { color: theme.colors.textSecondary }]}>

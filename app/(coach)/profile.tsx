@@ -13,7 +13,7 @@ export default function ProfileScreen() {
 
   const handleLogout = async () => {
     await logout();
-    router.replace('/login');
+    router.replace('/(auth)/login');
   };
 
   // Mocking detailed info as requested (no DB change)

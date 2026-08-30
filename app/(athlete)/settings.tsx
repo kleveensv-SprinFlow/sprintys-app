@@ -14,7 +14,7 @@ export default function SettingsScreen() {
       { text: 'Annuler', style: 'cancel' },
       { text: 'Se déconnecter', style: 'destructive', onPress: async () => {
           await logout();
-          router.replace('/login');
+          router.replace('/(auth)/login');
       }},
     ]);
   };

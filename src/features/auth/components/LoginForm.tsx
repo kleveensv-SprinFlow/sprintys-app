@@ -61,7 +61,7 @@ export const LoginForm = () => {
       />
 
       <TouchableOpacity 
-        onPress={() => router.push('/signup')}
+        onPress={() => router.push('/(auth)/signup')}
         style={styles.signupLink}
       >
         <Text style={[styles.signupText, { color: theme.colors.textSecondary }]}>
