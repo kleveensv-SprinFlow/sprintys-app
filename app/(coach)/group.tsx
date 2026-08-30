@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, TextInput, ActivityIndicator, FlatList, Alert, Modal, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { theme } from '../../../core/theme';
-import { useAuthStore } from '../../../store/authStore';
-import { useCoachStore, Team, Subgroup } from '../../../store/coach/coachStore';
-import { ProfileAvatar } from '../../../shared/components/ProfileAvatar';
+import { theme } from '../../src/core/theme';
+import { useAuthStore } from '../../src/store/authStore';
+import { useCoachStore, Team, Subgroup } from '../../src/store/coach/coachStore';
+import { ProfileAvatar } from '../../src/shared/components/ProfileAvatar';
 import { useRouter } from 'expo-router';
 
-export const CoachDashboard: React.FC = () => {
+export default function CoachGroupScreen() {
   const { user } = useAuthStore();
   const { 
     teams, subgroups, isLoading, 
@@ -51,6 +51,15 @@ export const CoachDashboard: React.FC = () => {
     };
   }, [activeTeamId]);
 
+  // Auto-création du groupe si le coach l'a défini à l'inscription
+  useEffect(() => {
+    if (!isLoading && teams.length === 0 && user?.groupName && !isCreating) {
+      createTeam(user.groupName).then((newTeam) => {
+        if (newTeam) setActiveTeamId(newTeam.id);
+      });
+    }
+  }, [isLoading, teams.length, user]);
+
   const handleCreateTeam = async () => {
     if (!newTeamName.trim()) return;
     const newTeam = await createTeam(newTeamName.trim());
@@ -79,13 +88,8 @@ export const CoachDashboard: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <View style={styles.headerTop}>
-            <Text style={styles.welcome}>ESPACE COACH</Text>
-          </View>
-          <Text style={styles.title}>Salut, {user?.name?.split(' ')[0]}</Text>
-        </View>
-        <ProfileAvatar onPress={() => router.push('/(coach)/profile')} />
+        <Text style={styles.welcome}>VOS ÉQUIPES</Text>
+        <Text style={styles.title}>Gestion des athlètes</Text>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
