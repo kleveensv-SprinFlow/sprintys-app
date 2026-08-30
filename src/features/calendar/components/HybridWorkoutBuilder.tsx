@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../../../core/theme';
 import { supabase } from '../../../services/supabase';
@@ -14,20 +14,33 @@ interface HybridWorkoutBuilderProps {
 }
 
 type TargetType = 'team' | 'subgroup' | 'athlete';
-type MeasureType = 'chrono' | 'weight' | 'distance';
+type BlockMode = 'structured' | 'free';
+type DistanceUnit = 'm' | 'sec' | 'min' | 'km';
 
-interface Measure {
+interface CourseEffort {
+  id: string;
+  sets: string;
+  reps: string;
+  distance: string;
+  unit: DistanceUnit;
+  target: string;
+  rest_rep: string;
+  rest_set: string;
+}
+
+interface CourseBlock {
   id: string;
   name: string;
-  type: MeasureType;
+  mode: BlockMode;
+  free_text: string;
+  efforts: CourseEffort[];
 }
 
 export const HybridWorkoutBuilder: React.FC<HybridWorkoutBuilderProps> = ({ date, onClose, onSave, defaultTitle }) => {
   const { user } = useAuthStore();
   const { teams, subgroups, teamMembers } = useCoachStore();
 
-  const [title, setTitle] = useState(defaultTitle || '');
-  const [description, setDescription] = useState('');
+  const [title, setTitle] = useState(defaultTitle || 'Séance Course');
   const [intensity, setIntensity] = useState<number>(3);
   
   const [targetType, setTargetType] = useState<TargetType>('team');
@@ -35,17 +48,81 @@ export const HybridWorkoutBuilder: React.FC<HybridWorkoutBuilderProps> = ({ date
   const [selectedSubgroupId, setSelectedSubgroupId] = useState<string | null>(null);
   const [selectedAthleteId, setSelectedAthleteId] = useState<string | null>(null);
 
-  const [measures, setMeasures] = useState<Measure[]>([]);
+  const [blocks, setBlocks] = useState<CourseBlock[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [showTargetModal, setShowTargetModal] = useState(false);
 
+  const getNextBlockName = () => {
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const nextIndex = blocks.length % 26;
+    return `Bloc ${alphabet[nextIndex]}`;
+  };
+
+  const handleAddBlock = () => {
+    const newBlock: CourseBlock = {
+      id: Math.random().toString(36).substring(2, 9),
+      name: getNextBlockName(),
+      mode: 'structured',
+      free_text: '',
+      efforts: [
+        { id: Math.random().toString(36).substring(2, 9), sets: '1', reps: '1', distance: '', unit: 'm', target: '', rest_rep: '', rest_set: '' }
+      ]
+    };
+    setBlocks([...blocks, newBlock]);
+  };
+
+  const removeBlock = (blockId: string) => {
+    setBlocks(blocks.filter(b => b.id !== blockId));
+  };
+
+  const handleAddEffortToBlock = (blockId: string) => {
+    setBlocks(blocks.map(b => {
+      if (b.id === blockId) {
+        const lastEffort = b.efforts[b.efforts.length - 1];
+        const newEffort: CourseEffort = lastEffort 
+          ? { ...lastEffort, id: Math.random().toString(36).substring(2, 9) }
+          : { id: Math.random().toString(36).substring(2, 9), sets: '1', reps: '1', distance: '', unit: 'm', target: '', rest_rep: '', rest_set: '' };
+        return { ...b, efforts: [...b.efforts, newEffort] };
+      }
+      return b;
+    }));
+  };
+
+  const removeEffort = (blockId: string, effortId: string) => {
+    setBlocks(blocks.map(b => {
+      if (b.id === blockId) {
+        return { ...b, efforts: b.efforts.filter(e => e.id !== effortId) };
+      }
+      return b;
+    }));
+  };
+
+  const cycleDistanceUnit = (unit: DistanceUnit): DistanceUnit => {
+    const units: DistanceUnit[] = ['m', 'sec', 'min', 'km'];
+    const idx = units.indexOf(unit);
+    return units[(idx + 1) % units.length];
+  };
+
+  const updateBlock = (blockId: string, field: keyof CourseBlock, value: any) => {
+    setBlocks(blocks.map(b => b.id === blockId ? { ...b, [field]: value } : b));
+  };
+
+  const updateEffort = (blockId: string, effortId: string, field: keyof CourseEffort, value: any) => {
+    setBlocks(blocks.map(b => {
+      if (b.id === blockId) {
+        return {
+          ...b,
+          efforts: b.efforts.map(e => e.id === effortId ? { ...e, [field]: value } : e)
+        };
+      }
+      return b;
+    }));
+  };
+
   const handleSave = async () => {
-    if (!title.trim() || !user?.id) {
-      Alert.alert('Erreur', 'Veuillez au moins renseigner le titre de la séance.');
-      return;
-    }
-    if (!selectedTeamId) {
-      Alert.alert('Erreur', 'Aucune équipe sélectionnée.');
+    if (!user?.id) return;
+    if (!title.trim()) {
+      Alert.alert('Erreur', 'Veuillez saisir un titre pour la séance.');
       return;
     }
 
@@ -58,9 +135,8 @@ export const HybridWorkoutBuilder: React.FC<HybridWorkoutBuilderProps> = ({ date
         athlete_id: targetType === 'athlete' ? selectedAthleteId : null,
         date_prevue: date.toISOString(),
         type_seance: title.trim(),
-        description: description.trim(),
         intensity,
-        measures,
+        blocks, // JSONB mapping for the running blocks
         status: 'planned'
       }]);
 
@@ -73,144 +149,203 @@ export const HybridWorkoutBuilder: React.FC<HybridWorkoutBuilderProps> = ({ date
     }
   };
 
-  const addMeasure = (type: MeasureType) => {
-    setMeasures([...measures, {
-      id: Math.random().toString(36).substr(2, 9),
-      name: '',
-      type
-    }]);
-  };
-
-  const updateMeasure = (id: string, name: string) => {
-    setMeasures(measures.map(m => m.id === id ? { ...m, name } : m));
-  };
-
-  const removeMeasure = (id: string) => {
-    setMeasures(measures.filter(m => m.id !== id));
-  };
-
-  const renderTargetLabel = () => {
-    if (targetType === 'team') {
-      const t = teams.find(t => t.id === selectedTeamId);
-      return t ? `Équipe : ${t.name}` : 'Choisir une cible';
-    } else if (targetType === 'subgroup') {
-      const sg = subgroups.find(s => s.id === selectedSubgroupId);
-      return sg ? `Sous-groupe : ${sg.name}` : 'Choisir une cible';
-    } else {
-      const athlete = teamMembers.find(m => m.user_id === selectedAthleteId);
-      return athlete ? `Athlète : ${athlete.profile?.full_name}` : 'Choisir une cible';
-    }
-  };
-
+  // Targeting variables
   const currentTeamSubgroups = subgroups.filter(sg => sg.team_id === selectedTeamId);
-  const currentTeamAthletes = teamMembers.filter(m => m.team_id === selectedTeamId);
+  const currentTeamAthletes = teamMembers.filter(tm => tm.team_id === selectedTeamId);
+  let targetDisplay = 'Sélectionner...';
+  if (targetType === 'team' && selectedTeamId) {
+    targetDisplay = teams.find(t => t.id === selectedTeamId)?.name || targetDisplay;
+  } else if (targetType === 'subgroup' && selectedSubgroupId) {
+    targetDisplay = subgroups.find(sg => sg.id === selectedSubgroupId)?.name || targetDisplay;
+  } else if (targetType === 'athlete' && selectedAthleteId) {
+    targetDisplay = currentTeamAthletes.find(a => a.user_id === selectedAthleteId)?.profile?.full_name || targetDisplay;
+  }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={onClose} style={styles.iconButton}>
+        <TouchableOpacity style={styles.iconButton} onPress={onClose}>
           <Feather name="x" size={24} color={theme.colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Nouvelle Séance</Text>
+        <Text style={styles.headerTitle}>Séance Course</Text>
         <TouchableOpacity 
-          onPress={handleSave} 
+          style={[styles.saveButton, { backgroundColor: isSaving ? theme.colors.surfaceLight : theme.colors.accent }]} 
+          onPress={handleSave}
           disabled={isSaving}
-          style={[styles.saveButton, { backgroundColor: theme.colors.accent, opacity: isSaving ? 0.7 : 1 }]}
         >
-          {isSaving ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.saveButtonText}>Valider</Text>}
+          {isSaving ? <ActivityIndicator size="small" color={theme.colors.accent} /> : <Text style={styles.saveButtonText}>Valider</Text>}
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        
-        {/* TITRE ET CIBLE */}
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        {/* TITRE */}
+        <TextInput
+          style={styles.titleInput}
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Titre de la séance"
+          placeholderTextColor={theme.colors.textMuted}
+        />
+
+        {/* CIBLAGE */}
         <View style={styles.section}>
-          <TextInput
-            style={[styles.titleInput, { color: theme.colors.text }]}
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Titre (ex: Vitesse Max)"
-            placeholderTextColor={theme.colors.textMuted}
-          />
+          <Text style={styles.sectionLabel}>Cibler</Text>
           <TouchableOpacity style={styles.targetButton} onPress={() => setShowTargetModal(true)}>
             <Feather name="users" size={16} color={theme.colors.accent} />
-            <Text style={styles.targetButtonText}>{renderTargetLabel()}</Text>
-            <Feather name="chevron-down" size={16} color={theme.colors.textMuted} />
+            <Text style={styles.targetButtonText}>{targetDisplay}</Text>
           </TouchableOpacity>
         </View>
 
-        {/* INTENSITE */}
+        {/* BLOCKS */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Intensité prévue</Text>
-          <View style={styles.intensityRow}>
-            {[1, 2, 3, 4, 5].map(val => (
-              <TouchableOpacity 
-                key={val}
-                style={[
-                  styles.intensityDot,
-                  intensity >= val ? { backgroundColor: getIntensityColor(val) } : { backgroundColor: theme.colors.surfaceLight }
-                ]}
-                onPress={() => setIntensity(val)}
-              />
-            ))}
-          </View>
-        </View>
+          <Text style={styles.sectionLabel}>Programme</Text>
+          
+          {blocks.map((block) => (
+            <View key={block.id} style={styles.blockCard}>
+              <View style={styles.blockHeader}>
+                <TextInput
+                  style={styles.blockTitleInput}
+                  value={block.name}
+                  onChangeText={(t) => updateBlock(block.id, 'name', t)}
+                  placeholder="Nom du bloc"
+                  placeholderTextColor={theme.colors.textMuted}
+                />
+                
+                <View style={styles.blockActions}>
+                  {/* Toggle Mode */}
+                  <TouchableOpacity 
+                    style={styles.modeToggleBtn}
+                    onPress={() => updateBlock(block.id, 'mode', block.mode === 'structured' ? 'free' : 'structured')}
+                  >
+                    <Feather name={block.mode === 'structured' ? 'list' : 'align-left'} size={16} color={theme.colors.accent} />
+                    <Text style={styles.modeToggleText}>{block.mode === 'structured' ? 'Piste' : 'Terrain'}</Text>
+                  </TouchableOpacity>
 
-        {/* DESCRIPTION (90%) */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Contenu de la séance</Text>
-          <TextInput
-            style={[styles.descInput, { backgroundColor: theme.colors.surfaceLight, color: theme.colors.text }]}
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Écrivez le déroulement de la séance librement... (Échauffement, consignes, répétitions)"
-            placeholderTextColor={theme.colors.textMuted}
-            multiline
-            textAlignVertical="top"
-          />
-        </View>
-
-        {/* MESURES (10%) */}
-        <View style={styles.section}>
-          <View style={styles.measureHeaderRow}>
-            <Text style={styles.sectionLabel}>Champs de Mesure (Optionnel)</Text>
-          </View>
-          <Text style={styles.measureHelper}>
-            Ajoutez des champs pour que les athlètes saisissent leurs performances (chronos, poids) en fin de séance.
-          </Text>
-
-          {measures.map((measure, index) => (
-            <View key={measure.id} style={styles.measureCard}>
-              <View style={styles.measureIcon}>
-                <Feather name={measure.type === 'chrono' ? 'clock' : measure.type === 'weight' ? 'box' : 'map-pin'} size={18} color={theme.colors.accent} />
+                  <TouchableOpacity onPress={() => removeBlock(block.id)} style={{ padding: 4 }}>
+                    <Feather name="trash-2" size={18} color={theme.colors.error} />
+                  </TouchableOpacity>
+                </View>
               </View>
-              <TextInput
-                style={styles.measureInput}
-                value={measure.name}
-                onChangeText={(t) => updateMeasure(measure.id, t)}
-                placeholder={measure.type === 'chrono' ? "Nom du test (ex: 60m)" : "Exercice (ex: Squat)"}
-                placeholderTextColor={theme.colors.textMuted}
-              />
-              <TouchableOpacity onPress={() => removeMeasure(measure.id)}>
-                <Feather name="trash-2" size={18} color={theme.colors.error} />
-              </TouchableOpacity>
+
+              {block.mode === 'free' ? (
+                <View style={styles.freeModeContainer}>
+                  <TextInput
+                    style={styles.freeModeInput}
+                    multiline
+                    value={block.free_text}
+                    onChangeText={(t) => updateBlock(block.id, 'free_text', t)}
+                    placeholder="Ex: 30 minutes de footing sur pelouse au feeling, puis gammes athlétiques..."
+                    placeholderTextColor={theme.colors.textMuted}
+                  />
+                  <Text style={styles.freeModeHelper}>
+                    Aucune case de chrono ne sera générée pour les athlètes sur ce bloc.
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.structuredModeContainer}>
+                  {block.efforts.map((effort, eIdx) => (
+                    <View key={effort.id} style={styles.effortCard}>
+                      <View style={styles.effortHeader}>
+                        <Text style={styles.effortTitle}>Groupe d'effort {eIdx + 1}</Text>
+                        <TouchableOpacity onPress={() => removeEffort(block.id, effort.id)}>
+                          <Feather name="x" size={16} color={theme.colors.textMuted} />
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Multiplier Row: Séries x Reps */}
+                      <View style={styles.multiplierContainer}>
+                        <View style={styles.multiplierBox}>
+                          <Text style={styles.multiplierLabel}>SÉRIES</Text>
+                          <TextInput 
+                            style={styles.multiplierInput} 
+                            value={effort.sets} 
+                            onChangeText={t => updateEffort(block.id, effort.id, 'sets', t)}
+                            keyboardType="numeric"
+                          />
+                        </View>
+                        <Text style={styles.multiplierX}>×</Text>
+                        <View style={styles.multiplierBox}>
+                          <Text style={styles.multiplierLabel}>RÉPÉTITIONS</Text>
+                          <TextInput 
+                            style={styles.multiplierInput} 
+                            value={effort.reps} 
+                            onChangeText={t => updateEffort(block.id, effort.id, 'reps', t)}
+                            keyboardType="numeric"
+                          />
+                        </View>
+                      </View>
+
+                      {/* Distance & Cible */}
+                      <View style={styles.twoColRow}>
+                        <View style={styles.inputGroup}>
+                          <Text style={styles.inputGroupLabel}>Distance / Temps</Text>
+                          <View style={styles.smartInputContainer}>
+                            <TextInput 
+                              style={styles.smartInput} 
+                              value={effort.distance}
+                              onChangeText={t => updateEffort(block.id, effort.id, 'distance', t)}
+                              placeholder="Ex: 60"
+                              placeholderTextColor={theme.colors.textMuted}
+                              keyboardType="numeric"
+                            />
+                            <TouchableOpacity 
+                              style={styles.smartUnitBtn} 
+                              onPress={() => updateEffort(block.id, effort.id, 'unit', cycleDistanceUnit(effort.unit))}
+                            >
+                              <Text style={styles.smartUnitText}>{effort.unit}</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                        
+                        <View style={styles.inputGroup}>
+                          <Text style={styles.inputGroupLabel}>Cible / Intensité</Text>
+                          <TextInput 
+                            style={styles.standardInput} 
+                            value={effort.target}
+                            onChangeText={t => updateEffort(block.id, effort.id, 'target', t)}
+                            placeholder="Ex: 95% ou 7.2s"
+                            placeholderTextColor={theme.colors.textMuted}
+                          />
+                        </View>
+                      </View>
+
+                      {/* Repos */}
+                      <View style={styles.twoColRow}>
+                        <View style={styles.inputGroup}>
+                          <Text style={styles.inputGroupLabel}>Repos (Entre reps)</Text>
+                          <TextInput 
+                            style={styles.standardInput} 
+                            value={effort.rest_rep}
+                            onChangeText={t => updateEffort(block.id, effort.id, 'rest_rep', t)}
+                            placeholder="Ex: 2:00"
+                            placeholderTextColor={theme.colors.textMuted}
+                          />
+                        </View>
+                        <View style={styles.inputGroup}>
+                          <Text style={styles.inputGroupLabel}>Repos (Entre séries)</Text>
+                          <TextInput 
+                            style={styles.standardInput} 
+                            value={effort.rest_set}
+                            onChangeText={t => updateEffort(block.id, effort.id, 'rest_set', t)}
+                            placeholder="Ex: 5:00"
+                            placeholderTextColor={theme.colors.textMuted}
+                          />
+                        </View>
+                      </View>
+                    </View>
+                  ))}
+
+                  <TouchableOpacity style={styles.addEffortBtn} onPress={() => handleAddEffortToBlock(block.id)}>
+                    <Text style={styles.addEffortText}>+ Ajouter un effort</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           ))}
-
-          <View style={styles.addMeasureRow}>
-            <TouchableOpacity style={styles.addMeasureBtn} onPress={() => addMeasure('chrono')}>
-              <Feather name="clock" size={14} color={theme.colors.text} />
-              <Text style={styles.addMeasureText}>+ Chrono</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.addMeasureBtn} onPress={() => addMeasure('weight')}>
-              <Feather name="box" size={14} color={theme.colors.text} />
-              <Text style={styles.addMeasureText}>+ Poids</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.addMeasureBtn} onPress={() => addMeasure('distance')}>
-              <Feather name="map-pin" size={14} color={theme.colors.text} />
-              <Text style={styles.addMeasureText}>+ Distance</Text>
-            </TouchableOpacity>
-          </View>
+          
+          <TouchableOpacity style={styles.addBlockBtn} onPress={handleAddBlock}>
+            <Text style={styles.addBlockText}>+ Ajouter un Bloc</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={{ height: 100 }} />
@@ -221,42 +356,28 @@ export const HybridWorkoutBuilder: React.FC<HybridWorkoutBuilderProps> = ({ date
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Cibler la séance</Text>
-            
-            <Text style={styles.modalSubtitle}>Équipe entière</Text>
-            {teams.map(t => (
-              <TouchableOpacity key={t.id} style={styles.targetOption} onPress={() => {
-                setSelectedTeamId(t.id);
-                setTargetType('team');
-                setShowTargetModal(false);
-              }}>
-                <Text style={styles.targetOptionText}>{t.name}</Text>
-              </TouchableOpacity>
-            ))}
+            <ScrollView style={{ maxHeight: 400 }}>
+              <Text style={styles.modalSubtitle}>Équipe entière</Text>
+              {teams.map(t => (
+                <TouchableOpacity key={t.id} style={styles.targetOption} onPress={() => { setSelectedTeamId(t.id); setTargetType('team'); setShowTargetModal(false); }}>
+                  <Text style={styles.targetOptionText}>{t.name}</Text>
+                </TouchableOpacity>
+              ))}
+              
+              {currentTeamSubgroups.length > 0 && <Text style={styles.modalSubtitle}>Sous-groupes</Text>}
+              {currentTeamSubgroups.map(sg => (
+                <TouchableOpacity key={sg.id} style={styles.targetOption} onPress={() => { setSelectedSubgroupId(sg.id); setTargetType('subgroup'); setShowTargetModal(false); }}>
+                  <Text style={styles.targetOptionText}>{sg.name}</Text>
+                </TouchableOpacity>
+              ))}
 
-            {currentTeamSubgroups.length > 0 && <Text style={styles.modalSubtitle}>Sous-groupes</Text>}
-            {currentTeamSubgroups.map(sg => (
-              <TouchableOpacity key={sg.id} style={styles.targetOption} onPress={() => {
-                setSelectedSubgroupId(sg.id);
-                setTargetType('subgroup');
-                setShowTargetModal(false);
-              }}>
-                <Text style={styles.targetOptionText}>{sg.name}</Text>
-              </TouchableOpacity>
-            ))}
-
-            {currentTeamAthletes.length > 0 && <Text style={styles.modalSubtitle}>Individuel</Text>}
-            <ScrollView style={{ maxHeight: 200 }}>
+              {currentTeamAthletes.length > 0 && <Text style={styles.modalSubtitle}>Individuel</Text>}
               {currentTeamAthletes.map(a => (
-                <TouchableOpacity key={a.user_id} style={styles.targetOption} onPress={() => {
-                  setSelectedAthleteId(a.user_id);
-                  setTargetType('athlete');
-                  setShowTargetModal(false);
-                }}>
+                <TouchableOpacity key={a.user_id} style={styles.targetOption} onPress={() => { setSelectedAthleteId(a.user_id); setTargetType('athlete'); setShowTargetModal(false); }}>
                   <Text style={styles.targetOptionText}>{a.profile?.full_name}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
-
             <TouchableOpacity style={styles.modalCancel} onPress={() => setShowTargetModal(false)}>
               <Text style={styles.modalCancelText}>Fermer</Text>
             </TouchableOpacity>
@@ -264,14 +385,8 @@ export const HybridWorkoutBuilder: React.FC<HybridWorkoutBuilderProps> = ({ date
         </View>
       </Modal>
 
-    </View>
+    </KeyboardAvoidingView>
   );
-};
-
-const getIntensityColor = (val: number) => {
-  if (val <= 2) return theme.colors.success;
-  if (val === 3) return theme.colors.warning;
-  return theme.colors.error;
 };
 
 const styles = StyleSheet.create({
@@ -287,39 +402,90 @@ const styles = StyleSheet.create({
   saveButton: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20 },
   saveButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 14 },
   scrollContent: { padding: 24 },
-  section: { marginBottom: 28 },
-  sectionLabel: { fontSize: 14, fontWeight: 'bold', color: theme.colors.textSecondary, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 },
-  titleInput: { fontSize: 24, fontWeight: 'bold', marginBottom: 16, paddingVertical: 8 },
+  section: { marginBottom: 24 },
+  sectionLabel: { fontSize: 13, fontWeight: 'bold', color: theme.colors.textMuted, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 },
+  titleInput: { fontSize: 24, fontWeight: '800', marginBottom: 24, paddingVertical: 8, color: theme.colors.text },
+  
   targetButton: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.accent + '15',
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, alignSelf: 'flex-start', gap: 8
   },
   targetButtonText: { color: theme.colors.accent, fontWeight: 'bold', fontSize: 14 },
-  intensityRow: { flexDirection: 'row', gap: 12 },
-  intensityDot: { width: 36, height: 36, borderRadius: 18 },
-  descInput: { height: 180, borderRadius: 16, padding: 16, fontSize: 16, lineHeight: 24 },
-  measureHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  measureHelper: { fontSize: 13, color: theme.colors.textMuted, marginBottom: 16, lineHeight: 18 },
-  measureCard: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface,
-    borderWidth: 1, borderColor: theme.colors.border, padding: 12, borderRadius: 12, marginBottom: 12, gap: 12
+
+  // Blocks
+  blockCard: {
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1, borderColor: theme.colors.border,
+    borderRadius: 20, padding: 16, marginBottom: 16,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2
   },
-  measureIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: theme.colors.accent + '20', justifyContent: 'center', alignItems: 'center' },
-  measureInput: { flex: 1, fontSize: 16, color: theme.colors.text },
-  addMeasureRow: { flexDirection: 'row', gap: 12, marginTop: 8, flexWrap: 'wrap' },
-  addMeasureBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: theme.colors.surfaceLight,
-    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderColor: theme.colors.border
+  blockHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  blockTitleInput: { fontSize: 18, fontWeight: 'bold', color: theme.colors.text, flex: 1 },
+  blockActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  modeToggleBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: theme.colors.accent + '15', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  modeToggleText: { color: theme.colors.accent, fontSize: 13, fontWeight: 'bold' },
+
+  addBlockBtn: { 
+    padding: 16, backgroundColor: theme.colors.surface, borderRadius: 16, 
+    borderWidth: 2, borderColor: theme.colors.border, borderStyle: 'dashed',
+    alignItems: 'center', justifyContent: 'center'
   },
-  addMeasureText: { color: theme.colors.text, fontSize: 13, fontWeight: '600' },
+  addBlockText: { color: theme.colors.textSecondary, fontWeight: '600', fontSize: 15 },
+
+  // Free Mode
+  freeModeContainer: { marginTop: 8 },
+  freeModeInput: {
+    backgroundColor: theme.colors.surfaceLight, color: theme.colors.text,
+    padding: 16, borderRadius: 16, minHeight: 120, fontSize: 15, lineHeight: 22, textAlignVertical: 'top'
+  },
+  freeModeHelper: { color: theme.colors.textMuted, fontSize: 12, marginTop: 8, fontStyle: 'italic', paddingHorizontal: 4 },
+
+  // Structured Mode (Efforts)
+  structuredModeContainer: { marginTop: 8 },
+  effortCard: {
+    backgroundColor: theme.colors.background,
+    borderWidth: 1, borderColor: theme.colors.border,
+    borderRadius: 16, padding: 16, marginBottom: 12
+  },
+  effortHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  effortTitle: { fontSize: 14, fontWeight: '700', color: theme.colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
   
-  // Modals
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: theme.colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24 },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', color: theme.colors.text, marginBottom: 20 },
-  modalSubtitle: { fontSize: 14, fontWeight: 'bold', color: theme.colors.textMuted, marginTop: 12, marginBottom: 8, textTransform: 'uppercase' },
-  targetOption: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
-  targetOptionText: { fontSize: 16, color: theme.colors.text },
-  modalCancel: { marginTop: 20, paddingVertical: 16, alignItems: 'center', backgroundColor: theme.colors.surfaceLight, borderRadius: 12 },
-  modalCancelText: { color: theme.colors.text, fontWeight: 'bold' }
+  multiplierContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 20, gap: 16 },
+  multiplierBox: { alignItems: 'center', flex: 1 },
+  multiplierLabel: { fontSize: 11, fontWeight: 'bold', color: theme.colors.textMuted, marginBottom: 6 },
+  multiplierInput: { 
+    backgroundColor: theme.colors.surfaceLight, color: theme.colors.text,
+    fontSize: 24, fontWeight: '800', textAlign: 'center',
+    width: '100%', paddingVertical: 12, borderRadius: 12
+  },
+  multiplierX: { fontSize: 24, fontWeight: '800', color: theme.colors.textSecondary, marginTop: 16 },
+
+  twoColRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  inputGroup: { flex: 1 },
+  inputGroupLabel: { fontSize: 12, fontWeight: '600', color: theme.colors.textSecondary, marginBottom: 6, paddingLeft: 4 },
+  standardInput: { backgroundColor: theme.colors.surfaceLight, color: theme.colors.text, padding: 12, borderRadius: 12, fontSize: 15, fontWeight: '500' },
+  
+  smartInputContainer: { flexDirection: 'row', flex: 1 },
+  smartInput: { 
+    flex: 1, backgroundColor: theme.colors.surfaceLight, color: theme.colors.text, 
+    padding: 12, borderTopLeftRadius: 12, borderBottomLeftRadius: 12, fontSize: 15, fontWeight: '500'
+  },
+  smartUnitBtn: { 
+    backgroundColor: theme.colors.text, paddingHorizontal: 12, 
+    borderTopRightRadius: 12, borderBottomRightRadius: 12, justifyContent: 'center', alignItems: 'center'
+  },
+  smartUnitText: { color: theme.colors.surface, fontSize: 12, fontWeight: 'bold' },
+
+  addEffortBtn: { alignSelf: 'center', marginTop: 8, paddingVertical: 10, paddingHorizontal: 20 },
+  addEffortText: { color: theme.colors.textSecondary, fontSize: 14, fontWeight: '600' },
+
+  // Target Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: theme.colors.surface, borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40 },
+  modalTitle: { fontSize: 22, fontWeight: '800', color: theme.colors.text },
+  modalSubtitle: { fontSize: 13, fontWeight: 'bold', color: theme.colors.textMuted, marginTop: 16, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 },
+  targetOption: { paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
+  targetOptionText: { fontSize: 16, color: theme.colors.text, fontWeight: '500' },
+  modalCancel: { marginTop: 24, paddingVertical: 16, alignItems: 'center', backgroundColor: theme.colors.surfaceLight, borderRadius: 16 },
+  modalCancelText: { color: theme.colors.text, fontWeight: '700', fontSize: 16 }
 });
