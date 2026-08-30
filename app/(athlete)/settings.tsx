@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../../src/core/theme';
 import { useAuthStore } from '../../src/store/authStore';
 import { useRouter } from 'expo-router';
+import { EditProfileModal } from '../../src/shared/components/EditProfileModal';
 
 export default function SettingsScreen() {
   const { user, logout } = useAuthStore();
   const router = useRouter();
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
 
   const handleLogout = async () => {
     Alert.alert('Déconnexion', 'Es-tu sûr de vouloir te déconnecter ?', [
@@ -32,6 +34,17 @@ export default function SettingsScreen() {
     </TouchableOpacity>
   );
 
+  const getInitials = () => {
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
+    }
+    return user?.name?.charAt(0).toUpperCase() || 'A';
+  };
+
+  const getHeightString = () => user?.height ? `${user.height} cm` : 'Non renseigné';
+  const getWeightString = () => user?.weight ? `${user.weight} kg` : 'Non renseigné';
+  const getInfoString = () => `${getHeightString()} • ${getWeightString()}`;
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -44,17 +57,24 @@ export default function SettingsScreen() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.profileHeader}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{user?.name?.charAt(0) || 'A'}</Text>
-          </View>
+          <TouchableOpacity style={styles.avatar} onPress={() => Alert.alert('Photo', 'La modification de photo arrivera bientôt !')}>
+            <Text style={styles.avatarText}>{getInitials()}</Text>
+            <View style={styles.avatarIconBadge}>
+              <Feather name="camera" size={12} color="#FFF" />
+            </View>
+          </TouchableOpacity>
           <Text style={styles.name}>{user?.name}</Text>
           <Text style={styles.email}>{user?.email}</Text>
         </View>
 
-        <Text style={styles.sectionTitle}>Données Athlétiques</Text>
+        <Text style={styles.sectionTitle}>Mon Compte</Text>
         <View style={styles.card}>
-          <SettingsItem icon="user" title="Taille" value="180 cm" onPress={() => {}} />
-          <SettingsItem icon="target" title="Objectif Calories" value={`${user?.manualKcalGoal || 2000} kcal`} onPress={() => {}} />
+          <SettingsItem 
+            icon="user" 
+            title="Mes informations" 
+            value={getInfoString()} 
+            onPress={() => setIsEditModalVisible(true)} 
+          />
         </View>
 
         <Text style={styles.sectionTitle}>Application</Text>
@@ -68,6 +88,11 @@ export default function SettingsScreen() {
           <SettingsItem icon="trash-2" title="Supprimer mon compte" isDestructive onPress={() => {}} />
         </View>
       </ScrollView>
+
+      <EditProfileModal 
+        visible={isEditModalVisible} 
+        onClose={() => setIsEditModalVisible(false)} 
+      />
     </SafeAreaView>
   );
 }
@@ -79,8 +104,9 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: 'bold', color: theme.colors.text },
   content: { flex: 1, paddingHorizontal: 20 },
   profileHeader: { alignItems: 'center', marginVertical: 20 },
-  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: theme.colors.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  avatar: { position: 'relative', width: 80, height: 80, borderRadius: 40, backgroundColor: theme.colors.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   avatarText: { fontSize: 32, fontWeight: 'bold', color: '#FFF' },
+  avatarIconBadge: { position: 'absolute', bottom: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.6)', width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: theme.colors.background },
   name: { fontSize: 24, fontWeight: 'bold', color: theme.colors.text, marginBottom: 4 },
   email: { fontSize: 14, color: theme.colors.textSecondary },
   sectionTitle: { fontSize: 14, fontWeight: 'bold', color: theme.colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: 20, marginBottom: 10, marginLeft: 10 },

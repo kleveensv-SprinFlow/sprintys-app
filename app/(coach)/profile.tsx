@@ -1,24 +1,26 @@
-import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { theme } from '../../src/core/theme';
 import { useAuthStore } from '../../src/store/authStore';
 import { ProfileAvatar } from '../../src/shared/components/ProfileAvatar';
 import { Button } from '../../src/shared/components/Button';
 import { GlassView } from '../../src/shared/components/GlassView';
+import { EditProfileModal } from '../../src/shared/components/EditProfileModal';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
   const router = useRouter();
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
 
   const handleLogout = async () => {
     await logout();
     router.replace('/(auth)/login');
   };
 
-  // Mocking detailed info as requested (no DB change)
-  const [firstName, ...lastNameParts] = (user?.name || 'Coach SprintFlow').split(' ');
-  const lastName = lastNameParts.join(' ');
+  const firstName = user?.firstName || 'Coach';
+  const lastName = user?.lastName || 'SprintFlow';
   const specialty = 'COACH SPRINT ÉLITE';
 
   return (
@@ -31,7 +33,9 @@ export default function ProfileScreen() {
           <Text style={styles.backBtnText}>RETOUR</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>PROFIL</Text>
-        <View style={{ width: 60 }} />
+        <TouchableOpacity onPress={() => setIsEditModalVisible(true)} style={styles.editBtn}>
+          <Feather name="edit-2" size={18} color={theme.colors.accent} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView 
@@ -39,10 +43,13 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.avatarSection}>
-          <View style={styles.avatarWrapper}>
+          <TouchableOpacity style={styles.avatarWrapper} onPress={() => Alert.alert('Photo', 'La modification de photo arrivera bientôt !')}>
             <ProfileAvatar size={120} />
             <View style={styles.onlineBadge} />
-          </View>
+            <View style={styles.avatarIconBadge}>
+              <Feather name="camera" size={14} color="#FFF" />
+            </View>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.infoSection}>
@@ -50,12 +57,12 @@ export default function ProfileScreen() {
           <GlassView style={styles.infoCard}>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>PRÉNOM</Text>
-              <Text style={styles.infoValue}>{firstName}</Text>
+              <Text style={styles.infoValue}>{firstName.toUpperCase()}</Text>
             </View>
             <View style={styles.divider} />
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>NOM</Text>
-              <Text style={styles.infoValue}>{lastName || 'FLOW'}</Text>
+              <Text style={styles.infoValue}>{lastName.toUpperCase()}</Text>
             </View>
             <View style={styles.divider} />
             <View style={styles.infoRow}>
@@ -90,6 +97,11 @@ export default function ProfileScreen() {
           <Text style={styles.version}>SPRINTFLOW V3.0.0 ELITE EDITION</Text>
         </View>
       </ScrollView>
+
+      <EditProfileModal 
+        visible={isEditModalVisible} 
+        onClose={() => setIsEditModalVisible(false)} 
+      />
     </SafeAreaView>
   );
 }
@@ -116,6 +128,10 @@ const styles = StyleSheet.create({
   backBtn: {
     paddingVertical: 8,
   },
+  editBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+  },
   backBtnText: {
     fontSize: 12,
     color: theme.colors.textMuted,
@@ -139,13 +155,26 @@ const styles = StyleSheet.create({
   },
   onlineBadge: {
     position: 'absolute',
-    bottom: 5,
-    right: 5,
+    bottom: 10,
+    right: 10,
     width: 20,
     height: 20,
     borderRadius: 10,
     backgroundColor: '#4CD964',
     borderWidth: 3,
+    borderColor: theme.colors.background,
+  },
+  avatarIconBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 35,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
     borderColor: theme.colors.background,
   },
   infoSection: {

@@ -63,6 +63,7 @@ interface AuthState {
   clearError: () => void;
   setPendingEmail: (email: string | null) => void;
   updateSleepGoal: (goal: number) => Promise<void>;
+  updateProfile: (updates: Partial<UserProfile>) => Promise<boolean>;
 }
 
 const CACHE_PROFILE_KEY = '@sprintflow_user_profile';
@@ -365,6 +366,43 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         .eq('id', user.id);
     } catch (err) {
       console.warn('Error updating sleep goal:', err);
+    }
+  },
+
+  updateProfile: async (updates: Partial<UserProfile>) => {
+    const { user } = get();
+    if (!user) return false;
+    
+    // Optimistic update
+    const updatedUser = { ...user, ...updates };
+    set({ user: updatedUser });
+    await AsyncStorage.setItem(CACHE_PROFILE_KEY, JSON.stringify(updatedUser));
+    
+    // Prepare DB object
+    const dbUpdates: any = {};
+    if (updates.firstName !== undefined) dbUpdates.first_name = updates.firstName;
+    if (updates.lastName !== undefined) dbUpdates.last_name = updates.lastName;
+    if (updates.name !== undefined) dbUpdates.full_name = updates.name;
+    if (updates.height !== undefined) dbUpdates.height = updates.height;
+    if (updates.weight !== undefined) dbUpdates.weight = updates.weight;
+    if (updates.objective !== undefined) dbUpdates.objective = updates.objective;
+
+    if (Object.keys(dbUpdates).length === 0) return true;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update(dbUpdates)
+        .eq('id', user.id);
+      
+      if (error) {
+        console.error('Error updating profile in DB:', error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error('Exception updating profile:', err);
+      return false;
     }
   },
 }));
