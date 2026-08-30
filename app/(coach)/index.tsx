@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../../src/core/theme';
@@ -17,6 +17,7 @@ export default function CoachDashboardScreen() {
   
   const [broadcastVisible, setBroadcastVisible] = useState(false);
   const [teamHealthVisible, setTeamHealthVisible] = useState(false);
+  const auraAnim = useRef(new Animated.Value(0.1)).current;
 
   useEffect(() => {
     // Fetch les check-ins d'aujourd'hui pour l'équipe active
@@ -25,6 +26,23 @@ export default function CoachDashboardScreen() {
       fetchTeamCheckIns(teams[0].id, today);
     }
   }, [teams, teamMembers]);
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(auraAnim, {
+          toValue: 0.35,
+          duration: 2500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(auraAnim, {
+          toValue: 0.1,
+          duration: 2500,
+          useNativeDriver: true,
+        })
+      ])
+    ).start();
+  }, [auraAnim]);
 
   // Calcul du radar de santé
   const athletesWithCheckIn = teamCheckIns.map(ci => ci.athlete_id);
@@ -68,32 +86,28 @@ export default function CoachDashboardScreen() {
         
         <Text style={styles.welcomeText}>Bonjour, Coach {user?.firstName || user?.name?.split(' ')[0]}</Text>
 
-        {/* Résumé express */}
+        {/* Santé du Groupe (Breathing Aura) */}
         <View style={styles.statsRow}>
           <TouchableOpacity 
-            style={[styles.statCard, { flex: 2, backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}
-            activeOpacity={0.8}
+            style={[styles.statCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1, overflow: 'hidden' }]}
+            activeOpacity={0.9}
             onPress={() => setTeamHealthVisible(true)}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 8 }}>
-              <Feather name="activity" size={24} color={healthColor} />
-              <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />
+            <Animated.View style={[
+              StyleSheet.absoluteFillObject, 
+              { backgroundColor: healthColor, opacity: auraAnim }
+            ]} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Feather name="activity" size={20} color={healthColor} />
+                <Text style={styles.statLabel}>SANTÉ DU GROUPE</Text>
+              </View>
+              <Feather name="chevron-right" size={20} color={theme.colors.textMuted} />
             </View>
-            <Text style={[styles.statValue, { color: healthColor }]}>{avgHealthStr}</Text>
-            <Text style={styles.statLabel}>Santé du groupe</Text>
-          </TouchableOpacity>
-          
-          <View style={{ width: 16 }} />
-          
-          <TouchableOpacity 
-            style={[styles.statCard, { flex: 1, backgroundColor: theme.colors.surface, borderColor: pendingMembers.length > 0 ? theme.colors.warning : theme.colors.border, borderWidth: 1 }]}
-            onPress={() => router.push('/(coach)/group')}
-          >
-            <Feather name="bell" size={24} color={pendingMembers.length > 0 ? theme.colors.warning : theme.colors.textMuted} style={{ marginBottom: 8 }} />
-            <Text style={[styles.statValue, { color: pendingMembers.length > 0 ? theme.colors.warning : theme.colors.text }]}>
-              {pendingMembers.length}
+            <Text style={[styles.statValue, { color: theme.colors.text }]}>{avgHealthStr}</Text>
+            <Text style={{ color: theme.colors.textSecondary, fontSize: 13, marginTop: 4, fontWeight: '500' }}>
+              {avgHealth !== null ? (avgHealth >= 4 ? 'Excellente forme globale' : avgHealth >= 3 ? 'Fatigue modérée - Vigilance' : 'Récupération critique requise') : 'En attente de données'}
             </Text>
-            <Text style={styles.statLabel}>En attente</Text>
           </TouchableOpacity>
         </View>
 
@@ -216,11 +230,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     marginTop: 10,
   },
-  title: {
-    color: theme.colors.text,
-    fontSize: 28,
-    fontWeight: 'bold',
-  },
   content: {
     paddingHorizontal: 24,
   },
@@ -231,20 +240,21 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    padding: 20,
+    padding: 24,
     borderRadius: 20,
     alignItems: 'flex-start',
   },
   statValue: {
-    fontSize: 32,
-    fontWeight: 'bold',
+    fontSize: 40,
+    fontWeight: '900',
     color: theme.colors.text,
     marginBottom: 4,
   },
   statLabel: {
-    fontSize: 13,
-    color: theme.colors.textSecondary,
-    fontWeight: '500',
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    fontWeight: 'bold',
+    letterSpacing: 1,
   },
   sectionHeader: {
     marginTop: 10,

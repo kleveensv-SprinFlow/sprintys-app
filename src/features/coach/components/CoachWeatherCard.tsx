@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import * as Location from 'expo-location';
@@ -12,6 +12,7 @@ export const CoachWeatherCard = () => {
   const [locationName, setLocationName] = useState<string>('Recherche...');
   const [isLoading, setIsLoading] = useState(true);
   
+  const [isModalVisible, setIsModalVisible] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiAdvice, setAiAdvice] = useState<string | null>(null);
 
@@ -48,14 +49,14 @@ export const CoachWeatherCard = () => {
     if (!weather) return;
     setIsGenerating(true);
     try {
-      const prompt = `Tu es l'assistant IA d'un entraǩneur d'athlǸtisme et prǸparation physique.
-La mǸtǸo actuelle est de ${weather.temperature}C, condition: ${weather.condition}, vent: ${weather.windSpeed} km/h.
-Donne un conseil trs court (2-3 phrases) sur comment le coach doit adapter sa sǸance d'entraǩnement aujourd'hui.`;
+      const prompt = `Tu es l'assistant IA d'un entraîneur d'athlétisme et préparation physique.
+La météo actuelle est de ${weather.temperature}C, condition: ${weather.condition}, vent: ${weather.windSpeed} km/h.
+Donne un conseil très court (2-3 phrases) sur comment le coach doit adapter sa séance d'entraînement aujourd'hui.`;
       
       const response = await fetchOpenAIResponse([{ role: 'user', content: prompt }], "Tu es un assistant météo pour coach sportif.");
       setAiAdvice(response);
     } catch (err) {
-      setAiAdvice("Erreur de gǸnǸration. Essayez de privilǸgier un Ǹchauffement adaptǸ  la tempǸrature.");
+      setAiAdvice("Erreur de génération. Essayez de privilégier un échauffement adapté à la température.");
     } finally {
       setIsGenerating(false);
     }
@@ -83,53 +84,97 @@ Donne un conseil trs court (2-3 phrases) sur comment le coach doit adapter sa s�
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-      <Text style={styles.cardHeaderTitle}>CONDITIONS D'ENTRAÎNEMENT</Text>
-      
-      <View style={styles.topRow}>
-        <View style={styles.leftContent}>
-          <Text style={[styles.temperature, { color: theme.colors.text }]}>
-            {weather ? `${weather.temperature}°` : '--°'}
-          </Text>
-          <View style={styles.details}>
-            <Text style={[styles.location, { color: theme.colors.textSecondary }]}>{locationName}</Text>
-            <View style={{flexDirection: 'row', alignItems: 'center', marginTop: 4}}>
-              <Feather name="wind" size={12} color={theme.colors.textMuted} />
-              <Text style={[styles.statText, { color: theme.colors.textMuted, marginLeft: 4 }]}>
-                {weather ? `${weather.windSpeed} km/h` : '--'}
-              </Text>
+    <>
+      <TouchableOpacity 
+        style={[styles.container, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+        activeOpacity={0.8}
+        onPress={() => setIsModalVisible(true)}
+      >
+        <Text style={styles.cardHeaderTitle}>CONDITIONS D'ENTRAÎNEMENT</Text>
+        
+        <View style={styles.topRow}>
+          <View style={styles.leftContent}>
+            <Text style={[styles.temperature, { color: theme.colors.text }]}>
+              {weather ? `${weather.temperature}°` : '--°'}
+            </Text>
+            <View style={styles.details}>
+              <Text style={[styles.location, { color: theme.colors.textSecondary }]}>{locationName}</Text>
+              <View style={{flexDirection: 'row', alignItems: 'center', marginTop: 4}}>
+                <Feather name="wind" size={12} color={theme.colors.textMuted} />
+                <Text style={[styles.statText, { color: theme.colors.textMuted, marginLeft: 4 }]}>
+                  {weather ? `${weather.windSpeed} km/h` : '--'}
+                </Text>
+              </View>
             </View>
           </View>
+          <Feather name={getWeatherIcon(weather?.condition) as any} size={42} color={theme.colors.warning} />
         </View>
-        <Feather name={getWeatherIcon(weather?.condition) as any} size={42} color={theme.colors.warning} />
-      </View>
+      </TouchableOpacity>
 
-      {!aiAdvice && !isGenerating && (
-        <TouchableOpacity 
-          style={[styles.generateBtn, { backgroundColor: theme.colors.surfaceLight }]}
-          onPress={handleGenerateAdvice}
-        >
-          <Feather name="cpu" size={16} color={theme.colors.accent} />
-          <Text style={[styles.generateBtnText, { color: theme.colors.accent }]}>Générer un conseil IA pour la séance</Text>
-        </TouchableOpacity>
-      )}
+      {/* Modal Météo détaillée */}
+      <Modal visible={isModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
+            
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Météo Détaillée</Text>
+              <TouchableOpacity onPress={() => setIsModalVisible(false)} style={styles.closeBtn}>
+                <Feather name="x" size={24} color={theme.colors.textMuted} />
+              </TouchableOpacity>
+            </View>
 
-      {isGenerating && (
-        <View style={styles.generatingContainer}>
-          <ActivityIndicator size="small" color={theme.colors.accent} />
-          <Text style={{ color: theme.colors.textMuted, marginLeft: 8, fontSize: 12 }}>L'IA analyse les conditions...</Text>
+            <ScrollView contentContainerStyle={{ paddingVertical: 20 }}>
+              <View style={styles.modalHero}>
+                <Feather name={getWeatherIcon(weather?.condition) as any} size={64} color={theme.colors.warning} />
+                <Text style={[styles.modalTemp, { color: theme.colors.text }]}>{weather ? `${weather.temperature}°C` : '--'}</Text>
+                <Text style={[styles.modalLoc, { color: theme.colors.textSecondary }]}>{locationName}</Text>
+                <Text style={[styles.modalCondition, { color: theme.colors.textMuted }]}>{weather?.condition || 'Inconnu'}</Text>
+              </View>
+
+              <View style={styles.modalStatsGrid}>
+                <View style={[styles.modalStatCard, { backgroundColor: theme.colors.background }]}>
+                  <Feather name="wind" size={24} color={theme.colors.accent} />
+                  <Text style={[styles.modalStatValue, { color: theme.colors.text }]}>{weather?.windSpeed || '--'} km/h</Text>
+                  <Text style={styles.modalStatLabel}>Vent</Text>
+                </View>
+
+              </View>
+              
+              <View style={styles.aiSection}>
+                <Text style={styles.aiSectionTitle}>ASSISTANT IA COACHING</Text>
+                
+                {!aiAdvice && !isGenerating && (
+                  <TouchableOpacity 
+                    style={[styles.generateBtn, { backgroundColor: theme.colors.surfaceLight }]}
+                    onPress={handleGenerateAdvice}
+                  >
+                    <Feather name="cpu" size={20} color={theme.colors.accent} />
+                    <Text style={[styles.generateBtnText, { color: theme.colors.accent }]}>Obtenir un conseil adapté à la météo</Text>
+                  </TouchableOpacity>
+                )}
+
+                {isGenerating && (
+                  <View style={styles.generatingContainer}>
+                    <ActivityIndicator size="small" color={theme.colors.accent} />
+                    <Text style={{ color: theme.colors.textMuted, marginLeft: 8, fontSize: 13 }}>Analyse des conditions en cours...</Text>
+                  </View>
+                )}
+
+                {aiAdvice && !isGenerating && (
+                  <View style={[styles.adviceContainer, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
+                    <Feather name="info" size={20} color={theme.colors.accent} style={styles.adviceIcon} />
+                    <Text style={[styles.adviceText, { color: theme.colors.text }]}>
+                      {aiAdvice}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </ScrollView>
+
+          </View>
         </View>
-      )}
-
-      {aiAdvice && !isGenerating && (
-        <View style={[styles.adviceContainer, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
-          <Feather name="info" size={16} color={theme.colors.accent} style={styles.adviceIcon} />
-          <Text style={[styles.adviceText, { color: theme.colors.text }]}>
-            {aiAdvice}
-          </Text>
-        </View>
-      )}
-    </View>
+      </Modal>
+    </>
   );
 };
 
@@ -151,7 +196,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
   },
   leftContent: {
     flexDirection: 'row',
@@ -172,41 +216,126 @@ const styles = StyleSheet.create({
   statText: {
     fontSize: 12,
   },
+
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: 24,
+    height: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  closeBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalHero: {
+    alignItems: 'center',
+    marginBottom: 32,
+    paddingVertical: 20,
+  },
+  modalTemp: {
+    fontSize: 56,
+    fontWeight: '800',
+    marginTop: 12,
+  },
+  modalLoc: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  modalCondition: {
+    fontSize: 14,
+    marginTop: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  modalStatsGrid: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 32,
+  },
+  modalStatCard: {
+    flex: 1,
+    padding: 20,
+    borderRadius: 20,
+    alignItems: 'center',
+  },
+  modalStatValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: 12,
+  },
+  modalStatLabel: {
+    fontSize: 12,
+    color: '#94A3B8',
+    marginTop: 4,
+    textTransform: 'uppercase',
+  },
+  aiSection: {
+    marginTop: 8,
+  },
+  aiSectionTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#94A3B8',
+    letterSpacing: 1,
+    marginBottom: 16,
+  },
   generateBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 12,
-    borderRadius: 12,
+    padding: 16,
+    borderRadius: 16,
     borderStyle: 'dashed',
     borderWidth: 1,
     borderColor: 'rgba(212, 175, 55, 0.3)',
   },
   generateBtnText: {
-    marginLeft: 8,
+    marginLeft: 12,
     fontWeight: '600',
-    fontSize: 13,
+    fontSize: 14,
   },
   generatingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 12,
+    padding: 24,
   },
   adviceContainer: {
     flexDirection: 'row',
-    padding: 16,
-    borderRadius: 12,
+    padding: 20,
+    borderRadius: 16,
     alignItems: 'flex-start',
     borderWidth: 1,
   },
   adviceIcon: {
     marginTop: 2,
-    marginRight: 10,
+    marginRight: 12,
   },
   adviceText: {
     flex: 1,
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 24,
+    fontWeight: '500',
   }
 });
