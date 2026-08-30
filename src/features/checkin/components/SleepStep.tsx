@@ -24,7 +24,7 @@ export const SleepStep = ({ onNext, onClose }: SleepStepProps) => {
   const { currentCheckIn, updateSleep, setMenstruation } = useCheckInStore();
   const { user, updateSleepGoal } = useAuthStore();
   
-  const isFemale = user?.gender === 'femme' || user?.gender === 'female' || (user as any)?.profile?.gender === 'female' || (user as any)?.profile?.gender === 'Femme';
+  const isFemale = user?.gender === 'femme' || (user as any)?.profile?.gender === 'femme' || (user as any)?.profile?.gender === 'female';
   
   const sleepGoal = user?.sleepGoal || 8;
 

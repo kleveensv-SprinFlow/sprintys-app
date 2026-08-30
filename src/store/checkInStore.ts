@@ -32,7 +32,7 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
   startCheckIn: (athleteId) => {
     const today = new Date().toISOString().split('T')[0];
     const user = useAuthStore.getState().user;
-    const isFemale = user?.profile?.gender === 'female' || user?.profile?.gender === 'Femme';
+    const isFemale = user?.gender === 'femme' || (user as any)?.gender === 'female';
     
     set({
       currentCheckIn: {
@@ -173,7 +173,7 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
       return true;
     } catch (error) {
       console.error(error);
-      const errorMsg = error instanceof Error ? error.message : (error?.message || "Échec de l'enregistrement du Check-In.");
+      const errorMsg = error instanceof Error ? error.message : ((error as any)?.message || "Échec de l'enregistrement du Check-In.");
       
       Alert.alert("Erreur Check-in", JSON.stringify(error) + " | " + errorMsg);
       set({ isLoading: false });

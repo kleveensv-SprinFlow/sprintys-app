@@ -18,9 +18,10 @@ export const buildSystemPrompt = (): string => {
   const consumedKcal = mealLogs.reduce((sum, log) => sum + Number(log.calories), 0);
 
   // Check-in du jour
-  const todayCheckin = history[new Date().toISOString().split('T')[0]];
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayCheckin = history.find(h => h.date === todayStr);
   const checkinText = todayCheckin 
-    ? `Fatigue: ${todayCheckin.fatigue}/10, Douleurs: ${todayCheckin.soreness}/10, Stress: ${todayCheckin.stress}/10, Sommeil: ${todayCheckin.sleepQuality}/10.`
+    ? `Fatigue: ${todayCheckin.fatigue_level}/5, Douleurs: ${todayCheckin.pains ? todayCheckin.pains.length : 0} zones, Stress: ${todayCheckin.stress_level}/5, Sommeil: ${todayCheckin.sleep_quality}/5.`
     : `L'athlète n'a pas encore fait son check-in santé aujourd'hui.`;
 
   // Construction du Prompt

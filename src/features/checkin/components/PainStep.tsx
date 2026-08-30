@@ -305,7 +305,7 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
               )}
 
               {/* Comment */}
-              <Text style={[styles.label, { color: theme.colors.textSecondary, marginTop: 10 }]}>Commentaire (Requis si intensité > 5)</Text>
+              <Text style={[styles.label, { color: theme.colors.textSecondary, marginTop: 10 }]}>Commentaire (Requis si intensité &gt; 5)</Text>
               <TextInput
                 style={[styles.textInput, { backgroundColor: theme.colors.surfaceLight, color: theme.colors.text, borderColor: theme.colors.border }]}
                 placeholder="Ex: Apparue sur mon dernier 60m..."

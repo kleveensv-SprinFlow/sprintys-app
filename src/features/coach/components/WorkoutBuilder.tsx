@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, StyleSheet, SafeAreaView } from 'react-native';
-import { FastWorkoutBuilder } from '../../calendar/components/FastWorkoutBuilder';
+import { HybridWorkoutBuilder } from '../../calendar/components/HybridWorkoutBuilder';
 import { theme } from '../../../core/theme';
 import { useRouter } from 'expo-router';
 import { useWorkoutBuilderStore } from '../../../store/workoutBuilderStore';
@@ -27,8 +27,7 @@ export const WorkoutBuilder: React.FC<Props> = ({ athleteId }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <FastWorkoutBuilder 
-        athleteId={athleteId} 
+      <HybridWorkoutBuilder 
         date={new Date()} 
         onClose={handleClose} 
         onSave={handleSave} 

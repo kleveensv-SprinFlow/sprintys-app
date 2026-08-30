@@ -4,7 +4,7 @@ import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import * as Location from 'expo-location';
 import { weatherService, WeatherData } from '../../../services/weatherService';
-import { aiService } from '../../../services/aiService';
+import { fetchOpenAIResponse } from '../../../services/aiService';
 
 export const CoachWeatherCard = () => {
   const theme = useTheme();
@@ -25,20 +25,19 @@ export const CoachWeatherCard = () => {
         }
 
         let location = await Location.getCurrentPositionAsync({});
-        const lat = location.coords.latitude;
-        const lon = location.coords.longitude;
-
-        const geocode = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lon });
-        if (geocode.length > 0) {
-          setLocationName(geocode[0].city || geocode[0].region || 'Position actuelle');
-        } else {
-          setLocationName('Position actuelle');
+        const data = await weatherService.fetchWeather(location.coords.latitude, location.coords.longitude);
+        setWeather(data);
+        
+        let geocode = await Location.reverseGeocodeAsync({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude
+        });
+        
+        if (geocode && geocode.length > 0) {
+          setLocationName(geocode[0].city || geocode[0].region || 'Lieu inconnu');
         }
-
-        const weatherData = await weatherService.fetchWeather(lat, lon);
-        setWeather(weatherData);
-      } catch (err: any) {
-        console.error("CoachWeather error", err);
+      } catch (error) {
+        console.error("Error fetching weather", error);
       } finally {
         setIsLoading(false);
       }
@@ -49,14 +48,14 @@ export const CoachWeatherCard = () => {
     if (!weather) return;
     setIsGenerating(true);
     try {
-      const prompt = `Tu es un assistant IA pour un coach sportif (sprint/athlétisme). 
-La météo actuelle est de ${weather.temperature}°C, condition: ${weather.condition}, vent: ${weather.windSpeed} km/h.
-Donne un conseil très court (2-3 phrases) sur comment le coach doit adapter sa séance d'entraînement aujourd'hui.`;
+      const prompt = `Tu es l'assistant IA d'un entraǩneur d'athlǸtisme et prǸparation physique.
+La mǸtǸo actuelle est de ${weather.temperature}C, condition: ${weather.condition}, vent: ${weather.windSpeed} km/h.
+Donne un conseil trs court (2-3 phrases) sur comment le coach doit adapter sa sǸance d'entraǩnement aujourd'hui.`;
       
-      const response = await aiService.fetchOpenAIResponse(prompt);
+      const response = await fetchOpenAIResponse([{ role: 'user', content: prompt }], "Tu es un assistant météo pour coach sportif.");
       setAiAdvice(response);
     } catch (err) {
-      setAiAdvice("Erreur de génération. Essayez de privilégier un échauffement adapté à la température.");
+      setAiAdvice("Erreur de gǸnǸration. Essayez de privilǸgier un Ǹchauffement adaptǸ  la tempǸrature.");
     } finally {
       setIsGenerating(false);
     }

@@ -15,11 +15,7 @@ export default function AssistantChat() {
   const {
     messages,
     memories,
-    isModelLoaded,
-    isDownloading,
-    downloadProgress,
     isGenerating,
-    loadModel,
     generateResponse,
     confirmAction,
     removeMemory
@@ -28,9 +24,6 @@ export default function AssistantChat() {
   const user = useAuthStore(state => state.user);
 
   useEffect(() => {
-    // Load model on mount
-    loadModel();
-
     // Fetch user context
     const loadContext = async () => {
       if (user?.id) {
@@ -48,7 +41,7 @@ export default function AssistantChat() {
   }, [user]);
 
   const handleSend = () => {
-    if (!inputText.trim() || isGenerating || !isModelLoaded) return;
+    if (!inputText.trim() || isGenerating) return;
 
     generateResponse(inputText, userContext);
     setInputText('');
@@ -63,8 +56,8 @@ export default function AssistantChat() {
           <Text style={styles.messageText}>{item.text}</Text>
 
           {item.isAction && item.actionPayload && (
-            <TouchableOpacity
-              style={styles.actionButton}
+            <TouchableOpacity 
+              style={styles.actionButton} 
               onPress={() => confirmAction(item.id)}
             >
               <Text style={styles.actionButtonText}>Valider cette action</Text>
@@ -89,23 +82,13 @@ export default function AssistantChat() {
         </TouchableOpacity>
       </View>
 
-      {/* Model Download Progress */}
-      {isDownloading && (
-        <View style={styles.downloadContainer}>
-          <ActivityIndicator color={theme.colors.accent} />
-          <Text style={styles.downloadText}>
-            Installation de l'IA locale... {Math.round(downloadProgress * 100)}%
-          </Text>
-        </View>
-      )}
-
       {/* Chat Area */}
       <FlatList
         data={messages}
         keyExtractor={item => item.id}
         renderItem={renderMessage}
         contentContainerStyle={styles.chatContainer}
-        inverted={false} // Would need reversal logic if true, keeping false for simplicity
+        inverted={false}
       />
 
       {/* Generating Indicator */}
@@ -122,17 +105,16 @@ export default function AssistantChat() {
           style={styles.textInput}
           value={inputText}
           onChangeText={setInputText}
-          placeholder={isModelLoaded ? "Posez une question..." : "Chargement..."}
+          placeholder="Posez votre question..."
           placeholderTextColor={theme.colors.textMuted}
-          editable={isModelLoaded && !isGenerating}
           multiline
         />
-        <TouchableOpacity
-          style={[styles.sendButton, (!inputText.trim() || isGenerating || !isModelLoaded) && styles.sendButtonDisabled]}
+        <TouchableOpacity 
+          style={[styles.sendButton, (!inputText.trim() || isGenerating) && styles.sendButtonDisabled]}
           onPress={handleSend}
-          disabled={!inputText.trim() || isGenerating || !isModelLoaded}
+          disabled={!inputText.trim() || isGenerating}
         >
-          <Feather name="send" size={20} color="#fff" />
+          <Feather name="send" size={20} color="#FFF" />
         </TouchableOpacity>
       </View>
 

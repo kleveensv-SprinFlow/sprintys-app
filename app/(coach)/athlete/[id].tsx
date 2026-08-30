@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   scoreBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
   scoreBadgeText: { fontWeight: 'bold', fontSize: 16 },
   
-  divider: { height: 1, backgroundColor: theme.colors.border, my: 20, marginVertical: 20 },
+  divider: { height: 1, backgroundColor: theme.colors.border, marginVertical: 20 },
 
   scoreRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   scoreLabelRow: { flexDirection: 'row', alignItems: 'center', width: 90, gap: 8 },
