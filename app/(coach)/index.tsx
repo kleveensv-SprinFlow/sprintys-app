@@ -5,9 +5,9 @@ import { Feather } from '@expo/vector-icons';
 import { theme } from '../../src/core/theme';
 import { useAuthStore } from '../../src/store/authStore';
 import { useCoachStore } from '../../src/store/coach/coachStore';
-import { ProfileAvatar } from '../../src/shared/components/ProfileAvatar';
 import { CoachWeatherCard } from '../../src/features/coach/components/CoachWeatherCard';
 import { BroadcastModal } from '../../src/features/coach/components/BroadcastModal';
+import { SprintyLogo } from '../../src/shared/components/SprintyLogo';
 import { TeamHealthModal } from '../../src/features/coach/components/TeamHealthModal';
 
 export default function CoachDashboardScreen() {
@@ -48,16 +48,26 @@ export default function CoachDashboardScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* HEADER COACH */}
       <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.welcome}>ESPACE COACH</Text>
-          <Text style={styles.title}>Salut, {user?.firstName || user?.name?.split(' ')[0]}</Text>
-        </View>
-        <ProfileAvatar onPress={() => router.push('/(coach)/profile')} />
+        {/* Left: Annonce */}
+        <TouchableOpacity onPress={() => setBroadcastVisible(true)} style={[styles.iconButton, { backgroundColor: theme.colors.surfaceLight }]}>
+          <Feather name="mic" size={24} color={theme.colors.text} />
+        </TouchableOpacity>
+
+        {/* Center: Logo */}
+        <SprintyLogo width={120} height={40} />
+
+        {/* Right: Profil */}
+        <TouchableOpacity onPress={() => router.push('/(coach)/profile')} style={[styles.iconButton, { backgroundColor: theme.colors.surfaceLight }]}>
+          <Feather name="user" size={24} color={theme.colors.text} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         
+        <Text style={styles.welcomeText}>Bonjour, Coach {user?.firstName || user?.name?.split(' ')[0]}</Text>
+
         {/* Résumé express */}
         <View style={styles.statsRow}>
           <TouchableOpacity 
@@ -89,6 +99,31 @@ export default function CoachDashboardScreen() {
 
         {/* Météo Coach */}
         <CoachWeatherCard />
+
+        {/* Séance du Jour (Aperçu) */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>SÉANCE DU JOUR</Text>
+        </View>
+        <TouchableOpacity 
+          style={styles.sessionCard}
+          activeOpacity={0.8}
+          onPress={() => router.push('/(coach)/calendar')}
+        >
+          <View style={styles.sessionCardHeader}>
+            <View style={styles.sessionBadge}>
+              <Text style={styles.sessionBadgeText}>VITESSE MAX</Text>
+            </View>
+            <Text style={styles.sessionDuration}>
+              <Feather name="clock" size={12} color={theme.colors.textMuted} /> 1h30
+            </Text>
+          </View>
+          <Text style={styles.sessionCardTitle}>Départ Block & Puissance</Text>
+          <Text style={styles.sessionCardDesc}>Échauffement 30', Gammes, 4x30m, 3x60m intensité max. Récup totale.</Text>
+          <View style={styles.sessionCardFooter}>
+            <Text style={styles.sessionCardAction}>Modifier la séance</Text>
+            <Feather name="chevron-right" size={16} color={theme.colors.accent} />
+          </View>
+        </TouchableOpacity>
 
         {/* Radar de Santé */}
         <View style={styles.sectionHeader}>
@@ -142,15 +177,6 @@ export default function CoachDashboardScreen() {
         <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* FAB - Bouton d'annonce Mégaphone */}
-      <TouchableOpacity 
-        style={styles.fab}
-        activeOpacity={0.8}
-        onPress={() => setBroadcastVisible(true)}
-      >
-        <Feather name="mic" size={24} color="#FFF" />
-      </TouchableOpacity>
-
       <BroadcastModal 
         visible={broadcastVisible}
         onClose={() => setBroadcastVisible(false)}
@@ -169,19 +195,26 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   header: {
-    paddingHorizontal: 24,
-    paddingTop: 40,
-    paddingBottom: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 32,
+    paddingBottom: 12,
   },
-  welcome: {
-    color: theme.colors.accent,
-    fontSize: 12,
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  welcomeText: {
+    fontSize: 22,
     fontWeight: 'bold',
-    letterSpacing: 2,
+    color: theme.colors.text,
     marginBottom: 4,
+    marginTop: 10,
   },
   title: {
     color: theme.colors.text,
@@ -222,6 +255,62 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#94A3B8',
     letterSpacing: 1,
+  },
+  sessionCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginBottom: 20,
+  },
+  sessionCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sessionBadge: {
+    backgroundColor: theme.colors.error + '20',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  sessionBadgeText: {
+    color: theme.colors.error,
+    fontSize: 10,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  sessionDuration: {
+    color: theme.colors.textMuted,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  sessionCardTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    marginBottom: 8,
+  },
+  sessionCardDesc: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  sessionCardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    paddingTop: 16,
+  },
+  sessionCardAction: {
+    flex: 1,
+    color: theme.colors.accent,
+    fontWeight: '600',
+    fontSize: 13,
   },
   emptyCard: {
     backgroundColor: theme.colors.surface,
@@ -267,21 +356,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: theme.colors.textSecondary,
     lineHeight: 18,
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 90, // au-dessus de la tabbar
-    right: 24,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: theme.colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: theme.colors.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 8,
   }
 });
