@@ -28,6 +28,7 @@ interface CoachState {
   subgroups: Subgroup[];
   teamMembers: TeamMember[];
   pendingMembers: TeamMember[];
+  teamCheckIns: any[];
   isLoading: boolean;
   error: string | null;
 
@@ -36,6 +37,7 @@ interface CoachState {
   fetchSubgroups: (teamId: string) => Promise<void>;
   createSubgroup: (teamId: string, name: string) => Promise<Subgroup | null>;
   fetchTeamMembers: (teamId: string) => Promise<void>;
+  fetchTeamCheckIns: (teamId: string, dateStr: string) => Promise<void>;
   assignSubgroup: (userId: string, teamId: string, subgroupId: string | null) => Promise<void>;
   approveAthlete: (userId: string, teamId: string) => Promise<void>;
   rejectAthlete: (userId: string, teamId: string) => Promise<void>;
@@ -57,6 +59,7 @@ export const useCoachStore = create<CoachState>((set, get) => ({
   subgroups: [],
   teamMembers: [],
   pendingMembers: [],
+  teamCheckIns: [],
   isLoading: false,
   error: null,
 
@@ -165,6 +168,28 @@ export const useCoachStore = create<CoachState>((set, get) => ({
       set({ teamMembers: approved, pendingMembers: pending, isLoading: false });
     } catch (err: any) {
       set({ error: err.message, isLoading: false });
+    }
+  },
+
+  fetchTeamCheckIns: async (teamId: string, dateStr: string) => {
+    try {
+      // Pour avoir les check-ins de l'équipe, on doit chercher tous les athlètes de l'équipe
+      const members = get().teamMembers.map(m => m.user_id);
+      if (members.length === 0) {
+        set({ teamCheckIns: [] });
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('check_ins')
+        .select('*')
+        .in('athlete_id', members)
+        .eq('date', dateStr);
+
+      if (error) throw error;
+      set({ teamCheckIns: data || [] });
+    } catch (err: any) {
+      console.warn("Error fetching team checkins:", err);
     }
   },
 
