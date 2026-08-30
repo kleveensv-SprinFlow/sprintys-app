@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { checkInService, CheckInData, PainInfo } from '../services/checkInService';
 import { useSprintyStore } from './sprintyStore';
 import { useAuthStore } from './authStore';
+import { Alert } from 'react-native';
 
 interface CheckInState {
   currentCheckIn: Partial<CheckInData> | null;
@@ -160,7 +161,8 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
     } catch (error) {
       console.error(error);
       const errorMsg = error instanceof Error ? error.message : (error?.message || "Échec de l'enregistrement du Check-In.");
-      useSprintyStore.getState().showFeedback('error', errorMsg);
+      
+      Alert.alert("Erreur Check-in", JSON.stringify(error) + " | " + errorMsg);
       set({ isLoading: false });
       return false;
     }
