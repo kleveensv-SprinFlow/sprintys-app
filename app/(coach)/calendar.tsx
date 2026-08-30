@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, Text, ActivityIndicator, TouchableOpacity, Modal } from 'react-native';
 import { useTheme } from '../../src/core/theme';
 import { HorizontalCalendar } from '../../src/shared/components/HorizontalCalendar';
 import { WorkoutCard } from '../../src/shared/components/WorkoutCard';
-import { FastWorkoutBuilder } from '../../src/features/calendar/components/FastWorkoutBuilder';
+import { HybridWorkoutBuilder } from '../../src/features/calendar/components/HybridWorkoutBuilder';
 import { supabase } from '../../src/services/supabase';
 import { useAuthStore } from '../../src/store/authStore';
 import { Feather } from '@expo/vector-icons';
-import { Modal } from 'react-native';
 
 export default function CoachCalendarScreen() {
   const theme = useTheme();
@@ -63,6 +62,14 @@ export default function CoachCalendarScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      
+      {/* Périodisation Ribbon (Static for now) */}
+      <View style={[styles.periodizationRibbon, { backgroundColor: theme.colors.surfaceLight }]}>
+        <View style={[styles.periodDot, { backgroundColor: theme.colors.accent }]} />
+        <Text style={[styles.periodText, { color: theme.colors.text }]}>Phase 1 : Développement Général</Text>
+        <Feather name="settings" size={16} color={theme.colors.textMuted} />
+      </View>
+
       <HorizontalCalendar 
         selectedDate={selectedDate} 
         onSelectDate={setSelectedDate}
@@ -103,24 +110,18 @@ export default function CoachCalendarScreen() {
               const dateObj = new Date(w.date_prevue);
               const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
               
-              let summary = '';
-              if (w.blocks) {
-                summary = `${w.blocks.length} Blocs d'entraînement`;
-              } else if (w.exercises) {
-                summary = `${w.exercises.length} Exercices`;
-              }
+              let summary = w.description ? (w.description.substring(0, 50) + '...') : '';
 
               return (
                 <WorkoutCard 
                   key={w.id || i}
                   time={timeString}
                   title={w.type_seance}
-                  type="Séance"
+                  type="Séance Coach"
                   status={w.status}
                   summary={summary}
                   onPress={() => {
-                    // Coach tapping could open an edit view, but for now we do nothing or just show alert
-                    alert('Modification en cours de dev');
+                    alert('Edition en cours de developpement.');
                   }}
                 />
               );
@@ -131,8 +132,7 @@ export default function CoachCalendarScreen() {
 
       {/* Full screen modal for the Fast Builder */}
       <Modal visible={isBuilderVisible} animationType="slide" presentationStyle="formSheet">
-        <FastWorkoutBuilder 
-          athleteId="test-athlete" // TODO: Add an athlete selector in the builder or here
+        <HybridWorkoutBuilder 
           date={selectedDate}
           onClose={() => setIsBuilderVisible(false)}
           onSave={handleSaveWorkout}
@@ -145,7 +145,25 @@ export default function CoachCalendarScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 60, 
+    paddingTop: 50, 
+  },
+  periodizationRibbon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    marginBottom: 8,
+  },
+  periodDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 10,
+  },
+  periodText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   content: {
     flex: 1,
@@ -162,7 +180,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyText: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 24,
   },
