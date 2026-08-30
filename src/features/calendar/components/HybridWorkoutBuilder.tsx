@@ -10,6 +10,7 @@ interface HybridWorkoutBuilderProps {
   date: Date;
   onClose: () => void;
   onSave: () => void;
+  defaultTitle?: string;
 }
 
 type TargetType = 'team' | 'subgroup' | 'athlete';
@@ -21,11 +22,11 @@ interface Measure {
   type: MeasureType;
 }
 
-export const HybridWorkoutBuilder: React.FC<HybridWorkoutBuilderProps> = ({ date, onClose, onSave }) => {
+export const HybridWorkoutBuilder: React.FC<HybridWorkoutBuilderProps> = ({ date, onClose, onSave, defaultTitle }) => {
   const { user } = useAuthStore();
   const { teams, subgroups, teamMembers } = useCoachStore();
 
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(defaultTitle || '');
   const [description, setDescription] = useState('');
   const [intensity, setIntensity] = useState<number>(3);
   

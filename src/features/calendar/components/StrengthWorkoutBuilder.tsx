@@ -10,6 +10,7 @@ interface StrengthWorkoutBuilderProps {
   date: Date;
   onClose: () => void;
   onSave: () => void;
+  defaultTitle?: string;
 }
 
 type TargetType = 'team' | 'subgroup' | 'athlete';
@@ -29,11 +30,11 @@ interface StrengthExercise {
   notes: string;
 }
 
-export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ date, onClose, onSave }) => {
+export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ date, onClose, onSave, defaultTitle }) => {
   const { user } = useAuthStore();
   const { teams, subgroups, teamMembers } = useCoachStore();
 
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(defaultTitle || 'Séance de Musculation');
   const [intensity, setIntensity] = useState<number>(3);
   
   const [targetType, setTargetType] = useState<TargetType>('team');

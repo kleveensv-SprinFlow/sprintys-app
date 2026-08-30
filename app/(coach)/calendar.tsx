@@ -25,6 +25,7 @@ export default function CoachCalendarScreen() {
   
   // For building new sessions
   const [builderType, setBuilderType] = useState<'none' | 'hybrid' | 'strength'>('none');
+  const [builderTitle, setBuilderTitle] = useState('');
 
   useEffect(() => {
     if (user?.id) {
@@ -66,8 +67,9 @@ export default function CoachCalendarScreen() {
     fetchWorkouts(selectedDate);
   };
 
-  const openBuilder = (type: 'hybrid' | 'strength') => {
+  const openBuilder = (type: 'hybrid' | 'strength', defaultTitle: string = '') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setBuilderTitle(defaultTitle);
     setBuilderType(type);
   };
 
@@ -107,42 +109,42 @@ export default function CoachCalendarScreen() {
                 </View>
               ) : workouts.length === 0 ? (
                 <View style={styles.emptyState}>
-                  <View style={styles.emptyIconContainer}>
-                    <Feather name="calendar" size={48} color={theme.colors.textMuted} style={{ opacity: 0.5 }} />
-                  </View>
                   <Text style={[styles.emptyText, { color: theme.colors.text }]}>
-                    Rien de prévu pour ce jour.
+                    Que souhaitez-vous planifier ?
                   </Text>
                   
-                  {/* Beautiful Custom Buttons */}
-                  <TouchableOpacity style={styles.actionBtnPrimary} onPress={() => openBuilder('hybrid')}>
-                    <View style={styles.actionIconBg}>
-                      <Feather name="activity" size={20} color="#fff" />
-                    </View>
-                    <View>
-                      <Text style={styles.actionBtnTitle}>Ajouter une séance</Text>
-                      <Text style={styles.actionBtnSub}>Piste, Terrain ou Hybride</Text>
-                    </View>
-                    <Feather name="chevron-right" size={20} color="#fff" style={styles.actionChevron} />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity style={[styles.actionBtnPrimary, { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border, borderWidth: 1, marginTop: 12 }]} onPress={() => openBuilder('strength')}>
-                    <View style={[styles.actionIconBg, { backgroundColor: theme.colors.text }]}>
-                      <Feather name="bold" size={20} color={theme.colors.background} />
-                    </View>
-                    <View>
-                      <Text style={[styles.actionBtnTitle, { color: theme.colors.text }]}>Séance de Musculation</Text>
-                      <Text style={[styles.actionBtnSub, { color: theme.colors.textMuted }]}>En salle, force, haltérophilie</Text>
-                    </View>
-                    <Feather name="chevron-right" size={20} color={theme.colors.text} style={styles.actionChevron} />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity style={styles.actionBtnSecondary}>
-                    <Feather name="coffee" size={20} color={theme.colors.text} />
-                    <Text style={[styles.actionBtnSecondaryText, { color: theme.colors.text }]}>
-                      Ajouter un jour de repos
-                    </Text>
-                  </TouchableOpacity>
+                  <View style={styles.gridContainer}>
+                    {[
+                      { id: 'muscu', title: 'Musculation', icon: 'bold', color: '#6366F1', type: 'strength' },
+                      { id: 'lactique', title: 'Lactique', icon: 'activity', color: '#EF4444', type: 'hybrid' },
+                      { id: 'aerobie', title: 'Aérobie', icon: 'wind', color: '#0EA5E9', type: 'hybrid' },
+                      { id: 'technique', title: 'Technique', icon: 'target', color: '#10B981', type: 'hybrid' },
+                      { id: 'escalier', title: 'Escaliers', icon: 'trending-up', color: '#8B5CF6', type: 'hybrid' },
+                      { id: 'competition', title: 'Compétition', icon: 'award', color: '#F59E0B', type: 'hybrid' },
+                    ].map((item) => (
+                      <TouchableOpacity 
+                        key={item.id} 
+                        style={[styles.gridItem, { backgroundColor: item.color + '15' }]} 
+                        onPress={() => openBuilder(item.type as 'hybrid' | 'strength', item.title)}
+                      >
+                        <View style={[styles.gridIconBg, { backgroundColor: item.color }]}>
+                          <Feather name={item.icon as any} size={24} color="#fff" />
+                        </View>
+                        <Text style={[styles.gridItemTitle, { color: theme.colors.text }]}>{item.title}</Text>
+                      </TouchableOpacity>
+                    ))}
+                    
+                    {/* Repos - takes full width */}
+                    <TouchableOpacity 
+                      style={[styles.gridItemFull, { backgroundColor: theme.colors.surfaceLight }]}
+                      onPress={() => openBuilder('hybrid', 'Jour de repos')}
+                    >
+                      <View style={[styles.gridIconBg, { backgroundColor: theme.colors.textMuted }]}>
+                        <Feather name="coffee" size={24} color="#fff" />
+                      </View>
+                      <Text style={[styles.gridItemTitle, { color: theme.colors.text }]}>Jour de repos</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ) : (
                 <View style={{ paddingBottom: 40 }}>
@@ -274,39 +276,42 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   
-  // Custom Action Buttons
-  actionBtnPrimary: {
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 16,
+  },
+  gridItem: {
+    width: '48%',
+    borderRadius: 20,
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 110,
+  },
+  gridItemFull: {
     width: '100%',
+    borderRadius: 20,
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#000',
-    padding: 16,
-    borderRadius: 20,
-    marginBottom: 16,
+    justifyContent: 'center',
+    gap: 16,
   },
-  actionIconBg: {
+  gridIconBg: {
     width: 48,
     height: 48,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
+    borderRadius: 16,
     alignItems: 'center',
-    marginRight: 16,
+    justifyContent: 'center',
+    marginBottom: 8,
   },
-  actionBtnTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
+  gridItemTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
   },
-  actionBtnSub: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 13,
-  },
-  actionChevron: {
-    marginLeft: 'auto',
-  },
-  
   actionBtnSecondary: {
     width: '100%',
     flexDirection: 'row',
@@ -315,7 +320,6 @@ const styles = StyleSheet.create({
     padding: 18,
     borderRadius: 20,
     backgroundColor: 'rgba(0,0,0,0.03)',
-    marginTop: 8,
     gap: 8,
   },
   actionBtnSecondaryText: {
