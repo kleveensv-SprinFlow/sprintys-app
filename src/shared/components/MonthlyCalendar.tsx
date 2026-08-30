@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useMemo, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, PanResponder, Animated, Dimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../core/theme';
 import * as Haptics from 'expo-haptics';
@@ -10,32 +10,45 @@ interface MonthlyCalendarProps {
   markedDates?: Date[];
 }
 
-const DAYS_OF_WEEK = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+const DAYS_OF_WEEK = ['LUN.', 'MAR.', 'MER.', 'JEU.', 'VEN.', 'SAM.', 'DIM.'];
+const { width } = Dimensions.get('window');
 
 export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({ selectedDate, onSelectDate, markedDates = [] }) => {
   const theme = useTheme();
-  
-  // Current month being viewed
   const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
 
-  // Generate days for the grid
+  // Swipe detection using PanResponder
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        // Only claim the gesture if it's a significant horizontal swipe
+        return Math.abs(gestureState.dx) > 20 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        if (gestureState.dx > 50) {
+          // Swipe right -> previous month
+          handlePrevMonth();
+        } else if (gestureState.dx < -50) {
+          // Swipe left -> next month
+          handleNextMonth();
+        }
+      },
+    })
+  ).current;
+
   const calendarDays = useMemo(() => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
     
-    // First day of the month
     const firstDay = new Date(year, month, 1);
-    // Last day of the month
     const lastDay = new Date(year, month + 1, 0);
     
-    // Day of the week for the first day (0 = Sun, 1 = Mon, ... 6 = Sat)
-    // We want Monday = 0, Sunday = 6
     let startingDayOfWeek = firstDay.getDay() - 1;
-    if (startingDayOfWeek === -1) startingDayOfWeek = 6; // Sunday
+    if (startingDayOfWeek === -1) startingDayOfWeek = 6;
     
     const days = [];
     
-    // Previous month padding
     const prevMonthLastDay = new Date(year, month, 0).getDate();
     for (let i = startingDayOfWeek - 1; i >= 0; i--) {
       days.push({
@@ -44,7 +57,6 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({ selectedDate, 
       });
     }
     
-    // Current month days
     for (let i = 1; i <= lastDay.getDate(); i++) {
       days.push({
         date: new Date(year, month, i),
@@ -52,7 +64,6 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({ selectedDate, 
       });
     }
     
-    // Next month padding to fill 6 rows of 7 days (42 cells)
     const remainingCells = 42 - days.length;
     for (let i = 1; i <= remainingCells; i++) {
       days.push({
@@ -65,12 +76,12 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({ selectedDate, 
   }, [currentMonth]);
 
   const handlePrevMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+    setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const handleNextMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+    setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -84,38 +95,47 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({ selectedDate, 
     onSelectDate(date);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
-    // If selecting a date outside current month, change the viewed month
     if (date.getMonth() !== currentMonth.getMonth()) {
       setCurrentMonth(new Date(date.getFullYear(), date.getMonth(), 1));
     }
   };
 
   const monthNames = [
-    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+    'JANV.', 'FÉVR.', 'MARS', 'AVR.', 'MAI', 'JUIN',
+    'JUIL.', 'AOÛT', 'SEPT.', 'OCT.', 'NOV.', 'DÉC.'
   ];
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.surfaceLight }]}>
+    <View style={styles.container} {...panResponder.panHandlers}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={handlePrevMonth} style={styles.arrowButton}>
-          <Feather name="chevron-left" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
-        
+        <Feather name="menu" size={24} color={theme.colors.text} style={styles.headerIcon} />
         <Text style={[styles.monthText, { color: theme.colors.text }]}>
-          {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+          {monthNames[currentMonth.getMonth()]}
         </Text>
-        
-        <TouchableOpacity onPress={handleNextMonth} style={styles.arrowButton}>
-          <Feather name="chevron-right" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <Feather name="search" size={24} color={theme.colors.text} style={styles.headerIcon} />
+          <TouchableOpacity style={styles.todayBtn} onPress={() => {
+            const today = new Date();
+            setCurrentMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+            onSelectDate(today);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          }}>
+            <Text style={[styles.todayText, { color: theme.colors.text }]}>{new Date().getDate()}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Days of Week */}
       <View style={styles.daysOfWeek}>
         {DAYS_OF_WEEK.map((day, index) => (
-          <Text key={index} style={[styles.dayOfWeekText, { color: theme.colors.textMuted }]}>
+          <Text 
+            key={index} 
+            style={[
+              styles.dayOfWeekText, 
+              { color: index === 6 ? '#E74C3C' : theme.colors.textMuted }
+            ]}
+          >
             {day}
           </Text>
         ))}
@@ -125,37 +145,32 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({ selectedDate, 
       <View style={styles.grid}>
         {calendarDays.map((item, index) => {
           const isSelected = isSameDay(item.date, selectedDate);
-          const isToday = isSameDay(item.date, new Date());
           const hasEvent = markedDates.some(d => isSameDay(d, item.date));
+          const isSunday = item.date.getDay() === 0;
           
           return (
             <TouchableOpacity
               key={index}
               style={[
                 styles.cell,
-                isSelected && { backgroundColor: theme.colors.accent }
+                isSelected && { borderColor: theme.colors.text, borderWidth: 1 }
               ]}
               onPress={() => handleSelectDate(item.date)}
             >
-              <View style={[
-                styles.dayCircle,
-                isToday && !isSelected && { backgroundColor: theme.colors.border }
+              <Text style={[
+                styles.dayText,
+                { color: item.isCurrentMonth 
+                    ? (isSunday ? '#E74C3C' : theme.colors.text) 
+                    : theme.colors.border }
               ]}>
-                <Text style={[
-                  styles.dayText,
-                  { color: item.isCurrentMonth ? theme.colors.text : theme.colors.textMuted },
-                  isSelected && { color: '#FFF', fontWeight: 'bold' }
-                ]}>
-                  {item.date.getDate()}
-                </Text>
-              </View>
+                {item.date.getDate()}
+              </Text>
               
-              {/* Event Dot */}
+              {/* Event Icon/Dot at the bottom */}
               {hasEvent && (
-                <View style={[
-                  styles.eventDot,
-                  { backgroundColor: isSelected ? '#FFF' : theme.colors.accent }
-                ]} />
+                <View style={styles.eventIndicator}>
+                  <Feather name="smile" size={16} color={theme.colors.textMuted} />
+                </View>
               )}
             </TouchableOpacity>
           );
@@ -167,61 +182,75 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({ selectedDate, 
 
 const styles = StyleSheet.create({
   container: {
-    padding: 16,
-    borderRadius: 16,
-    marginHorizontal: 16,
-    marginBottom: 16,
+    flex: 1,
+    backgroundColor: '#fff',
+    paddingTop: 16,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    paddingHorizontal: 24,
+    marginBottom: 24,
   },
-  monthText: {
-    fontSize: 18,
+  headerIcon: {
+    padding: 4,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  todayBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  todayText: {
+    fontSize: 12,
     fontWeight: 'bold',
   },
-  arrowButton: {
-    padding: 8,
+  monthText: {
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: 1,
   },
   daysOfWeek: {
     flexDirection: 'row',
-    marginBottom: 8,
+    paddingHorizontal: 8,
+    marginBottom: 16,
   },
   dayOfWeekText: {
     flex: 1,
     textAlign: 'center',
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   grid: {
+    flex: 1,
     flexDirection: 'row',
     flexWrap: 'wrap',
+    paddingHorizontal: 8,
   },
   cell: {
     width: '14.28%', // 100% / 7
-    aspectRatio: 1, // Make it square
-    justifyContent: 'center',
+    height: '16.66%', // 100% / 6 rows
     alignItems: 'center',
-    borderRadius: 8,
+    paddingTop: 8,
+    borderRadius: 12,
     position: 'relative',
   },
-  dayCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   dayText: {
-    fontSize: 14,
+    fontSize: 16,
+    fontWeight: '600',
   },
-  eventDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+  eventIndicator: {
     position: 'absolute',
-    bottom: 4,
+    bottom: 8,
   }
 });

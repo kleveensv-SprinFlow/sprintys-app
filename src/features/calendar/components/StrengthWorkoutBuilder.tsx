@@ -45,16 +45,41 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
   const [isSaving, setIsSaving] = useState(false);
   const [showTargetModal, setShowTargetModal] = useState(false);
 
-  const handleAddExercise = () => {
+  // Library Modal
+  const [showLibraryModal, setShowLibraryModal] = useState(false);
+  const [librarySearch, setLibrarySearch] = useState('');
+  const [libraryResults, setLibraryResults] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (showLibraryModal) {
+      searchLibrary(librarySearch);
+    }
+  }, [showLibraryModal, librarySearch]);
+
+  const searchLibrary = async (query: string) => {
+    if (query.trim().length === 0) {
+      const { data } = await supabase.from('exercises_catalog').select('*').limit(20);
+      setLibraryResults(data || []);
+      return;
+    }
+    const { data } = await supabase.from('exercises_catalog')
+      .select('*')
+      .or(`name_fr.ilike.%${query}%,name_en.ilike.%${query}%`)
+      .limit(20);
+    setLibraryResults(data || []);
+  };
+
+  const handleAddExercise = (catalogExercise?: any) => {
     const newEx: StrengthExercise = {
       id: Math.random().toString(36).substring(2, 9),
-      name: '',
-      notes: '',
+      name: catalogExercise ? catalogExercise.name_fr : '',
+      notes: catalogExercise ? catalogExercise.description : '',
       sets: [
         { id: Math.random().toString(36).substring(2, 9), reps: '8', targetWeight: '70%', rest: '2:00', tempo: '2010' }
       ]
     };
     setExercises([...exercises, newEx]);
+    if (catalogExercise) setShowLibraryModal(false);
   };
 
   const updateExerciseName = (exId: string, text: string) => {
@@ -236,13 +261,55 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
           </View>
         ))}
 
-        <TouchableOpacity style={styles.addExerciseBtn} onPress={handleAddExercise}>
-          <Feather name="plus-circle" size={20} color={theme.colors.accent} />
-          <Text style={styles.addExerciseText}>Ajouter un exercice</Text>
+        <TouchableOpacity style={styles.addExerciseBtn} onPress={() => setShowLibraryModal(true)}>
+          <Feather name="search" size={20} color={theme.colors.accent} />
+          <Text style={styles.addExerciseText}>Chercher un exercice</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={[styles.addExerciseBtn, { marginTop: 12, backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border }]} onPress={() => handleAddExercise()}>
+          <Feather name="plus-circle" size={20} color={theme.colors.textMuted} />
+          <Text style={[styles.addExerciseText, { color: theme.colors.textMuted }]}>Saisie libre (sans base)</Text>
         </TouchableOpacity>
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* MODAL BIBLIOTHEQUE */}
+      <Modal visible={showLibraryModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { height: '80%' }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <Text style={styles.modalTitle}>Bibliothèque d'exercices</Text>
+              <TouchableOpacity onPress={() => setShowLibraryModal(false)}>
+                <Feather name="x" size={24} color={theme.colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              style={{ backgroundColor: theme.colors.surfaceLight, padding: 12, borderRadius: 12, fontSize: 16, color: theme.colors.text, marginBottom: 16 }}
+              placeholder="Rechercher un exercice..."
+              placeholderTextColor={theme.colors.textMuted}
+              value={librarySearch}
+              onChangeText={setLibrarySearch}
+            />
+            <ScrollView>
+              {libraryResults.map((ex, idx) => (
+                <TouchableOpacity key={idx} style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.border }} onPress={() => handleAddExercise(ex)}>
+                  <Text style={{ fontSize: 16, fontWeight: 'bold', color: theme.colors.text }}>{ex.name_fr}</Text>
+                  {ex.name_en && <Text style={{ fontSize: 13, color: theme.colors.textMuted }}>{ex.name_en}</Text>}
+                  {ex.zones && ex.zones.length > 0 && (
+                    <Text style={{ fontSize: 12, color: theme.colors.accent, marginTop: 4 }}>
+                      {ex.zones.join(' • ')}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+              {libraryResults.length === 0 && (
+                <Text style={{ textAlign: 'center', color: theme.colors.textMuted, marginTop: 40 }}>Aucun résultat</Text>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* MODAL CIBLAGE */}
       <Modal visible={showTargetModal} transparent animationType="slide">

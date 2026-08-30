@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Text, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, Text, ActivityIndicator, Modal, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/core/theme';
 import { MonthlyCalendar } from '../../src/shared/components/MonthlyCalendar';
 import { WorkoutCard } from '../../src/shared/components/WorkoutCard';
@@ -7,15 +8,21 @@ import { WorkoutDetailModal } from '../../src/features/calendar/components/Worko
 import { supabase } from '../../src/services/supabase';
 import { useAuthStore } from '../../src/store/authStore';
 import { WorkoutSession } from '../../src/features/workout/types';
+import { Feather } from '@expo/vector-icons';
+
+const MONTH_NAMES_SHORT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 
 export default function CalendarScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [workouts, setWorkouts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  const [dayModalVisible, setDayModalVisible] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutSession | null>(null);
-  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isWorkoutModalVisible, setIsWorkoutModalVisible] = useState(false);
 
   useEffect(() => {
     if (user?.id) {
@@ -25,18 +32,12 @@ export default function CalendarScreen() {
 
   const fetchWorkouts = async (date: Date) => {
     setIsLoading(true);
-    
-    // Format date bounds for the selected day
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
-    
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
     try {
-      // Pour l'instant on récupère simplement les séances de la journée cible
-      // Si on voulait avoir les points sur tout le mois, il faudrait faire une 
-      // requête séparée qui récupère les dates du mois complet, mais on garde ça simple.
       const { data, error } = await supabase
         .from('workouts')
         .select('*')
@@ -55,7 +56,6 @@ export default function CalendarScreen() {
   };
 
   const openWorkoutDetail = (workoutData: any) => {
-    // Map Supabase JSONB to local session interface
     const mappedWorkout: WorkoutSession = {
       id: workoutData.id,
       name: workoutData.type_seance,
@@ -65,68 +65,104 @@ export default function CalendarScreen() {
       blocks: workoutData.blocks || undefined,
     };
     setSelectedWorkout(mappedWorkout);
-    setIsModalVisible(true);
+    setIsWorkoutModalVisible(true);
   };
 
   const getMarkedDates = () => {
-    // Ideally, fetch a summary of the month to get dots. 
-    // For now, we only highlight if there are workouts on the selected day
     return workouts.length > 0 ? [selectedDate] : [];
   };
 
+  const handleSelectDate = (date: Date) => {
+    setSelectedDate(date);
+    setDayModalVisible(true);
+  };
+
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background, paddingTop: Math.max(insets.top, 20) }]}>
       <MonthlyCalendar 
         selectedDate={selectedDate} 
-        onSelectDate={setSelectedDate}
+        onSelectDate={handleSelectDate}
         markedDates={getMarkedDates()}
       />
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {isLoading ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={theme.colors.accent} />
-          </View>
-        ) : workouts.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>
-              Aucune séance prévue
-            </Text>
-            <Text style={[styles.emptySubText, { color: theme.colors.textSecondary }]}>
-              Journée libre
-            </Text>
-          </View>
-        ) : (
-          workouts.map((w, i) => {
-            const dateObj = new Date(w.date_prevue);
-            const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            
-            // Calculate total volume or duration as summary
-            let summary = '';
-            if (w.blocks) {
-              summary = `${w.blocks.length} Blocs d'entraînement`;
-            } else if (w.exercises) {
-              summary = `${w.exercises.length} Exercices`;
-            }
+      <View style={styles.fabContainer}>
+        <TouchableOpacity 
+          style={[styles.fab, { backgroundColor: theme.colors.surface }]}
+          onPress={() => setDayModalVisible(true)}
+        >
+          <Text style={[styles.fabText, { color: theme.colors.textMuted }]}>
+            Journée du {selectedDate.getDate()} {MONTH_NAMES_SHORT[selectedDate.getMonth()]}
+          </Text>
+          <Feather name="eye" size={24} color={theme.colors.text} />
+        </TouchableOpacity>
+      </View>
 
-            return (
-              <WorkoutCard 
-                key={w.id || i}
-                time={timeString}
-                title={w.type_seance}
-                type="Séance"
-                status={w.status}
-                summary={summary}
-                onPress={() => openWorkoutDetail(w)}
-              />
-            );
-          })
-        )}
-      </ScrollView>
+      {/* Day Details Modal */}
+      <Modal visible={dayModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+                {selectedDate.getDate()} {MONTH_NAMES_SHORT[selectedDate.getMonth()]} {selectedDate.getFullYear()}
+              </Text>
+              <TouchableOpacity onPress={() => setDayModalVisible(false)} style={styles.closeBtn}>
+                <Feather name="x" size={24} color={theme.colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+              {isLoading ? (
+                <View style={styles.centerContainer}>
+                  <ActivityIndicator size="large" color={theme.colors.accent} />
+                </View>
+              ) : workouts.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <View style={styles.emptyIconContainer}>
+                    <Feather name="calendar" size={48} color={theme.colors.textMuted} style={{ opacity: 0.5 }} />
+                  </View>
+                  <Text style={[styles.emptyText, { color: theme.colors.text }]}>
+                    Aucune séance prévue
+                  </Text>
+                  <Text style={[styles.emptySubText, { color: theme.colors.textMuted }]}>
+                    Journée libre ! Repose-toi bien.
+                  </Text>
+                </View>
+              ) : (
+                <View style={{ paddingBottom: 40 }}>
+                  <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary, marginBottom: 16 }]}>
+                    {workouts.length} SÉANCE(S) PRÉVUE(S)
+                  </Text>
+
+                  {workouts.map((w, i) => {
+                    const dateObj = new Date(w.date_prevue);
+                    const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    
+                    let summary = '';
+                    if (w.blocks) summary = `${w.blocks.length} Blocs d'entraînement`;
+                    else if (w.exercises) summary = `${w.exercises.length} Exercices`;
+
+                    return (
+                      <WorkoutCard 
+                        key={w.id || i}
+                        time={timeString}
+                        title={w.type_seance}
+                        type="Séance"
+                        status={w.status}
+                        summary={summary}
+                        onPress={() => openWorkoutDetail(w)}
+                      />
+                    );
+                  })}
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       <WorkoutDetailModal 
-        visible={isModalVisible} 
-        onClose={() => setIsModalVisible(false)} 
+        visible={isWorkoutModalVisible} 
+        onClose={() => setIsWorkoutModalVisible(false)} 
         workout={selectedWorkout}
       />
     </View>
@@ -136,11 +172,65 @@ export default function CalendarScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 60, // Safe area approx
   },
-  content: {
+  fabContainer: {
+    position: 'absolute',
+    bottom: 40,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  fab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderRadius: 32,
+    width: '85%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  fabText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalOverlay: {
     flex: 1,
-    paddingTop: 16,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    height: '85%',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+  },
+  closeBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   centerContainer: {
     paddingTop: 100,
@@ -148,16 +238,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyState: {
-    paddingTop: 100,
+    paddingTop: 40,
     alignItems: 'center',
+  },
+  emptyIconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(0,0,0,0.02)',
     justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
   },
   emptyText: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '700',
     marginBottom: 8,
+    textAlign: 'center',
   },
   emptySubText: {
     fontSize: 16,
+    textAlign: 'center',
   },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  }
 });
