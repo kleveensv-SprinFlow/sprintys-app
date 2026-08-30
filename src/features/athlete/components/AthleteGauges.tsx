@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTheme } from '../../../core/theme';
 import { Feather } from '@expo/vector-icons';
 import { CheckInModal } from '../../checkin/components/CheckInModal';
+import { CheckInSummaryModal } from '../../checkin/components/CheckInSummaryModal';
 import { useCheckInStore } from '../../../store/checkInStore';
 import { useAuthStore } from '../../../store/authStore';
 import { useNutritionStore } from '../../../store/nutrition/nutritionStore';
@@ -10,9 +11,10 @@ import { useNutritionStore } from '../../../store/nutrition/nutritionStore';
 export const AthleteGauges = () => {
   const theme = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
+  const [summaryVisible, setSummaryVisible] = useState(false);
   
   const { user } = useAuthStore();
-  const { startCheckIn, loadHistory, todayHealthScore } = useCheckInStore();
+  const { startCheckIn, editTodayCheckIn, loadHistory, todayHealthScore } = useCheckInStore();
   const { mealLogs } = useNutritionStore();
 
   useEffect(() => {
@@ -21,11 +23,23 @@ export const AthleteGauges = () => {
     }
   }, [user]);
 
-  const handleCheckIn = () => {
-    if (user?.id) {
+  const handleCheckInPress = () => {
+    if (!user?.id) return;
+    
+    if (todayHealthScore !== null) {
+      // Already checked in -> Show Summary
+      setSummaryVisible(true);
+    } else {
+      // Not checked in -> Start new
       startCheckIn(user.id);
       setModalVisible(true);
     }
+  };
+
+  const handleEditCheckIn = () => {
+    if (!user?.id) return;
+    editTodayCheckIn(user.id);
+    setModalVisible(true);
   };
 
   const getScoreColor = (score: number) => {
@@ -83,7 +97,7 @@ export const AthleteGauges = () => {
           styles.mainPill, 
           { backgroundColor: theme.colors.surface, borderColor: showScore ? scoreColor : theme.colors.border }
         ]} 
-        onPress={handleCheckIn}
+        onPress={handleCheckInPress}
         activeOpacity={0.8}
       >
         {!showScore ? (
@@ -108,7 +122,7 @@ export const AthleteGauges = () => {
                 {scoreValue >= 70 ? 'Prêt à performer' : scoreValue >= 40 ? 'À surveiller' : 'Repos conseillé'}
               </Text>
             </View>
-            <Feather name="edit-2" size={20} color={theme.colors.textMuted} />
+            <Feather name="chevron-right" size={20} color={theme.colors.textMuted} />
           </View>
         )}
       </TouchableOpacity>
@@ -119,11 +133,10 @@ export const AthleteGauges = () => {
         {/* Nutrition Pill */}
         <View style={[styles.secondaryPill, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
           <View style={styles.secondaryHeader}>
-            <View style={styles.secondaryTitleRow}>
-              <Feather name="zap" size={14} color={theme.colors.accent} />
-              <Text style={[styles.secondaryTitle, { color: theme.colors.textSecondary }]}>Nutrition</Text>
-            </View>
-            <Text style={[styles.secondaryValue, { color: theme.colors.text, fontSize: 13 }]}>{Math.round(consumedKcal)}/{kcalGoal} kcal</Text>
+            <Feather name="zap" size={16} color={theme.colors.accent} style={{ marginBottom: 8 }} />
+            <Text style={[styles.secondaryValue, { color: theme.colors.text }]}>
+              {Math.round(consumedKcal)} <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>/ {kcalGoal} kcal</Text>
+            </Text>
           </View>
           {/* Progress Bar */}
           <View style={[styles.progressBarBg, { backgroundColor: theme.colors.background }]}>
@@ -134,11 +147,10 @@ export const AthleteGauges = () => {
         {/* Competition Pill */}
         <View style={[styles.secondaryPill, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
           <View style={styles.secondaryHeader}>
-            <View style={styles.secondaryTitleRow}>
-              <Feather name="flag" size={14} color={compColor} />
-              <Text style={[styles.secondaryTitle, { color: theme.colors.textSecondary }]}>{compLabel}</Text>
-            </View>
-            <Text style={[styles.secondaryValue, { color: theme.colors.text }]}>{compValue}</Text>
+            <Feather name="flag" size={16} color={compColor} style={{ marginBottom: 8 }} />
+            <Text style={[styles.secondaryValue, { color: theme.colors.text }]}>
+              {compValue} <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>- {compLabel}</Text>
+            </Text>
           </View>
           {/* Progress Bar */}
           <View style={[styles.progressBarBg, { backgroundColor: theme.colors.background }]}>
@@ -149,6 +161,11 @@ export const AthleteGauges = () => {
       </View>
 
       <CheckInModal visible={modalVisible} onClose={() => setModalVisible(false)} />
+      <CheckInSummaryModal 
+        visible={summaryVisible} 
+        onClose={() => setSummaryVisible(false)} 
+        onEdit={handleEditCheckIn} 
+      />
     </View>
   );
 };
@@ -221,9 +238,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   secondaryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
     marginBottom: 12,
   },
   secondaryTitleRow: {
@@ -237,7 +252,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   secondaryValue: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
   },
   

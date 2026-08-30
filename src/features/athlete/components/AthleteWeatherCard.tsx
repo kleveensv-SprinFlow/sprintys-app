@@ -5,6 +5,8 @@ import { useTheme } from '../../../core/theme';
 import * as Location from 'expo-location';
 import { weatherService, WeatherData } from '../../../services/weatherService';
 import { weatherAdviceService, WeatherAdvice } from '../../../services/weatherAdviceService';
+import { WeatherHubModal } from '../../weather/components/WeatherHubModal';
+import { TouchableOpacity } from 'react-native';
 
 export const AthleteWeatherCard = () => {
   const theme = useTheme();
@@ -79,6 +81,8 @@ export const AthleteWeatherCard = () => {
     }
   };
 
+  const [modalVisible, setModalVisible] = useState(false);
+  
   if (isLoading) {
     return (
       <View style={[styles.container, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, justifyContent: 'center' }]}>
@@ -88,44 +92,56 @@ export const AthleteWeatherCard = () => {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-      <View style={styles.topRow}>
-        <View style={styles.leftContent}>
-          <Text style={[styles.temperature, { color: theme.colors.text }]}>
-            {weather ? `${weather.temperature}°` : '--°'}
-          </Text>
-          <View style={styles.details}>
-            <Text style={[styles.condition, { color: theme.colors.text }]}>
-              {weather ? getWeatherLabel(weather.condition) : errorMsg}
+    <>
+      <TouchableOpacity 
+        activeOpacity={0.8}
+        onPress={() => setModalVisible(true)}
+        style={[styles.container, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+      >
+        <View style={styles.topRow}>
+          <View style={styles.leftContent}>
+            <Text style={[styles.temperature, { color: theme.colors.text }]}>
+              {weather ? `${weather.temperature}°` : '--°'}
             </Text>
-            <Text style={[styles.location, { color: theme.colors.textSecondary }]}>{locationName}</Text>
+            <View style={styles.details}>
+              <Text style={[styles.condition, { color: theme.colors.text }]}>
+                {weather ? getWeatherLabel(weather.condition) : errorMsg}
+              </Text>
+              <Text style={[styles.location, { color: theme.colors.textSecondary }]}>{locationName}</Text>
+            </View>
+          </View>
+          
+          <View style={styles.iconContainer}>
+            <Feather name={getWeatherIcon(weather?.condition) as any} size={48} color={theme.colors.warning} />
+          </View>
+          
+          <View style={styles.statsContainer}>
+            <View style={styles.stat}>
+              <Feather name="wind" size={14} color={theme.colors.textMuted} />
+              <Text style={[styles.statText, { color: theme.colors.textSecondary }]}>
+                {weather ? `${weather.windSpeed} km/h` : '--'}
+              </Text>
+            </View>
           </View>
         </View>
-        
-        <View style={styles.iconContainer}>
-          <Feather name={getWeatherIcon(weather?.condition) as any} size={48} color={theme.colors.warning} />
-        </View>
-        
-        <View style={styles.statsContainer}>
-          <View style={styles.stat}>
-            <Feather name="wind" size={14} color={theme.colors.textMuted} />
-            <Text style={[styles.statText, { color: theme.colors.textSecondary }]}>
-              {weather ? `${weather.windSpeed} km/h` : '--'}
-            </Text>
-          </View>
-        </View>
-      </View>
 
-      {/* Advice Section */}
-      {advice && (
-        <View style={[styles.adviceContainer, { backgroundColor: theme.colors.background }]}>
-          <Feather name="info" size={16} color={theme.colors.accent} style={styles.adviceIcon} />
-          <Text style={[styles.adviceText, { color: theme.colors.textSecondary }]}>
-            {advice.message}
-          </Text>
-        </View>
-      )}
-    </View>
+        {/* Advice Section */}
+        {advice && (
+          <View style={[styles.adviceContainer, { backgroundColor: theme.colors.background }]}>
+            <Feather name="info" size={16} color={theme.colors.accent} style={styles.adviceIcon} />
+            <Text style={[styles.adviceText, { color: theme.colors.textSecondary }]}>
+              Conseils IA dispos. Clique pour ouvrir le Hub Météo ✨
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+
+      <WeatherHubModal 
+        visible={modalVisible} 
+        onClose={() => setModalVisible(false)} 
+        currentWeather={weather} 
+      />
+    </>
   );
 };
 

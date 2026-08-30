@@ -71,4 +71,34 @@ export const weatherAdviceService = {
       priority: 0,
     };
   },
+
+  generateAIAdvice: async (weather: WeatherData, timeString: string): Promise<any> => {
+    // Import aiService dynamically to avoid circular dependencies if any
+    const { fetchOpenAIResponse } = require('./aiService');
+    
+    const systemPrompt = `Tu es un coach sportif IA spécialisé en athlétisme (sprint). 
+L'athlète s'entraîne à ${timeString}. 
+La météo à cette heure sera : ${weather.temperature}°C, Vent: ${weather.windSpeed}km/h, Condition: ${weather.condition}.
+
+Analyse ces conditions météo et donne tes recommandations.
+Tu DOIS renvoyer ta réponse sous forme de JSON exact avec la structure suivante :
+{
+  "tenue": "Explication courte pour la tenue",
+  "echauffement": "Explication courte pour l'échauffement",
+  "hydratation": "Explication courte pour l'hydratation",
+  "terrain": "Explication courte pour le terrain/piste"
+}`;
+
+    const messages = [{ role: 'user', content: 'Génère la stratégie météo pour ma séance.' }];
+    
+    try {
+      const response = await fetchOpenAIResponse(messages, systemPrompt);
+      // The response might be wrapped in markdown code blocks
+      const cleanedResponse = response.replace(/```json\n?|\n?```/g, '').trim();
+      return JSON.parse(cleanedResponse);
+    } catch (e) {
+      console.error("AI Weather Error", e);
+      throw e;
+    }
+  }
 };

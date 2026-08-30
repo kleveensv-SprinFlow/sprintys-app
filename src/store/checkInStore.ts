@@ -12,6 +12,7 @@ interface CheckInState {
   
   // Actions
   startCheckIn: (athleteId: string) => void;
+  editTodayCheckIn: (athleteId: string) => void;
   updateSleep: (bedtime: string, wakeup_time: string, sleep_hours: number, sleep_quality: number) => void;
   updateMental: (stress: number, fatigue: number, motivation: number) => void;
   setMenstruation: (isMenstruating: boolean) => void;
@@ -48,6 +49,18 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
         menstruation: isFemale ? false : undefined, // Défini seulement si femme
       }
     });
+  },
+
+  editTodayCheckIn: (athleteId) => {
+    const { history } = get();
+    const today = new Date().toISOString().split('T')[0];
+    const todayCheckIn = history.find(c => c.date === today);
+    
+    if (todayCheckIn) {
+      set({ currentCheckIn: { ...todayCheckIn } });
+    } else {
+      get().startCheckIn(athleteId);
+    }
   },
 
   updateSleep: (bedtime, wakeup_time, sleep_hours, sleep_quality) => {
