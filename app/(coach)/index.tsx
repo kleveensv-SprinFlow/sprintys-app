@@ -8,6 +8,7 @@ import { useCoachStore } from '../../src/store/coach/coachStore';
 import { ProfileAvatar } from '../../src/shared/components/ProfileAvatar';
 import { CoachWeatherCard } from '../../src/features/coach/components/CoachWeatherCard';
 import { BroadcastModal } from '../../src/features/coach/components/BroadcastModal';
+import { TeamHealthModal } from '../../src/features/coach/components/TeamHealthModal';
 
 export default function CoachDashboardScreen() {
   const { user } = useAuthStore();
@@ -15,6 +16,7 @@ export default function CoachDashboardScreen() {
   const { teams, teamMembers, pendingMembers, teamCheckIns, fetchTeamCheckIns } = useCoachStore();
   
   const [broadcastVisible, setBroadcastVisible] = useState(false);
+  const [teamHealthVisible, setTeamHealthVisible] = useState(false);
 
   useEffect(() => {
     // Fetch les check-ins d'aujourd'hui pour l'équipe active
@@ -28,6 +30,21 @@ export default function CoachDashboardScreen() {
   const athletesWithCheckIn = teamCheckIns.map(ci => ci.athlete_id);
   const athletesWithoutCheckIn = teamMembers.filter(m => !athletesWithCheckIn.includes(m.user_id));
   const alerts = teamCheckIns.filter(ci => ci.energy <= 2 || ci.pain_level >= 3);
+
+  // Moyenne de santé du groupe
+  const getGroupHealth = () => {
+    if (teamCheckIns.length === 0) return null;
+    let sum = 0;
+    teamCheckIns.forEach(ci => {
+      const score = (ci.sleep_quality + ci.energy + (6 - ci.stress_level) + (6 - ci.pain_level) + (6 - ci.muscle_soreness)) / 5;
+      sum += score;
+    });
+    return sum / teamCheckIns.length;
+  };
+
+  const avgHealth = getGroupHealth();
+  const avgHealthStr = avgHealth ? `${avgHealth.toFixed(1)} / 5` : 'N/A';
+  const healthColor = avgHealth === null ? theme.colors.textMuted : avgHealth >= 4.0 ? theme.colors.success : avgHealth >= 3.0 ? theme.colors.warning : theme.colors.error;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -43,14 +60,23 @@ export default function CoachDashboardScreen() {
         
         {/* Résumé express */}
         <View style={styles.statsRow}>
-          <View style={[styles.statCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}>
-            <Feather name="users" size={24} color={theme.colors.accent} style={{ marginBottom: 8 }} />
-            <Text style={styles.statValue}>{teamMembers.length}</Text>
-            <Text style={styles.statLabel}>Athlètes actifs</Text>
-          </View>
-          <View style={{ width: 16 }} />
           <TouchableOpacity 
-            style={[styles.statCard, { backgroundColor: theme.colors.surface, borderColor: pendingMembers.length > 0 ? theme.colors.warning : theme.colors.border, borderWidth: 1 }]}
+            style={[styles.statCard, { flex: 2, backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}
+            activeOpacity={0.8}
+            onPress={() => setTeamHealthVisible(true)}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 8 }}>
+              <Feather name="activity" size={24} color={healthColor} />
+              <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />
+            </View>
+            <Text style={[styles.statValue, { color: healthColor }]}>{avgHealthStr}</Text>
+            <Text style={styles.statLabel}>Santé du groupe</Text>
+          </TouchableOpacity>
+          
+          <View style={{ width: 16 }} />
+          
+          <TouchableOpacity 
+            style={[styles.statCard, { flex: 1, backgroundColor: theme.colors.surface, borderColor: pendingMembers.length > 0 ? theme.colors.warning : theme.colors.border, borderWidth: 1 }]}
             onPress={() => router.push('/(coach)/group')}
           >
             <Feather name="bell" size={24} color={pendingMembers.length > 0 ? theme.colors.warning : theme.colors.textMuted} style={{ marginBottom: 8 }} />
@@ -128,6 +154,10 @@ export default function CoachDashboardScreen() {
       <BroadcastModal 
         visible={broadcastVisible}
         onClose={() => setBroadcastVisible(false)}
+      />
+      <TeamHealthModal 
+        visible={teamHealthVisible}
+        onClose={() => setTeamHealthVisible(false)}
       />
     </SafeAreaView>
   );
