@@ -85,18 +85,6 @@ export default function CalendarScreen() {
         markedDates={getMarkedDates()}
       />
 
-      <View style={styles.fabContainer}>
-        <TouchableOpacity 
-          style={[styles.fab, { backgroundColor: theme.colors.surface }]}
-          onPress={() => setDayModalVisible(true)}
-        >
-          <Text style={[styles.fabText, { color: theme.colors.textMuted }]}>
-            Journée du {selectedDate.getDate()} {MONTH_NAMES_SHORT[selectedDate.getMonth()]}
-          </Text>
-          <Feather name="eye" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
-      </View>
-
       {/* Day Details Modal */}
       <Modal visible={dayModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
@@ -172,31 +160,6 @@ export default function CalendarScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  fabContainer: {
-    position: 'absolute',
-    bottom: 40,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  fab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderRadius: 32,
-    width: '85%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  fabText: {
-    fontSize: 16,
-    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,

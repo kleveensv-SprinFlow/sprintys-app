@@ -109,21 +109,10 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({ selectedDate, 
     <View style={styles.container} {...panResponder.panHandlers}>
       {/* Header */}
       <View style={styles.header}>
-        <Feather name="menu" size={24} color={theme.colors.text} style={styles.headerIcon} />
-        <Text style={[styles.monthText, { color: theme.colors.text }]}>
-          {monthNames[currentMonth.getMonth()]}
+        <Text style={[styles.screenTitle, { color: theme.colors.text }]}>Calendrier</Text>
+        <Text style={[styles.monthText, { color: theme.colors.accent }]}>
+          {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
         </Text>
-        <View style={styles.headerRight}>
-          <Feather name="search" size={24} color={theme.colors.text} style={styles.headerIcon} />
-          <TouchableOpacity style={styles.todayBtn} onPress={() => {
-            const today = new Date();
-            setCurrentMonth(new Date(today.getFullYear(), today.getMonth(), 1));
-            onSelectDate(today);
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          }}>
-            <Text style={[styles.todayText, { color: theme.colors.text }]}>{new Date().getDate()}</Text>
-          </TouchableOpacity>
-        </View>
       </View>
 
       {/* Days of Week */}
@@ -187,36 +176,20 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 24,
     marginBottom: 24,
-  },
-  headerIcon: {
-    padding: 4,
-  },
-  headerRight: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
   },
-  todayBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: '#000',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  todayText: {
-    fontSize: 12,
-    fontWeight: 'bold',
+  screenTitle: {
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: -0.5,
   },
   monthText: {
-    fontSize: 24,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
     letterSpacing: 1,
   },
   daysOfWeek: {
