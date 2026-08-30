@@ -159,7 +159,8 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
       return true;
     } catch (error) {
       console.error(error);
-      useSprintyStore.getState().showFeedback('error', "Échec de l'enregistrement du Check-In.");
+      const errorMsg = error instanceof Error ? error.message : (error?.message || "Échec de l'enregistrement du Check-In.");
+      useSprintyStore.getState().showFeedback('error', errorMsg);
       set({ isLoading: false });
       return false;
     }

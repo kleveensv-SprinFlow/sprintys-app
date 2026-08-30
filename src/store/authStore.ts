@@ -28,6 +28,7 @@ export interface UserProfile {
   currentFlowStreak?: number;
   lastFlowDate?: string;
   nextCompetitionDate?: string;
+  sleepGoal?: number;
 }
 
 export interface SignupData {
@@ -61,6 +62,7 @@ interface AuthState {
   logout: () => Promise<void>;
   clearError: () => void;
   setPendingEmail: (email: string | null) => void;
+  updateSleepGoal: (goal: number) => Promise<void>;
 }
 
 const CACHE_PROFILE_KEY = '@sprintflow_user_profile';
@@ -90,6 +92,7 @@ const buildUserProfile = (authUser: any, profile: any): UserProfile => {
     currentFlowStreak: profile?.current_flow_streak,
     lastFlowDate: profile?.last_flow_date,
     nextCompetitionDate: profile?.next_competition_date,
+    sleepGoal: profile?.sleep_goal,
   };
 };
 
@@ -344,5 +347,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  updateSleepGoal: async (goal: number) => {
+    const { user } = get();
+    if (!user) return;
+    
+    // Optimistic update
+    const updatedUser = { ...user, sleepGoal: goal };
+    set({ user: updatedUser });
+    await AsyncStorage.setItem(CACHE_PROFILE_KEY, JSON.stringify(updatedUser));
+    
+    // Persist to DB
+    try {
+      await supabase
+        .from('profiles')
+        .update({ sleep_goal: goal })
+        .eq('id', user.id);
+    } catch (err) {
+      console.warn('Error updating sleep goal:', err);
+    }
+  },
 }));
 

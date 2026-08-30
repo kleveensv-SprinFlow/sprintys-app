@@ -44,8 +44,8 @@ export const AthleteGauges = () => {
   const nutritionPercentage = Math.min(100, Math.round((consumedKcal / kcalGoal) * 100)) || 0;
 
   // Calcul Jauge Compétition
-  let compValue = "Off";
-  let compLabel = "Vacances";
+  let compValue = "Aucune";
+  let compLabel = "Compétition";
   let compPercentage = 0;
   let compColor = theme.colors.border;
 
@@ -56,20 +56,21 @@ export const AthleteGauges = () => {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
     if (diffDays === 0) {
-      compValue = "J-Jour";
+      compValue = "Jour-J !";
       compLabel = "Compétition";
       compPercentage = 100;
       compColor = theme.colors.success;
     } else if (diffDays > 0) {
       compValue = `J-${diffDays}`;
       compLabel = "Compétition";
-      compPercentage = Math.max(5, 100 - (diffDays / 60) * 100); 
+      // La jauge se remplit sur une base de 90 jours (3 mois) environ
+      compPercentage = Math.max(5, 100 - (diffDays / 90) * 100); 
       compColor = diffDays <= 7 ? theme.colors.error : theme.colors.warning;
     } else {
-      compValue = "Fini";
-      compLabel = "Récupération";
+      compValue = "Terminée";
+      compLabel = "Compétition";
       compPercentage = 100;
-      compColor = theme.colors.success;
+      compColor = theme.colors.border;
     }
   }
 
@@ -122,7 +123,7 @@ export const AthleteGauges = () => {
               <Feather name="zap" size={14} color={theme.colors.accent} />
               <Text style={[styles.secondaryTitle, { color: theme.colors.textSecondary }]}>Nutrition</Text>
             </View>
-            <Text style={[styles.secondaryValue, { color: theme.colors.text }]}>{nutritionPercentage}%</Text>
+            <Text style={[styles.secondaryValue, { color: theme.colors.text, fontSize: 13 }]}>{Math.round(consumedKcal)}/{kcalGoal} kcal</Text>
           </View>
           {/* Progress Bar */}
           <View style={[styles.progressBarBg, { backgroundColor: theme.colors.background }]}>
