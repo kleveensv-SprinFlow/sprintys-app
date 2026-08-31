@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, Animated } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { useTheme, theme } from '../../src/core/theme';
 import { Header } from '../../src/shared/components/Header';
 import { supabase } from '../../src/services/supabase';
@@ -84,6 +85,11 @@ export default function CoachGroupsScreen() {
     ]);
   };
 
+  const copyToClipboard = async (code: string) => {
+    await Clipboard.setStringAsync(code);
+    Alert.alert('Code copié', 'Le code d\'invitation a été copié dans le presse-papier.');
+  };
+
   const renderTeamList = () => (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <Text style={styles.sectionTitle}>Mes Groupes</Text>
@@ -100,10 +106,10 @@ export default function CoachGroupsScreen() {
             <Feather name="chevron-right" size={20} color={theme.colors.textMuted} />
           </View>
           <View style={styles.teamCardFooter}>
-            <View style={styles.teamCodeBadge}>
+            <TouchableOpacity style={styles.teamCodeBadge} onPress={() => copyToClipboard(team.invite_code)} activeOpacity={0.7}>
               <Feather name="key" size={12} color={theme.colors.accent} />
               <Text style={styles.teamCodeText}>{team.invite_code}</Text>
-            </View>
+            </TouchableOpacity>
           </View>
         </TouchableOpacity>
       ))}
@@ -132,7 +138,9 @@ export default function CoachGroupsScreen() {
           </TouchableOpacity>
           <View style={{ flex: 1, paddingHorizontal: 16 }}>
             <Text style={styles.detailTitle}>{activeTeam.name}</Text>
-            <Text style={styles.detailSubtitle}>Code: {activeTeam.invite_code}</Text>
+            <TouchableOpacity onPress={() => copyToClipboard(activeTeam.invite_code)} activeOpacity={0.7}>
+              <Text style={styles.detailSubtitle}>Code: {activeTeam.invite_code} <Feather name="copy" size={12} /></Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -145,9 +153,14 @@ export default function CoachGroupsScreen() {
             <Text style={[styles.tabText, activeTab === 'subgroups' && styles.tabTextActive]}>Sous-groupes</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.tabBtn, activeTab === 'pending' && styles.tabBtnActive]} onPress={() => setActiveTab('pending')}>
-            <Text style={[styles.tabText, activeTab === 'pending' && styles.tabTextActive]}>
-              Demandes {pendingMembers.length > 0 && `(${pendingMembers.length})`}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text style={[styles.tabText, activeTab === 'pending' && styles.tabTextActive]}>
+                Demandes {pendingMembers.length > 0 && `(${pendingMembers.length})`}
+              </Text>
+              {pendingMembers.length > 0 && (
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.warning }} />
+              )}
+            </View>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.tabBtn, activeTab === 'settings' && styles.tabBtnActive]} onPress={() => setActiveTab('settings')}>
             <Text style={[styles.tabText, activeTab === 'settings' && styles.tabTextActive]}>Paramètres</Text>
