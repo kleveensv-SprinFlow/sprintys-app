@@ -5,9 +5,10 @@ import { useTheme } from '../../core/theme';
 
 interface HeaderProps {
   title: string;
+  rightComponent?: React.ReactNode;
 }
 
-export const Header: React.FC<HeaderProps> = ({ title }) => {
+export const Header: React.FC<HeaderProps> = ({ title, rightComponent }) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -16,6 +17,11 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
       <Text style={[styles.title, { color: theme.colors.text }]}>
         {title}
       </Text>
+      {rightComponent && (
+        <View style={styles.rightContainer}>
+          {rightComponent}
+        </View>
+      )}
     </View>
   );
 };
@@ -28,10 +34,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
+    flexDirection: 'row',
   },
   title: {
     fontSize: 20,
     fontWeight: '800',
     letterSpacing: -0.5,
+    flex: 1,
+    textAlign: 'center',
+  },
+  rightContainer: {
+    position: 'absolute',
+    right: 16,
+    bottom: 12,
+    zIndex: 11,
   },
 });

@@ -10,12 +10,14 @@ import { supabase } from '../../src/services/supabase';
 import { useAuthStore } from '../../src/store/authStore';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useRouter } from 'expo-router';
 
 const MONTH_NAMES_SHORT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 
 export default function CoachCalendarScreen() {
   const theme = useTheme();
   const { user } = useAuthStore();
+  const router = useRouter();
   
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [dayModalVisible, setDayModalVisible] = useState(false);
@@ -80,7 +82,17 @@ export default function CoachCalendarScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Header title="Calendrier" />
+      <Header 
+        title="Calendrier" 
+        rightComponent={
+          <TouchableOpacity 
+            onPress={() => router.push('/(coach)/library')}
+            style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: theme.colors.surface, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}
+          >
+            <Feather name="book" size={20} color={theme.colors.accent} />
+          </TouchableOpacity>
+        }
+      />
       
       {/* Full-screen Calendar */}
       <MonthlyCalendar 

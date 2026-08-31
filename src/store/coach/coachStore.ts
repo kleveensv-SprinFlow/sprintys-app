@@ -29,6 +29,7 @@ interface CoachState {
   teamMembers: TeamMember[];
   pendingMembers: TeamMember[];
   teamCheckIns: any[];
+  workoutTemplates: any[];
   isLoading: boolean;
   error: string | null;
 
@@ -42,6 +43,8 @@ interface CoachState {
   deleteSubgroup: (subgroupId: string) => Promise<void>;
   fetchTeamMembers: (teamId: string) => Promise<void>;
   fetchTeamCheckIns: (teamId: string, dateStr: string) => Promise<void>;
+  fetchWorkoutTemplates: () => Promise<void>;
+  deleteWorkoutTemplate: (id: string) => Promise<void>;
   assignSubgroup: (userId: string, teamId: string, subgroupId: string | null) => Promise<void>;
   approveAthlete: (userId: string, teamId: string) => Promise<void>;
   rejectAthlete: (userId: string, teamId: string) => Promise<void>;
@@ -66,6 +69,7 @@ export const useCoachStore = create<CoachState>((set, get) => ({
   teamMembers: [],
   pendingMembers: [],
   teamCheckIns: [],
+  workoutTemplates: [],
   isLoading: false,
   error: null,
 
@@ -255,6 +259,34 @@ export const useCoachStore = create<CoachState>((set, get) => ({
       console.warn("Error fetching team checkins:", err);
     }
   },
+
+    fetchWorkoutTemplates: async () => {
+      const user = useAuthStore.getState().user;
+      if (!user) return;
+      try {
+        const { data, error } = await supabase
+          .from('workout_templates')
+          .select('*')
+          .eq('coach_id', user.id)
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        set({ workoutTemplates: data || [] });
+      } catch (err: any) {
+        console.error('Error fetching templates:', err);
+      }
+    },
+
+    deleteWorkoutTemplate: async (id: string) => {
+      try {
+        const { error } = await supabase.from('workout_templates').delete().eq('id', id);
+        if (error) throw error;
+        set((state) => ({
+          workoutTemplates: state.workoutTemplates.filter((t) => t.id !== id)
+        }));
+      } catch (err: any) {
+        console.error('Error deleting template:', err);
+      }
+    },
 
   assignSubgroup: async (userId: string, teamId: string, subgroupId: string | null) => {
     try {

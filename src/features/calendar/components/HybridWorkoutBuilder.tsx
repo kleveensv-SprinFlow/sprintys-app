@@ -149,6 +149,39 @@ export const HybridWorkoutBuilder: React.FC<HybridWorkoutBuilderProps> = ({ date
     }
   };
 
+  const handleSaveAsTemplate = async () => {
+    if (!user?.id) return;
+    if (!title.trim()) {
+      Alert.alert('Erreur', 'Veuillez saisir un titre avant de sauvegarder comme modèle.');
+      return;
+    }
+    Alert.alert(
+      'Nouveau modèle',
+      `Voulez-vous sauvegarder "${title}" dans votre bibliothèque ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { 
+          text: 'Sauvegarder', 
+          onPress: async () => {
+            try {
+              const { error } = await supabase.from('workout_templates').insert([{
+                coach_id: user.id,
+                name: title.trim(),
+                description: null,
+                type_seance: 'course',
+                blocks,
+              }]);
+              if (error) throw error;
+              Alert.alert('Succès', 'Modèle enregistré dans votre bibliothèque !');
+            } catch (err: any) {
+              Alert.alert('Erreur', err.message);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   // Targeting variables
   const currentTeamSubgroups = subgroups.filter(sg => sg.team_id === selectedTeamId);
   const currentTeamAthletes = teamMembers.filter(tm => tm.team_id === selectedTeamId);
@@ -178,14 +211,19 @@ export const HybridWorkoutBuilder: React.FC<HybridWorkoutBuilderProps> = ({ date
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        {/* TITRE */}
-        <TextInput
-          style={styles.titleInput}
-          value={title}
-          onChangeText={setTitle}
-          placeholder="Titre de la séance"
-          placeholderTextColor={theme.colors.textMuted}
-        />
+        {/* TITRE ET SAUVEGARDE MODELE */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+          <TextInput
+            style={[styles.titleInput, { flex: 1, marginBottom: 0 }]}
+            value={title}
+            onChangeText={setTitle}
+            placeholder="Titre de la séance"
+            placeholderTextColor={theme.colors.textMuted}
+          />
+          <TouchableOpacity onPress={handleSaveAsTemplate} style={{ padding: 8, backgroundColor: theme.colors.surfaceLight, borderRadius: 8, marginLeft: 12 }}>
+            <Feather name="bookmark" size={20} color={theme.colors.text} />
+          </TouchableOpacity>
+        </View>
 
         {/* CIBLAGE */}
         <View style={styles.section}>
