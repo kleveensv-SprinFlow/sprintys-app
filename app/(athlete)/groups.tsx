@@ -21,6 +21,32 @@ export default function GroupsScreen() {
   const [isJoining, setIsJoining] = useState(false);
   const [myGroup, setMyGroup] = useState<MyGroupData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [previewTeamName, setPreviewTeamName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (inviteCode.length === 8) {
+      checkInviteCode();
+    } else {
+      setPreviewTeamName(null);
+    }
+  }, [inviteCode]);
+
+  const checkInviteCode = async () => {
+    try {
+      const { data } = await supabase
+        .from('teams')
+        .select('name')
+        .eq('invite_code', inviteCode)
+        .maybeSingle();
+      if (data) {
+        setPreviewTeamName(data.name);
+      } else {
+        setPreviewTeamName(null);
+      }
+    } catch (e) {
+      setPreviewTeamName(null);
+    }
+  };
 
   useEffect(() => {
     fetchMyGroup();
@@ -195,10 +221,24 @@ export default function GroupsScreen() {
                 keyboardType="number-pad"
                 maxLength={8}
               />
+
+              {inviteCode.length === 8 && previewTeamName && (
+                <View style={styles.previewContainer}>
+                  <Feather name="check-circle" size={16} color={theme.colors.success} />
+                  <Text style={styles.previewText}>Groupe trouvé : <Text style={styles.previewTeamName}>{previewTeamName}</Text></Text>
+                </View>
+              )}
+              {inviteCode.length === 8 && !previewTeamName && (
+                <View style={styles.previewContainerError}>
+                  <Feather name="alert-circle" size={16} color={theme.colors.error} />
+                  <Text style={styles.previewTextError}>Code invalide ou introuvable</Text>
+                </View>
+              )}
+
               <TouchableOpacity 
                 style={[styles.joinBtn, (!inviteCode.trim() || inviteCode.trim().length < 8) && { opacity: 0.5 }]}
                 onPress={handleJoinGroup}
-                disabled={!inviteCode.trim() || inviteCode.trim().length < 8 || isJoining}
+                disabled={!inviteCode.trim() || inviteCode.trim().length < 8 || isJoining || !previewTeamName}
               >
                 {isJoining ? (
                   <ActivityIndicator size="small" color="#fff" />
@@ -322,6 +362,13 @@ const styles = StyleSheet.create({
     borderRadius: 12, alignItems: 'center',
   },
   joinBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
+
+  // Empty State
+  previewContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16, backgroundColor: theme.colors.success + '15', padding: 12, borderRadius: 8, width: '100%' },
+  previewContainerError: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16, backgroundColor: theme.colors.error + '15', padding: 12, borderRadius: 8, width: '100%' },
+  previewText: { color: theme.colors.success, fontSize: 14 },
+  previewTextError: { color: theme.colors.error, fontSize: 14 },
+  previewTeamName: { fontWeight: 'bold' },
 
   // Empty State
   emptyState: { alignItems: 'center', paddingVertical: 40 },
