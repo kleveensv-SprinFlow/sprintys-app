@@ -180,7 +180,15 @@ export default function CoachGroupsScreen() {
                 teamMembers.map(member => {
                   const sg = subgroups.find(s => s.id === member.subgroup_id);
                   return (
-                    <View key={member.user_id} style={styles.rowCard}>
+                    <TouchableOpacity 
+                      key={member.user_id} 
+                      style={styles.rowCard}
+                      onPress={() => {
+                        setSelectedEntityId(member.user_id);
+                        setModalType('change_sg');
+                      }}
+                      activeOpacity={0.7}
+                    >
                       <View style={styles.avatar}>
                         <Text style={styles.avatarText}>{member.profile?.first_name?.charAt(0) || ''}</Text>
                       </View>
@@ -189,18 +197,12 @@ export default function CoachGroupsScreen() {
                         <Text style={styles.rowSubtitle}>{sg ? sg.name : 'Aucun sous-groupe'}</Text>
                       </View>
                       <TouchableOpacity 
-                        onPress={() => {
-                          setSelectedEntityId(member.user_id);
-                          setModalType('change_sg');
-                        }}
-                        style={styles.actionBtnIcon}
+                        onPress={(e) => { e.stopPropagation(); handleRemoveAthlete(member.user_id); }} 
+                        style={[styles.actionBtnIcon, { backgroundColor: theme.colors.error + '15' }]}
                       >
-                        <Feather name="layers" size={18} color={theme.colors.textSecondary} />
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleRemoveAthlete(member.user_id)} style={styles.actionBtnIcon}>
                         <Feather name="user-x" size={18} color={theme.colors.error} />
                       </TouchableOpacity>
-                    </View>
+                    </TouchableOpacity>
                   );
                 })
               )}
@@ -354,30 +356,42 @@ export default function CoachGroupsScreen() {
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
             <Text style={styles.modalTitle}>Assigner un sous-groupe</Text>
             
-            <ScrollView style={{ maxHeight: 300, marginTop: 16 }}>
-              <TouchableOpacity 
-                style={[styles.sgOption, { borderColor: theme.colors.border }]}
-                onPress={() => {
-                  if (selectedEntityId && activeTeamId) assignSubgroup(selectedEntityId, activeTeamId, null);
-                  setModalType('none');
-                }}
-              >
-                <Text style={styles.sgOptionText}>Aucun sous-groupe</Text>
-              </TouchableOpacity>
-
-              {subgroups.map(sg => (
+            {subgroups.length === 0 ? (
+              <View style={{ alignItems: 'center', paddingVertical: 32, gap: 12 }}>
+                <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: theme.colors.accent + '15', alignItems: 'center', justifyContent: 'center' }}>
+                  <Feather name="layers" size={32} color={theme.colors.accent} />
+                </View>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text, textAlign: 'center' }}>Aucun sous-groupe créé</Text>
+                <Text style={{ fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center', paddingHorizontal: 16 }}>
+                  Rendez-vous dans l'onglet "Sous-groupes" pour en créer un, et organisez vos athlètes !
+                </Text>
+              </View>
+            ) : (
+              <ScrollView style={{ maxHeight: 300, marginTop: 16 }}>
                 <TouchableOpacity 
-                  key={sg.id}
                   style={[styles.sgOption, { borderColor: theme.colors.border }]}
                   onPress={() => {
-                    if (selectedEntityId && activeTeamId) assignSubgroup(selectedEntityId, activeTeamId, sg.id);
+                    if (selectedEntityId && activeTeamId) assignSubgroup(selectedEntityId, activeTeamId, null);
                     setModalType('none');
                   }}
                 >
-                  <Text style={styles.sgOptionText}>{sg.name}</Text>
+                  <Text style={styles.sgOptionText}>Aucun sous-groupe</Text>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
+
+                {subgroups.map(sg => (
+                  <TouchableOpacity 
+                    key={sg.id}
+                    style={[styles.sgOption, { borderColor: theme.colors.border }]}
+                    onPress={() => {
+                      if (selectedEntityId && activeTeamId) assignSubgroup(selectedEntityId, activeTeamId, sg.id);
+                      setModalType('none');
+                    }}
+                  >
+                    <Text style={styles.sgOptionText}>{sg.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
 
             <TouchableOpacity style={[styles.modalCancel, { marginTop: 16 }]} onPress={() => setModalType('none')}>
               <Text style={styles.modalCancelText}>Annuler</Text>
