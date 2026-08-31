@@ -59,25 +59,49 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
   const [showLibraryModal, setShowLibraryModal] = useState(false);
   const [librarySearch, setLibrarySearch] = useState('');
   const [libraryResults, setLibraryResults] = useState<any[]>([]);
+  const [allExercises, setAllExercises] = useState<any[]>([]);
   const [activeBlockIdForLibrary, setActiveBlockIdForLibrary] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Pre-fetch all exercises for fast, accent-insensitive search
+    const fetchAll = async () => {
+      const { data } = await supabase.from('exercises_catalog').select('*');
+      if (data) setAllExercises(data);
+    };
+    fetchAll();
+  }, []);
 
   useEffect(() => {
     if (showLibraryModal) {
       searchLibrary(librarySearch);
     }
-  }, [showLibraryModal, librarySearch]);
+  }, [showLibraryModal, librarySearch, allExercises]);
 
-  const searchLibrary = async (query: string) => {
-    if (query.trim().length === 0) {
-      const { data } = await supabase.from('exercises_catalog').select('*').limit(20);
-      setLibraryResults(data || []);
+  const normalizeText = (text: string) => {
+    if (!text) return '';
+    return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  };
+
+  const searchLibrary = (query: string) => {
+    const safeQuery = normalizeText(query.trim());
+    
+    if (safeQuery.length === 0) {
+      setLibraryResults(allExercises.slice(0, 20));
       return;
     }
-    const { data } = await supabase.from('exercises_catalog')
-      .select('*')
-      .or(`name_fr.ilike.%\$\{query\}%,name_en.ilike.%\$\{query\}%`)
-      .limit(20);
-    setLibraryResults(data || []);
+
+    // Custom mappings for common french weightlifting terms
+    const searchTerms = [safeQuery];
+    if (safeQuery.includes('epauler')) searchTerms.push('epaule');
+    if (safeQuery.includes('arracher')) searchTerms.push('arrache');
+
+    const results = allExercises.filter(ex => {
+      const fr = normalizeText(ex.name_fr);
+      const en = normalizeText(ex.name_en);
+      return searchTerms.some(term => fr.includes(term) || en.includes(term));
+    });
+
+    setLibraryResults(results.slice(0, 20));
   };
 
   const getNextBlockName = () => {
