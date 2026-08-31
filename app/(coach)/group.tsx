@@ -145,26 +145,28 @@ export default function CoachGroupsScreen() {
         </View>
 
         {/* Tabs */}
-        <View style={styles.tabsRow}>
-          <TouchableOpacity style={[styles.tabBtn, activeTab === 'members' && styles.tabBtnActive]} onPress={() => setActiveTab('members')}>
-            <Text style={[styles.tabText, activeTab === 'members' && styles.tabTextActive]}>Membres</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.tabBtn, activeTab === 'subgroups' && styles.tabBtnActive]} onPress={() => setActiveTab('subgroups')}>
-            <Text style={[styles.tabText, activeTab === 'subgroups' && styles.tabTextActive]}>Sous-groupes</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.tabBtn, activeTab === 'pending' && styles.tabBtnActive]} onPress={() => setActiveTab('pending')}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Text style={[styles.tabText, activeTab === 'pending' && styles.tabTextActive]}>
-                Demandes {pendingMembers.length > 0 && `(${pendingMembers.length})`}
-              </Text>
-              {pendingMembers.length > 0 && (
-                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.warning }} />
-              )}
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.tabBtn, activeTab === 'settings' && styles.tabBtnActive]} onPress={() => setActiveTab('settings')}>
-            <Text style={[styles.tabText, activeTab === 'settings' && styles.tabTextActive]}>Paramètres</Text>
-          </TouchableOpacity>
+        <View style={styles.tabsContainer}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsRow}>
+            <TouchableOpacity style={[styles.tabBtn, activeTab === 'members' && styles.tabBtnActive]} onPress={() => setActiveTab('members')}>
+              <Text style={[styles.tabText, activeTab === 'members' && styles.tabTextActive]}>Membres</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.tabBtn, activeTab === 'subgroups' && styles.tabBtnActive]} onPress={() => setActiveTab('subgroups')}>
+              <Text style={[styles.tabText, activeTab === 'subgroups' && styles.tabTextActive]}>Sous-groupes</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.tabBtn, activeTab === 'pending' && styles.tabBtnActive]} onPress={() => setActiveTab('pending')}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={[styles.tabText, activeTab === 'pending' && styles.tabTextActive]}>
+                  Demandes {pendingMembers.length > 0 && `(${pendingMembers.length})`}
+                </Text>
+                {pendingMembers.length > 0 && (
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.warning }} />
+                )}
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.tabBtn, activeTab === 'settings' && styles.tabBtnActive]} onPress={() => setActiveTab('settings')}>
+              <Text style={[styles.tabText, activeTab === 'settings' && styles.tabTextActive]}>Paramètres</Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
 
         {/* Tab Content */}
@@ -498,15 +500,17 @@ const styles = StyleSheet.create({
     marginTop: 2,
     letterSpacing: 1,
   },
-  tabsRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
+  tabsContainer: {
     marginBottom: 24,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
+  tabsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    gap: 24, // Adds spacing between tabs
+  },
   tabBtn: {
-    flex: 1,
     paddingVertical: 12,
     alignItems: 'center',
     borderBottomWidth: 2,
