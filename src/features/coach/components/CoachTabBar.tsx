@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../../core/theme';
+import { useCoachStore } from '../../../store/coach/coachStore';
 
 interface TabConfig {
   name: string;
@@ -49,6 +50,9 @@ const TabItem = ({
   const theme = useTheme();
   const scaleAnim = useRef(new Animated.Value(isFocused ? 1 : 0.95)).current;
   const pillOpacity = useRef(new Animated.Value(isFocused ? 1 : 0)).current;
+
+  const { pendingMembers } = useCoachStore();
+  const hasBadge = tab.name === 'group' && pendingMembers.length > 0;
 
   useEffect(() => {
     Animated.parallel([
@@ -123,6 +127,9 @@ const TabItem = ({
           ]}
         />
         {tab.renderIcon(iconColor, isFocused)}
+        {hasBadge && (
+          <View style={[styles.badgeDot, { borderColor: theme.colors.surface, backgroundColor: theme.colors.warning }]} />
+        )}
       </Animated.View>
 
       <Text
@@ -249,5 +256,16 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     marginTop: 3,
+  },
+  badgeDot: {
+    position: 'absolute',
+    top: 2,
+    right: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FF3B30', // Orange/Red warning color
+    borderWidth: 2,
+    borderColor: '#FFF',
   },
 });

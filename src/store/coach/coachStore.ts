@@ -46,6 +46,7 @@ interface CoachState {
   approveAthlete: (userId: string, teamId: string) => Promise<void>;
   rejectAthlete: (userId: string, teamId: string) => Promise<void>;
   removeAthlete: (userId: string, teamId: string) => Promise<void>;
+  fetchAllPendingRequests: () => Promise<void>;
   subscribeToTeam: (teamId: string) => void;
   unsubscribe: () => void;
 }
@@ -209,24 +210,29 @@ export const useCoachStore = create<CoachState>((set, get) => ({
         .eq('team_id', teamId);
 
       if (error) throw error;
-      
-      const allMembers = data.map((item: any) => ({
-        user_id: item.user_id,
-        team_id: item.team_id,
-        subgroup_id: item.subgroup_id,
-        status: item.status || 'approved',
-        profile: item.profiles
-      }));
+            const allMembers = data.map((item: any) => ({
+          user_id: item.user_id,
+          team_id: item.team_id,
+          subgroup_id: item.subgroup_id,
+          status: item.status || 'approved',
+          profile: item.profiles
+        }));
+        
+        console.log("DEBUG fetchTeamMembers data:", JSON.stringify(data, null, 2));
+        console.log("DEBUG fetchTeamMembers allMembers mapped:", JSON.stringify(allMembers, null, 2));
 
-      // Séparer les membres approuvés des demandes en attente
-      const approved = allMembers.filter((m: TeamMember) => m.status === 'approved');
-      const pending = allMembers.filter((m: TeamMember) => m.status === 'pending');
+        // Séparer les membres approuvés des demandes en attente
+        const approved = allMembers.filter((m: TeamMember) => m.status === 'approved');
+        const pending = allMembers.filter((m: TeamMember) => m.status === 'pending');
+        
+        console.log("DEBUG approved length:", approved.length, "pending length:", pending.length);
 
-      set({ teamMembers: approved, pendingMembers: pending, isLoading: false });
-    } catch (err: any) {
-      set({ error: err.message, isLoading: false });
-    }
-  },
+        set({ teamMembers: approved, pendingMembers: pending, isLoading: false });
+      } catch (err: any) {
+        console.error("DEBUG fetchTeamMembers error:", err.message);
+        set({ error: err.message, isLoading: false });
+      }
+    },
 
   fetchTeamCheckIns: async (teamId: string, dateStr: string) => {
     try {
@@ -323,6 +329,45 @@ export const useCoachStore = create<CoachState>((set, get) => ({
       }));
     } catch (err: any) {
       set({ error: err.message });
+    }
+  },
+
+  fetchAllPendingRequests: async () => {
+    const user = useAuthStore.getState().user;
+    if (!user) return;
+    
+    try {
+      // Fetch all teams of coach
+      const { data: coachTeams } = await supabase.from('teams').select('id').eq('coach_id', user.id);
+      if (!coachTeams || coachTeams.length === 0) return;
+      
+      const teamIds = coachTeams.map((t: any) => t.id);
+      
+      // Fetch pending members for these teams
+      const { data } = await supabase
+        .from('team_members')
+        .select(`
+          user_id,
+          team_id,
+          subgroup_id,
+          status,
+          profiles:user_id (id, full_name, first_name, last_name)
+        `)
+        .in('team_id', teamIds)
+        .eq('status', 'pending');
+        
+      if (data) {
+          const pending = data.map((item: any) => ({
+            user_id: item.user_id,
+            team_id: item.team_id,
+            subgroup_id: item.subgroup_id,
+            status: 'pending' as const,
+            profile: item.profiles
+          }));
+        set({ pendingMembers: pending });
+      }
+    } catch (e) {
+      console.error(e);
     }
   },
 

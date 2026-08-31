@@ -13,7 +13,7 @@ import { TeamHealthModal } from '../../src/features/coach/components/TeamHealthM
 export default function CoachDashboardScreen() {
   const { user } = useAuthStore();
   const router = useRouter();
-  const { teams, teamMembers, pendingMembers, teamCheckIns, fetchTeamCheckIns } = useCoachStore();
+  const { teams, teamMembers, pendingMembers, teamCheckIns, fetchTeamCheckIns, fetchAllPendingRequests } = useCoachStore();
   
   const [broadcastVisible, setBroadcastVisible] = useState(false);
   const [teamHealthVisible, setTeamHealthVisible] = useState(false);
@@ -24,6 +24,7 @@ export default function CoachDashboardScreen() {
     if (teams.length > 0) {
       const today = new Date().toISOString().split('T')[0];
       fetchTeamCheckIns(teams[0].id, today);
+      fetchAllPendingRequests();
     }
   }, [teams, teamMembers]);
 
