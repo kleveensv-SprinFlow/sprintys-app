@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Activi
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../../../core/theme';
 import { supabase } from '../../../services/supabase';
+import { fetchOpenAIResponse } from '../../../services/aiService';
 import { useAuthStore } from '../../../store/authStore';
 import { useCoachStore } from '../../../store/coach/coachStore';
 
@@ -50,6 +51,9 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
   // Modals
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [showReorderModal, setShowReorderModal] = useState(false);
+  const [showAIModal, setShowAIModal] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [isAILoading, setIsAILoading] = useState(false);
   
   // Targeting
   const [targetType, setTargetType] = useState<'team' | 'subgroup' | 'athlete'>('team');
@@ -225,9 +229,82 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
     }
   };
 
+  
   const handleAI = () => {
-    Alert.alert("Générateur IA", "Dites à Sprinty ce que vous voulez (ex: 4 séries de squat 80kg avec 2min repos puis 3 séries de fentes). L'IA générera automatiquement les blocs ! (Bientôt disponible)");
+    setShowAIModal(true);
   };
+
+  const handleGenerateAI = async () => {
+    if (!aiPrompt.trim()) return;
+    setIsAILoading(true);
+    
+    const systemPrompt = `Tu es un générateur de séances de musculation.
+Tu dois transformer la description en un tableau JSON STRICT de blocs.
+IMPORTANT: Ne renvoie AUCUN texte autour, JUSTE le tableau JSON brut (pas de balises markdown).
+
+Format attendu:
+[
+  {
+    "sets": "4",
+    "rest": "1m30",
+    "exercises": [
+      {
+        "name": "Squat",
+        "reps": "10",
+        "weight": "80",
+        "isPDC": false
+      }
+    ]
+  }
+]
+
+Règles:
+- Si l'utilisateur mentionne un superset (ex: "Squat puis Fentes"), mets les deux exercices dans le tableau "exercises" du MEME bloc.
+- Si poids du corps, mets "isPDC": true et "weight": "".
+- "rest" doit être court (ex: "30s", "1 min", "2 min").`;
+
+    try {
+      const result = await fetchOpenAIResponse(
+        [{ role: 'user', content: aiPrompt }],
+        systemPrompt,
+        'gpt-4o-mini'
+      );
+      
+      let cleanResult = result.trim();
+      if (cleanResult.startsWith('```json')) {
+        cleanResult = cleanResult.replace(/```json/g, '').replace(/```/g, '').trim();
+      } else if (cleanResult.startsWith('```')) {
+        cleanResult = cleanResult.replace(/```/g, '').trim();
+      }
+
+      const generatedBlocks = JSON.parse(cleanResult);
+      
+      // Inject IDs and map properly
+      const newBlocks = generatedBlocks.map((b: any) => ({
+        id: Math.random().toString(36).substring(2, 9),
+        sets: b.sets || '1',
+        rest: b.rest || '1m30',
+        exercises: (b.exercises || []).map((ex: any) => ({
+          id: Math.random().toString(36).substring(2, 9),
+          catalog_id: 'ai-generated',
+          name: ex.name || 'Exercice',
+          reps: ex.reps || '10',
+          weight: ex.weight || '',
+          isPDC: !!ex.isPDC
+        }))
+      }));
+
+      setBlocks(prev => [...prev, ...newBlocks]);
+      setShowAIModal(false);
+      setAiPrompt('');
+    } catch (error) {
+      Alert.alert("Erreur IA", "L'IA n'a pas pu générer la séance. Essayez de reformuler.");
+      console.error(error);
+    } finally {
+      setIsAILoading(false);
+    }
+  };
+
 
   // Target Display
   const currentTeamAthletes = teamMembers.filter(tm => tm.team_id === selectedTeamId);
@@ -437,6 +514,64 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
           <View style={{ height: 100 }} />
         </View>
       </ScrollView>
+
+      
+      {/* MODAL: AI GENERATOR */}
+      <Modal visible={showAIModal} animationType="slide" transparent>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <View style={[styles.modalContent, { height: 'auto', paddingBottom: 40 }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>✨ Générateur IA</Text>
+              <TouchableOpacity onPress={() => setShowAIModal(false)}>
+                <Feather name="x" size={28} color={theme.colors.text} />
+              </TouchableOpacity>
+            </View>
+            <Text style={{ color: theme.colors.textMuted, marginBottom: 16 }}>
+              Décrivez votre séance en langage naturel. Sprinty va la construire pour vous.
+            </Text>
+            <TextInput
+              style={{
+                backgroundColor: theme.colors.surface,
+                color: theme.colors.text,
+                padding: 16,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: theme.colors.border,
+                minHeight: 100,
+                textAlignVertical: 'top',
+                marginBottom: 16
+              }}
+              multiline
+              placeholder="Ex: 4 séries de squat 80kg avec 2min repos puis 3 séries de fentes..."
+              placeholderTextColor={theme.colors.textMuted}
+              value={aiPrompt}
+              onChangeText={setAiPrompt}
+            />
+            <TouchableOpacity 
+              style={{
+                backgroundColor: '#8B5CF6',
+                padding: 16,
+                borderRadius: 12,
+                alignItems: 'center',
+                flexDirection: 'row',
+                justifyContent: 'center',
+                gap: 8
+              }}
+              onPress={handleGenerateAI}
+              disabled={isAILoading}
+            >
+              {isAILoading ? (
+                <ActivityIndicator size="small" color="#FFF" />
+              ) : (
+                <>
+                  <Feather name="zap" size={20} color="#FFF" />
+                  <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 16 }}>Générer les blocs</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* MODAL: REORDER */}
       <Modal visible={showReorderModal} animationType="slide" transparent>
