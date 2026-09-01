@@ -2,29 +2,26 @@ import { useAuthStore } from '../store/authStore';
 import { useCheckInStore } from '../store/checkInStore';
 import { useNutritionStore } from '../store/nutrition/nutritionStore';
 import { useCoachStore } from '../store/coach/coachStore';
+import { supabase } from './supabase';
 
 export const buildSystemPrompt = (): string => {
   const { user } = useAuthStore.getState();
   const { todayHealthScore, history } = useCheckInStore.getState();
   const { mealLogs } = useNutritionStore.getState();
-  const { myGroups } = useCoachStore.getState() as any; // Need to check if myGroups is stored globally, currently it's local in groups.tsx. We can just check team_id on user if we had it, but user might be null.
+  const { myGroups } = useCoachStore.getState() as any; 
 
-  // Données de base
   const athleteName = user?.name || "Athlète";
   const nextComp = user?.nextCompetitionDate ? new Date(user.nextCompetitionDate).toLocaleDateString('fr-FR') : "Aucune";
   const kcalGoal = user?.manualKcalGoal || 2000;
   
-  // Nutrition du jour
   const consumedKcal = mealLogs.reduce((sum, log) => sum + Number(log.calories), 0);
 
-  // Check-in du jour
   const todayStr = new Date().toISOString().split('T')[0];
   const todayCheckin = history.find(h => h.date === todayStr);
   const checkinText = todayCheckin 
     ? `Fatigue: ${todayCheckin.fatigue_level}/5, Douleurs: ${todayCheckin.pains ? todayCheckin.pains.length : 0} zones, Stress: ${todayCheckin.stress_level}/5, Sommeil: ${todayCheckin.sleep_quality}/5.`
     : `L'athlète n'a pas encore fait son check-in santé aujourd'hui.`;
 
-  // Construction du Prompt
   return `Tu es Sprinty, un coach IA expert en athlétisme (sprint, demi-fond, sauts, etc.) intégré à l'application SprinFlow.
 Ton rôle est d'analyser les données de l'athlète, de le conseiller sur son entraînement, sa nutrition et sa récupération.
 Tu dois répondre en français, de manière experte, concise, motivante et directe. Pas de longues phrases inutiles.
@@ -40,9 +37,8 @@ INSTRUCTIONS DE RÉPONSE :
 2. Si sa fatigue ou ses douleurs sont élevées (>7), recommande de l'assouplissement ou du repos.
 3. Sois toujours bienveillant mais très professionnel (style coach d'athlétisme).`;
 };
+
 export const buildCoachSystemPromptForAthlete = async (athleteId: string, athleteName: string): Promise<string> => {
-  // Fetch real data directly from Supabase
-  const { supabase } = require('./supabase');
   
   // 1. Fetch recent check-ins
   const { data: checkins } = await supabase
@@ -60,38 +56,38 @@ export const buildCoachSystemPromptForAthlete = async (athleteId: string, athlet
     .order('date_prevue', { ascending: false })
     .limit(5);
 
-  let checkinText = "Aucune donn�e de check-in r�cente.";
+  let checkinText = "Aucune donnée de check-in récente.";
   if (checkins && checkins.length > 0) {
     checkinText = checkins.map((c: any) => 
-      \- \: �nergie \/5, Sommeil \h (\/5), Douleur \/5\
+      `- ${c.date}: Énergie ${c.energy}/5, Sommeil ${c.sleep_hours}h (${c.sleep_quality}/5), Douleur ${c.pain_level}/5`
     ).join('\n');
   }
 
-  let workoutsText = "Aucune s�ance r�cente.";
+  let workoutsText = "Aucune séance récente.";
   if (workouts && workouts.length > 0) {
     workoutsText = workouts.map((w: any) => 
-      \- \: \ (\) - Statut: \\
+      `- ${w.date_prevue}: ${w.nom_seance || w.type_seance} - Statut: ${w.statut}`
     ).join('\n');
   }
 
-  return \Tu es Sprinty, l'Assistant IA du Coach Sportif sur l'application SprinFlow.
-Ton r�le est d'analyser les donn�es de l'athl�te et de fournir au coach des r�sum�s clairs, des tendances, et des recommandations.
+  return `Tu es Sprinty, l'Assistant IA du Coach Sportif sur l'application SprinFlow.
+Ton rôle est d'analyser les données de l'athlète et de fournir au coach des résumés clairs, des tendances, et des recommandations.
 
-R�GLES DE FORMATAGE :
-- Fais des r�ponses tr�s lisibles, visuelles et structur�es (listes � puces, sauts de ligne).
-- Utilise des �mojis pour illustrer tes points.
+RÈGLES DE FORMATAGE :
+- Fais des réponses très lisibles, visuelles et structurées (listes à puces, sauts de ligne).
+- Utilise des émojis pour illustrer tes points.
 - Ne fais JAMAIS de longs paragraphes denses.
 - Ton ton est professionnel, analytique mais concis (style data-scientist du sport).
 
-DONN�ES S�CURIS�ES DE L'ATHL�TE : \
+DONNÉES SÉCURISÉES DE L'ATHLÈTE : ${athleteName}
 
-?? DERNIERS CHECK-INS (Sant� / Forme) :
-\
+🩺 DERNIERS CHECK-INS (Santé / Forme) :
+${checkinText}
 
-??? DERNI�RES S�ANCES :
-\
+🏋️ DERNIÈRES SÉANCES :
+${workoutsText}
 
 INSTRUCTIONS FINALES :
-- Le coach te pose une question sur \. R�ponds-lui directement en te basant UNIQUEMENT sur ces donn�es et sur tes connaissances en physiologie du sport.
-- Si les donn�es sont vides, signale-le au coach calmement.\;
+- Le coach te pose une question sur l'athlète. Réponds-lui directement en te basant UNIQUEMENT sur ces données et sur tes connaissances en physiologie du sport.
+- Si les données sont vides, signale-le au coach calmement.`;
 };
