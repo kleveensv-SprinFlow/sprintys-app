@@ -7,8 +7,10 @@ import { Header } from '../../src/shared/components/Header';
 import { supabase } from '../../src/services/supabase';
 import { useCoachStore } from '../../src/store/coach/coachStore';
 import { useAuthStore } from '../../src/store/authStore';
+import { useRouter } from 'expo-router';
 
 export default function CoachGroupsScreen() {
+  const router = useRouter();
   const { user } = useAuthStore();
   const { 
     teams, fetchTeams, createTeam, updateTeam, deleteTeam,
@@ -24,9 +26,10 @@ export default function CoachGroupsScreen() {
   const [newTeamName, setNewTeamName] = useState('');
   
   // States for Modals
-  const [modalType, setModalType] = useState<'none' | 'rename_team' | 'create_sg' | 'rename_sg' | 'change_sg'>('none');
+  const [modalType, setModalType] = useState<'none' | 'rename_team' | 'create_sg' | 'rename_sg' | 'change_sg' | 'athlete_profile'>('none');
   const [tempValue, setTempValue] = useState('');
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
+  const [selectedAthlete, setSelectedAthlete] = useState<any>(null);
 
   // Load initial teams
   useEffect(() => {
@@ -185,7 +188,8 @@ export default function CoachGroupsScreen() {
                       style={styles.rowCard}
                       onPress={() => {
                         setSelectedEntityId(member.user_id);
-                        setModalType('change_sg');
+                        setSelectedAthlete(member);
+                        setModalType('athlete_profile');
                       }}
                       activeOpacity={0.7}
                     >
@@ -346,6 +350,73 @@ export default function CoachGroupsScreen() {
                 <Text style={styles.modalSaveText}>Enregistrer</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* MODAL FOR ATHLETE PROFILE (Proposition B) */}
+      <Modal visible={modalType === 'athlete_profile' && !!selectedAthlete} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
+            
+            <View style={{ alignItems: 'center', marginBottom: 24 }}>
+              <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: theme.colors.surfaceLight, justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
+                <Text style={{ fontSize: 32, fontWeight: 'bold', color: theme.colors.textSecondary }}>
+                  {selectedAthlete?.profile?.first_name?.charAt(0) || ''}
+                </Text>
+              </View>
+              <Text style={{ fontSize: 24, fontWeight: 'bold', color: theme.colors.text }}>{selectedAthlete?.profile?.full_name}</Text>
+              <Text style={{ fontSize: 14, color: theme.colors.textMuted, marginTop: 4 }}>Athlète de l'équipe</Text>
+            </View>
+
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between', marginBottom: 24 }}>
+              
+              {/* Nutrition */}
+              <TouchableOpacity style={styles.actionSquareBtn} onPress={() => Alert.alert('Bientôt', 'La vue détaillée de la nutrition arrive bientôt.')}>
+                <View style={[styles.actionSquareIcon, { backgroundColor: '#F59E0B20' }]}>
+                  <Feather name="coffee" size={24} color="#F59E0B" />
+                </View>
+                <Text style={styles.actionSquareText}>Nutrition</Text>
+              </TouchableOpacity>
+
+              {/* Check-in */}
+              <TouchableOpacity style={styles.actionSquareBtn} onPress={() => Alert.alert('Bientôt', 'Accès direct au check-in.')}>
+                <View style={[styles.actionSquareIcon, { backgroundColor: '#10B98120' }]}>
+                  <Feather name="check-square" size={24} color="#10B981" />
+                </View>
+                <Text style={styles.actionSquareText}>Check-in</Text>
+              </TouchableOpacity>
+
+              {/* Sous-groupe */}
+              <TouchableOpacity style={styles.actionSquareBtn} onPress={() => setModalType('change_sg')}>
+                <View style={[styles.actionSquareIcon, { backgroundColor: theme.colors.accent + '20' }]}>
+                  <Feather name="users" size={24} color={theme.colors.accent} />
+                </View>
+                <Text style={styles.actionSquareText}>Sous-groupe</Text>
+              </TouchableOpacity>
+
+              {/* Sprinty */}
+              <TouchableOpacity 
+                style={styles.actionSquareBtn} 
+                onPress={() => {
+                  setModalType('none');
+                  router.push({ 
+                    pathname: '/(coach)/chat', 
+                    params: { athleteId: selectedAthlete?.user_id, athleteName: selectedAthlete?.profile?.full_name } 
+                  });
+                }}
+              >
+                <View style={[styles.actionSquareIcon, { backgroundColor: '#8B5CF620' }]}>
+                  <Feather name="cpu" size={24} color="#8B5CF6" />
+                </View>
+                <Text style={styles.actionSquareText}>Sprinty IA</Text>
+              </TouchableOpacity>
+
+            </View>
+
+            <TouchableOpacity style={styles.modalCancel} onPress={() => { setModalType('none'); setSelectedAthlete(null); }}>
+              <Text style={styles.modalCancelText}>Fermer</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -625,17 +696,18 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFF',
+    color: theme.colors.text,
     marginBottom: 20,
     textAlign: 'center',
   },
   input: {
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: theme.colors.border,
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
     marginBottom: 24,
+    color: theme.colors.text,
   },
   modalActions: {
     flexDirection: 'row',
@@ -646,10 +718,10 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: theme.colors.surfaceLight,
   },
   modalCancelText: {
-    color: '#FFF',
+    color: theme.colors.text,
     fontWeight: 'bold',
   },
   modalSave: {
@@ -657,6 +729,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
+    backgroundColor: theme.colors.accent,
   },
   modalSaveText: {
     color: '#FFF',
@@ -667,12 +740,35 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     marginBottom: 8,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: theme.colors.surfaceLight,
   },
   sgOptionText: {
-    color: '#FFF',
+    color: theme.colors.text,
     fontSize: 16,
     textAlign: 'center',
     fontWeight: '500',
+  },
+  actionSquareBtn: {
+    width: '47%',
+    backgroundColor: theme.colors.surfaceLight,
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  actionSquareIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  actionSquareText: {
+    color: theme.colors.text,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
   }
 });
