@@ -15,15 +15,15 @@ export const TeamHealthModal = ({ visible, onClose }: Props) => {
 
   const calculateScore = (ci: any) => {
     if (!ci) return null;
-    const total = ci.sleep_quality + ci.energy + (6 - ci.stress_level) + (6 - ci.pain_level) + (6 - ci.muscle_soreness);
-    return (total / 5).toFixed(1);
+    if (ci.health_score !== undefined && ci.health_score !== null) return Math.round(ci.health_score).toString();
+    return null;
   };
 
   const getScoreColor = (scoreStr: string | null) => {
     if (!scoreStr) return theme.colors.textMuted;
-    const score = parseFloat(scoreStr);
-    if (score >= 4.0) return theme.colors.success;
-    if (score >= 3.0) return theme.colors.warning;
+    const s = parseFloat(scoreStr);
+    if (s >= 80) return theme.colors.success;
+    if (s >= 50) return '#F59E0B'; // Orange
     return theme.colors.error;
   };
 
