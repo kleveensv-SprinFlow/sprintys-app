@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Modal, ScrollView } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Modal, ScrollView, Animated, Easing } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import * as Location from 'expo-location';
@@ -13,6 +13,47 @@ export const CoachWeatherCard = () => {
   const [isLoading, setIsLoading] = useState(true);
   
   const [isModalVisible, setIsModalVisible] = useState(false);
+
+  const spinValue = useRef(new Animated.Value(0)).current;
+  const floatValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(spinValue, {
+        toValue: 1,
+        duration: 12000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatValue, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.sine), useNativeDriver: true }),
+        Animated.timing(floatValue, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.sine), useNativeDriver: true })
+      ])
+    ).start();
+  }, []);
+
+  const getThermalBackgroundColor = (temp: number) => {
+    if (temp < 10) return 'rgba(59, 130, 246, 0.15)'; // Cold Blue
+    if (temp < 19) return 'rgba(16, 185, 129, 0.15)'; // Mild Green
+    if (temp < 26) return 'rgba(245, 158, 11, 0.15)'; // Warm Orange
+    return 'rgba(239, 68, 68, 0.15)'; // Hot Red
+  };
+
+  const getWeatherIconColor = (condition?: string) => {
+    switch (condition) {
+      case 'clear': return '#FACC15'; // Yellow
+      case 'cloudy': 
+      case 'foggy': return '#94A3B8'; // Slate Gray
+      case 'rainy':
+      case 'showers': return '#38BDF8'; // Sky Blue
+      case 'snowy': return '#E0F2FE'; // Light Ice
+      case 'stormy': return '#A855F7'; // Purple
+      default: return '#FACC15';
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -66,6 +107,16 @@ export const CoachWeatherCard = () => {
     );
   }
 
+  const isSun = weather?.condition === 'clear';
+  const spin = spinValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg']
+  });
+  const float = floatValue.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [0, -6, 0]
+  });
+
   return (
     <>
       <TouchableOpacity 
@@ -90,7 +141,9 @@ export const CoachWeatherCard = () => {
               </View>
             </View>
           </View>
-          <Feather name={getWeatherIcon(weather?.condition) as any} size={42} color={theme.colors.warning} />
+          <Animated.View style={{ transform: isSun ? [{ rotate: spin }] : [{ translateY: float }] }}>
+            <Feather name={getWeatherIcon(weather?.condition) as any} size={42} color={getWeatherIconColor(weather?.condition)} />
+          </Animated.View>
         </View>
       </TouchableOpacity>
 
@@ -128,9 +181,9 @@ export const CoachWeatherCard = () => {
                 
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 10, gap: 12 }}>
                   {weather?.hourly ? weather.hourly.map((h, i) => (
-                    <View key={i} style={[styles.hourlyCard, { backgroundColor: theme.colors.background }]}>
+                    <View key={i} style={[styles.hourlyCard, { backgroundColor: getThermalBackgroundColor(h.temperature) }]}>
                       <Text style={[styles.hourlyTime, { color: theme.colors.textSecondary }]}>{h.time}</Text>
-                      <Feather name={getWeatherIcon(h.condition) as any} size={24} color={theme.colors.text} style={{ marginVertical: 8 }} />
+                      <Feather name={getWeatherIcon(h.condition) as any} size={24} color={getWeatherIconColor(h.condition)} style={{ marginVertical: 8 }} />
                       <Text style={[styles.hourlyTemp, { color: theme.colors.text }]}>{h.temperature}°</Text>
                     </View>
                   )) : (
