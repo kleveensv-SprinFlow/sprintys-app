@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+﻿const fs = require('fs');
+const content = `import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../../../core/theme';
@@ -71,7 +72,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
       const { data } = await supabase
         .from('exercises_catalog')
         .select('*')
-        .ilike('name', `%${searchQuery}%`)
+        .ilike('name', \`%\${searchQuery}%\`)
         .limit(5);
       setSearchResults(data || []);
       setIsSearching(false);
@@ -181,7 +182,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
       const dbBlocks = blocks.map((b, index) => {
         return {
           id: b.id,
-          name: `Bloc ${index + 1}`,
+          name: \`Bloc \${index + 1}\`,
           rest_after_block: b.rest,
           exercises: b.exercises.map(ex => {
             const setsCount = parseInt(b.sets) || 1;
@@ -210,7 +211,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
         subgroup_id: targetType === 'subgroup' ? selectedSubgroupId : null,
         athlete_id: targetType === 'athlete' ? selectedAthleteId : null,
         date_prevue: date.toISOString(),
-        type_seance: `${workoutType} - ${title.trim()}`,
+        type_seance: \`\${workoutType} - \${title.trim()}\`,
         intensity: 5,
         blocks: dbBlocks,
         status: 'planned'
@@ -334,7 +335,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
                   <View key={ex.id} style={styles.exerciseCardWrapper}>
                     {/* The Node */}
                     <View style={styles.timelineNode}>
-                      <Text style={styles.nodeText}>{exIdx === 0 ? blockIdx + 1 : `${blockIdx + 1}${String.fromCharCode(65 + exIdx)}`}</Text>
+                      <Text style={styles.nodeText}>{exIdx === 0 ? blockIdx + 1 : \`\${blockIdx + 1}\${String.fromCharCode(65 + exIdx)}\`}</Text>
                     </View>
 
                     {/* The Card */}
@@ -541,3 +542,5 @@ const styles = StyleSheet.create({
   reorderItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: theme.colors.surface, borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: theme.colors.border },
   reorderItemText: { fontSize: 16, fontWeight: 'bold', color: theme.colors.text, flex: 1 }
 });
+`
+fs.writeFileSync('src/features/calendar/components/StrengthWorkoutBuilder.tsx', content);

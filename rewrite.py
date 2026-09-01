@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import codecs
+
+content = r'''import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../../../core/theme';
@@ -71,7 +73,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
       const { data } = await supabase
         .from('exercises_catalog')
         .select('*')
-        .ilike('name', `%${searchQuery}%`)
+        .ilike('name', %%)
         .limit(5);
       setSearchResults(data || []);
       setIsSearching(false);
@@ -171,7 +173,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
   const handleSave = async () => {
     if (!user?.id) return;
     if (!title.trim()) {
-      Alert.alert('Erreur', 'Veuillez saisir un titre pour la sÃ©ance.');
+      Alert.alert('Erreur', 'Veuillez saisir un titre pour la séance.');
       return;
     }
 
@@ -181,7 +183,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
       const dbBlocks = blocks.map((b, index) => {
         return {
           id: b.id,
-          name: `Bloc ${index + 1}`,
+          name: Bloc ,
           rest_after_block: b.rest,
           exercises: b.exercises.map(ex => {
             const setsCount = parseInt(b.sets) || 1;
@@ -210,7 +212,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
         subgroup_id: targetType === 'subgroup' ? selectedSubgroupId : null,
         athlete_id: targetType === 'athlete' ? selectedAthleteId : null,
         date_prevue: date.toISOString(),
-        type_seance: `${workoutType} - ${title.trim()}`,
+        type_seance: ${workoutType} - ,
         intensity: 5,
         blocks: dbBlocks,
         status: 'planned'
@@ -226,12 +228,12 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
   };
 
   const handleAI = () => {
-    Alert.alert("GÃ©nÃ©rateur IA", "Dites Ã  Sprinty ce que vous voulez (ex: 4 sÃ©ries de squat 80kg avec 2min repos puis 3 sÃ©ries de fentes). L'IA gÃ©nÃ©rera automatiquement les blocs ! (BientÃ´t disponible)");
+    Alert.alert("Générateur IA", "Dites à Sprinty ce que vous voulez (ex: 4 séries de squat 80kg avec 2min repos puis 3 séries de fentes). L'IA générera automatiquement les blocs ! (Bientôt disponible)");
   };
 
   // Target Display
   const currentTeamAthletes = teamMembers.filter(tm => tm.team_id === selectedTeamId);
-  let targetDisplay = 'SÃ©lectionner...';
+  let targetDisplay = 'Sélectionner...';
   if (targetType === 'team' && selectedTeamId) targetDisplay = teams.find(t => t.id === selectedTeamId)?.name || targetDisplay;
   else if (targetType === 'athlete' && selectedAthleteId) targetDisplay = currentTeamAthletes.find(a => a.user_id === selectedAthleteId)?.profile?.full_name || targetDisplay;
 
@@ -246,7 +248,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
           style={styles.headerTitleInput}
           value={title}
           onChangeText={setTitle}
-          placeholder="Titre de la sÃ©ance"
+          placeholder="Titre de la séance"
           placeholderTextColor={theme.colors.textMuted}
         />
         <TouchableOpacity 
@@ -274,7 +276,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
           <TouchableOpacity style={styles.aiButton} onPress={handleAI}>
             <Feather name="message-square" size={20} color="#FFF" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.libButton} onPress={() => Alert.alert('BibliothÃ¨que', 'Arrive bientÃ´t dans cette vue !')}>
+          <TouchableOpacity style={styles.libButton} onPress={() => Alert.alert('Bibliothèque', 'Arrive bientôt dans cette vue !')}>
             <Feather name="book-open" size={20} color={theme.colors.text} />
           </TouchableOpacity>
         </View>
@@ -312,7 +314,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
           {blocks.length === 0 ? (
             <View style={styles.emptyState}>
               <Feather name="list" size={48} color={theme.colors.border} />
-              <Text style={styles.emptyText}>Recherchez un exercice ou utilisez l'IA pour commencer votre sÃ©quence.</Text>
+              <Text style={styles.emptyText}>Recherchez un exercice ou utilisez l'IA pour commencer votre séquence.</Text>
             </View>
           ) : (
             blocks.map((block, blockIdx) => (
@@ -325,7 +327,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
                 {blockIdx > 0 && (
                   <TouchableOpacity style={styles.linkToPrevBtn} onPress={() => linkToPrevious(blockIdx)}>
                     <Feather name="link" size={12} color={theme.colors.accent} />
-                    <Text style={styles.linkToPrevText}>Lier au prÃ©cÃ©dent (Superset)</Text>
+                    <Text style={styles.linkToPrevText}>Lier au précédent (Superset)</Text>
                   </TouchableOpacity>
                 )}
 
@@ -334,7 +336,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
                   <View key={ex.id} style={styles.exerciseCardWrapper}>
                     {/* The Node */}
                     <View style={styles.timelineNode}>
-                      <Text style={styles.nodeText}>{exIdx === 0 ? blockIdx + 1 : `${blockIdx + 1}${String.fromCharCode(65 + exIdx)}`}</Text>
+                      <Text style={styles.nodeText}>{exIdx === 0 ? blockIdx + 1 : ${blockIdx + 1}}</Text>
                     </View>
 
                     {/* The Card */}
@@ -389,7 +391,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
                 {/* Block Settings (Sets & Rest) at the bottom of the group */}
                 <View style={styles.blockSettings}>
                   <View style={styles.blockSettingItem}>
-                    <Text style={styles.blockSettingLabel}>SÃ©ries</Text>
+                    <Text style={styles.blockSettingLabel}>Séries</Text>
                     <View style={styles.counter}>
                       <TouchableOpacity onPress={() => updateBlock(blockIdx, 'sets', Math.max(1, parseInt(block.sets || '1') - 1).toString())}>
                         <Feather name="minus-circle" size={24} color={theme.colors.textSecondary} />
@@ -430,7 +432,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
           {blocks.length > 1 && (
             <TouchableOpacity style={styles.reorderBtn} onPress={() => setShowReorderModal(true)}>
               <Feather name="list" size={18} color={theme.colors.text} />
-              <Text style={styles.reorderBtnText}>RÃ©organiser l'ordre</Text>
+              <Text style={styles.reorderBtnText}>Réorganiser l'ordre</Text>
             </TouchableOpacity>
           )}
 
@@ -443,7 +445,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { height: '70%' }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>RÃ©organiser</Text>
+              <Text style={styles.modalTitle}>Réorganiser</Text>
               <TouchableOpacity onPress={() => setShowReorderModal(false)}>
                 <Feather name="check" size={28} color={theme.colors.accent} />
               </TouchableOpacity>
@@ -541,3 +543,7 @@ const styles = StyleSheet.create({
   reorderItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: theme.colors.surface, borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: theme.colors.border },
   reorderItemText: { fontSize: 16, fontWeight: 'bold', color: theme.colors.text, flex: 1 }
 });
+'''
+
+with codecs.open('src/features/calendar/components/StrengthWorkoutBuilder.tsx', 'w', 'utf-8') as f:
+    f.write(content)
