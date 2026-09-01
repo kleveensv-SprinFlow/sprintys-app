@@ -57,7 +57,7 @@ export const checkInService = {
         sleep_score: data.sleep_score,
         physical_score: data.physical_score,
         mental_score: data.mental_score,
-      }, { onConflict: 'check_ins_athlete_id_date_key' })
+      }, { onConflict: 'athlete_id,date' })
       .select()
       .single();
 
