@@ -157,7 +157,12 @@ export default function CoachDashboardScreen() {
                   </Text>
                 </View>
                 <Text style={styles.sessionDuration}>
-                  <Feather name="clock" size={12} color={theme.colors.textMuted} /> {new Date(workout.date_prevue).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                  <Feather name="clock" size={12} color={theme.colors.textMuted} /> {
+                    (() => {
+                      const d = new Date(workout.date_prevue);
+                      return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                    })()
+                  }
                 </Text>
               </View>
               <Text style={styles.sessionCardTitle}>{workout.type_seance}</Text>

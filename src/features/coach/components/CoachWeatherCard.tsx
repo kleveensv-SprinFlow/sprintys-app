@@ -29,8 +29,8 @@ export const CoachWeatherCard = () => {
 
     Animated.loop(
       Animated.sequence([
-        Animated.timing(floatValue, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.sine), useNativeDriver: true }),
-        Animated.timing(floatValue, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.sine), useNativeDriver: true })
+        Animated.timing(floatValue, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(floatValue, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true })
       ])
     ).start();
   }, []);

@@ -22,11 +22,17 @@ export const weatherService = {
     
     const hourly = [];
     if (data.hourly && data.hourly.time) {
-      const nowIdx = data.hourly.time.findIndex((t: string) => new Date(t).getTime() > Date.now());
+      // Safely find the current hour index without relying on timezone/Date objects
+      const nowString = new Date().toISOString().substring(0, 14) + "00"; // roughly "YYYY-MM-DDTHH:00"
+      let nowIdx = data.hourly.time.findIndex((t: string) => t >= nowString);
+      if (nowIdx === -1) nowIdx = 0;
+      
       const startIndex = nowIdx > 0 ? nowIdx - 1 : 0;
       for (let i = startIndex; i < startIndex + 12 && i < data.hourly.time.length; i++) {
+        // Extract time directly from string "YYYY-MM-DDTHH:mm" -> "HH:mm"
+        const timeString = data.hourly.time[i].split('T')[1] || '--:--';
         hourly.push({
-          time: new Date(data.hourly.time[i]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          time: timeString,
           temperature: Math.round(data.hourly.temperature_2m[i]),
           condition: getWeatherCondition(data.hourly.weather_code[i])
         });
