@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../../src/core/theme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { fetchOpenAIResponse } from '../../src/services/aiService';
+import { buildCoachSystemPromptForAthlete } from '../../src/services/aiContextBuilder';
 
 interface Message {
   id: string;
@@ -16,33 +18,56 @@ export default function CoachChatScreen() {
   const { athleteId, athleteName } = useLocalSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [systemPrompt, setSystemPrompt] = useState('');
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
-    // Initial greeting
-    const greeting = athleteName 
-      ? `Bonjour Coach ! 👋\n\nJe suis prêt à analyser le dossier complet de **${athleteName}** de manière 100% sécurisée. Que voulez-vous examiner ?\n\n⚡ **Nutrition & Poids**\n📋 **Derniers Check-ins**\n🏋️ **Progression Musculation**`
-      : "Bonjour Coach ! 👋\nJe suis Sprinty, votre assistant personnel. Comment puis-je vous aider à gérer votre équipe aujourd'hui ?";
-    
-    setMessages([
-      { id: Date.now().toString(), text: greeting, sender: 'sprinty', timestamp: new Date() }
-    ]);
-  }, [athleteName]);
+    const initializeChat = async () => {
+      let prompt = "Tu es Sprinty, l'assistant du coach.";
+      let greeting = "Bonjour Coach ! 👋\nJe suis Sprinty. Comment puis-je vous aider à gérer votre équipe aujourd'hui ?";
 
-  const sendMessage = () => {
-    if (!inputText.trim()) return;
+      if (athleteId && athleteName) {
+        greeting = `Bonjour Coach ! 👋\n\nJ'ai bien récupéré le dossier de **${athleteName}**. Que voulez-vous examiner ?\n\n⚡ **Nutrition & Poids**\n📋 **Derniers Check-ins**\n🏋️ **Progression Musculation**`;
+        prompt = await buildCoachSystemPromptForAthlete(athleteId as string, athleteName as string);
+      }
+      
+      setSystemPrompt(prompt);
+      setMessages([
+        { id: Date.now().toString(), text: greeting, sender: 'sprinty', timestamp: new Date() }
+      ]);
+    };
+
+    initializeChat();
+  }, [athleteId, athleteName]);
+
+  const sendMessage = async () => {
+    if (!inputText.trim() || isLoading) return;
     
-    const userMsg: Message = { id: Date.now().toString(), text: inputText.trim(), sender: 'user', timestamp: new Date() };
+    const userText = inputText.trim();
+    const userMsg: Message = { id: Date.now().toString(), text: userText, sender: 'user', timestamp: new Date() };
+    
     setMessages(prev => [...prev, userMsg]);
     setInputText('');
+    setIsLoading(true);
 
-    // Mock response from Sprinty
-    setTimeout(() => {
-      let sprintyReply = `Voici l'analyse demandée pour ${athleteName || 'l\'athlète'} : \n\n🔥 **Point fort :** Constance parfaite cette semaine.\n⚠️ **Attention :** Le sommeil est en baisse (moyenne de 5.5h/nuit sur 3 jours).\n\n💡 *Action recommandée : Réduire le volume d'entraînement de 15% demain.*`;
+    try {
+      // Build conversation history for API (last 6 messages to keep context without exploding tokens)
+      const chatHistory = [...messages, userMsg].slice(-6).map(m => ({
+        role: m.sender === 'user' ? 'user' : 'assistant',
+        content: m.text
+      }));
+
+      const reply = await fetchOpenAIResponse(chatHistory, systemPrompt);
       
-      const replyMsg: Message = { id: (Date.now() + 1).toString(), text: sprintyReply, sender: 'sprinty', timestamp: new Date() };
+      const replyMsg: Message = { id: (Date.now() + 1).toString(), text: reply, sender: 'sprinty', timestamp: new Date() };
       setMessages(prev => [...prev, replyMsg]);
-    }, 1500);
+    } catch (error) {
+      const errorMsg: Message = { id: (Date.now() + 1).toString(), text: "Désolé Coach, je n'ai pas pu me connecter à l'analyseur. Vérifiez votre connexion.", sender: 'sprinty', timestamp: new Date() };
+      setMessages(prev => [...prev, errorMsg]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const renderMessage = ({ item }: { item: Message }) => {
@@ -88,9 +113,14 @@ export default function CoachChatScreen() {
             value={inputText}
             onChangeText={setInputText}
             multiline
+            editable={!isLoading}
           />
-          <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}>
-            <Feather name="send" size={20} color="#FFF" />
+          <TouchableOpacity style={[styles.sendBtn, isLoading && { opacity: 0.7 }]} onPress={sendMessage} disabled={isLoading}>
+            {isLoading ? (
+              <ActivityIndicator size="small" color="#FFF" />
+            ) : (
+              <Feather name="send" size={20} color="#FFF" />
+            )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
