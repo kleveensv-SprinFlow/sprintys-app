@@ -4,7 +4,7 @@ import { useTheme } from '../../src/core/theme';
 import { Header } from '../../src/shared/components/Header';
 import { MonthlyCalendar } from '../../src/shared/components/MonthlyCalendar';
 import { WorkoutCard } from '../../src/shared/components/WorkoutCard';
-import { HybridWorkoutBuilder } from '../../src/features/calendar/components/HybridWorkoutBuilder';
+import { RunWorkoutBuilder } from '../../src/features/calendar/components/RunWorkoutBuilder';
 import { StrengthWorkoutBuilder } from '../../src/features/calendar/components/StrengthWorkoutBuilder';
 import { supabase } from '../../src/services/supabase';
 import { useAuthStore } from '../../src/store/authStore';
@@ -128,9 +128,8 @@ export default function CoachCalendarScreen() {
                   <View style={styles.gridContainer}>
                     {[
                       { id: 'muscu', title: 'Musculation', icon: 'bold', color: '#6366F1', type: 'strength' },
-                      { id: 'lactique', title: 'Lactique', icon: 'activity', color: '#EF4444', type: 'hybrid' },
-                      { id: 'aerobie', title: 'Aérobie', icon: 'wind', color: '#0EA5E9', type: 'hybrid' },
-                      { id: 'technique', title: 'Technique', icon: 'target', color: '#10B981', type: 'hybrid' },
+                      { id: 'course', title: 'Course', icon: 'activity', color: '#EF4444', type: 'hybrid' },
+                        { id: 'technique', title: 'Technique', icon: 'target', color: '#10B981', type: 'hybrid' },
                       { id: 'escalier', title: 'Escaliers', icon: 'trending-up', color: '#8B5CF6', type: 'hybrid' },
                       { id: 'competition', title: 'Compétition', icon: 'award', color: '#F59E0B', type: 'hybrid' },
                     ].map((item) => (
@@ -205,7 +204,7 @@ export default function CoachCalendarScreen() {
 
       {/* Modals for Builders */}
       <Modal visible={builderType === 'hybrid'} animationType="slide" presentationStyle="formSheet">
-        <HybridWorkoutBuilder 
+        <RunWorkoutBuilder 
           date={selectedDate}
           onClose={() => setBuilderType('none')}
           onSave={handleSaveWorkout}
