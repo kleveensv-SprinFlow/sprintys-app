@@ -4,15 +4,26 @@ export interface WeatherData {
   condition: string;
   timestamp: number;
   hourly?: {
+    datetime: string;
     time: string;
+    date: string;
     temperature: number;
+    condition: string;
+  }[];
+  daily?: {
+    date: string;
+    displayDay: string;
+    tempMax: number;
+    tempMin: number;
     condition: string;
   }[];
 }
 
+const DAYS_FR = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+
 export const weatherService = {
   fetchWeather: async (lat: number, lon: number): Promise<WeatherData> => {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,weather_code&hourly=temperature_2m,weather_code&timezone=auto&forecast_days=1`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,weather_code&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=7`;
     
     const response = await fetch(url);
     if (!response.ok) throw new Error('Weather fetch failed');
@@ -22,19 +33,41 @@ export const weatherService = {
     
     const hourly = [];
     if (data.hourly && data.hourly.time) {
-      // Safely find the current hour index without relying on timezone/Date objects
-      const nowString = new Date().toISOString().substring(0, 14) + "00"; // roughly "YYYY-MM-DDTHH:00"
-      let nowIdx = data.hourly.time.findIndex((t: string) => t >= nowString);
-      if (nowIdx === -1) nowIdx = 0;
-      
-      const startIndex = nowIdx > 0 ? nowIdx - 1 : 0;
-      for (let i = startIndex; i < startIndex + 12 && i < data.hourly.time.length; i++) {
-        // Extract time directly from string "YYYY-MM-DDTHH:mm" -> "HH:mm"
-        const timeString = data.hourly.time[i].split('T')[1] || '--:--';
+      for (let i = 0; i < data.hourly.time.length; i++) {
+        const datetimeStr = data.hourly.time[i];
+        const [dateStr, timeStr] = datetimeStr.split('T');
         hourly.push({
-          time: timeString,
+          datetime: datetimeStr,
+          time: timeStr || '--:--',
+          date: dateStr,
           temperature: Math.round(data.hourly.temperature_2m[i]),
           condition: getWeatherCondition(data.hourly.weather_code[i])
+        });
+      }
+    }
+
+    const daily = [];
+    if (data.daily && data.daily.time) {
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      for (let i = 0; i < data.daily.time.length; i++) {
+        const dateStr = data.daily.time[i];
+        const d = new Date(dateStr);
+        d.setHours(0,0,0,0);
+        
+        let displayDay = DAYS_FR[d.getDay()];
+        if (d.getTime() === today.getTime()) displayDay = "Aujourd'hui";
+        else if (d.getTime() === tomorrow.getTime()) displayDay = "Demain";
+
+        daily.push({
+          date: dateStr,
+          displayDay,
+          tempMax: Math.round(data.daily.temperature_2m_max[i]),
+          tempMin: Math.round(data.daily.temperature_2m_min[i]),
+          condition: getWeatherCondition(data.daily.weather_code[i])
         });
       }
     }
@@ -45,6 +78,7 @@ export const weatherService = {
       condition: getWeatherCondition(current.weather_code),
       timestamp: Date.now(),
       hourly,
+      daily,
     };
   },
 };

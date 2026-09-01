@@ -13,6 +13,7 @@ export const CoachWeatherCard = () => {
   const [isLoading, setIsLoading] = useState(true);
   
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const spinValue = useRef(new Animated.Value(0)).current;
   const floatValue = useRef(new Animated.Value(0)).current;
@@ -117,6 +118,22 @@ export const CoachWeatherCard = () => {
     outputRange: [0, -6, 0]
   });
 
+  const getFilteredHourly = () => {
+    if (!weather?.hourly) return [];
+    if (!selectedDate) {
+      // Return next 24 hours from now
+      const nowString = new Date().toISOString().substring(0, 14) + "00";
+      let nowIdx = weather.hourly.findIndex(h => h.datetime >= nowString);
+      if (nowIdx === -1) nowIdx = 0;
+      return weather.hourly.slice(nowIdx, nowIdx + 24);
+    } else {
+      // Return all 24 hours of selected date
+      return weather.hourly.filter(h => h.date === selectedDate);
+    }
+  };
+
+  const displayHourly = getFilteredHourly();
+
   return (
     <>
       <TouchableOpacity 
@@ -177,10 +194,17 @@ export const CoachWeatherCard = () => {
               </View>
               
               <View style={styles.aiSection}>
-                <Text style={styles.aiSectionTitle}>PRÉVISIONS HORAIRES</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={styles.aiSectionTitle}>PRÉVISIONS HORAIRES</Text>
+                  {selectedDate && (
+                    <TouchableOpacity onPress={() => setSelectedDate(null)}>
+                      <Text style={{ fontSize: 12, color: theme.colors.accent, fontWeight: 'bold' }}>Réinitialiser (24h)</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
                 
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 10, gap: 12 }}>
-                  {weather?.hourly ? weather.hourly.map((h, i) => (
+                  {displayHourly.length > 0 ? displayHourly.map((h, i) => (
                     <View key={i} style={[styles.hourlyCard, { backgroundColor: getThermalBackgroundColor(h.temperature) }]}>
                       <Text style={[styles.hourlyTime, { color: theme.colors.textSecondary }]}>{h.time}</Text>
                       <Feather name={getWeatherIcon(h.condition) as any} size={24} color={getWeatherIconColor(h.condition)} style={{ marginVertical: 8 }} />
@@ -190,6 +214,28 @@ export const CoachWeatherCard = () => {
                     <Text style={{ color: theme.colors.textMuted }}>Aucune donnée horaire disponible.</Text>
                   )}
                 </ScrollView>
+              </View>
+
+              <View style={{ marginTop: 24 }}>
+                <Text style={styles.aiSectionTitle}>LES 7 PROCHAINS JOURS</Text>
+                <View style={{ marginTop: 8 }}>
+                  {weather?.daily?.map((d, i) => (
+                    <TouchableOpacity 
+                      key={i} 
+                      activeOpacity={0.7}
+                      onPress={() => setSelectedDate(d.date)}
+                      style={[styles.dailyCard, selectedDate === d.date && { borderColor: theme.colors.accent, borderWidth: 1 }]}
+                    >
+                      <Text style={[styles.dailyDay, { color: theme.colors.text }]}>{d.displayDay}</Text>
+                      <Feather name={getWeatherIcon(d.condition) as any} size={20} color={getWeatherIconColor(d.condition)} style={{ width: 40, textAlign: 'center' }} />
+                      <View style={styles.dailyTemps}>
+                        <Text style={[styles.dailyMin, { color: theme.colors.textSecondary }]}>{d.tempMin}°</Text>
+                        <View style={styles.dailyBar} />
+                        <Text style={[styles.dailyMax, { color: theme.colors.text }]}>{d.tempMax}°</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
             </ScrollView>
 
@@ -335,5 +381,41 @@ const styles = StyleSheet.create({
   hourlyTemp: {
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  dailyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    marginBottom: 8,
+    backgroundColor: 'rgba(0,0,0,0.02)'
+  },
+  dailyDay: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  dailyTemps: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dailyMin: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  dailyMax: {
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  dailyBar: {
+    height: 4,
+    width: 30,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    borderRadius: 2,
   }
 });
