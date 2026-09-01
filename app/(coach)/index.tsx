@@ -5,6 +5,7 @@ import { Feather } from '@expo/vector-icons';
 import { theme } from '../../src/core/theme';
 import { useAuthStore } from '../../src/store/authStore';
 import { useCoachStore } from '../../src/store/coach/coachStore';
+import { supabase } from '../../src/services/supabase';
 import { CoachWeatherCard } from '../../src/features/coach/components/CoachWeatherCard';
 import { BroadcastModal } from '../../src/features/coach/components/BroadcastModal';
 import { SprintyLogo } from '../../src/shared/components/SprintyLogo';
@@ -17,6 +18,7 @@ export default function CoachDashboardScreen() {
   
   const [broadcastVisible, setBroadcastVisible] = useState(false);
   const [teamHealthVisible, setTeamHealthVisible] = useState(false);
+  const [todayWorkouts, setTodayWorkouts] = useState<any[]>([]);
   const auraAnim = useRef(new Animated.Value(0.1)).current;
 
   useEffect(() => {
@@ -25,6 +27,23 @@ export default function CoachDashboardScreen() {
       const today = new Date().toISOString().split('T')[0];
       fetchTeamCheckIns(teams[0].id, today);
       fetchAllPendingRequests();
+      
+      // Fetch workouts planned for today
+      (async () => {
+        const start = new Date(today);
+        const end = new Date(today);
+        end.setDate(end.getDate() + 1);
+
+        const { data } = await supabase
+          .from('workouts')
+          .select('*')
+          .eq('team_id', teams[0].id)
+          .gte('date_prevue', start.toISOString())
+          .lt('date_prevue', end.toISOString())
+          .order('date_prevue', { ascending: true });
+        
+        if (data) setTodayWorkouts(data);
+      })();
     }
   }, [teams, teamMembers]);
 
@@ -44,11 +63,6 @@ export default function CoachDashboardScreen() {
       ])
     ).start();
   }, [auraAnim]);
-
-  // Calcul du radar de santé
-  const athletesWithCheckIn = teamCheckIns.map(ci => ci.athlete_id);
-  const athletesWithoutCheckIn = teamMembers.filter(m => !athletesWithCheckIn.includes(m.user_id));
-  const alerts = teamCheckIns.filter(ci => ci.energy <= 2 || ci.pain_level >= 3);
 
   // Moyenne de santé du groupe
   const getGroupHealth = () => {
@@ -117,76 +131,45 @@ export default function CoachDashboardScreen() {
 
         {/* Séance du Jour (Aperçu) */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>SÉANCE DU JOUR</Text>
+          <Text style={styles.sectionTitle}>SÉANCES DU JOUR</Text>
         </View>
-        <TouchableOpacity 
-          style={styles.sessionCard}
-          activeOpacity={0.8}
-          onPress={() => router.push('/(coach)/calendar')}
-        >
-          <View style={styles.sessionCardHeader}>
-            <View style={styles.sessionBadge}>
-              <Text style={styles.sessionBadgeText}>VITESSE MAX</Text>
-            </View>
-            <Text style={styles.sessionDuration}>
-              <Feather name="clock" size={12} color={theme.colors.textMuted} /> 1h30
-            </Text>
-          </View>
-          <Text style={styles.sessionCardTitle}>Départ Block & Puissance</Text>
-          <Text style={styles.sessionCardDesc}>Échauffement 30', Gammes, 4x30m, 3x60m intensité max. Récup totale.</Text>
-          <View style={styles.sessionCardFooter}>
-            <Text style={styles.sessionCardAction}>Modifier la séance</Text>
-            <Feather name="chevron-right" size={16} color={theme.colors.accent} />
-          </View>
-        </TouchableOpacity>
-
-        {/* Radar de Santé */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>RADAR DE SANTÉ</Text>
-        </View>
-
-        {teamMembers.length === 0 ? (
+        
+        {todayWorkouts.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>Ajoute des athlètes pour voir leur état de forme.</Text>
+            <Feather name="calendar" size={24} color={theme.colors.textMuted} style={{ marginBottom: 12 }} />
+            <Text style={styles.emptyText}>Aucune séance planifiée pour aujourd'hui.</Text>
+            <TouchableOpacity onPress={() => router.push('/(coach)/calendar')} style={{ marginTop: 16 }}>
+              <Text style={{ color: theme.colors.accent, fontWeight: 'bold' }}>Aller au calendrier</Text>
+            </TouchableOpacity>
           </View>
         ) : (
-          <View style={styles.radarContainer}>
-            {alerts.length > 0 && (
-              <View style={[styles.radarCard, { borderColor: theme.colors.error + '50' }]}>
-                <View style={[styles.radarIcon, { backgroundColor: theme.colors.error + '20' }]}>
-                  <Feather name="alert-triangle" size={20} color={theme.colors.error} />
+          todayWorkouts.map((workout, index) => (
+            <TouchableOpacity 
+              key={workout.id || index}
+              style={styles.sessionCard}
+              activeOpacity={0.8}
+              onPress={() => router.push('/(coach)/calendar')}
+            >
+              <View style={styles.sessionCardHeader}>
+                <View style={[styles.sessionBadge, { backgroundColor: workout.type_seance === 'musculation' ? '#3B82F620' : '#F59E0B20' }]}>
+                  <Text style={[styles.sessionBadgeText, { color: workout.type_seance === 'musculation' ? '#3B82F6' : '#F59E0B' }]}>
+                    {workout.type_seance.toUpperCase()}
+                  </Text>
                 </View>
-                <View style={styles.radarTextContainer}>
-                  <Text style={styles.radarTitle}>{alerts.length} athlète(s) en alerte</Text>
-                  <Text style={styles.radarDesc}>Niveau d'énergie faible ou douleur signalée aujourd'hui.</Text>
-                </View>
+                <Text style={styles.sessionDuration}>
+                  <Feather name="clock" size={12} color={theme.colors.textMuted} /> {new Date(workout.date_prevue).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                </Text>
               </View>
-            )}
-
-            {athletesWithoutCheckIn.length > 0 && (
-              <View style={[styles.radarCard, { borderColor: theme.colors.border }]}>
-                <View style={[styles.radarIcon, { backgroundColor: theme.colors.surfaceLight }]}>
-                  <Feather name="clock" size={20} color={theme.colors.textSecondary} />
-                </View>
-                <View style={styles.radarTextContainer}>
-                  <Text style={styles.radarTitle}>{athletesWithoutCheckIn.length} manquant(s)</Text>
-                  <Text style={styles.radarDesc}>N'ont pas encore fait leur check-in ce matin.</Text>
-                </View>
+              <Text style={styles.sessionCardTitle}>{workout.type_seance}</Text>
+              {workout.description && (
+                <Text style={styles.sessionCardDesc} numberOfLines={2}>{workout.description}</Text>
+              )}
+              <View style={styles.sessionCardFooter}>
+                <Text style={styles.sessionCardAction}>Voir la séance</Text>
+                <Feather name="chevron-right" size={16} color={theme.colors.accent} />
               </View>
-            )}
-
-            {alerts.length === 0 && athletesWithoutCheckIn.length === 0 && (
-              <View style={[styles.radarCard, { borderColor: theme.colors.success + '50' }]}>
-                <View style={[styles.radarIcon, { backgroundColor: theme.colors.success + '20' }]}>
-                  <Feather name="check" size={20} color={theme.colors.success} />
-                </View>
-                <View style={styles.radarTextContainer}>
-                  <Text style={styles.radarTitle}>Équipe en pleine forme</Text>
-                  <Text style={styles.radarDesc}>Tous les athlètes ont fait leur check-in et vont bien.</Text>
-                </View>
-              </View>
-            )}
-          </View>
+            </TouchableOpacity>
+          ))
         )}
 
         <View style={{ height: 120 }} />
@@ -334,38 +317,5 @@ const styles = StyleSheet.create({
   emptyText: {
     color: theme.colors.textMuted,
     fontSize: 14,
-  },
-  radarContainer: {
-    gap: 12,
-  },
-  radarCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 16,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-  },
-  radarIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  radarTextContainer: {
-    flex: 1,
-  },
-  radarTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: theme.colors.text,
-    marginBottom: 4,
-  },
-  radarDesc: {
-    fontSize: 13,
-    color: theme.colors.textSecondary,
-    lineHeight: 18,
   }
 });

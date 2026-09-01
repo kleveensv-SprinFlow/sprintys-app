@@ -13,14 +13,13 @@ export const CoachWeatherCard = () => {
   const [isLoading, setIsLoading] = useState(true);
   
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [aiAdvice, setAiAdvice] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
         let { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
+          setLocationName('Accès refusé');
           setIsLoading(false);
           return;
         }
@@ -35,32 +34,16 @@ export const CoachWeatherCard = () => {
         });
         
         if (geocode && geocode.length > 0) {
-          setLocationName(geocode[0].city || geocode[0].region || 'Lieu inconnu');
+          setLocationName(geocode[0].city || geocode[0].region || 'Position actuelle');
         }
       } catch (error) {
-        console.error("Error fetching weather", error);
+        console.error('Error fetching weather:', error);
+        setLocationName('Erreur météo');
       } finally {
         setIsLoading(false);
       }
     })();
   }, []);
-
-  const handleGenerateAdvice = async () => {
-    if (!weather) return;
-    setIsGenerating(true);
-    try {
-      const prompt = `Tu es l'assistant IA d'un entraîneur d'athlétisme et préparation physique.
-La météo actuelle est de ${weather.temperature}C, condition: ${weather.condition}, vent: ${weather.windSpeed} km/h.
-Donne un conseil très court (2-3 phrases) sur comment le coach doit adapter sa séance d'entraînement aujourd'hui.`;
-      
-      const response = await fetchOpenAIResponse([{ role: 'user', content: prompt }], "Tu es un assistant météo pour coach sportif.");
-      setAiAdvice(response);
-    } catch (err) {
-      setAiAdvice("Erreur de génération. Essayez de privilégier un échauffement adapté à la température.");
-    } finally {
-      setIsGenerating(false);
-    }
-  };
 
   const getWeatherIcon = (condition?: string) => {
     switch (condition) {
@@ -141,33 +124,19 @@ Donne un conseil très court (2-3 phrases) sur comment le coach doit adapter sa 
               </View>
               
               <View style={styles.aiSection}>
-                <Text style={styles.aiSectionTitle}>ASSISTANT IA COACHING</Text>
+                <Text style={styles.aiSectionTitle}>PRÉVISIONS HORAIRES</Text>
                 
-                {!aiAdvice && !isGenerating && (
-                  <TouchableOpacity 
-                    style={[styles.generateBtn, { backgroundColor: theme.colors.surfaceLight }]}
-                    onPress={handleGenerateAdvice}
-                  >
-                    <Feather name="cpu" size={20} color={theme.colors.accent} />
-                    <Text style={[styles.generateBtnText, { color: theme.colors.accent }]}>Obtenir un conseil adapté à la météo</Text>
-                  </TouchableOpacity>
-                )}
-
-                {isGenerating && (
-                  <View style={styles.generatingContainer}>
-                    <ActivityIndicator size="small" color={theme.colors.accent} />
-                    <Text style={{ color: theme.colors.textMuted, marginLeft: 8, fontSize: 13 }}>Analyse des conditions en cours...</Text>
-                  </View>
-                )}
-
-                {aiAdvice && !isGenerating && (
-                  <View style={[styles.adviceContainer, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
-                    <Feather name="info" size={20} color={theme.colors.accent} style={styles.adviceIcon} />
-                    <Text style={[styles.adviceText, { color: theme.colors.text }]}>
-                      {aiAdvice}
-                    </Text>
-                  </View>
-                )}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 10, gap: 12 }}>
+                  {weather?.hourly ? weather.hourly.map((h, i) => (
+                    <View key={i} style={[styles.hourlyCard, { backgroundColor: theme.colors.background }]}>
+                      <Text style={[styles.hourlyTime, { color: theme.colors.textSecondary }]}>{h.time}</Text>
+                      <Feather name={getWeatherIcon(h.condition) as any} size={24} color={theme.colors.text} style={{ marginVertical: 8 }} />
+                      <Text style={[styles.hourlyTemp, { color: theme.colors.text }]}>{h.temperature}°</Text>
+                    </View>
+                  )) : (
+                    <Text style={{ color: theme.colors.textMuted }}>Aucune donnée horaire disponible.</Text>
+                  )}
+                </ScrollView>
               </View>
             </ScrollView>
 
@@ -298,44 +267,20 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#94A3B8',
     letterSpacing: 1,
-    marginBottom: 16,
+    marginBottom: 8,
   },
-  generateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  hourlyCard: {
     padding: 16,
     borderRadius: 16,
-    borderStyle: 'dashed',
-    borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
-  },
-  generateBtnText: {
-    marginLeft: 12,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  generatingContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
+    width: 70,
   },
-  adviceContainer: {
-    flexDirection: 'row',
-    padding: 20,
-    borderRadius: 16,
-    alignItems: 'flex-start',
-    borderWidth: 1,
+  hourlyTime: {
+    fontSize: 12,
+    fontWeight: '600',
   },
-  adviceIcon: {
-    marginTop: 2,
-    marginRight: 12,
-  },
-  adviceText: {
-    flex: 1,
-    fontSize: 15,
-    lineHeight: 24,
-    fontWeight: '500',
+  hourlyTemp: {
+    fontSize: 16,
+    fontWeight: 'bold',
   }
 });
