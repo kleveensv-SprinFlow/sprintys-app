@@ -1,12 +1,12 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { useWorkoutStore } from '../../../store/workoutStore';
 import { useSprintyStore } from '../../../store/sprintyStore';
 import { useInsightStore } from '../../../store/insightStore';
 import { ExerciseRow } from './ExerciseRow';
 import { Button } from '../../../shared/components/Button';
 import { theme } from '../../../core/theme';
-import { Card } from '../../../shared/components/Card';
+import { Feather } from '@expo/vector-icons';
 
 export const ActiveWorkoutSession: React.FC = () => {
   const { activeSession, timer, tickTimer, addExercise, finishWorkout, cancelWorkout, isLoading } = useWorkoutStore();
@@ -32,7 +32,7 @@ export const ActiveWorkoutSession: React.FC = () => {
 
   const handleFinish = async () => {
     Alert.alert(
-      "Terminer la séance",
+      "Terminer la sǸance",
       "Voulez-vous enregistrer vos performances ?",
       [
         { text: "Annuler", style: "cancel" },
@@ -40,7 +40,7 @@ export const ActiveWorkoutSession: React.FC = () => {
           text: "Enregistrer", 
           onPress: async () => {
             await finishWorkout();
-            showFeedback('success', 'Séance terminée ! Vos données sont synchronisées.');
+            showFeedback('success', 'SǸance terminǸe ! Vos donnǸes sont synchronisǸes.');
             runAnalysis();
           }, 
           style: "default" 
@@ -57,18 +57,36 @@ export const ActiveWorkoutSession: React.FC = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {activeSession.exercises.map((ex) => (
-          <Card key={ex.id} style={styles.exerciseCard}>
-            <ExerciseRow exercise={ex} />
-          </Card>
+        {activeSession.blocks.map((block) => (
+          <View key={block.id} style={styles.blockCard}>
+            <View style={styles.blockHeader}>
+              <Text style={styles.blockTitle}>{block.name}</Text>
+            </View>
+            <View style={styles.exercisesContainer}>
+              {block.exercises.map((ex) => (
+                <ExerciseRow key={ex.id} blockId={block.id} exercise={ex as any} />
+              ))}
+            </View>
+          </View>
         ))}
 
-        <Button
-          title="+ AJOUTER UN EXERCICE"
-          variant="outline"
-          onPress={() => addExercise('Nouvel Exercice')}
-          style={styles.addExerciseBtn}
-        />
+        <TouchableOpacity 
+          style={styles.addExerciseBtn} 
+          onPress={() => {
+            Alert.alert(
+              "Ajouter un exercice libre",
+              "Choisissez le type",
+              [
+                { text: "Musculation", onPress: () => addExercise('Nouvel Exo', 'strength') },
+                { text: "Course / Piste", onPress: () => addExercise('Nouvel Exo', 'run') },
+                { text: "Annuler", style: "cancel" }
+              ]
+            );
+          }}
+        >
+          <Feather name="plus-circle" size={18} color={theme.colors.accent} />
+          <Text style={styles.addExerciseText}>AJOUTER UN EXERCICE</Text>
+        </TouchableOpacity>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -92,56 +110,21 @@ export const ActiveWorkoutSession: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  header: {
-    paddingTop: 60,
-    paddingBottom: 20,
-    alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  sessionName: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-    fontWeight: theme.typography.fontWeights.bold as any,
-    letterSpacing: 2,
-    marginBottom: 8,
-  },
-  timerText: {
-    color: theme.colors.text,
-    fontSize: 48,
-    fontWeight: theme.typography.fontWeights.bold as any,
-    fontVariant: ['tabular-nums'],
-  },
-  scrollContent: {
-    padding: theme.spacing.lg,
-  },
-  exerciseCard: {
-    marginBottom: theme.spacing.lg,
-  },
-  addExerciseBtn: {
-    marginTop: theme.spacing.md,
-    marginBottom: 100,
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    width: '100%',
-    padding: theme.spacing.xl,
-    backgroundColor: 'rgba(5, 5, 5, 0.95)',
-    borderTopWidth: 1,
-    borderColor: theme.colors.border,
-    flexDirection: 'row',
-    gap: theme.spacing.md,
-  },
-  finishBtn: {
-    flex: 2,
-  },
-  cancelBtn: {
-    flex: 1,
-  },
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  header: { paddingTop: 60, paddingBottom: 20, alignItems: 'center', backgroundColor: theme.colors.surface, borderBottomWidth: 1, borderColor: theme.colors.border },
+  sessionName: { color: theme.colors.textSecondary, fontSize: 12, fontWeight: 'bold', letterSpacing: 2, marginBottom: 8 },
+  timerText: { color: theme.colors.text, fontSize: 48, fontWeight: 'bold', fontVariant: ['tabular-nums'] },
+  scrollContent: { padding: theme.spacing.md, paddingBottom: 120 },
+  
+  blockCard: { backgroundColor: theme.colors.surface, borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: theme.colors.border, overflow: 'hidden' },
+  blockHeader: { padding: 12, backgroundColor: theme.colors.surfaceLight, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
+  blockTitle: { fontSize: 16, fontWeight: 'bold', color: theme.colors.text },
+  exercisesContainer: { padding: 12 },
+
+  addExerciseBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 16, marginBottom: 20, borderWidth: 1, borderColor: theme.colors.accent + '50', borderStyle: 'dashed', borderRadius: 12, gap: 8, backgroundColor: theme.colors.accent + '05' },
+  addExerciseText: { color: theme.colors.accent, fontWeight: 'bold', fontSize: 14 },
+  
+  footer: { position: 'absolute', bottom: 0, width: '100%', padding: theme.spacing.xl, backgroundColor: 'rgba(5, 5, 5, 0.95)', borderTopWidth: 1, borderColor: theme.colors.border, flexDirection: 'row', gap: theme.spacing.md },
+  finishBtn: { flex: 2 },
+  cancelBtn: { flex: 1 },
 });

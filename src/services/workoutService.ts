@@ -133,6 +133,11 @@ export const workoutService = {
     return data;
   },
 
+  submitWorkoutResults: async (workoutId: string, efforts: any[]) => {
+    const { error } = await supabase.rpc('submit_workout_results', { p_workout_id: workoutId, p_efforts: efforts });
+    if (error) throw error;
+  },
+
   completeWorkout: async (workoutId: string) => {
     const { error } = await supabase
       .rpc('complete_workout', { p_workout_id: workoutId });
