@@ -279,7 +279,8 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
                 actual_time_ms: set.isCompleted ? set.actual_time_ms : null,
                 actual_rest_ms: set.isCompleted ? set.actual_rest_ms : null,
                 actual_height_cm: set.isCompleted ? set.actual_height_cm : null,
-                rpe: set.isCompleted ? (set.rpe || null) : null
+                planned_intensity: set.planned_intensity,
+                actual_intensity: set.isCompleted ? (set.actual_intensity || null) : null
               });
             }
           }

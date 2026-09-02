@@ -16,7 +16,7 @@ const SetRow = ({ blockId, exerciseId, set, isStrength, isRun, isJump }: { block
   
   // Local state for time input to avoid NaN/decimal issues during typing
   const [timeText, setTimeText] = useState(set.actual_time_ms ? (set.actual_time_ms / 1000).toString() : '');
-  const [rpeText, setRpeText] = useState(set.rpe ? set.rpe.toString() : '');
+  const [intensityText, setintensityText] = useState(set.actual_intensity ? set.actual_intensity.toString() : '');
 
   // Sync from store if it changes externally
   useEffect(() => {
@@ -37,15 +37,15 @@ const SetRow = ({ blockId, exerciseId, set, isStrength, isRun, isJump }: { block
     }
   };
 
-  const handleRpeChange = (val: string) => {
-    setRpeText(val);
+  const handleIntensityChange = (val: string) => {
+    setintensityText(val);
     if (val.trim() === '') {
-      updateSet(blockId, exerciseId, set.id, { rpe: undefined });
+      updateSet(blockId, exerciseId, set.id, { actual_intensity: undefined });
       return;
     }
-    const rpe = parseInt(val, 10);
-    if (!isNaN(rpe) && rpe >= 1 && rpe <= 10) {
-      updateSet(blockId, exerciseId, set.id, { rpe });
+    const intensity = parseInt(val, 10);
+    if (!isNaN(intensity) && intensity >= 1 && intensity <= 100) {
+      updateSet(blockId, exerciseId, set.id, { actual_intensity: intensity });
     }
   };
 
@@ -112,14 +112,14 @@ const SetRow = ({ blockId, exerciseId, set, isStrength, isRun, isJump }: { block
         )}
       </View>
       
-      {/* NOUVEAU CHAMP RPE */}
+      {/* NOUVEAU CHAMP % */}
       <View style={{ flex: 0.8, paddingHorizontal: 2 }}>
         <TextInput
           style={[styles.baseInput, { height: 40, backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border }]}
-          value={rpeText}
-          onChangeText={handleRpeChange}
+          value={intensityText}
+          onChangeText={handleIntensityChange}
           keyboardType="numeric"
-          placeholder="RPE"
+          placeholder="%"
           placeholderTextColor={theme.colors.textMuted}
         />
       </View>
@@ -149,7 +149,7 @@ export const ExerciseRow: React.FC<Props> = ({ blockId, exercise }) => {
         {isStrength && <Text style={[styles.headerText, { flex: 1.5 }]}>RǲALISǲ</Text>}
         {isRun && <Text style={[styles.headerText, { flex: 1.5 }]}>CHRONO (s)</Text>}
         {isJump && <Text style={[styles.headerText, { flex: 1.5 }]}>HAUTEUR (cm)</Text>}
-        <Text style={[styles.headerText, { flex: 0.8 }]}>RPE</Text>
+        <Text style={[styles.headerText, { flex: 0.8 }]}>%</Text>
         <Text style={[styles.headerText, { width: 40 }]}>OK</Text>
       </View>
     );

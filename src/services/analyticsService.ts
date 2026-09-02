@@ -9,7 +9,7 @@ export interface SessionStats {
   adherence_percentage: number | null;
   total_volume_kg: number;
   total_distance_m: number;
-  avg_rpe: number | null;
+  avg_intensity: number | null;
 }
 
 export interface AthletePR {

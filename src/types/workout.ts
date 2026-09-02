@@ -30,7 +30,8 @@ export interface WorkoutSet {
   actual_time_ms?: number;
   actual_rest_ms?: number;
   actual_height_cm?: number;
-  rpe?: number;
+  planned_intensity?: number;
+  actual_intensity?: number;
 
   // MǸtriques futures (Puissance, Vitesse, Splits...) via JSONB
   planned_extra?: Record<string, any>;

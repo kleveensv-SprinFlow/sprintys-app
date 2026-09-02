@@ -67,7 +67,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({ date, onCl
   const [isBlockTypeModalVisible, setIsBlockTypeModalVisible] = useState(false);
 
   // Generator State (per exercise)
-  const [generatorState, setGeneratorState] = useState<Record<string, { reps: number, distance: number, rest_ms: number, time_s?: number }>>({});
+  const [generatorState, setGeneratorState] = useState<Record<string, { reps: number, distance: number, rest_ms: number, time_s?: number, intensity?: number }>>({});
 
   const addBlock = (type: BlockType, name: string) => {
     setBlocks([...blocks, {
@@ -140,7 +140,8 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({ date, onCl
       set_index: i + 1,
       planned_distance_m: config.distance,
       planned_rest_ms: config.rest_ms,
-      planned_time_ms: config.time_s ? Math.round(config.time_s * 1000) : undefined
+      planned_time_ms: config.time_s ? Math.round(config.time_s * 1000) : undefined,
+      planned_intensity: config.intensity
     }));
 
     setBlocks(blocks.map(b => {
@@ -394,6 +395,18 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({ date, onCl
                           onChangeText={(v) => {
                             const sec = parseFloat(v.replace(',', '.'));
                             setGeneratorState({...generatorState, [ex.id]: {...genState, time_s: isNaN(sec) ? undefined : sec}});
+                          }}
+                        />
+
+                                                <Text style={styles.genLabel}>Intensité ciblée (%)</Text>
+                        <TextInput 
+                          style={[styles.notesInput, { minHeight: 40, marginBottom: 12 }]}
+                          placeholder="Ex: 95"
+                          keyboardType="numeric"
+                          value={genState.intensity ? genState.intensity.toString() : ''}
+                          onChangeText={(v) => {
+                            const i = parseInt(v);
+                            setGeneratorState({...generatorState, [ex.id]: {...genState, intensity: isNaN(i) ? undefined : i}});
                           }}
                         />
 
