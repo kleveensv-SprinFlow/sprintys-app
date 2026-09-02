@@ -206,11 +206,6 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
           <Text style={[styles.monthTitle, { color: theme.colors.text }]}>
             {MONTH_NAMES[currentMonth.getMonth()]} {currentMonth.getFullYear()}
           </Text>
-          {!isCurrentMonthToday && (
-            <View style={[styles.todayBadge, { backgroundColor: theme.colors.accent }]}>
-              <Text style={styles.todayBadgeText}>Aujourd'hui</Text>
-            </View>
-          )}
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => navigateMonth('next')} style={styles.navBtn}>
