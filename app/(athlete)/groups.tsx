@@ -33,13 +33,9 @@ export default function GroupsScreen() {
 
   const checkInviteCode = async () => {
     try {
-      const { data } = await supabase
-        .from('teams')
-        .select('name')
-        .eq('invite_code', inviteCode)
-        .maybeSingle();
-      if (data) {
-        setPreviewTeamName(data.name);
+      const { data, error } = await supabase.rpc('preview_team_by_code', { p_invite_code: inviteCode });
+      if (data && !error) {
+        setPreviewTeamName(data);
       } else {
         setPreviewTeamName(null);
       }
@@ -103,42 +99,16 @@ export default function GroupsScreen() {
     setIsJoining(true);
 
     try {
-      // 1. Chercher le groupe par code d'invitation
-      const { data: teamData, error: teamError } = await supabase
-        .from('teams')
-        .select('id, name')
-        .eq('invite_code', code)
-        .maybeSingle();
+      // Rejoindre via RPC sécurisée
+      const { data, error: rpcError } = await supabase.rpc('join_team_by_code', { p_invite_code: code });
 
-      if (teamError || !teamData) {
-        Alert.alert('Erreur', 'Code d\'invitation invalide. Vérifie le code à 8 chiffres auprès de ton coach.');
+      if (rpcError || !data) {
+        Alert.alert('Erreur', rpcError?.message || 'Code invalide ou erreur serveur.');
         setIsJoining(false);
         return;
       }
-
-      // 2. Vérifier si l'athlète est déjà dans un groupe
-      if (myGroup) {
-        Alert.alert('Impossible', 'Tu es déjà dans un groupe. Quitte ton groupe actuel avant d\'en rejoindre un autre.');
-        setIsJoining(false);
-        return;
-      }
-
-      // 3. Insérer avec status "pending" (en attente de validation coach)
-      const { error: insertError } = await supabase
-        .from('team_members')
-        .insert([{ team_id: teamData.id, user_id: user.id, status: 'pending' }]);
-
-      if (insertError) {
-        if (insertError.code === '23505') {
-          Alert.alert('Info', 'Ta demande a déjà été envoyée. Attend la validation de ton coach.');
-        } else {
-          throw insertError;
-        }
-        setIsJoining(false);
-        return;
-      }
-
-      Alert.alert('Demande envoyée ! ✉️', `Ta demande pour rejoindre "${teamData.name}" a été envoyée au coach. Tu seras notifié quand il t'acceptera.`);
+      
+      Alert.alert('Demande envoyée ! 🚀', `Ta demande pour rejoindre "${data.team_name}" a été envoyée au coach. Tu seras notifié quand il t'acceptera.`);
       setInviteCode('');
       fetchMyGroup();
 

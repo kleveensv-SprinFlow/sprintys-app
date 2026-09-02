@@ -1,3 +1,4 @@
+import { workoutService } from '../../../services/workoutService';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -208,19 +209,27 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
         };
       });
 
-      const { error } = await supabase.from('workouts').insert([{
+      const baseWorkoutData = {
         coach_id: user.id,
-        team_id: targetType === 'team' ? selectedTeamId : null,
-        subgroup_id: targetType === 'subgroup' ? selectedSubgroupId : null,
-        athlete_id: targetType === 'athlete' ? selectedAthleteId : null,
         date_prevue: date.toISOString(),
         type_seance: `${workoutType} - ${title.trim()}`,
         intensity: 5,
         blocks: dbBlocks,
         status: 'planned'
-      }]);
+      };
 
-      if (error) throw error;
+      if (targetType === 'athlete' && selectedAthleteId) {
+        await workoutService.createPlannedWorkout({
+          ...baseWorkoutData,
+          athlete_id: selectedAthleteId,
+        });
+      } else if (targetType === 'team' && selectedTeamId) {
+        await workoutService.assignWorkoutToGroup(baseWorkoutData, 'team', selectedTeamId);
+      } else if (targetType === 'subgroup' && selectedSubgroupId) {
+        await workoutService.assignWorkoutToGroup(baseWorkoutData, 'subgroup', selectedSubgroupId);
+      } else {
+        throw new Error('Cible invalide pour la séance');
+      }
       onSave();
     } catch (err: any) {
       Alert.alert('Erreur', err.message);

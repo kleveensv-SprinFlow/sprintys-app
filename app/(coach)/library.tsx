@@ -80,7 +80,7 @@ export default function CoachLibraryScreen() {
               
               <View style={styles.cardFooter}>
                 <Text style={[styles.cardStats, { color: theme.colors.textSecondary }]}>
-                  {template.blocks ? template.blocks.length : 0} blocs configurés
+                  {Array.isArray(template.blocks) ? template.blocks.length : 0} blocs configurés
                 </Text>
                 
                 <TouchableOpacity 

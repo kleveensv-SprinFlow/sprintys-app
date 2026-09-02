@@ -25,12 +25,23 @@ export default function RootLayout() {
       });
     } else if (!user && !pendingEmail && !inAuthGroup) {
       router.replace('/(auth)/login');
-    } else if (user && inAuthGroup) {
-      // Redirect based on role
-      if (user.role === 'coach') {
-        router.replace('/(coach)');
-      } else {
+    } else if (user) {
+      // Stricter routing: even if not in auth group, force correct role segment
+      const isCoachRoute = segments[0] === '(coach)';
+      const isAthleteRoute = segments[0] === '(athlete)';
+      
+      if (inAuthGroup) {
+        if (user.role === 'coach') {
+          router.replace('/(coach)');
+        } else {
+          router.replace('/(athlete)');
+        }
+      } else if (user.role === 'athlete' && isCoachRoute) {
+        // Prevent athlete from accessing coach routes
         router.replace('/(athlete)');
+      } else if (user.role === 'coach' && isAthleteRoute) {
+        // Prevent coach from accessing athlete routes
+        router.replace('/(coach)');
       }
     }
   }, [user, pendingEmail, segments, isLoading, isInitialized]);

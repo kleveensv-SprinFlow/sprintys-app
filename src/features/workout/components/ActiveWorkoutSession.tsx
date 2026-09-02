@@ -14,7 +14,7 @@ export const ActiveWorkoutSession: React.FC = () => {
   const runAnalysis = useInsightStore(state => state.runAnalysis);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
     if (activeSession) {
       interval = setInterval(() => tickTimer(), 1000);
     }

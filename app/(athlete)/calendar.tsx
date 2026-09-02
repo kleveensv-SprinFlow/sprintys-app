@@ -5,7 +5,7 @@ import { Header } from '../../src/shared/components/Header';
 import { MonthlyCalendar } from '../../src/shared/components/MonthlyCalendar';
 import { WorkoutCard } from '../../src/shared/components/WorkoutCard';
 import { WorkoutDetailModal } from '../../src/features/calendar/components/WorkoutDetailModal';
-import { supabase } from '../../src/services/supabase';
+import { workoutService } from '../../src/services/workoutService';
 import { useAuthStore } from '../../src/store/authStore';
 import { WorkoutSession } from '../../src/features/workout/types';
 import { Feather } from '@expo/vector-icons';
@@ -37,15 +37,7 @@ export default function CalendarScreen() {
     endOfDay.setHours(23, 59, 59, 999);
 
     try {
-      const { data, error } = await supabase
-        .from('workouts')
-        .select('*')
-        .or(`athlete_id.eq.${user!.id},team_id.in.(select team_id from team_members where user_id='${user!.id}'),subgroup_id.in.(select subgroup_id from team_members where user_id='${user!.id}')`)
-        .gte('date_prevue', startOfDay.toISOString())
-        .lte('date_prevue', endOfDay.toISOString())
-        .order('date_prevue', { ascending: true });
-
-      if (error) throw error;
+      const data = await workoutService.fetchWorkoutsForDate(user!.id, date, 'athlete');
       setWorkouts(data || []);
     } catch (error) {
       console.error('Error fetching workouts:', error);

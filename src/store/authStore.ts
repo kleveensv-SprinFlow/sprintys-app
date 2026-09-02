@@ -11,24 +11,24 @@ export interface UserProfile {
   role: UserRole;
   firstName?: string;
   lastName?: string;
-  gender?: 'homme' | 'femme';
-  disciplines?: string[];
-  height?: number;
-  weight?: number;
-  objective?: string;
-  groupName?: string;
-  subgroups?: string[];
+  gender?: string | null;
+  disciplines?: string[] | null;
+  height?: number | null;
+  weight?: number | null;
+  objective?: string | null;
+  groupName?: string | null;
+  subgroups?: string[] | null;
   emailConfirmed?: boolean;
-  activityLevel?: string;
-  startWeight?: number;
-  targetWeight?: number;
-  weeklyWeightGoal?: number;
-  manualKcalGoal?: number;
-  mealDistribution?: { petit_dejeuner: number, dejeuner: number, diner: number, collation: number };
-  currentFlowStreak?: number;
-  lastFlowDate?: string;
-  nextCompetitionDate?: string;
-  sleepGoal?: number;
+  activityLevel?: string | null;
+  startWeight?: number | null;
+  targetWeight?: number | null;
+  weeklyWeightGoal?: number | null;
+  manualKcalGoal?: number | null;
+  mealDistribution?: any | null;
+  currentFlowStreak?: number | null;
+  lastFlowDate?: string | null;
+  nextCompetitionDate?: string; // Not in DB yet, future competitions table feature
+  sleepGoal?: number | null;
 }
 
 export interface SignupData {
@@ -92,7 +92,6 @@ const buildUserProfile = (authUser: any, profile: any): UserProfile => {
     mealDistribution: profile?.meal_distribution,
     currentFlowStreak: profile?.current_flow_streak,
     lastFlowDate: profile?.last_flow_date,
-    nextCompetitionDate: profile?.next_competition_date,
     sleepGoal: profile?.sleep_goal,
   };
 };

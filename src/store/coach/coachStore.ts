@@ -1,3 +1,4 @@
+import { Database } from '../../types/supabase';
 import { create } from 'zustand';
 import { supabase } from '../../services/supabase';
 import { useAuthStore } from '../authStore';
@@ -20,7 +21,7 @@ export interface TeamMember {
   team_id: string;
   subgroup_id: string | null;
   status: 'pending' | 'approved';
-  profile: any;
+  profile: Database['public']['Tables']['profiles']['Row'];
 }
 
 interface CoachState {
@@ -28,8 +29,8 @@ interface CoachState {
   subgroups: Subgroup[];
   teamMembers: TeamMember[];
   pendingMembers: TeamMember[];
-  teamCheckIns: any[];
-  workoutTemplates: any[];
+  teamCheckIns: Database['public']['Tables']['check_ins']['Row'][];
+  workoutTemplates: Database['public']['Tables']['workout_templates']['Row'][];
   isLoading: boolean;
   error: string | null;
 
@@ -227,11 +228,7 @@ export const useCoachStore = create<CoachState>((set, get) => ({
 
         // Séparer les membres approuvés des demandes en attente
         const approved = allMembers.filter((m: TeamMember) => m.status === 'approved');
-        const pending = allMembers.filter((m: TeamMember) => m.status === 'pending');
-        
-        console.log("DEBUG approved length:", approved.length, "pending length:", pending.length);
-
-        set({ teamMembers: approved, pendingMembers: pending, isLoading: false });
+        set({ teamMembers: approved, isLoading: false });
       } catch (err: any) {
         console.error("DEBUG fetchTeamMembers error:", err.message);
         set({ error: err.message, isLoading: false });

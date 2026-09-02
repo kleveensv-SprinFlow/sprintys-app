@@ -6,7 +6,7 @@ import { MonthlyCalendar } from '../../src/shared/components/MonthlyCalendar';
 import { WorkoutCard } from '../../src/shared/components/WorkoutCard';
 import { RunWorkoutBuilder } from '../../src/features/calendar/components/RunWorkoutBuilder';
 import { StrengthWorkoutBuilder } from '../../src/features/calendar/components/StrengthWorkoutBuilder';
-import { supabase } from '../../src/services/supabase';
+import { workoutService } from '../../src/services/workoutService';
 import { useAuthStore } from '../../src/store/authStore';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -43,15 +43,7 @@ export default function CoachCalendarScreen() {
     endOfDay.setHours(23, 59, 59, 999);
 
     try {
-      const { data, error } = await supabase
-        .from('workouts')
-        .select('*')
-        .eq('coach_id', user!.id)
-        .gte('date_prevue', startOfDay.toISOString())
-        .lte('date_prevue', endOfDay.toISOString())
-        .order('date_prevue', { ascending: true });
-
-      if (error) throw error;
+      const data = await workoutService.fetchWorkoutsForDate(user!.id, date, 'coach');
       setWorkouts(data || []);
     } catch (error) {
       console.error('Error fetching workouts:', error);

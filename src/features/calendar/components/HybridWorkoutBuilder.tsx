@@ -1,3 +1,4 @@
+import { workoutService } from '../../../services/workoutService';
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -128,19 +129,27 @@ export const HybridWorkoutBuilder: React.FC<HybridWorkoutBuilderProps> = ({ date
 
     setIsSaving(true);
     try {
-      const { error } = await supabase.from('workouts').insert([{
+      const baseWorkoutData = {
         coach_id: user.id,
-        team_id: targetType === 'team' ? selectedTeamId : null,
-        subgroup_id: targetType === 'subgroup' ? selectedSubgroupId : null,
-        athlete_id: targetType === 'athlete' ? selectedAthleteId : null,
         date_prevue: date.toISOString(),
         type_seance: title.trim(),
         intensity,
         blocks, // JSONB mapping for the running blocks
         status: 'planned'
-      }]);
+      };
 
-      if (error) throw error;
+      if (targetType === 'athlete' && selectedAthleteId) {
+        await workoutService.createPlannedWorkout({
+          ...baseWorkoutData,
+          athlete_id: selectedAthleteId,
+        });
+      } else if (targetType === 'team' && selectedTeamId) {
+        await workoutService.assignWorkoutToGroup(baseWorkoutData, 'team', selectedTeamId);
+      } else if (targetType === 'subgroup' && selectedSubgroupId) {
+        await workoutService.assignWorkoutToGroup(baseWorkoutData, 'subgroup', selectedSubgroupId);
+      } else {
+        throw new Error('Cible invalide pour la séance');
+      }
       onSave();
     } catch (err: any) {
       Alert.alert('Erreur', 'Impossible de sauvegarder la séance : ' + err.message);
@@ -164,14 +173,13 @@ export const HybridWorkoutBuilder: React.FC<HybridWorkoutBuilderProps> = ({ date
           text: 'Sauvegarder', 
           onPress: async () => {
             try {
-              const { error } = await supabase.from('workout_templates').insert([{
+              await workoutService.saveWorkoutTemplate({
                 coach_id: user.id,
                 name: title.trim(),
                 description: null,
                 type_seance: 'course',
                 blocks,
-              }]);
-              if (error) throw error;
+              });
               Alert.alert('Succès', 'Modèle enregistré dans votre bibliothèque !');
             } catch (err: any) {
               Alert.alert('Erreur', err.message);

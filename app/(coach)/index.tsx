@@ -6,6 +6,7 @@ import { theme } from '../../src/core/theme';
 import { useAuthStore } from '../../src/store/authStore';
 import { useCoachStore } from '../../src/store/coach/coachStore';
 import { supabase } from '../../src/services/supabase';
+import { workoutService } from '../../src/services/workoutService';
 import { CoachWeatherCard } from '../../src/features/coach/components/CoachWeatherCard';
 import { BroadcastModal } from '../../src/features/coach/components/BroadcastModal';
 import { SprintyLogo } from '../../src/shared/components/SprintyLogo';
@@ -34,13 +35,7 @@ export default function CoachDashboardScreen() {
         const end = new Date(today);
         end.setDate(end.getDate() + 1);
 
-        const { data } = await supabase
-          .from('workouts')
-          .select('*')
-          .eq('team_id', teams[0].id)
-          .gte('date_prevue', start.toISOString())
-          .lt('date_prevue', end.toISOString())
-          .order('date_prevue', { ascending: true });
+        const data = await workoutService.fetchWorkoutsForDate(user!.id, start, 'coach', teams[0].id);
         
         if (data) setTodayWorkouts(data);
       })();
@@ -68,11 +63,14 @@ export default function CoachDashboardScreen() {
   const getGroupHealth = () => {
     if (teamCheckIns.length === 0) return null;
     let sum = 0;
+    let count = 0;
     teamCheckIns.forEach(ci => {
-      const score = (ci.sleep_quality + ci.energy + (6 - ci.stress_level) + (6 - ci.pain_level) + (6 - ci.muscle_soreness)) / 5;
-      sum += score;
+      if (ci.health_score != null) {
+        sum += ci.health_score;
+        count++;
+      }
     });
-    return sum / teamCheckIns.length;
+    return count > 0 ? sum / count : null;
   };
 
   const avgHealth = getGroupHealth();

@@ -160,8 +160,8 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Répartition des calories (%)</Text>
 
             {(Object.keys(distribution) as Array<keyof typeof distribution>).map((meal) => (
-              <View key={meal} style={styles.inputRow}>
-                <Text style={{ color: theme.colors.text, textTransform: 'capitalize' }}>{meal.replace('_', ' ')}</Text>
+              <View key={meal as string} style={styles.inputRow}>
+                <Text style={{ color: theme.colors.text, textTransform: 'capitalize' }}>{(meal as string).replace('_', ' ')}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Text style={{ color: theme.colors.textSecondary, marginRight: 10 }}>
                     {Math.round((parseInt(kcalGoal) * distribution[meal]) / 100)} kcal

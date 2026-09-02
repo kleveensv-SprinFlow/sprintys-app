@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Database } from '../../../types/supabase';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, Animated } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../../../core/theme';
@@ -13,7 +14,7 @@ export const TeamHealthModal = ({ visible, onClose }: Props) => {
   const { teamMembers, teamCheckIns } = useCoachStore();
   const [expandedAthleteId, setExpandedAthleteId] = useState<string | null>(null);
 
-  const calculateScore = (ci: any) => {
+  const calculateScore = (ci: Database['public']['Tables']['check_ins']['Row'] | null | undefined) => {
     if (!ci) return null;
     if (ci.health_score !== undefined && ci.health_score !== null) return Math.round(ci.health_score).toString();
     return null;
@@ -109,33 +110,33 @@ export const TeamHealthModal = ({ visible, onClose }: Props) => {
                         ) : (
                           <View style={styles.metricsGrid}>
                             <View style={styles.metricItem}>
-                              <Feather name="moon" size={16} color={getMetricColor(checkIn.sleep_quality)} />
+                              <Feather name="moon" size={16} color={checkIn.sleep_quality != null ? getMetricColor(checkIn.sleep_quality) : theme.colors.textMuted} />
                               <Text style={styles.metricLabel}>Sommeil</Text>
-                              <Text style={[styles.metricValue, { color: getMetricColor(checkIn.sleep_quality) }]}>{checkIn.sleep_quality}/5</Text>
+                              <Text style={[styles.metricValue, { color: checkIn.sleep_quality != null ? getMetricColor(checkIn.sleep_quality) : theme.colors.textMuted }]}>{checkIn.sleep_quality != null ? `${checkIn.sleep_quality}/5` : '-'}</Text>
                             </View>
 
                             <View style={styles.metricItem}>
-                              <Feather name="battery" size={16} color={getMetricColor(checkIn.energy)} />
-                              <Text style={styles.metricLabel}>Énergie</Text>
-                              <Text style={[styles.metricValue, { color: getMetricColor(checkIn.energy) }]}>{checkIn.energy}/5</Text>
+                              <Feather name="battery" size={16} color={checkIn.fatigue_level != null ? getMetricColor(checkIn.fatigue_level, true) : theme.colors.textMuted} />
+                              <Text style={styles.metricLabel}>Fatigue</Text>
+                              <Text style={[styles.metricValue, { color: checkIn.fatigue_level != null ? getMetricColor(checkIn.fatigue_level, true) : theme.colors.textMuted }]}>{checkIn.fatigue_level != null ? `${checkIn.fatigue_level}/5` : '-'}</Text>
                             </View>
 
                             <View style={styles.metricItem}>
-                              <Feather name="wind" size={16} color={getMetricColor(checkIn.stress_level, true)} />
+                              <Feather name="wind" size={16} color={checkIn.stress_level != null ? getMetricColor(checkIn.stress_level, true) : theme.colors.textMuted} />
                               <Text style={styles.metricLabel}>Stress</Text>
-                              <Text style={[styles.metricValue, { color: getMetricColor(checkIn.stress_level, true) }]}>{checkIn.stress_level}/5</Text>
+                              <Text style={[styles.metricValue, { color: checkIn.stress_level != null ? getMetricColor(checkIn.stress_level, true) : theme.colors.textMuted }]}>{checkIn.stress_level != null ? `${checkIn.stress_level}/5` : '-'}</Text>
                             </View>
 
                             <View style={styles.metricItem}>
-                              <Feather name="activity" size={16} color={getMetricColor(checkIn.pain_level, true)} />
-                              <Text style={styles.metricLabel}>Douleur</Text>
-                              <Text style={[styles.metricValue, { color: getMetricColor(checkIn.pain_level, true) }]}>{checkIn.pain_level}/5</Text>
+                              <Feather name="activity" size={16} color={checkIn.physical_score != null ? getMetricColor(checkIn.physical_score, true) : theme.colors.textMuted} />
+                              <Text style={styles.metricLabel}>Physique</Text>
+                              <Text style={[styles.metricValue, { color: checkIn.physical_score != null ? getMetricColor(checkIn.physical_score, true) : theme.colors.textMuted }]}>{checkIn.physical_score != null ? `${checkIn.physical_score}/5` : '-'}</Text>
                             </View>
 
                             <View style={styles.metricItem}>
-                              <Feather name="target" size={16} color={getMetricColor(checkIn.muscle_soreness, true)} />
-                              <Text style={styles.metricLabel}>Courbatures</Text>
-                              <Text style={[styles.metricValue, { color: getMetricColor(checkIn.muscle_soreness, true) }]}>{checkIn.muscle_soreness}/5</Text>
+                              <Feather name="target" size={16} color={checkIn.mental_score != null ? getMetricColor(checkIn.mental_score) : theme.colors.textMuted} />
+                              <Text style={styles.metricLabel}>Mental</Text>
+                              <Text style={[styles.metricValue, { color: checkIn.mental_score != null ? getMetricColor(checkIn.mental_score) : theme.colors.textMuted }]}>{checkIn.mental_score != null ? `${checkIn.mental_score}/5` : '-'}</Text>
                             </View>
                           </View>
                         )}
