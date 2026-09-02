@@ -58,7 +58,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       const workout = await workoutService.fetchPendingWorkout(athleteId);
       set({ pendingWorkout: workout, isLoading: false });
     } catch (error) {
-      useSprintyStore.getState().showFeedback('error', "Impossible de rǸcupǸrer votre sǸance planifiǸe.");
+      useSprintyStore.getState().showFeedback('error', "Impossible de récupérer votre séance planifiée.");
       set({ isLoading: false });
     }
   },
@@ -106,17 +106,17 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         }))
       }));
     } 
-    // 2. Ancien format (rǸtrocompatibilitǸ)
+    // 2. Ancien format (rétrocompatibilité)
     else if (sw.exercises && Array.isArray(sw.exercises) && sw.exercises.length > 0) {
       activeBlocks = [{
         id: uuid.v4() as string,
         type: 'free',
-        name: 'SǸrie Principale',
+        name: 'Série Principale',
         exercises: sw.exercises.map((ex: any) => ({
           id: ex.id || uuid.v4() as string,
           catalog_id: null,
           name: ex.name,
-          category: 'strength', // L'ancien format Ǹtait 100% muscu
+          category: 'strength', // L'ancien format était 100% muscu
           sets: ex.sets.map((s: any, idx: number) => ({
             id: s.id || uuid.v4() as string,
             set_index: idx + 1,

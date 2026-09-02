@@ -35,7 +35,7 @@ export interface WorkoutDegradation {
 
 export const analyticsService = {
   /**
-   * RǸcupǭre les statistiques globales des sǸances rǸcentes
+   * Récupère les statistiques globales des séances récentes
    */
   async getRecentSessionStats(athleteId: string, limit: number = 10): Promise<SessionStats[]> {
     const { data, error } = await supabase
@@ -50,7 +50,7 @@ export const analyticsService = {
   },
 
   /**
-   * RǸcupǭre les records personnels (PRs)
+   * Récupère les records personnels (PRs)
    */
   async getPersonalRecords(athleteId: string, category?: string): Promise<AthletePR[]> {
     let query = supabase
@@ -69,7 +69,7 @@ export const analyticsService = {
   },
 
   /**
-   * RǸcupǭre la dǸgradation intra-sǸance (Endurance / Vitesse)
+   * Récupère la dégradation intra-séance (Endurance / Vitesse)
    */
   async getWorkoutDegradation(athleteId: string, limit: number = 10): Promise<WorkoutDegradation[]> {
     const { data, error } = await supabase.rpc('get_workout_degradation', {

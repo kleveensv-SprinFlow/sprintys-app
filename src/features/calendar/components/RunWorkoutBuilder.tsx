@@ -16,17 +16,17 @@ interface RunWorkoutBuilderProps {
   defaultTitle?: string;
 }
 
-const WORKOUT_TYPES = ['Piste', 'Lactique', 'AǸrobie', 'VMA', 'Sprint', 'Footing', 'Fartlek', 'Renforcement'];
+const WORKOUT_TYPES = ['Piste', 'Lactique', 'Aérobie', 'VMA', 'Sprint', 'Footing', 'Fartlek', 'Renforcement'];
 
 const BLOCK_TYPES: { id: BlockType; label: string; color: string }[] = [
-  { id: 'warmup', label: 'ǲchauffement', color: '#10B981' },
-  { id: 'sprint', label: 'Sprint / AccǸlǸration', color: '#EF4444' },
+  { id: 'warmup', label: 'Échauffement', color: '#10B981' },
+  { id: 'sprint', label: 'Sprint / Accélération', color: '#EF4444' },
   { id: 'max_speed', label: 'Vitesse Maximale', color: '#8B5CF6' },
   { id: 'endurance_sprint', label: 'Endurance Sprint', color: '#F59E0B' },
   { id: 'endurance', label: 'Endurance', color: '#3B82F6' },
   { id: 'technique', label: 'Technique', color: '#6366F1' },
-  { id: 'plyo', label: 'PliomǸtrie', color: '#EC4899' },
-  { id: 'cooldown', label: 'RǸcupǸration', color: '#6B7280' },
+  { id: 'plyo', label: 'Pliométrie', color: '#EC4899' },
+  { id: 'cooldown', label: 'Récupération', color: '#6B7280' },
 ];
 
 const PRESET_DISTANCES = [10, 20, 30, 40, 50, 60, 100, 150, 200, 400];
@@ -180,7 +180,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({ date, onCl
 
   const handleSave = async () => {
     if (!title.trim()) {
-      Alert.alert('Erreur', 'Veuillez donner un titre ǩ la sǸance');
+      Alert.alert('Erreur', 'Veuillez donner un titre à la séance');
       return;
     }
     if (blocks.length === 0 || blocks.every(b => b.exercises.length === 0)) {
@@ -190,7 +190,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({ date, onCl
 
     setIsSubmitting(true);
     try {
-      if (!user) throw new Error("Non connectǸ");
+      if (!user) throw new Error("Non connecté");
 
       const baseWorkoutData = {
         coach_id: user.id,
@@ -212,7 +212,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({ date, onCl
       } else if (targetType === 'subgroup' && selectedSubgroupId) {
         await workoutService.assignWorkoutToGroup(baseWorkoutData, 'subgroup', selectedSubgroupId);
       } else {
-        throw new Error('Cible invalide pour la sǸance');
+        throw new Error('Cible invalide pour la séance');
       }
 
       onSave();
@@ -228,7 +228,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({ date, onCl
   const currentTeamAthletes = teamMembers.filter(tm => tm.team_id === selectedTeamId);
   const currentTeamSubgroups = subgroups.filter(sg => sg.team_id === selectedTeamId);
 
-  let targetDisplay = 'SǸlectionner...';
+  let targetDisplay = 'Sélectionner...';
   if (targetType === 'team' && selectedTeamId) targetDisplay = teams.find(t => t.id === selectedTeamId)?.name || targetDisplay;
   else if (targetType === 'athlete' && selectedAthleteId) targetDisplay = currentTeamAthletes.find(a => a.user_id === selectedAthleteId)?.profile?.full_name || targetDisplay;
   else if (targetType === 'subgroup' && selectedSubgroupId) targetDisplay = currentTeamSubgroups.find(s => s.id === selectedSubgroupId)?.name || targetDisplay;
@@ -242,7 +242,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({ date, onCl
         </TouchableOpacity>
         <TextInput
           style={styles.headerTitleInput}
-          placeholder="Titre de la sǸance Piste"
+          placeholder="Titre de la séance Piste"
           placeholderTextColor={theme.colors.textMuted}
           value={title}
           onChangeText={setTitle}
@@ -258,7 +258,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({ date, onCl
           <TouchableOpacity style={styles.settingsHeader} onPress={() => setShowSettings(!showSettings)}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Feather name="target" size={18} color={theme.colors.accent} />
-              <Text style={styles.settingsTitle}>Paramǭtres ({targetDisplay})</Text>
+              <Text style={styles.settingsTitle}>Paramètres ({targetDisplay})</Text>
             </View>
             <Feather name={showSettings ? 'chevron-up' : 'chevron-down'} size={20} color={theme.colors.textSecondary} />
           </TouchableOpacity>
@@ -267,13 +267,13 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({ date, onCl
             <View style={styles.settingsBody}>
               <View style={styles.targetControl}>
                 <TouchableOpacity style={[styles.targetTab, targetType === 'team' && styles.targetTabActive]} onPress={() => setTargetType('team')}>
-                  <Text style={[styles.targetTabText, targetType === 'team' && styles.targetTabTextActive]}>ǲquipe</Text>
+                  <Text style={[styles.targetTabText, targetType === 'team' && styles.targetTabTextActive]}>Équipe</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.targetTab, targetType === 'subgroup' && styles.targetTabActive]} onPress={() => setTargetType('subgroup')}>
                   <Text style={[styles.targetTabText, targetType === 'subgroup' && styles.targetTabTextActive]}>Sous-grp</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.targetTab, targetType === 'athlete' && styles.targetTabActive]} onPress={() => setTargetType('athlete')}>
-                  <Text style={[styles.targetTabText, targetType === 'athlete' && styles.targetTabTextActive]}>Athlǭte</Text>
+                  <Text style={[styles.targetTabText, targetType === 'athlete' && styles.targetTabTextActive]}>Athlète</Text>
                 </TouchableOpacity>
               </View>
 
@@ -305,7 +305,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({ date, onCl
 
               <TextInput
                 style={styles.notesInput}
-                placeholder="Notes de la sǸance..."
+                placeholder="Notes de la séance..."
                 placeholderTextColor={theme.colors.textMuted}
                 value={description}
                 onChangeText={setDescription}
@@ -345,7 +345,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({ date, onCl
                       
                       {/* QUICK GENERATOR UI */}
                       <View style={styles.generatorBox}>
-                        <Text style={styles.generatorTitle}>GǸnǸrateur Rapide</Text>
+                        <Text style={styles.generatorTitle}>Générateur Rapide</Text>
                         
                         <Text style={styles.genLabel}>Distance</Text>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.genScroll}>
@@ -360,7 +360,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({ date, onCl
                           ))}
                         </ScrollView>
 
-                        <Text style={styles.genLabel}>RǸpǸtitions</Text>
+                        <Text style={styles.genLabel}>Répétitions</Text>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.genScroll}>
                           {PRESET_REPS.map(r => (
                             <TouchableOpacity 
@@ -373,7 +373,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({ date, onCl
                           ))}
                         </ScrollView>
 
-                        <Text style={styles.genLabel}>RǸcupǸration</Text>
+                        <Text style={styles.genLabel}>Récupération</Text>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.genScroll}>
                           {PRESET_RESTS.map(r => (
                             <TouchableOpacity 
@@ -398,7 +398,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({ date, onCl
                           }}
                         />
 
-                                                <Text style={styles.genLabel}>Intensit� cibl�e (%)</Text>
+                                                <Text style={styles.genLabel}>Intensit� cibl�e (%)</Text>
                         <TextInput 
                           style={[styles.notesInput, { minHeight: 40, marginBottom: 12 }]}
                           placeholder="Ex: 95"
@@ -412,17 +412,17 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({ date, onCl
 
                         <TouchableOpacity style={styles.genButton} onPress={() => generateSets(block.id, ex.id)}>
                           <Feather name="zap" size={16} color="#FFF" />
-                          <Text style={styles.genButtonText}>GǸnǸrer {genState.reps} SǸries</Text>
+                          <Text style={styles.genButtonText}>Générer {genState.reps} Séries</Text>
                         </TouchableOpacity>
                       </View>
 
                       {/* ACTUAL SETS (JSON Data) */}
                       {ex.sets.length > 0 && (
                         <View style={styles.setsList}>
-                          <Text style={styles.setsListTitle}>SǸries gǸnǸrǸes (Prǭtes pour l'athlǭte) :</Text>
+                          <Text style={styles.setsListTitle}>Séries générées (Prètes pour l'athlète) :</Text>
                           {ex.sets.map((set) => (
                             <View key={set.id} style={styles.setItemRow}>
-                              <Text style={styles.setText}>RǸp {set.set_index}</Text>
+                              <Text style={styles.setText}>Rép {set.set_index}</Text>
                               <Text style={styles.setTextBold}>{set.planned_distance_m} m</Text>
                               <Text style={styles.setTextRest}>Recup: {set.planned_rest_ms ? set.planned_rest_ms / 1000 : 0}s</Text>
                               <TouchableOpacity onPress={() => removeSet(block.id, ex.id, set.id)}>
@@ -455,7 +455,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({ date, onCl
       <Modal visible={isBlockTypeModalVisible} animationType="fade" transparent={true}>
         <View style={styles.modalOverlay}>
           <View style={styles.blockTypeModalContent}>
-            <Text style={styles.modalTitle}>SǸlectionner le type de bloc</Text>
+            <Text style={styles.modalTitle}>Sélectionner le type de bloc</Text>
             {BLOCK_TYPES.map(type => (
               <TouchableOpacity 
                 key={type.id} 

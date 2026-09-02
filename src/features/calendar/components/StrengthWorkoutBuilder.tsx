@@ -141,7 +141,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
 
   const handleSave = async () => {
     if (!title.trim()) {
-      Alert.alert('Erreur', 'Veuillez donner un titre ǩ la sǸance');
+      Alert.alert('Erreur', 'Veuillez donner un titre à la séance');
       return;
     }
     if (blocks.length === 0 || blocks.every(b => b.exercises.length === 0)) {
@@ -149,17 +149,17 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
       return;
     }
     if (targetType === 'athlete' && !selectedAthleteId) {
-      Alert.alert('Erreur', 'SǸlectionnez un athlǭte');
+      Alert.alert('Erreur', 'Sélectionnez un athlète');
       return;
     }
     if (targetType === 'team' && !selectedTeamId) {
-      Alert.alert('Erreur', 'SǸlectionnez une Ǹquipe');
+      Alert.alert('Erreur', 'Sélectionnez une équipe');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      if (!user) throw new Error("Non connectǸ");
+      if (!user) throw new Error("Non connecté");
 
       const baseWorkoutData = {
         coach_id: user.id,
@@ -181,7 +181,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
       } else if (targetType === 'subgroup' && selectedSubgroupId) {
         await workoutService.assignWorkoutToGroup(baseWorkoutData, 'subgroup', selectedSubgroupId);
       } else {
-        throw new Error('Cible invalide pour la sǸance');
+        throw new Error('Cible invalide pour la séance');
       }
 
       onSave();
@@ -197,7 +197,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
   const currentTeamAthletes = teamMembers.filter(tm => tm.team_id === selectedTeamId);
   const currentTeamSubgroups = subgroups.filter(sg => sg.team_id === selectedTeamId);
 
-  let targetDisplay = 'SǸlectionner...';
+  let targetDisplay = 'Sélectionner...';
   if (targetType === 'team' && selectedTeamId) targetDisplay = teams.find(t => t.id === selectedTeamId)?.name || targetDisplay;
   else if (targetType === 'athlete' && selectedAthleteId) targetDisplay = currentTeamAthletes.find(a => a.user_id === selectedAthleteId)?.profile?.full_name || targetDisplay;
   else if (targetType === 'subgroup' && selectedSubgroupId) targetDisplay = currentTeamSubgroups.find(s => s.id === selectedSubgroupId)?.name || targetDisplay;
@@ -211,7 +211,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
         </TouchableOpacity>
         <TextInput
           style={styles.headerTitleInput}
-          placeholder="Titre de la sǸance"
+          placeholder="Titre de la séance"
           placeholderTextColor={theme.colors.textMuted}
           value={title}
           onChangeText={setTitle}
@@ -227,7 +227,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
           <TouchableOpacity style={styles.settingsHeader} onPress={() => setShowSettings(!showSettings)}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Feather name="target" size={18} color={theme.colors.accent} />
-              <Text style={styles.settingsTitle}>Paramǭtres ({targetDisplay})</Text>
+              <Text style={styles.settingsTitle}>Paramètres ({targetDisplay})</Text>
             </View>
             <Feather name={showSettings ? 'chevron-up' : 'chevron-down'} size={20} color={theme.colors.textSecondary} />
           </TouchableOpacity>
@@ -237,13 +237,13 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
               {/* Target Selection */}
               <View style={styles.targetControl}>
                 <TouchableOpacity style={[styles.targetTab, targetType === 'team' && styles.targetTabActive]} onPress={() => setTargetType('team')}>
-                  <Text style={[styles.targetTabText, targetType === 'team' && styles.targetTabTextActive]}>ǲquipe</Text>
+                  <Text style={[styles.targetTabText, targetType === 'team' && styles.targetTabTextActive]}>Équipe</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.targetTab, targetType === 'subgroup' && styles.targetTabActive]} onPress={() => setTargetType('subgroup')}>
                   <Text style={[styles.targetTabText, targetType === 'subgroup' && styles.targetTabTextActive]}>Sous-grp</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.targetTab, targetType === 'athlete' && styles.targetTabActive]} onPress={() => setTargetType('athlete')}>
-                  <Text style={[styles.targetTabText, targetType === 'athlete' && styles.targetTabTextActive]}>Athlǭte</Text>
+                  <Text style={[styles.targetTabText, targetType === 'athlete' && styles.targetTabTextActive]}>Athlète</Text>
                 </TouchableOpacity>
               </View>
 
@@ -320,7 +320,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
               {/* Block Settings (Sets & Rest) */}
               <View style={styles.blockSettingsGrid}>
                 <View style={styles.blockSettingCell}>
-                  <Text style={styles.cellLabel}>SǸries</Text>
+                  <Text style={styles.cellLabel}>Séries</Text>
                   <TextInput
                     style={styles.cellInput}
                     keyboardType="number-pad"
@@ -329,7 +329,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
                   />
                 </View>
                 <View style={styles.blockSettingCell}>
-                  <Text style={styles.cellLabel}>Repos (Fin de sǸrie)</Text>
+                  <Text style={styles.cellLabel}>Repos (Fin de série)</Text>
                   <View style={styles.restInputWrapper}>
                     <TextInput
                       style={[styles.cellInput, { flex: 1 }]}

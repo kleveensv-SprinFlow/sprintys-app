@@ -10,7 +10,7 @@ interface Props {
   exercise: Omit<WorkoutExercise, 'sets'> & { sets: ActiveSet[] };
 }
 
-// Composant interne pour gǸrer l'Ǹtat local des inputs textuels
+// Composant interne pour gérer l'état local des inputs textuels
 const SetRow = ({ blockId, exerciseId, set, isStrength, isRun, isJump }: { blockId: string, exerciseId: string, set: ActiveSet, isStrength: boolean, isRun: boolean, isJump: boolean }) => {
   const { updateSet, toggleSetCompletion } = useWorkoutStore();
   
@@ -146,7 +146,7 @@ export const ExerciseRow: React.FC<Props> = ({ blockId, exercise }) => {
       <View style={styles.headerRow}>
         <Text style={[styles.headerText, { flex: 0.5 }]}>SET</Text>
         <Text style={[styles.headerText, { flex: 2, textAlign: 'left' }]}>OBJECTIF CIBLE</Text>
-        {isStrength && <Text style={[styles.headerText, { flex: 1.5 }]}>RǲALISǲ</Text>}
+        {isStrength && <Text style={[styles.headerText, { flex: 1.5 }]}>RÉALISÉ</Text>}
         {isRun && <Text style={[styles.headerText, { flex: 1.5 }]}>CHRONO (s)</Text>}
         {isJump && <Text style={[styles.headerText, { flex: 1.5 }]}>HAUTEUR (cm)</Text>}
         <Text style={[styles.headerText, { flex: 0.8 }]}>%</Text>
@@ -176,7 +176,7 @@ export const ExerciseRow: React.FC<Props> = ({ blockId, exercise }) => {
         onPress={() => addSet(blockId, exercise.id)}
         style={styles.addSetButton}
       >
-        <Text style={styles.addSetText}>+ AJOUTER UNE SǲRIE</Text>
+        <Text style={styles.addSetText}>+ AJOUTER UNE SÉRIE</Text>
       </TouchableOpacity>
     </View>
   );

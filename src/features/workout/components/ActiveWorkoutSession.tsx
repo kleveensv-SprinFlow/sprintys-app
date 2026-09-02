@@ -32,7 +32,7 @@ export const ActiveWorkoutSession: React.FC = () => {
 
   const handleFinish = async () => {
     Alert.alert(
-      "Terminer la sǸance",
+      "Terminer la séance",
       "Voulez-vous enregistrer vos performances ?",
       [
         { text: "Annuler", style: "cancel" },
@@ -40,7 +40,7 @@ export const ActiveWorkoutSession: React.FC = () => {
           text: "Enregistrer", 
           onPress: async () => {
             await finishWorkout();
-            showFeedback('success', 'SǸance terminǸe ! Vos donnǸes sont synchronisǸes.');
+            showFeedback('success', 'Séance terminée ! Vos données sont synchronisées.');
             runAnalysis();
           }, 
           style: "default" 

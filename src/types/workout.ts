@@ -16,7 +16,7 @@ export interface WorkoutSet {
   id: string; // uuid local pour le builder
   set_index: number;
   
-  // MǸtriques de base (Natives dans athlete_efforts)
+  // Métriques de base (Natives dans athlete_efforts)
   planned_reps?: number;
   planned_weight_kg?: number;
   planned_distance_m?: number;
@@ -33,7 +33,7 @@ export interface WorkoutSet {
   planned_intensity?: number;
   actual_intensity?: number;
 
-  // MǸtriques futures (Puissance, Vitesse, Splits...) via JSONB
+  // Métriques futures (Puissance, Vitesse, Splits...) via JSONB
   planned_extra?: Record<string, any>;
 }
 

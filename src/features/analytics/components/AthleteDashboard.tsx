@@ -46,7 +46,7 @@ export const AthleteDashboard: React.FC = () => {
     );
   }
 
-  // Calculs aggregǸs
+  // Calculs aggregés
   const globalAdherence = stats.length > 0 
     ? stats.reduce((acc, s) => acc + (s.adherence_percentage || 0), 0) / stats.length 
     : 0;
@@ -66,12 +66,12 @@ export const AthleteDashboard: React.FC = () => {
         <View style={styles.kpiCard}>
           <Feather name="target" size={20} color={theme.colors.accent} />
           <Text style={styles.kpiValue}>{globalAdherence.toFixed(0)}%</Text>
-          <Text style={styles.kpiLabel}>AdhǸrence Moyenne</Text>
+          <Text style={styles.kpiLabel}>Adhérence Moyenne</Text>
         </View>
         <View style={styles.kpiCard}>
           <Feather name="activity" size={20} color={theme.colors.success} />
           <Text style={styles.kpiValue}>{stats.length > 0 ? (stats.reduce((acc, s) => acc + (s.avg_intensity || 0), 0) / stats.length).toFixed(1) : '-'}</Text>
-          <Text style={styles.kpiLabel}>Intensit� Moyenne</Text>
+          <Text style={styles.kpiLabel}>Intensit� Moyenne</Text>
         </View>
       </View>
 
@@ -79,19 +79,19 @@ export const AthleteDashboard: React.FC = () => {
         <View style={styles.kpiCard}>
           <Feather name="zap" size={20} color={theme.colors.error} />
           <Text style={styles.kpiValue}>{globalDistance} m</Text>
-          <Text style={styles.kpiLabel}>Volume Course (RǸcent)</Text>
+          <Text style={styles.kpiLabel}>Volume Course (Récent)</Text>
         </View>
         <View style={styles.kpiCard}>
           <Feather name="package" size={20} color="#8B5CF6" />
           <Text style={styles.kpiValue}>{globalVolume} kg</Text>
-          <Text style={styles.kpiLabel}>Volume Muscu (RǸcent)</Text>
+          <Text style={styles.kpiLabel}>Volume Muscu (Récent)</Text>
         </View>
       </View>
 
       {/* SECTION 2: DEGRADATION (INTRA-SESSION) */}
       <Text style={styles.sectionTitle}>Endurance Lactique / Vitesse</Text>
       {degradations.length === 0 ? (
-        <Text style={styles.emptyText}>Pas assez de sǸries rǸcentes pour calculer la dǸgradation.</Text>
+        <Text style={styles.emptyText}>Pas assez de séries récentes pour calculer la dégradation.</Text>
       ) : (
         degradations.map((deg, i) => (
           <View key={i} style={styles.listCard}>
@@ -109,7 +109,7 @@ export const AthleteDashboard: React.FC = () => {
                 <Text style={styles.degValue}>{(deg.worst_time_ms / 1000).toFixed(2)}s</Text>
               </View>
               <View>
-                <Text style={styles.degLabel}>DǸgradation</Text>
+                <Text style={styles.degLabel}>Dégradation</Text>
                 <Text style={[styles.degValue, { color: deg.degradation_percentage > 10 ? theme.colors.error : theme.colors.success }]}>
                   +{deg.degradation_percentage}%
                 </Text>
@@ -122,7 +122,7 @@ export const AthleteDashboard: React.FC = () => {
       {/* SECTION 3: RECORDS PERSONNELS */}
       <Text style={styles.sectionTitle}>Records (Course)</Text>
       {runPrs.length === 0 ? (
-        <Text style={styles.emptyText}>Aucun record piste enregistrǸ.</Text>
+        <Text style={styles.emptyText}>Aucun record piste enregistré.</Text>
       ) : (
         runPrs.map((pr, i) => (
           <View key={i} style={styles.prCard}>
@@ -135,7 +135,7 @@ export const AthleteDashboard: React.FC = () => {
 
       <Text style={styles.sectionTitle}>Records (Musculation)</Text>
       {strengthPrs.length === 0 ? (
-        <Text style={styles.emptyText}>Aucun record muscu enregistrǸ.</Text>
+        <Text style={styles.emptyText}>Aucun record muscu enregistré.</Text>
       ) : (
         strengthPrs.map((pr, i) => (
           <View key={i} style={styles.prCard}>
