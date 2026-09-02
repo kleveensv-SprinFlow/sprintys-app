@@ -102,6 +102,29 @@ export const workoutService = {
   },
 
   
+    fetchWorkoutsForMonth: async (userId: string, year: number, month: number, role: 'athlete' | 'coach') => {
+    const startDate = new Date(year, month, 1);
+    const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
+    
+    let query = supabase
+      .from('workouts')
+      .select('id, date_prevue, type_seance, status, athlete_id, group_id')
+      .gte('date_prevue', startDate.toISOString())
+      .lte('date_prevue', endDate.toISOString());
+
+    if (role === 'coach') {
+      query = query.eq('coach_id', userId);
+    } else {
+      query = query.eq('athlete_id', userId);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('Error fetching month workouts:', error);
+      return [];
+    }
+    return data;
+  },
   fetchWorkoutsForDate: async (userId: string, date: Date, role: 'athlete' | 'coach', teamId?: string) => {
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);

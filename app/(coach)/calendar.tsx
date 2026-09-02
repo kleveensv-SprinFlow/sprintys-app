@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity, Modal, ScrollView, Animated } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { useTheme } from '../../src/core/theme';
 import { Header } from '../../src/shared/components/Header';
-import { MonthlyCalendar } from '../../src/shared/components/MonthlyCalendar';
+import { MonthlyCalendar, MonthWorkout, getWorkoutColor } from '../../src/shared/components/MonthlyCalendar';
 import { WorkoutCard } from '../../src/shared/components/WorkoutCard';
 import { RunWorkoutBuilder } from '../../src/features/calendar/components/RunWorkoutBuilder';
 import { StrengthWorkoutBuilder } from '../../src/features/calendar/components/StrengthWorkoutBuilder';
@@ -12,97 +12,152 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 
-const MONTH_NAMES_SHORT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+const MONTH_NAMES_FULL = [
+  'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'
+];
+
+const DAY_NAMES = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
 
 export default function CoachCalendarScreen() {
   const theme = useTheme();
   const { user } = useAuthStore();
   const router = useRouter();
-  
+
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [dayModalVisible, setDayModalVisible] = useState(false);
-  
+
+  // Day workouts (for the modal)
   const [workouts, setWorkouts] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  // For building new sessions
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Month workouts (for the calendar dots)
+  const [monthWorkouts, setMonthWorkouts] = useState<MonthWorkout[]>([]);
+
+  // Builder state
   const [builderType, setBuilderType] = useState<'none' | 'hybrid' | 'strength'>('none');
   const [builderTitle, setBuilderTitle] = useState('');
 
-  useEffect(() => {
-    if (user?.id) {
-      fetchWorkouts(selectedDate);
-    }
-  }, [selectedDate, user?.id]);
-
-  const fetchWorkouts = async (date: Date) => {
-    setIsLoading(true);
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
-
+  // === Fetch month overview (lightweight, for calendar dots) ===
+  const fetchMonthWorkouts = useCallback(async (year: number, month: number) => {
+    if (!user?.id) return;
     try {
-      const data = await workoutService.fetchWorkoutsForDate(user!.id, date, 'coach');
+      const data = await workoutService.fetchWorkoutsForMonth(user.id, year, month, 'coach');
+      setMonthWorkouts(data || []);
+    } catch (error) {
+      console.error('Error fetching month workouts:', error);
+    }
+  }, [user?.id]);
+
+  // === Fetch day details (for the popup) ===
+  const fetchDayWorkouts = useCallback(async (date: Date) => {
+    if (!user?.id) return;
+    setIsLoading(true);
+    try {
+      const data = await workoutService.fetchWorkoutsForDate(user.id, date, 'coach');
       setWorkouts(data || []);
     } catch (error) {
-      console.error('Error fetching workouts:', error);
+      console.error('Error fetching day workouts:', error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.id]);
 
-  const getMarkedDates = () => {
-    return workouts.length > 0 ? [selectedDate] : [];
-  };
+  // Load current month on mount
+  useEffect(() => {
+    const now = new Date();
+    fetchMonthWorkouts(now.getFullYear(), now.getMonth());
+  }, [fetchMonthWorkouts]);
 
-  const handleSaveWorkout = () => {
+  // Reload day when modal opens
+  useEffect(() => {
+    if (dayModalVisible) {
+      fetchDayWorkouts(selectedDate);
+    }
+  }, [dayModalVisible, selectedDate, fetchDayWorkouts]);
+
+  const handleMonthChange = useCallback((year: number, month: number) => {
+    fetchMonthWorkouts(year, month);
+  }, [fetchMonthWorkouts]);
+
+  const handleSelectDate = useCallback((date: Date) => {
+    setSelectedDate(date);
+    setDayModalVisible(true);
+  }, []);
+
+  const handleSaveWorkout = useCallback(() => {
     setBuilderType('none');
-    fetchWorkouts(selectedDate);
-  };
+    fetchDayWorkouts(selectedDate);
+    // Refresh month dots
+    fetchMonthWorkouts(selectedDate.getFullYear(), selectedDate.getMonth());
+  }, [selectedDate, fetchDayWorkouts, fetchMonthWorkouts]);
 
-  const openBuilder = (type: 'hybrid' | 'strength', defaultTitle: string = '') => {
+  const openBuilder = useCallback((type: 'hybrid' | 'strength', defaultTitle: string = '') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setBuilderTitle(defaultTitle);
     setBuilderType(type);
+  }, []);
+
+  // Format selected date for modal header
+  const formatModalDate = (date: Date): string => {
+    const dayName = DAY_NAMES[date.getDay()];
+    const dayNum = date.getDate();
+    const monthName = MONTH_NAMES_FULL[date.getMonth()];
+    return `${dayName.charAt(0).toUpperCase() + dayName.slice(1)} ${dayNum} ${monthName}`;
   };
 
-  const handleSelectDate = (date: Date) => {
-    setSelectedDate(date);
-    setDayModalVisible(true);
-  };
+  // Workout type config for the creation grid
+  const WORKOUT_TYPES = [
+    { id: 'muscu', title: 'Musculation', icon: 'bold' as const, color: '#6366F1', type: 'strength' as const },
+    { id: 'course', title: 'Course', icon: 'activity' as const, color: '#EF4444', type: 'hybrid' as const },
+    { id: 'technique', title: 'Technique', icon: 'target' as const, color: '#10B981', type: 'hybrid' as const },
+    { id: 'escalier', title: 'Escaliers', icon: 'trending-up' as const, color: '#8B5CF6', type: 'hybrid' as const },
+    { id: 'competition', title: 'Compétition', icon: 'award' as const, color: '#F59E0B', type: 'hybrid' as const },
+  ];
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Header 
-        title="Calendrier" 
+      <Header
+        title="Calendrier"
         rightComponent={
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => router.push('/(coach)/library')}
-            style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: theme.colors.surface, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}
+            style={[styles.headerBtn, { backgroundColor: theme.colors.surface }]}
           >
             <Feather name="book" size={20} color={theme.colors.accent} />
           </TouchableOpacity>
         }
       />
-      
-      {/* Full-screen Calendar */}
-      <MonthlyCalendar 
-        selectedDate={selectedDate} 
+
+      {/* === Premium Calendar === */}
+      <MonthlyCalendar
+        selectedDate={selectedDate}
         onSelectDate={handleSelectDate}
-        markedDates={getMarkedDates()}
+        monthWorkouts={monthWorkouts}
+        onMonthChange={handleMonthChange}
       />
 
-      {/* Day Details Modal */}
+      {/* === Day Details Popup === */}
       <Modal visible={dayModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
+            {/* Modal Header */}
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-                {selectedDate.getDate()} {MONTH_NAMES_SHORT[selectedDate.getMonth()]} {selectedDate.getFullYear()}
-              </Text>
-              <TouchableOpacity onPress={() => setDayModalVisible(false)} style={styles.closeBtn}>
-                <Feather name="x" size={24} color={theme.colors.text} />
+              <View>
+                <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+                  {formatModalDate(selectedDate)}
+                </Text>
+                <Text style={[styles.modalSubtitle, { color: theme.colors.textMuted }]}>
+                  {workouts.length > 0
+                    ? `${workouts.length} séance${workouts.length > 1 ? 's' : ''} programmée${workouts.length > 1 ? 's' : ''}`
+                    : 'Aucune séance'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setDayModalVisible(false)}
+                style={[styles.closeBtn, { backgroundColor: theme.colors.background }]}
+              >
+                <Feather name="x" size={20} color={theme.colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -112,79 +167,86 @@ export default function CoachCalendarScreen() {
                   <ActivityIndicator size="large" color={theme.colors.accent} />
                 </View>
               ) : workouts.length === 0 ? (
+                /* === Empty state: creation grid === */
                 <View style={styles.emptyState}>
-                  <Text style={[styles.emptyText, { color: theme.colors.text }]}>
-                    Que souhaitez-vous planifier ?
+                  <View style={[styles.emptyIconWrap, { backgroundColor: theme.colors.accent + '10' }]}>
+                    <Feather name="plus-circle" size={32} color={theme.colors.accent} />
+                  </View>
+                  <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
+                    Planifier une séance
                   </Text>
-                  
+                  <Text style={[styles.emptySubtitle, { color: theme.colors.textMuted }]}>
+                    Que souhaitez-vous programmer ?
+                  </Text>
+
                   <View style={styles.gridContainer}>
-                    {[
-                      { id: 'muscu', title: 'Musculation', icon: 'bold', color: '#6366F1', type: 'strength' },
-                      { id: 'course', title: 'Course', icon: 'activity', color: '#EF4444', type: 'hybrid' },
-                        { id: 'technique', title: 'Technique', icon: 'target', color: '#10B981', type: 'hybrid' },
-                      { id: 'escalier', title: 'Escaliers', icon: 'trending-up', color: '#8B5CF6', type: 'hybrid' },
-                      { id: 'competition', title: 'Compétition', icon: 'award', color: '#F59E0B', type: 'hybrid' },
-                    ].map((item) => (
-                      <TouchableOpacity 
-                        key={item.id} 
-                        style={[styles.gridItem, { backgroundColor: item.color + '15' }]} 
-                        onPress={() => openBuilder(item.type as 'hybrid' | 'strength', item.title)}
+                    {WORKOUT_TYPES.map((item) => (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={[styles.gridItem, { backgroundColor: item.color + '12', borderColor: item.color + '30' }]}
+                        onPress={() => openBuilder(item.type, item.title)}
+                        activeOpacity={0.7}
                       >
                         <View style={[styles.gridIconBg, { backgroundColor: item.color }]}>
-                          <Feather name={item.icon as any} size={24} color="#fff" />
+                          <Feather name={item.icon} size={20} color="#fff" />
                         </View>
                         <Text style={[styles.gridItemTitle, { color: theme.colors.text }]}>{item.title}</Text>
                       </TouchableOpacity>
                     ))}
-                    
-                    {/* Repos - takes full width */}
-                    <TouchableOpacity 
-                      style={[styles.gridItemFull, { backgroundColor: theme.colors.surfaceLight }]}
+
+                    {/* Repos */}
+                    <TouchableOpacity
+                      style={[styles.gridItemFull, { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border }]}
                       onPress={() => openBuilder('hybrid', 'Jour de repos')}
+                      activeOpacity={0.7}
                     >
                       <View style={[styles.gridIconBg, { backgroundColor: theme.colors.textMuted }]}>
-                        <Feather name="coffee" size={24} color="#fff" />
+                        <Feather name="coffee" size={20} color="#fff" />
                       </View>
                       <Text style={[styles.gridItemTitle, { color: theme.colors.text }]}>Jour de repos</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
               ) : (
+                /* === Workout list === */
                 <View style={{ paddingBottom: 40 }}>
-                  <View style={styles.headerRow}>
-                    <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>
-                      {workouts.length} SÉANCE(S)
-                    </Text>
-                  </View>
-
                   {workouts.map((w, i) => {
                     const dateObj = new Date(w.date_prevue);
                     const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                    
-                    let summary = w.description ? (w.description.substring(0, 50) + '...') : '';
+                    const typeColor = getWorkoutColor(w.type_seance);
+
+                    let summary = w.description ? (w.description.substring(0, 60) + (w.description.length > 60 ? '...' : '')) : '';
                     if (w.exercises && Array.isArray(w.exercises) && w.exercises.length > 0) {
-                      summary = `${w.exercises.length} exercices (Musculation)`;
+                      summary = `${w.exercises.length} exercice${w.exercises.length > 1 ? 's' : ''}`;
                     }
 
                     return (
-                      <WorkoutCard 
-                        key={w.id || i}
-                        time={timeString}
-                        title={w.type_seance}
-                        type="Séance Coach"
-                        status={w.status}
-                        summary={summary}
-                        onPress={() => {
-                          alert('Edition en cours de developpement.');
-                        }}
-                      />
+                      <View key={w.id || i} style={styles.workoutRow}>
+                        {/* Color accent bar */}
+                        <View style={[styles.colorBar, { backgroundColor: typeColor }]} />
+                        <WorkoutCard
+                          time={timeString}
+                          title={w.type_seance}
+                          type="Séance Coach"
+                          status={w.status}
+                          summary={summary}
+                          onPress={() => {
+                            alert('Édition en cours de développement.');
+                          }}
+                        />
+                      </View>
                     );
                   })}
 
-                  <TouchableOpacity style={[styles.actionBtnSecondary, { marginTop: 24 }]} onPress={() => openBuilder('hybrid')}>
-                    <Feather name="plus" size={20} color={theme.colors.text} />
-                    <Text style={[styles.actionBtnSecondaryText, { color: theme.colors.text }]}>
-                      Ajouter une autre séance
+                  {/* Add another session button */}
+                  <TouchableOpacity
+                    style={[styles.addBtn, { borderColor: theme.colors.border }]}
+                    onPress={() => openBuilder('hybrid')}
+                    activeOpacity={0.7}
+                  >
+                    <Feather name="plus" size={18} color={theme.colors.accent} />
+                    <Text style={[styles.addBtnText, { color: theme.colors.accent }]}>
+                      Ajouter une séance
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -194,9 +256,9 @@ export default function CoachCalendarScreen() {
         </View>
       </Modal>
 
-      {/* Modals for Builders */}
+      {/* === Builder Modals === */}
       <Modal visible={builderType === 'hybrid'} animationType="slide" presentationStyle="formSheet">
-        <RunWorkoutBuilder 
+        <RunWorkoutBuilder
           date={selectedDate}
           onClose={() => setBuilderType('none')}
           onSave={handleSaveWorkout}
@@ -204,7 +266,7 @@ export default function CoachCalendarScreen() {
       </Modal>
 
       <Modal visible={builderType === 'strength'} animationType="slide" presentationStyle="formSheet">
-        <StrengthWorkoutBuilder 
+        <StrengthWorkoutBuilder
           date={selectedDate}
           onClose={() => setBuilderType('none')}
           onSave={handleSaveWorkout}
@@ -218,127 +280,165 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  
-  // Day Modal Styles
+
+  // Header button
+  headerBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+
+  // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    height: '85%',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    padding: 24,
+    height: '82%',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 24,
+    paddingTop: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 10,
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 12,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
+    alignItems: 'flex-start',
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.06)',
   },
   modalTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginTop: 4,
   },
   closeBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.05)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
   },
+
+  // Loading
   centerContainer: {
-    paddingTop: 100,
+    paddingTop: 80,
     alignItems: 'center',
     justifyContent: 'center',
   },
+
+  // Empty state
   emptyState: {
-    paddingTop: 40,
+    paddingTop: 32,
     alignItems: 'center',
   },
-  emptyIconContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: 'rgba(0,0,0,0.02)',
+  emptyIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
   },
-  emptyText: {
+  emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    marginBottom: 32,
-    textAlign: 'center',
+    marginBottom: 4,
   },
-  
+  emptySubtitle: {
+    fontSize: 14,
+    fontWeight: '400',
+    marginBottom: 28,
+  },
+
+  // Creation grid
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 16,
+    gap: 10,
+    width: '100%',
   },
   gridItem: {
     width: '48%',
-    borderRadius: 20,
-    padding: 16,
+    borderRadius: 16,
+    padding: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 110,
+    minHeight: 100,
+    borderWidth: 1,
   },
   gridItemFull: {
     width: '100%',
-    borderRadius: 20,
-    padding: 16,
+    borderRadius: 16,
+    padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 16,
+    gap: 12,
+    borderWidth: 1,
   },
   gridIconBg: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   gridItemTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     textAlign: 'center',
   },
-  actionBtnSecondary: {
-    width: '100%',
+
+  // Workout list
+  workoutRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    marginBottom: 4,
+  },
+  colorBar: {
+    width: 4,
+    borderRadius: 2,
+    marginRight: 0,
+    marginTop: 8,
+    marginBottom: 28,
+  },
+
+  // Add button
+  addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 18,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.03)',
+    paddingVertical: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderStyle: 'dashed',
     gap: 8,
+    marginTop: 16,
   },
-  actionBtnSecondaryText: {
-    fontSize: 16,
-    fontWeight: 'bold',
+  addBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
-
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-  }
 });
