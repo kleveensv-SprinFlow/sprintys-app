@@ -49,11 +49,12 @@ jobs:
       - name: Expo Prebuild (Generate Android Folder)
         run: npx expo prebuild -p android --no-install
 
-      - name: Enable Gradle parallel and cache
+      - name: Enable Gradle parallel and cache & JVM Tuning
         run: |
           mkdir -p ~/.gradle
           echo "org.gradle.parallel=true" >> ~/.gradle/gradle.properties
           echo "org.gradle.caching=true" >> ~/.gradle/gradle.properties
+          echo "org.gradle.jvmargs=-Xmx4096M -Dkotlin.daemon.jvm.options\="-Xmx4096M"" >> ~/.gradle/gradle.properties
           
       - name: Restrict Architecture to arm64-v8a
         run: echo "reactNativeArchitectures=arm64-v8a" >> android/gradle.properties
