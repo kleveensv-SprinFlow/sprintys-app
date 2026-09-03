@@ -255,15 +255,11 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                 styles.cell,
                 {
                   height: cellHeight,
-                  borderRightWidth: isLastCol ? 0 : StyleSheet.hairlineWidth,
-                  borderBottomWidth: isLastRow ? 0 : StyleSheet.hairlineWidth,
+                  borderRightWidth: 0,
+                  borderBottomWidth: 0,
                   borderRightColor: theme.colors.border,
                   borderBottomColor: theme.colors.border,
-                  backgroundColor: selected
-                    ? theme.colors.accent + '08'
-                    : isWeekend && item.isCurrentMonth
-                      ? theme.colors.background
-                      : 'transparent',
+                  backgroundColor: 'transparent',
                 },
               ]}
               onPress={() => handleSelectDate(item.date)}
@@ -300,17 +296,11 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                   {visibleWorkouts.map((w, i) => {
                     const config = getWorkoutTypeConfig(w.type_seance);
                     return (
-                      <View key={i} style={[styles.typeLabel, { backgroundColor: config.color }]}>
-                        <Text style={styles.typeLabelText} numberOfLines={1}>
-                          {config.abbr}
-                        </Text>
-                      </View>
+                      <View key={i} style={[styles.typeLabel, { backgroundColor: config.color }]} />
                     );
                   })}
                   {extraCount > 0 && (
-                    <Text style={[styles.extraLabel, { color: theme.colors.textMuted }]}>
-                      +{extraCount}
-                    </Text>
+                    <View style={[styles.typeLabel, { backgroundColor: theme.colors.textMuted }]} />
                   )}
                 </View>
               )}
@@ -398,14 +388,13 @@ const styles = StyleSheet.create({
 
   // Day number
   dayNumberRow: {
-    alignItems: 'flex-start',
-    marginBottom: 2,
-    paddingLeft: 2,
+    alignItems: 'center',
+    marginBottom: 4,
   },
   dayNumberWrap: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -416,13 +405,18 @@ const styles = StyleSheet.create({
 
   // Workout labels inside cell
   labelsContainer: {
-    flex: 1,
-    gap: 2,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 3,
+    marginTop: 2,
+    paddingHorizontal: 4,
   },
   typeLabel: {
-    borderRadius: 4,
-    paddingHorizontal: 3,
-    paddingVertical: 2,
+    borderRadius: 3,
+    width: 12,
+    height: 4,
   },
   typeLabelText: {
     color: '#FFFFFF',

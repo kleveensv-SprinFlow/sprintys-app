@@ -141,6 +141,7 @@ export default function CoachCalendarScreen() {
       <Modal visible={dayModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
+            <View style={styles.dragIndicator} />
             {/* Modal Header */}
             <View style={styles.modalHeader}>
               <View>
@@ -301,12 +302,20 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
+  dragIndicator: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
   modalContent: {
     height: '82%',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     paddingHorizontal: 24,
-    paddingTop: 20,
+    paddingTop: 12, // Adjusted for indicator
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -6 },
     shadowOpacity: 0.12,
@@ -379,15 +388,16 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   gridItem: {
+    borderWidth: 0,
     width: '48%',
     borderRadius: 16,
     padding: 14,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 100,
-    borderWidth: 1,
   },
   gridItemFull: {
+    borderWidth: 0,
     width: '100%',
     borderRadius: 16,
     padding: 14,
@@ -395,7 +405,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
-    borderWidth: 1,
   },
   gridIconBg: {
     width: 40,
@@ -427,13 +436,13 @@ const styles = StyleSheet.create({
 
   // Add button
   addBtn: {
+    backgroundColor: 'rgba(0,0,0,0.03)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
     borderRadius: 16,
-    borderWidth: 1,
-    borderStyle: 'dashed',
+    borderWidth: 0,
     gap: 8,
     marginTop: 16,
   },
