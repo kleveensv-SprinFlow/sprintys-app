@@ -29,7 +29,7 @@ export default function AthleteDayScreen() {
   const [isWorkoutModalVisible, setIsWorkoutModalVisible] = useState(false);
 
   const parsedDate = new Date(date as string);
-  const formattedTitle = \`\${DAY_NAMES[parsedDate.getDay()]} \${parsedDate.getDate()} \${MONTH_NAMES_FULL[parsedDate.getMonth()]}\`;
+  const formattedTitle = `${DAY_NAMES[parsedDate.getDay()]} \${parsedDate.getDate()} \${MONTH_NAMES_FULL[parsedDate.getMonth()]}`;
 
   const fetchDayWorkouts = useCallback(async () => {
     if (!user?.id) return;
@@ -91,8 +91,8 @@ export default function AthleteDayScreen() {
               const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
               let summary = '';
-              if (w.blocks) summary = \`\${w.blocks.length} Blocs d'entraînement\`;
-              else if (w.exercises) summary = \`\${w.exercises.length} Exercices\`;
+              if (w.blocks) summary = `${w.blocks.length} Blocs d'entraînement`;
+              else if (w.exercises) summary = `${w.exercises.length} Exercices`;
 
               return (
                 <WorkoutCard
