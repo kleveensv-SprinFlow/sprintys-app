@@ -81,6 +81,7 @@ export default function CalendarScreen() {
       <Modal visible={dayModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
+            <View style={styles.dragIndicator} />
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
                 {selectedDate.getDate()} {MONTH_NAMES_SHORT[selectedDate.getMonth()]} {selectedDate.getFullYear()}
@@ -162,7 +163,8 @@ const styles = StyleSheet.create({
     height: '85%',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    padding: 24,
+    paddingHorizontal: 24,
+    paddingTop: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.1,
