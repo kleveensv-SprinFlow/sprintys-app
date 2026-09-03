@@ -1,19 +1,27 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../core/theme';
+import { Feather } from '@expo/vector-icons';
 
 interface HeaderProps {
   title: string;
   rightComponent?: React.ReactNode;
+  showBackButton?: boolean;
+  onBackPress?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ title, rightComponent }) => {
+export const Header: React.FC<HeaderProps> = ({ title, rightComponent, showBackButton, onBackPress }) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
   return (
     <View style={[styles.container, { paddingTop: Math.max(insets.top, 20), backgroundColor: theme.colors.background }]}>
+      {showBackButton && (
+        <TouchableOpacity style={styles.leftContainer} onPress={onBackPress}>
+          <Feather name="chevron-left" size={28} color={theme.colors.text} />
+        </TouchableOpacity>
+      )}
       <Text style={[styles.title, { color: theme.colors.text }]}>
         {title}
       </Text>
@@ -43,10 +51,25 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
   },
+  leftContainer: {
+    position: 'absolute',
+    left: 16,
+    bottom: 12,
+    zIndex: 11,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   rightContainer: {
     position: 'absolute',
     right: 16,
     bottom: 12,
     zIndex: 11,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+
 });

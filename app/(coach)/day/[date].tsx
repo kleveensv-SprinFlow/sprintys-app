@@ -29,7 +29,9 @@ export default function CoachDayScreen() {
   const [builderType, setBuilderType] = useState<'none' | 'hybrid' | 'strength'>('none');
   const [builderTitle, setBuilderTitle] = useState('');
 
-  const parsedDate = new Date(date as string);
+  const dateString = date as string;
+  const [yearStr, monthStr, dayStr] = dateString.split('-');
+  const parsedDate = new Date(parseInt(yearStr), parseInt(monthStr) - 1, parseInt(dayStr));
   const formattedTitle = `${DAY_NAMES[parsedDate.getDay()]} ${parsedDate.getDate()} ${MONTH_NAMES_FULL[parsedDate.getMonth()]}`;
 
   const fetchDayWorkouts = useCallback(async () => {
@@ -64,6 +66,7 @@ export default function CoachDayScreen() {
     { id: 'muscu', title: 'Musculation', icon: 'barbell-outline' as any, color: '#6366F1', type: 'strength' as const, iconFamily: 'Ionicons' },
     { id: 'course', title: 'Course à pied', icon: 'stopwatch-outline' as any, color: '#EF4444', type: 'hybrid' as const, iconFamily: 'Ionicons' },
     { id: 'technique', title: 'Séance Technique', icon: 'git-merge-outline' as any, color: '#10B981', type: 'hybrid' as const, iconFamily: 'Ionicons' },
+    { id: 'escalier', title: 'Escaliers', icon: 'stats-chart-outline' as any, color: '#8B5CF6', type: 'hybrid' as const, iconFamily: 'Ionicons' },
     { id: 'repos', title: 'Jour de repos', icon: 'cafe-outline' as any, color: theme.colors.textMuted, type: 'hybrid' as const, iconFamily: 'Ionicons' },
   ];
 
