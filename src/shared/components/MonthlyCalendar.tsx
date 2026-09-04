@@ -142,10 +142,10 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_e, gs) =>
-        Math.abs(gs.dx) > 20 && Math.abs(gs.dx) > Math.abs(gs.dy),
+        Math.abs(gs.dx) > 10 && Math.abs(gs.dx) > Math.abs(gs.dy),
       onPanResponderRelease: (_e, gs) => {
-        if (gs.dx > 50) navigateMonth('prev');
-        else if (gs.dx < -50) navigateMonth('next');
+        if (gs.dx > 30 || gs.vx > 0.5) navigateMonth('prev');
+        else if (gs.dx < -30 || gs.vx < -0.5) navigateMonth('next');
       },
     })
   ).current;

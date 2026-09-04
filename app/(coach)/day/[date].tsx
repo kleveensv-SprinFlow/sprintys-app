@@ -30,9 +30,31 @@ export default function CoachDayScreen() {
   const [builderTitle, setBuilderTitle] = useState('');
 
   const dateString = date as string;
-  const [yearStr, monthStr, dayStr] = dateString.split('-');
-  const parsedDate = new Date(parseInt(yearStr), parseInt(monthStr) - 1, parseInt(dayStr));
-  const formattedTitle = `${DAY_NAMES[parsedDate.getDay()]} ${parsedDate.getDate()} ${MONTH_NAMES_FULL[parsedDate.getMonth()]}`;
+
+  // Safe date parsing to prevent NaN
+  let parsedDate = new Date();
+  let formattedTitle = 'Chargement...';
+
+  if (dateString && typeof dateString === 'string' && dateString.includes('-')) {
+    const [yearStr, monthStr, dayStr] = dateString.split('-');
+    const year = parseInt(yearStr);
+    const month = parseInt(monthStr) - 1;
+    const day = parseInt(dayStr);
+
+    if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+      parsedDate = new Date(year, month, day);
+
+      const dayName = DAY_NAMES[parsedDate.getDay()] || '';
+      const dayNum = parsedDate.getDate() || '';
+      const monthName = MONTH_NAMES_FULL[parsedDate.getMonth()] || '';
+
+      formattedTitle = `${dayName} ${dayNum} ${monthName}`.trim();
+    } else {
+      formattedTitle = 'Date invalide';
+    }
+  } else {
+    formattedTitle = 'Date invalide';
+  }
 
   const fetchDayWorkouts = useCallback(async () => {
     if (!user?.id) return;
@@ -145,7 +167,7 @@ export default function CoachDayScreen() {
       </ScrollView>
 
       {/* === Builder Modals === */}
-      <Modal visible={builderType === 'hybrid'} animationType="slide" presentationStyle="formSheet">
+      <Modal visible={builderType === 'hybrid'} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setBuilderType('none')}>
         <RunWorkoutBuilder
           date={parsedDate}
           onClose={() => setBuilderType('none')}
@@ -153,7 +175,7 @@ export default function CoachDayScreen() {
         />
       </Modal>
 
-      <Modal visible={builderType === 'strength'} animationType="slide" presentationStyle="formSheet">
+      <Modal visible={builderType === 'strength'} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setBuilderType('none')}>
         <StrengthWorkoutBuilder
           date={parsedDate}
           onClose={() => setBuilderType('none')}

@@ -421,7 +421,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
       </ScrollView>
 
       {/* Exercise Search Modal */}
-      <Modal visible={isSearchVisible} animationType="slide" presentationStyle="pageSheet">
+      <Modal visible={isSearchVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setIsSearchVisible(false)}>
         <ExerciseSearch 
           onSelect={handleExerciseSelect}
           onCancel={() => setIsSearchVisible(false)}
