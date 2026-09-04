@@ -452,7 +452,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({ date, onCl
       </ScrollView>
 
       {/* Block Type Modal */}
-      <Modal visible={isBlockTypeModalVisible} animationType="fade" transparent={true}>
+      <Modal visible={isBlockTypeModalVisible} animationType="fade" transparent={true} onRequestClose={() => setIsBlockTypeModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.blockTypeModalContent}>
             <Text style={styles.modalTitle}>Sélectionner le type de bloc</Text>
@@ -473,7 +473,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({ date, onCl
       </Modal>
 
       {/* Exercise Search Modal */}
-      <Modal visible={isSearchVisible} animationType="slide" presentationStyle="pageSheet">
+      <Modal visible={isSearchVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setIsSearchVisible(false)}>
         <ExerciseSearch 
           onSelect={handleExerciseSelect}
           onCancel={() => setIsSearchVisible(false)}

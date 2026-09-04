@@ -28,8 +28,34 @@ export default function AthleteDayScreen() {
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutSession | null>(null);
   const [isWorkoutModalVisible, setIsWorkoutModalVisible] = useState(false);
 
-  const parsedDate = new Date(date as string);
-  const formattedTitle = `${DAY_NAMES[parsedDate.getDay()]} \${parsedDate.getDate()} \${MONTH_NAMES_FULL[parsedDate.getMonth()]}`;
+  const dateString = date as string;
+  let parsedDate = new Date();
+  let formattedTitle = 'Chargement...';
+  if (dateString && typeof dateString === 'string') {
+    let year, month, day;
+    if (dateString.includes('-')) {
+      const parts = dateString.split('-');
+      year = parseInt(parts[0]);
+      month = parseInt(parts[1]) - 1;
+      day = parseInt(parts[2]);
+    } else {
+      const d = new Date(dateString);
+      year = d.getFullYear();
+      month = d.getMonth();
+      day = d.getDate();
+    }
+    if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+      parsedDate = new Date(year, month, day);
+      const dayName = DAY_NAMES[parsedDate.getDay()] || '';
+      const dayNum = parsedDate.getDate() || '';
+      const monthName = MONTH_NAMES_FULL[parsedDate.getMonth()] || '';
+      formattedTitle = `${dayName} ${dayNum} ${monthName}`.trim();
+    } else {
+      formattedTitle = 'Date invalide';
+    }
+  } else {
+    formattedTitle = 'Date invalide';
+  }
 
   const fetchDayWorkouts = useCallback(async () => {
     if (!user?.id) return;
