@@ -263,20 +263,35 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      // 1. Build payload compatible with workouts schema
+      // 1. Build payload compatible with workouts schema and AI JSON contract
       const exercisesPayload = sessionExercises.map((ex) => ({
         id: ex.id,
         name: ex.name,
         category: 'escalier',
+        stairs_count: ex.stairs,
+        sets_count: ex.setsCount,
+        rest_between_sets_s: ex.restSets,
+        rest_between_exercises_s: ex.restExercise,
         restBetweenExercises: ex.restExercise,
-        sets: Array.from({ length: ex.setsCount }, () => ({
+        sets: Array.from({ length: ex.setsCount }, (_, idx) => ({
           id: uuid.v4() as string,
+          set_index: idx + 1,
           steps: ex.stairs || undefined,
           reps: ex.stairs || undefined,
           restSeconds: ex.restSets,
           isCompleted: false,
         })),
       }));
+
+      // Structured block for standard workout engines & AI
+      const blocksPayload = [
+        {
+          id: uuid.v4() as string,
+          name: 'Corps de séance Escalier',
+          type: 'plyo',
+          exercises: exercisesPayload,
+        },
+      ];
 
       const activeTeamId = teams.length > 0 ? teams[0].id : null;
 
@@ -286,6 +301,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
         date_prevue: date.toISOString(),
         description: `${sessionExercises.length} exercice${sessionExercises.length > 1 ? 's' : ''} d'escalier`,
         exercises: exercisesPayload,
+        blocks: blocksPayload,
         status: 'pending',
       };
 
