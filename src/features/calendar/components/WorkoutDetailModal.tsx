@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Platform, StatusBar } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import { WorkoutSession, WorkoutBlock, Exercise } from '../../workout/types';
@@ -12,6 +13,10 @@ interface WorkoutDetailModalProps {
 
 export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible, onClose, workout }) => {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const safeTop = Platform.OS === 'android'
+    ? Math.max(insets.top, StatusBar.currentHeight || 24) + 8
+    : (insets.top > 0 ? insets.top + 6 : 16);
 
   if (!workout) return null;
 
@@ -27,7 +32,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: safeTop }]}>
           <TouchableOpacity onPress={onClose} style={[styles.closeButton, { backgroundColor: theme.colors.surfaceLight }]}>
             <Feather name="x" size={24} color={theme.colors.text} />
           </TouchableOpacity>

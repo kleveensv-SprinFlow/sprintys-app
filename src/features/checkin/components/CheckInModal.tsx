@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Modal, StyleSheet, View, SafeAreaView } from 'react-native';
+import { Modal, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../../core/theme';
 import { SleepStep } from './SleepStep';
 import { MentalStep } from './MentalStep';

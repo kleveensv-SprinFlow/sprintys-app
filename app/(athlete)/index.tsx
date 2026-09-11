@@ -1,5 +1,6 @@
 import React from 'react';
-import { StyleSheet, SafeAreaView, ScrollView, View } from 'react-native';
+import { StyleSheet, ScrollView, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/core/theme';
 import { AthleteHeader } from '../../src/features/athlete/components/AthleteHeader';
 import { AthleteGauges } from '../../src/features/athlete/components/AthleteGauges';

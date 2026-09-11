@@ -1,6 +1,7 @@
 import { workoutService } from '../../../services/workoutService';
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, KeyboardAvoidingView, Platform, StatusBar } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../../../core/theme';
 import { supabase } from '../../../services/supabase';
@@ -40,6 +41,10 @@ interface CourseBlock {
 export const HybridWorkoutBuilder: React.FC<HybridWorkoutBuilderProps> = ({ date, onClose, onSave, defaultTitle }) => {
   const { user } = useAuthStore();
   const { teams, subgroups, teamMembers } = useCoachStore();
+  const insets = useSafeAreaInsets();
+  const safeTop = Platform.OS === 'android'
+    ? Math.max(insets.top, StatusBar.currentHeight || 24) + 8
+    : (insets.top > 0 ? insets.top + 6 : 16);
 
   const [title, setTitle] = useState(defaultTitle || 'Séance Course');
   const [intensity, setIntensity] = useState<number>(3);
@@ -204,7 +209,7 @@ export const HybridWorkoutBuilder: React.FC<HybridWorkoutBuilderProps> = ({ date
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: safeTop }]}>
         <TouchableOpacity style={styles.iconButton} onPress={onClose}>
           <Feather name="x" size={24} color={theme.colors.text} />
         </TouchableOpacity>
@@ -439,7 +444,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 24, paddingTop: 60, paddingBottom: 16,
+    paddingHorizontal: 24, paddingTop: 16, paddingBottom: 16,
     borderBottomWidth: 1, borderBottomColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
   },

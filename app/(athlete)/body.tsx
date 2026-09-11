@@ -1,5 +1,6 @@
 import React from 'react';
-import { ScrollView, StyleSheet, View, Text, SafeAreaView } from 'react-native';
+import { ScrollView, StyleSheet, View, Text } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { BodyMetricsForm } from '../../src/features/body/components/BodyMetricsForm';
 import { WeightChart } from '../../src/features/body/components/WeightChart';
 import { BodyHistoryList } from '../../src/features/body/components/BodyHistoryList';

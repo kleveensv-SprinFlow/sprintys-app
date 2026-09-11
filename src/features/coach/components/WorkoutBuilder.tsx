@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, SafeAreaView } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { HybridWorkoutBuilder } from '../../calendar/components/HybridWorkoutBuilder';
 import { theme } from '../../../core/theme';
 import { useRouter } from 'expo-router';

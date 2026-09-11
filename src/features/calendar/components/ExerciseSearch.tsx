@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, ScrollView, Platform, StatusBar } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../../../core/theme';
 import { supabase } from '../../../services/supabase';
@@ -13,6 +14,11 @@ interface ExerciseSearchProps {
 }
 
 export const ExerciseSearch: React.FC<ExerciseSearchProps> = ({ onSelect, onCancel }) => {
+  const insets = useSafeAreaInsets();
+  const safeTop = Platform.OS === 'android'
+    ? Math.max(insets.top, StatusBar.currentHeight || 24) + 8
+    : (insets.top > 0 ? insets.top + 6 : 16);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState<ExerciseCatalogRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -93,7 +99,7 @@ export const ExerciseSearch: React.FC<ExerciseSearchProps> = ({ onSelect, onCanc
   return (
     <View style={styles.container}>
       {/* Header / Search bar */}
-      <View style={styles.searchHeader}>
+      <View style={[styles.searchHeader, { paddingTop: safeTop }]}>
         <View style={styles.searchBar}>
           <Feather name="search" size={20} color={theme.colors.textSecondary} />
           <TextInput

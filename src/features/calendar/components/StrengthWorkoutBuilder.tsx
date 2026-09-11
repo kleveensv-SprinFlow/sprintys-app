@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, KeyboardAvoidingView, Platform, Dimensions, StatusBar } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../../../core/theme';
 import { workoutService } from '../../../services/workoutService';
@@ -36,8 +37,12 @@ const WORKOUT_TYPES = ['Hypertrophie', 'Force', 'Puissance', 'Circuit', 'Test Ma
 export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ date, onClose, onSave, defaultTitle }) => {
   const { user } = useAuthStore();
   const { teams, subgroups, teamMembers } = useCoachStore();
+  const insets = useSafeAreaInsets();
+  const safeTop = Platform.OS === 'android'
+    ? Math.max(insets.top, StatusBar.currentHeight || 24) + 8
+    : (insets.top > 0 ? insets.top + 6 : 16);
 
-  const [title, setTitle] = useState(defaultTitle || '');
+  const [title, setTitle] = useState(defaultTitle || 'Séance Musculation');
   const [workoutType, setWorkoutType] = useState('Hypertrophie');
   const [intensity, setIntensity] = useState('7');
   const [description, setDescription] = useState('');
@@ -205,7 +210,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({ 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* HEADER */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: safeTop }]}>
         <TouchableOpacity onPress={onClose} style={styles.iconButton}>
           <Feather name="x" size={24} color={theme.colors.text} />
         </TouchableOpacity>

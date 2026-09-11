@@ -11,7 +11,9 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
@@ -48,6 +50,9 @@ export interface StairExerciseItem {
 
 const STORAGE_STAIRS_COUNT_KEY = '@sprintflow_stairs_last_count';
 const STORAGE_STAIRS_MODE_KEY = '@sprintflow_stairs_last_mode';
+const STORAGE_STAIRS_SETS_KEY = '@sprintflow_stairs_last_sets';
+const STORAGE_STAIRS_REST_SETS_KEY = '@sprintflow_stairs_last_rest_sets';
+const STORAGE_STAIRS_REST_EX_KEY = '@sprintflow_stairs_last_rest_ex';
 
 export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
   visible,
@@ -56,6 +61,12 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
   onSave,
 }) => {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const safeTop = Platform.OS === 'android'
+    ? Math.max(insets.top, StatusBar.currentHeight || 24) + 8
+    : (insets.top > 0 ? insets.top + 6 : 16);
+  const safeBottom = Math.max(insets.bottom, 16);
+
   const { user } = useAuthStore();
   const { teams, subgroups, teamMembers, fetchTeams, fetchTeamMembers, fetchSubgroups } = useCoachStore();
 
@@ -157,23 +168,54 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
 
   const loadStairsMemory = async () => {
     try {
-      const savedCount = await AsyncStorage.getItem(STORAGE_STAIRS_COUNT_KEY);
-      const savedMode = await AsyncStorage.getItem(STORAGE_STAIRS_MODE_KEY);
+      const [savedCount, savedMode, savedSets, savedRestSets, savedRestEx] = await Promise.all([
+        AsyncStorage.getItem(STORAGE_STAIRS_COUNT_KEY),
+        AsyncStorage.getItem(STORAGE_STAIRS_MODE_KEY),
+        AsyncStorage.getItem(STORAGE_STAIRS_SETS_KEY),
+        AsyncStorage.getItem(STORAGE_STAIRS_REST_SETS_KEY),
+        AsyncStorage.getItem(STORAGE_STAIRS_REST_EX_KEY),
+      ]);
       if (savedCount !== null) {
         setManualStairsText(savedCount);
       }
       if (savedMode !== null) {
         setIsStairsModeManual(savedMode === 'manual');
       }
+      if (savedSets !== null) {
+        const parsed = parseInt(savedSets, 10);
+        if (!isNaN(parsed) && parsed > 0) setSetsCount(parsed);
+      }
+      if (savedRestSets !== null) {
+        const parsed = parseInt(savedRestSets, 10);
+        if (!isNaN(parsed) && parsed > 0) setRestSets(parsed);
+      }
+      if (savedRestEx !== null) {
+        const parsed = parseInt(savedRestEx, 10);
+        if (!isNaN(parsed) && parsed > 0) setRestExercise(parsed);
+      }
     } catch (e) {
       console.warn('Could not load stairs memory', e);
     }
   };
 
-  const saveStairsMemory = async (countText: string, isManual: boolean) => {
+  const saveStairsMemory = async (
+    countText: string,
+    isManual: boolean,
+    sets?: number,
+    rSets?: number,
+    rEx?: number
+  ) => {
     try {
-      await AsyncStorage.setItem(STORAGE_STAIRS_COUNT_KEY, countText);
-      await AsyncStorage.setItem(STORAGE_STAIRS_MODE_KEY, isManual ? 'manual' : 'free');
+      const targetSets = sets ?? setsCount;
+      const targetRSets = rSets ?? restSets;
+      const targetREx = rEx ?? restExercise;
+      await Promise.all([
+        AsyncStorage.setItem(STORAGE_STAIRS_COUNT_KEY, countText),
+        AsyncStorage.setItem(STORAGE_STAIRS_MODE_KEY, isManual ? 'manual' : 'free'),
+        AsyncStorage.setItem(STORAGE_STAIRS_SETS_KEY, String(targetSets)),
+        AsyncStorage.setItem(STORAGE_STAIRS_REST_SETS_KEY, String(targetRSets)),
+        AsyncStorage.setItem(STORAGE_STAIRS_REST_EX_KEY, String(targetREx)),
+      ]);
     } catch (e) {
       console.warn('Could not save stairs memory', e);
     }
@@ -184,10 +226,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setEditingId(null);
     setExerciseName('');
-    // Keep the current manualStairsText and isStairsModeManual intact!
-    setSetsCount(4);
-    setRestSets(60);
-    setRestExercise(180);
+    // Keep the current manualStairsText, isStairsModeManual, setsCount, restSets, restExercise intact!
     setExTargetType('all');
     setIsExerciseSheetVisible(true);
   };
@@ -216,17 +255,19 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
   const handleSelectFromLibrary = (ex: CoachExercise) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setExerciseName(ex.name);
+    const stairsStr = ex.default_stairs ? String(ex.default_stairs) : manualStairsText;
+    const isManual = !!ex.default_stairs;
+    setIsStairsModeManual(isManual);
     if (ex.default_stairs) {
-      setIsStairsModeManual(true);
-      setManualStairsText(String(ex.default_stairs));
-      saveStairsMemory(String(ex.default_stairs), true);
-    } else {
-      setIsStairsModeManual(false);
-      saveStairsMemory(manualStairsText, false);
+      setManualStairsText(stairsStr);
     }
-    setSetsCount(ex.default_sets || 4);
-    setRestSets(ex.default_rest_sets || 60);
-    setRestExercise(ex.default_rest_exercise || 180);
+    const targetSets = ex.default_sets || setsCount;
+    const targetRestSets = ex.default_rest_sets || restSets;
+    const targetRestEx = ex.default_rest_exercise || restExercise;
+    setSetsCount(targetSets);
+    setRestSets(targetRestSets);
+    setRestExercise(targetRestEx);
+    saveStairsMemory(stairsStr, isManual, targetSets, targetRestSets, targetRestEx);
   };
 
   // Save exercise to session list
@@ -241,8 +282,8 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
       return;
     }
 
-    // Persist stairs settings to memory
-    saveStairsMemory(manualStairsText, isStairsModeManual);
+    // Persist all stairs & sets settings to memory permanently
+    saveStairsMemory(manualStairsText, isStairsModeManual, setsCount, restSets, restExercise);
 
     let finalTarget: ExerciseTarget = { type: 'all', id: null, name: 'Tout le groupe' };
     if (exTargetType === 'subgroup') {
@@ -349,8 +390,10 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
   const handleConfirmRestPicker = (seconds: number) => {
     if (restPickerTarget === 'sets') {
       setRestSets(seconds);
+      saveStairsMemory(manualStairsText, isStairsModeManual, setsCount, seconds, restExercise);
     } else {
       setRestExercise(seconds);
+      saveStairsMemory(manualStairsText, isStairsModeManual, setsCount, restSets, seconds);
     }
   };
 
@@ -571,7 +614,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         {/* Top Header */}
-        <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+        <View style={[styles.header, { paddingTop: safeTop, borderBottomColor: theme.colors.border }]}>
           <TouchableOpacity onPress={onClose} style={styles.headerTextBtn}>
             <Text style={[styles.headerCancelText, { color: theme.colors.textSecondary }]}>Annuler</Text>
           </TouchableOpacity>
@@ -824,7 +867,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
           >
             <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
               {/* Sheet Header */}
-              <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+              <View style={[styles.header, { paddingTop: safeTop, borderBottomColor: theme.colors.border }]}>
                 <TouchableOpacity onPress={() => setIsExerciseSheetVisible(false)} style={styles.headerTextBtn}>
                   <Text style={[styles.headerCancelText, { color: theme.colors.textSecondary }]}>Annuler</Text>
                 </TouchableOpacity>
@@ -833,11 +876,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                   {editingId ? "Modifier l'exercice" : 'Nouvel exercice'}
                 </Text>
 
-                <TouchableOpacity onPress={handleSaveExerciseToSession} style={styles.headerSaveSheetBtn}>
-                  <Text style={[styles.headerSaveSheetText, { color: theme.colors.accent }]}>
-                    {editingId ? 'Mettre à jour' : 'Ajouter'}
-                  </Text>
-                </TouchableOpacity>
+                <View style={{ width: 60 }} />
               </View>
 
               <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -955,9 +994,15 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                   <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>RÉPÉTITIONS & SÉRIES</Text>
                 </View>
                 <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                  {/* Marches Row */}
+                  {/* Marches Mode Selection */}
                   <View style={styles.settingRow}>
-                    <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Marches</Text>
+                    <View style={{ flex: 1, marginRight: 10 }}>
+                      <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Format des répétitions</Text>
+                      <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>
+                        {isStairsModeManual ? `${manualStairsText || '0'} marches par série` : 'Libre (sans compter les marches)'}
+                      </Text>
+                    </View>
+
                     <View style={styles.stairsModeWrapper}>
                       <TouchableOpacity
                         style={[
@@ -967,7 +1012,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                           setIsStairsModeManual(false);
-                          saveStairsMemory(manualStairsText, false);
+                          saveStairsMemory(manualStairsText, false, setsCount, restSets, restExercise);
                         }}
                       >
                         <Text style={[styles.stairsPillText, { color: !isStairsModeManual ? '#FFF' : theme.colors.textSecondary }]}>
@@ -983,50 +1028,72 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                           setIsStairsModeManual(true);
-                          saveStairsMemory(manualStairsText, true);
+                          saveStairsMemory(manualStairsText, true, setsCount, restSets, restExercise);
                         }}
                       >
                         <Text style={[styles.stairsPillText, { color: isStairsModeManual ? '#FFF' : theme.colors.textSecondary }]}>
                           Saisir
                         </Text>
                       </TouchableOpacity>
-
-                      {isStairsModeManual && (
-                        <TextInput
-                          style={[
-                            styles.stairsNumberInput,
-                            {
-                              backgroundColor: theme.colors.background,
-                              color: theme.colors.text,
-                              borderColor: theme.colors.border,
-                            },
-                          ]}
-                          keyboardType="number-pad"
-                          placeholder="20"
-                          placeholderTextColor={theme.colors.textMuted}
-                          value={manualStairsText}
-                          onChangeText={(val) => {
-                            setManualStairsText(val);
-                            saveStairsMemory(val, true);
-                          }}
-                          maxLength={4}
-                        />
-                      )}
                     </View>
                   </View>
+
+                  {/* Explicit Input Row when "Saisir" is active */}
+                  {isStairsModeManual && (
+                    <>
+                      <View style={[styles.rowDivider, { backgroundColor: theme.colors.border }]} />
+                      <View style={styles.settingRow}>
+                        <View style={{ flex: 1, marginRight: 10 }}>
+                          <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Nombre de marches</Text>
+                          <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>
+                            Saisir le nombre de marches à monter
+                          </Text>
+                        </View>
+                        <View style={styles.stairsInputContainer}>
+                          <TextInput
+                            style={[
+                              styles.stairsDetailedInput,
+                              {
+                                backgroundColor: theme.colors.background,
+                                color: theme.colors.text,
+                                borderColor: theme.colors.border,
+                              },
+                            ]}
+                            keyboardType="number-pad"
+                            placeholder="20"
+                            placeholderTextColor={theme.colors.textMuted}
+                            value={manualStairsText}
+                            onChangeText={(val) => {
+                              setManualStairsText(val);
+                              saveStairsMemory(val, true, setsCount, restSets, restExercise);
+                            }}
+                            maxLength={4}
+                          />
+                          <Text style={[styles.stairsSuffixText, { color: theme.colors.textSecondary }]}>marches</Text>
+                        </View>
+                      </View>
+                    </>
+                  )}
 
                   {/* Divider */}
                   <View style={[styles.rowDivider, { backgroundColor: theme.colors.border }]} />
 
                   {/* Séries Stepper Row */}
                   <View style={styles.settingRow}>
-                    <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Nombre de séries</Text>
+                    <View style={{ flex: 1, marginRight: 10 }}>
+                      <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Nombre de séries</Text>
+                      <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>
+                        {setsCount} {setsCount > 1 ? 'séries au total' : 'série'}
+                      </Text>
+                    </View>
                     <View style={styles.stepperContainer}>
                       <TouchableOpacity
                         style={[styles.stepperActionBtn, { backgroundColor: theme.colors.background }]}
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          setSetsCount((prev) => Math.max(1, prev - 1));
+                          const next = Math.max(1, setsCount - 1);
+                          setSetsCount(next);
+                          saveStairsMemory(manualStairsText, isStairsModeManual, next, restSets, restExercise);
                         }}
                       >
                         <Feather name="minus" size={16} color={theme.colors.text} />
@@ -1040,7 +1107,9 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                         style={[styles.stepperActionBtn, { backgroundColor: theme.colors.background }]}
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          setSetsCount((prev) => prev + 1);
+                          const next = setsCount + 1;
+                          setSetsCount(next);
+                          saveStairsMemory(manualStairsText, isStairsModeManual, next, restSets, restExercise);
                         }}
                       >
                         <Feather name="plus" size={16} color={theme.colors.text} />
@@ -1113,7 +1182,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
           onRequestClose={() => setIsManageLibraryVisible(false)}
         >
           <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-            <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+            <View style={[styles.header, { paddingTop: safeTop, borderBottomColor: theme.colors.border }]}>
               <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Ma bibliothèque d'escaliers</Text>
               <TouchableOpacity
                 onPress={() => {
@@ -1504,6 +1573,25 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 14,
     fontWeight: '700',
+  },
+  stairsInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  stairsDetailedInput: {
+    width: 64,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  stairsSuffixText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   stepperContainer: {
     flexDirection: 'row',
