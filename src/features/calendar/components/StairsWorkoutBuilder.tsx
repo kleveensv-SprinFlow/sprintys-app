@@ -808,11 +808,6 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
             <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>
               EXERCICES ({sessionExercises.length})
             </Text>
-            {savedExercises.length > 0 && (
-              <TouchableOpacity onPress={() => setIsManageLibraryVisible(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={[styles.linkText, { color: theme.colors.accent }]}>Bibliothèque</Text>
-              </TouchableOpacity>
-            )}
           </View>
 
           {sessionExercises.length === 0 ? (
@@ -824,31 +819,42 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
               <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
                 Composez votre séance en ajoutant un premier exercice ci-dessous.
               </Text>
-              <TouchableOpacity
-                style={[styles.addFirstBtn, { backgroundColor: theme.colors.accent }]}
-                onPress={handleOpenAddSheet}
-                activeOpacity={0.8}
-              >
-                <Feather name="plus" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
-                <Text style={styles.addFirstBtnText}>Ajouter un exercice</Text>
-              </TouchableOpacity>
 
-              {savedExercises.length > 0 && (
+              <View style={styles.actionButtonsContainer}>
                 <TouchableOpacity
-                  style={[
-                    styles.libraryPickerSecondaryBtn,
-                    { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-                  ]}
-                  onPress={() => setIsManageLibraryVisible(true)}
-                  activeOpacity={0.7}
+                  style={[styles.primaryActionBtn, { backgroundColor: theme.colors.accent }]}
+                  onPress={handleOpenAddSheet}
+                  activeOpacity={0.8}
                 >
-                  <Feather name="book-open" size={15} color={theme.colors.accent} style={{ marginRight: 8 }} />
-                  <Text style={[styles.libraryPickerSecondaryText, { color: theme.colors.text }]}>
-                    Choisir depuis ma bibliothèque ({savedExercises.length})
-                  </Text>
-                  <Feather name="chevron-right" size={16} color={theme.colors.textMuted} style={{ marginLeft: 'auto' }} />
+                  <View style={styles.primaryActionIconBox}>
+                    <Feather name="plus" size={17} color="#FFFFFF" />
+                  </View>
+                  <Text style={styles.primaryActionText}>Ajouter un exercice</Text>
                 </TouchableOpacity>
-              )}
+
+                {savedExercises.length > 0 && (
+                  <TouchableOpacity
+                    style={[
+                      styles.secondaryActionBtn,
+                      { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+                    ]}
+                    onPress={() => setIsManageLibraryVisible(true)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.secondaryActionIconBox, { backgroundColor: theme.colors.accent + '15' }]}>
+                      <Feather name="bookmark" size={15} color={theme.colors.accent} />
+                    </View>
+                    <Text style={[styles.secondaryActionText, { color: theme.colors.text }]}>
+                      Depuis ma bibliothèque
+                    </Text>
+                    <View style={[styles.countBadge, { backgroundColor: theme.colors.accent + '15' }]}>
+                      <Text style={[styles.countBadgeText, { color: theme.colors.accent }]}>
+                        {savedExercises.length}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
           ) : (
             <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
@@ -902,7 +908,9 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                 onPress={handleOpenAddSheet}
                 activeOpacity={0.7}
               >
-                <Feather name="plus-circle" size={16} color={theme.colors.accent} />
+                <View style={[styles.actionRowIconCircle, { backgroundColor: theme.colors.accent + '15' }]}>
+                  <Feather name="plus" size={14} color={theme.colors.accent} />
+                </View>
                 <Text style={[styles.addMoreRowText, { color: theme.colors.accent }]}>Ajouter un autre exercice</Text>
               </TouchableOpacity>
 
@@ -913,11 +921,17 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                   onPress={() => setIsManageLibraryVisible(true)}
                   activeOpacity={0.7}
                 >
-                  <Feather name="book-open" size={15} color={theme.colors.accent} />
-                  <Text style={[styles.addMoreRowText, { color: theme.colors.accent }]}>
-                    Choisir depuis ma bibliothèque ({savedExercises.length})
+                  <View style={[styles.actionRowIconCircle, { backgroundColor: theme.colors.accent + '15' }]}>
+                    <Feather name="bookmark" size={13} color={theme.colors.accent} />
+                  </View>
+                  <Text style={[styles.addMoreRowText, { color: theme.colors.text }]}>
+                    Depuis ma bibliothèque
                   </Text>
-                  <Feather name="chevron-right" size={16} color={theme.colors.textMuted} style={{ marginLeft: 'auto' }} />
+                  <View style={[styles.countBadge, { backgroundColor: theme.colors.surfaceLight, marginLeft: 'auto' }]}>
+                    <Text style={[styles.countBadgeText, { color: theme.colors.textSecondary }]}>
+                      {savedExercises.length}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               )}
             </View>
@@ -1747,19 +1761,77 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
-  libraryPickerSecondaryBtn: {
+  actionButtonsContainer: {
+    gap: 10,
+    marginTop: 14,
+    width: '100%',
+  },
+  primaryActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    width: '100%',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  primaryActionIconBox: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryActionText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  secondaryActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 13,
     paddingHorizontal: 16,
     borderRadius: 16,
     borderWidth: 1,
-    marginTop: 10,
     width: '100%',
+    gap: 8,
   },
-  libraryPickerSecondaryText: {
+  secondaryActionIconBox: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryActionText: {
     fontSize: 14,
     fontWeight: '700',
+  },
+  countBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  countBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  actionRowIconCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
   },
   libraryPickRowBtn: {
     flexDirection: 'row',

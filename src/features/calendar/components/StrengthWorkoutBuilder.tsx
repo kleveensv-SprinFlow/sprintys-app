@@ -946,35 +946,44 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
             </View>
           )}
 
-          {/* BOUTON PRINCIPAL : AJOUTER UN EXERCICE */}
-          <TouchableOpacity
-            style={[styles.addExerciseMainBtn, { backgroundColor: theme.colors.surface, borderColor: theme.colors.accent }]}
-            onPress={handleOpenAddSheet}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.addIconCircle, { backgroundColor: theme.colors.accent }]}>
-              <Feather name="plus" size={18} color="#FFF" />
-            </View>
-            <Text style={[styles.addExerciseMainText, { color: theme.colors.text }]}>Ajouter un exercice</Text>
-          </TouchableOpacity>
-
-          {/* BOUTON SECONDAIRE : CHOISIR DEPUIS LA BIBLIOTHÈQUE */}
-          {coachSavedExercises.length > 0 && (
+          {/* ACTION BUTTONS GROUP */}
+          <View style={styles.actionButtonsContainer}>
+            {/* BOUTON PRINCIPAL : AJOUTER UN EXERCICE */}
             <TouchableOpacity
-              style={[
-                styles.libraryPickerSecondaryBtn,
-                { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-              ]}
-              onPress={() => setIsManageLibraryVisible(true)}
-              activeOpacity={0.7}
+              style={[styles.primaryActionBtn, { backgroundColor: theme.colors.accent }]}
+              onPress={handleOpenAddSheet}
+              activeOpacity={0.8}
             >
-              <Feather name="book-open" size={16} color={theme.colors.accent} style={{ marginRight: 10 }} />
-              <Text style={[styles.libraryPickerSecondaryText, { color: theme.colors.text }]}>
-                Choisir depuis ma bibliothèque ({coachSavedExercises.length})
-              </Text>
-              <Feather name="chevron-right" size={16} color={theme.colors.textMuted} style={{ marginLeft: 'auto' }} />
+              <View style={styles.primaryActionIconBox}>
+                <Feather name="plus" size={17} color="#FFFFFF" />
+              </View>
+              <Text style={styles.primaryActionText}>Ajouter un exercice</Text>
             </TouchableOpacity>
-          )}
+
+            {/* BOUTON SECONDAIRE : CHOISIR DEPUIS LA BIBLIOTHÈQUE */}
+            {coachSavedExercises.length > 0 && (
+              <TouchableOpacity
+                style={[
+                  styles.secondaryActionBtn,
+                  { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+                ]}
+                onPress={() => setIsManageLibraryVisible(true)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.secondaryActionIconBox, { backgroundColor: theme.colors.accent + '15' }]}>
+                  <Feather name="bookmark" size={15} color={theme.colors.accent} />
+                </View>
+                <Text style={[styles.secondaryActionText, { color: theme.colors.text }]}>
+                  Depuis ma bibliothèque
+                </Text>
+                <View style={[styles.countBadge, { backgroundColor: theme.colors.accent + '15' }]}>
+                  <Text style={[styles.countBadgeText, { color: theme.colors.accent }]}>
+                    {coachSavedExercises.length}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
+          </View>
 
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -1901,19 +1910,70 @@ const styles = StyleSheet.create({
   rowBorder: {
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  libraryPickerSecondaryBtn: {
+  actionButtonsContainer: {
+    gap: 10,
+    marginTop: 4,
+    marginBottom: 8,
+    width: '100%',
+  },
+  primaryActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    width: '100%',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  primaryActionIconBox: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryActionText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  secondaryActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 13,
     paddingHorizontal: 16,
     borderRadius: 16,
     borderWidth: 1,
-    marginTop: 10,
     width: '100%',
+    gap: 8,
   },
-  libraryPickerSecondaryText: {
+  secondaryActionIconBox: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryActionText: {
     fontSize: 14,
     fontWeight: '700',
+  },
+  countBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  countBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
   },
   libraryPickRowBtn: {
     flexDirection: 'row',
