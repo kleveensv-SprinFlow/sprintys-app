@@ -131,7 +131,7 @@ export default function CoachDayScreen() {
 
               let summary = w.description ? (w.description.substring(0, 60) + (w.description.length > 60 ? '...' : '')) : '';
               if (w.exercises && Array.isArray(w.exercises) && w.exercises.length > 0) {
-                summary = `${w.exercises.length} exercice\${w.exercises.length > 1 ? 's' : ''}`;
+                summary = `${w.exercises.length} exercice${w.exercises.length > 1 ? 's' : ''}`;
               }
 
               return (

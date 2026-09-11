@@ -398,7 +398,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({ date, onCl
                           }}
                         />
 
-                                                <Text style={styles.genLabel}>Intensit� cibl�e (%)</Text>
+                                                <Text style={styles.genLabel}>Intensité ciblée (%)</Text>
                         <TextInput 
                           style={[styles.notesInput, { minHeight: 40, marginBottom: 12 }]}
                           placeholder="Ex: 95"

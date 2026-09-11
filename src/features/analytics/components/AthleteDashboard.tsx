@@ -71,7 +71,7 @@ export const AthleteDashboard: React.FC = () => {
         <View style={styles.kpiCard}>
           <Feather name="activity" size={20} color={theme.colors.success} />
           <Text style={styles.kpiValue}>{stats.length > 0 ? (stats.reduce((acc, s) => acc + (s.avg_intensity || 0), 0) / stats.length).toFixed(1) : '-'}</Text>
-          <Text style={styles.kpiLabel}>Intensit� Moyenne</Text>
+          <Text style={styles.kpiLabel}>Intensité Moyenne</Text>
         </View>
       </View>
 
