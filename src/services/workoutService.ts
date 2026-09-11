@@ -125,6 +125,7 @@ export const workoutService = {
     }
     return data;
   },
+
   fetchWorkoutsForDate: async (userId: string, date: Date, role: 'athlete' | 'coach', teamId?: string) => {
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
@@ -166,8 +167,24 @@ export const workoutService = {
       .rpc('complete_workout', { p_workout_id: workoutId });
 
     if (error) throw error;
-    // RPC returns void, but we can return true or fetch the updated row if needed.
     return [{ id: workoutId, status: 'completed' }]; 
+  },
+
+  deleteWorkout: async (workoutId: string, groupAssignmentId?: string | null) => {
+    if (groupAssignmentId) {
+      const { error } = await supabase
+        .from('workouts')
+        .delete()
+        .eq('group_assignment_id', groupAssignmentId);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase
+        .from('workouts')
+        .delete()
+        .eq('id', workoutId);
+      if (error) throw error;
+    }
+    return true;
   },
 
   fetchRecentWorkoutsContext: async (athleteId: string, days: number = 7) => {
@@ -190,11 +207,7 @@ export const workoutService = {
     ).join('\n');
   },
 
-  // Note: Assuming a 'competitions' table exists or will exist.
-  // Using a placeholder return if table doesn't exist yet, but structured for future.
   fetchUpcomingCompetitionsContext: async (athleteId: string, days: number = 7) => {
-    // Placeholder implementation since we don't have a competitions table yet in the schema we saw.
-    // Replace with real Supabase call when table is ready.
     return "Aucune compétition prévue dans les 7 prochains jours.";
   }
 };

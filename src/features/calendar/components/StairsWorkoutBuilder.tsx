@@ -30,6 +30,7 @@ interface StairsWorkoutBuilderProps {
   date: Date;
   onClose: () => void;
   onSave: () => void;
+  initialWorkout?: any;
 }
 
 export interface ExerciseTarget {
@@ -59,6 +60,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
   date,
   onClose,
   onSave,
+  initialWorkout,
 }) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -128,6 +130,44 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
       loadStairsMemory();
     }
   }, [visible, user?.id, teams.length]);
+
+  // Handle editing mode when initialWorkout is passed
+  useEffect(() => {
+    if (visible && initialWorkout) {
+      const desc = initialWorkout.description || '';
+      const isDefault = desc.includes('exercice') && desc.includes("escalier");
+      setSessionNotes(isDefault ? '' : desc);
+
+      if (initialWorkout.subgroup_id) {
+        setTargetType('subgroup');
+        setSelectedSubgroupId(initialWorkout.subgroup_id);
+      } else if (initialWorkout.athlete_id && !initialWorkout.group_assignment_id) {
+        setTargetType('athlete');
+        setSelectedAthleteId(initialWorkout.athlete_id);
+      } else {
+        setTargetType('team');
+      }
+
+      if (initialWorkout.exercises && Array.isArray(initialWorkout.exercises)) {
+        const loaded: StairExerciseItem[] = initialWorkout.exercises.map((ex: any) => ({
+          id: ex.id || String(uuid.v4()),
+          name: ex.name,
+          stairs: ex.stairs_count !== undefined ? ex.stairs_count : (ex.sets?.[0]?.steps ?? null),
+          setsCount: ex.sets_count || ex.sets?.length || 4,
+          restSets: ex.rest_between_sets_s || ex.sets?.[0]?.restSeconds || 60,
+          restExercise: ex.rest_between_exercises_s || ex.restBetweenExercises || 180,
+          target: ex.target || { type: 'all', id: null, name: 'Tout le groupe' },
+        }));
+        setSessionExercises(loaded);
+      }
+    } else if (visible && !initialWorkout) {
+      setSessionNotes('');
+      setSessionExercises([]);
+      setTargetType('team');
+      setSelectedSubgroupId(null);
+      setSelectedAthleteId(null);
+    }
+  }, [visible, initialWorkout]);
 
   // Ensure subgroups and members are loaded for the active team
   useEffect(() => {
@@ -453,6 +493,11 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
             isCompleted: false,
           })),
         }));
+
+      // If we are editing an existing workout, delete the previous record(s) first
+      if (initialWorkout) {
+        await workoutService.deleteWorkout(initialWorkout.id, initialWorkout.group_assignment_id);
+      }
 
       if (targetType === 'team') {
         if (!activeTeamId) {

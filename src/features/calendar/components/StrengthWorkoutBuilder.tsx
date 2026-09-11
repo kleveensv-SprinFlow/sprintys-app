@@ -54,6 +54,7 @@ interface StrengthWorkoutBuilderProps {
   onClose: () => void;
   onSave: () => void;
   defaultTitle?: string;
+  initialWorkout?: any;
 }
 
 // Storage keys for persisting coach's last entered parameters
@@ -69,6 +70,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
   onClose,
   onSave,
   defaultTitle = 'Séance Musculation',
+  initialWorkout,
 }) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -147,6 +149,45 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
       loadStrengthMemory();
     }
   }, [visible, user?.id, teams.length]);
+
+  // Handle editing mode when initialWorkout is passed
+  useEffect(() => {
+    if (visible && initialWorkout) {
+      if (initialWorkout.type_seance) {
+        setSessionTitle(initialWorkout.type_seance);
+      }
+      if (initialWorkout.subgroup_id) {
+        setTargetType('subgroup');
+        setSelectedSubgroupId(initialWorkout.subgroup_id);
+      } else if (initialWorkout.athlete_id && !initialWorkout.group_assignment_id) {
+        setTargetType('athlete');
+        setSelectedAthleteId(initialWorkout.athlete_id);
+      } else {
+        setTargetType('team');
+      }
+
+      if (initialWorkout.exercises && Array.isArray(initialWorkout.exercises)) {
+        const loaded: StrengthExerciseItem[] = initialWorkout.exercises.map((ex: any) => ({
+          id: ex.id || String(uuid.v4()),
+          catalog_id: ex.catalog_id,
+          name: ex.name,
+          name_en: ex.name_en,
+          setsCount: ex.sets?.length || 4,
+          repsCount: ex.sets?.[0]?.reps || 10,
+          weight: ex.sets?.[0]?.weight || 0,
+          weightType: ex.sets?.[0]?.weight_type || ex.sets?.[0]?.weightType || 'kg',
+          restSets: ex.sets?.[0]?.restSeconds || 90,
+          target: ex.target || { type: 'all', id: null, name: 'Tout le groupe' },
+        }));
+        setSessionExercises(loaded);
+      }
+    } else if (visible && !initialWorkout) {
+      setSessionExercises([]);
+      setTargetType('team');
+      setSelectedSubgroupId(null);
+      setSelectedAthleteId(null);
+    }
+  }, [visible, initialWorkout]);
 
   useEffect(() => {
     if (visible && teams.length > 0) {
@@ -503,6 +544,11 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
             isCompleted: false,
           })),
         }));
+
+      // If we are editing an existing workout, delete the previous record(s) first
+      if (initialWorkout) {
+        await workoutService.deleteWorkout(initialWorkout.id, initialWorkout.group_assignment_id);
+      }
 
       if (targetType === 'team') {
         if (!activeTeamId) {

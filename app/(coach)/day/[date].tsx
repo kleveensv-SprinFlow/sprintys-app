@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity, ScrollView, Modal } from 'react-native';
+import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity, ScrollView, Modal, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../../../src/core/theme';
 import { Header } from '../../../src/shared/components/Header';
@@ -32,6 +32,7 @@ export default function CoachDayScreen() {
   const [builderType, setBuilderType] = useState<'none' | 'hybrid' | 'strength' | 'escalier'>('none');
   const [builderTitle, setBuilderTitle] = useState('');
   const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
+  const [editingWorkout, setEditingWorkout] = useState<any>(null);
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
   const [showAddOptions, setShowAddOptions] = useState(false);
 
@@ -95,11 +96,46 @@ export default function CoachDayScreen() {
 
   const handleSaveWorkout = useCallback(() => {
     setBuilderType('none');
+    setEditingWorkout(null);
     fetchDayWorkouts();
   }, [fetchDayWorkouts]);
 
+  const handleDeleteWorkout = useCallback(async (w: any) => {
+    if (!w?.id) return;
+    setIsLoading(true);
+    try {
+      await workoutService.deleteWorkout(w.id, w.group_assignment_id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setIsDetailModalVisible(false);
+      setSelectedWorkout(null);
+      await fetchDayWorkouts();
+    } catch (error) {
+      console.error('Error deleting workout:', error);
+      Alert.alert('Erreur', 'Impossible de supprimer la séance.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchDayWorkouts]);
+
+  const handleEditWorkout = useCallback((w: any) => {
+    if (!w) return;
+    setIsDetailModalVisible(false);
+    setSelectedWorkout(null);
+    setEditingWorkout(w);
+
+    const type = (w.type_seance || '').toLowerCase();
+    if (type.includes('escalier')) {
+      setBuilderType('escalier');
+    } else if (type.includes('muscu') || type.includes('force') || type.includes('strength')) {
+      setBuilderType('strength');
+    } else {
+      setBuilderType('hybrid');
+    }
+  }, []);
+
   const openBuilder = useCallback((type: 'hybrid' | 'strength' | 'escalier', defaultTitle: string = '') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setEditingWorkout(null);
     setBuilderTitle(defaultTitle);
     setBuilderType(type);
     setShowAddOptions(false);
@@ -258,10 +294,13 @@ export default function CoachDayScreen() {
       </ScrollView>
 
       {/* === Builder Modals === */}
-      <Modal visible={builderType === 'hybrid'} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setBuilderType('none')}>
+      <Modal visible={builderType === 'hybrid'} animationType="slide" presentationStyle="formSheet" onRequestClose={() => { setBuilderType('none'); setEditingWorkout(null); }}>
         <RunWorkoutBuilder
           date={parsedDate}
-          onClose={() => setBuilderType('none')}
+          onClose={() => {
+            setBuilderType('none');
+            setEditingWorkout(null);
+          }}
           onSave={handleSaveWorkout}
         />
       </Modal>
@@ -269,21 +308,34 @@ export default function CoachDayScreen() {
       <StrengthWorkoutBuilder
         visible={builderType === 'strength'}
         date={parsedDate}
-        onClose={() => setBuilderType('none')}
+        initialWorkout={editingWorkout}
+        onClose={() => {
+          setBuilderType('none');
+          setEditingWorkout(null);
+        }}
         onSave={handleSaveWorkout}
       />
 
       <StairsWorkoutBuilder
         visible={builderType === 'escalier'}
         date={parsedDate}
-        onClose={() => setBuilderType('none')}
+        initialWorkout={editingWorkout}
+        onClose={() => {
+          setBuilderType('none');
+          setEditingWorkout(null);
+        }}
         onSave={handleSaveWorkout}
       />
 
       <WorkoutDetailModal
         visible={isDetailModalVisible}
         workout={selectedWorkout}
-        onClose={() => setIsDetailModalVisible(false)}
+        onClose={() => {
+          setIsDetailModalVisible(false);
+          setSelectedWorkout(null);
+        }}
+        onDelete={handleDeleteWorkout}
+        onEdit={handleEditWorkout}
       />
     </View>
   );
