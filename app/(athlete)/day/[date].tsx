@@ -92,7 +92,9 @@ export default function AthleteDayScreen() {
       <Header
         title={formattedTitle}
         showBackButton
-        onBackPress={() => router.back()}
+        onBackPress={() => {
+          router.replace('/(athlete)/calendar');
+        }}
       />
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>

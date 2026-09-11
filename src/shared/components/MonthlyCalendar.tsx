@@ -1,51 +1,50 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, PanResponder, Animated, Dimensions, LayoutChangeEvent } from 'react-native';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, PanResponder, Animated, LayoutChangeEvent } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../core/theme';
 import * as Haptics from 'expo-haptics';
 
 // === Workout type colors & abbreviations ===
-const TYPE_CONFIG: Record<string, { abbr: string; color: string }> = {
-  musculation: { abbr: 'Muscu', color: '#6366F1' },
-  force: { abbr: 'Muscu', color: '#6366F1' },
-  strength: { abbr: 'Muscu', color: '#6366F1' },
-  sprint: { abbr: 'Sprint', color: '#EF4444' },
-  vitesse: { abbr: 'Sprint', color: '#EF4444' },
-  'vitesse maximale': { abbr: 'Sprint', color: '#EF4444' },
-  course: { abbr: 'Sprint', color: '#EF4444' },
-  lactique: { abbr: 'Lactique', color: '#F97316' },
-  'endurance sprint': { abbr: 'Lactique', color: '#F97316' },
-  aérobie: { abbr: 'Aérobie', color: '#3B82F6' },
-  endurance: { abbr: 'Aérobie', color: '#3B82F6' },
-  technique: { abbr: 'Technique', color: '#14B8A6' },
-  pliométrie: { abbr: 'Plio', color: '#8B5CF6' },
-  plyo: { abbr: 'Plio', color: '#8B5CF6' },
-  puissance: { abbr: 'Plio', color: '#8B5CF6' },
-  récupération: { abbr: 'Récup', color: '#10B981' },
-  repos: { abbr: 'Récup', color: '#10B981' },
-  'jour de repos': { abbr: 'Récup', color: '#10B981' },
-  compétition: { abbr: 'Compet', color: '#F59E0B' },
-  competition: { abbr: 'Compet', color: '#F59E0B' },
-  escaliers: { abbr: 'Escaliers', color: '#A855F7' },
-  escalier: { abbr: 'Escaliers', color: '#A855F7' },
-  échauffement: { abbr: 'Échauff.', color: '#FB923C' },
-  warmup: { abbr: 'Échauff.', color: '#FB923C' },
+export const TYPE_CONFIG: Record<string, { abbr: string; color: string; bg: string }> = {
+  musculation: { abbr: 'Muscu', color: '#6366F1', bg: 'rgba(99, 102, 241, 0.15)' },
+  force: { abbr: 'Muscu', color: '#6366F1', bg: 'rgba(99, 102, 241, 0.15)' },
+  strength: { abbr: 'Muscu', color: '#6366F1', bg: 'rgba(99, 102, 241, 0.15)' },
+  sprint: { abbr: 'Sprint', color: '#EF4444', bg: 'rgba(239, 68, 68, 0.15)' },
+  vitesse: { abbr: 'Sprint', color: '#EF4444', bg: 'rgba(239, 68, 68, 0.15)' },
+  'vitesse maximale': { abbr: 'Sprint', color: '#EF4444', bg: 'rgba(239, 68, 68, 0.15)' },
+  course: { abbr: 'Course', color: '#EF4444', bg: 'rgba(239, 68, 68, 0.15)' },
+  lactique: { abbr: 'Lactique', color: '#F97316', bg: 'rgba(249, 115, 22, 0.15)' },
+  'endurance sprint': { abbr: 'Lactique', color: '#F97316', bg: 'rgba(249, 115, 22, 0.15)' },
+  aérobie: { abbr: 'Aérobie', color: '#0EA5E9', bg: 'rgba(14, 165, 233, 0.15)' },
+  endurance: { abbr: 'Aérobie', color: '#0EA5E9', bg: 'rgba(14, 165, 233, 0.15)' },
+  technique: { abbr: 'Technique', color: '#10B981', bg: 'rgba(16, 185, 129, 0.15)' },
+  pliométrie: { abbr: 'Plio', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.15)' },
+  plyo: { abbr: 'Plio', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.15)' },
+  puissance: { abbr: 'Plio', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.15)' },
+  récupération: { abbr: 'Récup', color: '#14B8A6', bg: 'rgba(20, 184, 166, 0.15)' },
+  repos: { abbr: 'Repos', color: '#6B7280', bg: 'rgba(107, 114, 128, 0.15)' },
+  'jour de repos': { abbr: 'Repos', color: '#6B7280', bg: 'rgba(107, 114, 128, 0.15)' },
+  compétition: { abbr: 'Compet', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.15)' },
+  competition: { abbr: 'Compet', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.15)' },
+  escaliers: { abbr: 'Escaliers', color: '#A855F7', bg: 'rgba(168, 85, 247, 0.15)' },
+  escalier: { abbr: 'Escaliers', color: '#A855F7', bg: 'rgba(168, 85, 247, 0.15)' },
+  échauffement: { abbr: 'Échauff.', color: '#FB923C', bg: 'rgba(251, 146, 60, 0.15)' },
+  warmup: { abbr: 'Échauff.', color: '#FB923C', bg: 'rgba(251, 146, 60, 0.15)' },
 };
 
-export function getWorkoutTypeConfig(typeSeance: string): { abbr: string; color: string } {
+export function getWorkoutTypeConfig(typeSeance: string): { abbr: string; color: string; bg: string } {
   const lower = (typeSeance || '').toLowerCase().trim();
   if (TYPE_CONFIG[lower]) return TYPE_CONFIG[lower];
   for (const [key, config] of Object.entries(TYPE_CONFIG)) {
     if (lower.includes(key)) return config;
   }
-  return { abbr: typeSeance?.substring(0, 8) || '?', color: '#6B7280' };
+  return { abbr: typeSeance?.substring(0, 8) || 'Séance', color: '#6B7280', bg: 'rgba(107, 114, 128, 0.15)' };
 }
 
 export function getWorkoutColor(typeSeance: string): string {
   return getWorkoutTypeConfig(typeSeance).color;
 }
 
-// === Types ===
 export interface MonthWorkout {
   id: string;
   date_prevue: string;
@@ -61,7 +60,7 @@ interface MonthlyCalendarProps {
   onMonthChange?: (year: number, month: number) => void;
 }
 
-const DAYS_OF_WEEK = ['LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM', 'DIM'];
+const DAYS_OF_WEEK = ['LUN.', 'MAR.', 'MER.', 'JEU.', 'VEN.', 'SAM.', 'DIM.'];
 const MONTH_NAMES = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
@@ -70,7 +69,6 @@ const MONTH_NAMES = [
 export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
   selectedDate,
   onSelectDate,
-  markedDates = [],
   monthWorkouts = [],
   onMonthChange,
 }) => {
@@ -92,7 +90,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
 
   const isToday = useCallback((d: Date) => isSameDay(d, today), [today, isSameDay]);
 
-  // Group workouts by day key
+  // Group workouts by day string key (YYYY-M-D)
   const workoutsByDay = useMemo(() => {
     const map: Record<string, MonthWorkout[]> = {};
     monthWorkouts.forEach(w => {
@@ -109,48 +107,62 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
     return workoutsByDay[key] || [];
   }, [workoutsByDay]);
 
-  // === Navigation ===
+  // === Safe Month Navigation (Functional state to eliminate stale closures) ===
   const navigateMonth = useCallback((direction: 'prev' | 'next') => {
-    const toValue = direction === 'next' ? -40 : 40;
+    const toValue = direction === 'next' ? -50 : 50;
+
     Animated.parallel([
-      Animated.timing(opacityAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue, duration: 100, useNativeDriver: true })
+      Animated.timing(opacityAnim, { toValue: 0, duration: 110, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue, duration: 110, useNativeDriver: true }),
     ]).start(() => {
-      const newMonth = new Date(currentMonth);
-      newMonth.setMonth(newMonth.getMonth() + (direction === 'next' ? 1 : -1));
-      setCurrentMonth(newMonth);
-      onMonthChange?.(newMonth.getFullYear(), newMonth.getMonth());
+      setCurrentMonth(prev => {
+        const nextMonthDate = new Date(prev.getFullYear(), prev.getMonth() + (direction === 'next' ? 1 : -1), 1);
+        onMonthChange?.(nextMonthDate.getFullYear(), nextMonthDate.getMonth());
+        return nextMonthDate;
+      });
+
       slideAnim.setValue(-toValue);
       Animated.parallel([
-        Animated.timing(opacityAnim, { toValue: 1, duration: 140, useNativeDriver: true }),
-        Animated.timing(slideAnim, { toValue: 0, duration: 140, useNativeDriver: true })
+        Animated.timing(opacityAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
       ]).start();
     });
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, [currentMonth, onMonthChange, opacityAnim, slideAnim]);
+  }, [onMonthChange, opacityAnim, slideAnim]);
+
+  // Keep a fresh reference to navigateMonth for PanResponder
+  const navigateMonthRef = useRef(navigateMonth);
+  useEffect(() => {
+    navigateMonthRef.current = navigateMonth;
+  }, [navigateMonth]);
 
   const goToToday = useCallback(() => {
     const now = new Date();
-    setCurrentMonth(new Date(now.getFullYear(), now.getMonth(), 1));
+    const targetMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    setCurrentMonth(targetMonth);
     onSelectDate(now);
-    onMonthChange?.(now.getFullYear(), now.getMonth());
+    onMonthChange?.(targetMonth.getFullYear(), targetMonth.getMonth());
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }, [onSelectDate, onMonthChange]);
 
-  // Swipe
+  // Swipe gesture handler with ALWAYS up-to-date handler
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_e, gs) =>
-        Math.abs(gs.dx) > 10 && Math.abs(gs.dx) > Math.abs(gs.dy),
+        Math.abs(gs.dx) > 15 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.5,
       onPanResponderRelease: (_e, gs) => {
-        if (gs.dx > 30 || gs.vx > 0.5) navigateMonth('prev');
-        else if (gs.dx < -30 || gs.vx < -0.5) navigateMonth('next');
+        if (gs.dx > 40 || gs.vx > 0.4) {
+          navigateMonthRef.current('prev');
+        } else if (gs.dx < -40 || gs.vx < -0.4) {
+          navigateMonthRef.current('next');
+        }
       },
     })
   ).current;
 
-  // === Calendar grid computation ===
+  // Compute 35 or 42 calendar days
   const calendarData = useMemo(() => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
@@ -190,46 +202,87 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
     setGridHeight(e.nativeEvent.layout.height);
   }, []);
 
-  const cellHeight = gridHeight > 0 ? gridHeight / calendarData.numRows : 70;
+  // Adaptive widget tile height based on screen size
+  const totalRows = calendarData.numRows;
+  const verticalGap = 6;
+  const availableGridHeight = gridHeight > 0 ? gridHeight : 460;
+  const cellHeight = Math.max(58, Math.floor((availableGridHeight - (totalRows - 1) * verticalGap) / totalRows));
+
   const isCurrentMonthToday = currentMonth.getMonth() === today.getMonth() &&
                                currentMonth.getFullYear() === today.getFullYear();
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]} {...panResponder.panHandlers}>
-      {/* === Header === */}
-      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-        <TouchableOpacity onPress={() => navigateMonth('prev')} style={styles.navBtn}>
-          <Feather name="chevron-left" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={goToToday} style={styles.headerCenter}>
+      {/* === Apple-Style Floating Header === */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
           <Text style={[styles.monthTitle, { color: theme.colors.text }]}>
-            {MONTH_NAMES[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+            {MONTH_NAMES[currentMonth.getMonth()]}
           </Text>
-        </TouchableOpacity>
+          <Text style={[styles.yearSubtitle, { color: theme.colors.textSecondary }]}>
+            {currentMonth.getFullYear()}
+          </Text>
+        </View>
 
-        <TouchableOpacity onPress={() => navigateMonth('next')} style={styles.navBtn}>
-          <Feather name="chevron-right" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
-      </View>
+        <View style={styles.headerActions}>
+          {!isCurrentMonthToday && (
+            <TouchableOpacity
+              onPress={goToToday}
+              style={[styles.todayButton, { backgroundColor: theme.colors.accent + '15' }]}
+              activeOpacity={0.7}
+            >
+              <Feather name="calendar" size={13} color={theme.colors.accent} style={{ marginRight: 4 }} />
+              <Text style={[styles.todayButtonText, { color: theme.colors.accent }]}>Aujourd'hui</Text>
+            </TouchableOpacity>
+          )}
 
-      {/* === Day labels === */}
-      <View style={[styles.dayLabels, { borderBottomColor: theme.colors.border }]}>
-        {DAYS_OF_WEEK.map((day, index) => (
-          <View key={index} style={styles.dayLabelCell}>
-            <Text style={[
-              styles.dayLabelText,
-              { color: index >= 5 ? theme.colors.error : theme.colors.textSecondary }
-            ]}>
-              {day}
-            </Text>
+          <View style={[styles.navPills, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+            <TouchableOpacity
+              onPress={() => navigateMonth('prev')}
+              style={styles.navArrow}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Feather name="chevron-left" size={18} color={theme.colors.text} />
+            </TouchableOpacity>
+
+            <View style={[styles.navDivider, { backgroundColor: theme.colors.border }]} />
+
+            <TouchableOpacity
+              onPress={() => navigateMonth('next')}
+              style={styles.navArrow}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Feather name="chevron-right" size={18} color={theme.colors.text} />
+            </TouchableOpacity>
           </View>
-        ))}
+        </View>
       </View>
 
-      {/* === Grid (fills remaining space) === */}
+      {/* === Apple-Style Day Labels === */}
+      <View style={styles.dayLabelsRow}>
+        {DAYS_OF_WEEK.map((day, index) => {
+          const isWeekend = index >= 5;
+          return (
+            <View key={index} style={styles.dayLabelCell}>
+              <Text
+                style={[
+                  styles.dayLabelText,
+                  { color: isWeekend ? theme.colors.error : theme.colors.textMuted },
+                ]}
+              >
+                {day}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+
+      {/* === Full-Screen Grid with Apple "Widget Tile" Aesthetics === */}
       <Animated.View
-        style={[styles.grid, { opacity: opacityAnim, transform: [{ translateX: slideAnim }] }]}
+        style={[
+          styles.grid,
+          { opacity: opacityAnim, transform: [{ translateX: slideAnim }] },
+        ]}
         onLayout={onGridLayout}
       >
         {calendarData.days.map((item, index) => {
@@ -238,69 +291,95 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
           const dayWorkouts = getWorkoutsForDay(item.date);
           const isWeekend = item.date.getDay() === 0 || item.date.getDay() === 6;
 
-          // Max 2 labels shown, rest as "+N"
+          // Max 2 workouts displayed as sleek iOS pills, rest shown with a "+N" counter
           const visibleWorkouts = dayWorkouts.slice(0, 2);
           const extraCount = dayWorkouts.length - 2;
-
-          // Borders: right border on all except last column, bottom on all except last row
-          const col = index % 7;
-          const row = Math.floor(index / 7);
-          const isLastCol = col === 6;
-          const isLastRow = row === calendarData.numRows - 1;
 
           return (
             <TouchableOpacity
               key={index}
               style={[
-                styles.cell,
+                styles.cellTile,
                 {
                   height: cellHeight,
-                  borderRightWidth: 0,
-                  borderBottomWidth: 0,
-                  borderRightColor: theme.colors.border,
-                  borderBottomColor: theme.colors.border,
-                  backgroundColor: 'transparent',
+                  backgroundColor: !item.isCurrentMonth
+                    ? 'transparent'
+                    : selected
+                      ? theme.colors.accent + '12'
+                      : isWeekend
+                        ? theme.colors.surfaceLight + '70'
+                        : theme.colors.surface,
+                  borderColor: selected
+                    ? theme.colors.accent
+                    : isTodayCell
+                      ? theme.colors.accent + '60'
+                      : theme.colors.border,
+                  borderWidth: selected ? 2 : StyleSheet.hairlineWidth,
+                  opacity: item.isCurrentMonth ? 1 : 0.35,
                 },
               ]}
               onPress={() => handleSelectDate(item.date)}
-              activeOpacity={0.5}
+              activeOpacity={0.7}
             >
-              {/* Day number */}
-              <View style={styles.dayNumberRow}>
-                <View style={[
-                  styles.dayNumberWrap,
-                  isTodayCell && { backgroundColor: theme.colors.accent },
-                  selected && !isTodayCell && { backgroundColor: theme.colors.accent + '18' },
-                ]}>
-                  <Text style={[
-                    styles.dayNumber,
-                    {
-                      color: !item.isCurrentMonth
-                        ? theme.colors.border
-                        : isTodayCell
+              {/* Day Header (Number with Apple style) */}
+              <View style={styles.tileHeader}>
+                <View
+                  style={[
+                    styles.dayBadge,
+                    isTodayCell && { backgroundColor: theme.colors.accent },
+                    selected && !isTodayCell && { backgroundColor: theme.colors.accent + '25' },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.dayNumber,
+                      {
+                        color: isTodayCell
                           ? '#FFFFFF'
                           : selected
                             ? theme.colors.accent
-                            : theme.colors.text,
-                    },
-                    isTodayCell && { fontWeight: '800' },
-                  ]}>
+                            : isWeekend
+                              ? theme.colors.error
+                              : theme.colors.text,
+                        fontWeight: isTodayCell || selected ? '800' : '600',
+                      },
+                    ]}
+                  >
                     {item.date.getDate()}
                   </Text>
                 </View>
               </View>
 
-              {/* Workout type labels */}
-              {item.isCurrentMonth && (
-                <View style={styles.labelsContainer}>
+              {/* Workout Type Capsules (Apple iOS Pills) */}
+              {item.isCurrentMonth && dayWorkouts.length > 0 && (
+                <View style={styles.pillsContainer}>
                   {visibleWorkouts.map((w, i) => {
                     const config = getWorkoutTypeConfig(w.type_seance);
                     return (
-                      <View key={i} style={[styles.typeLabel, { backgroundColor: config.color }]} />
+                      <View
+                        key={i}
+                        style={[
+                          styles.workoutPill,
+                          { backgroundColor: config.bg, borderColor: config.color + '40' },
+                        ]}
+                      >
+                        <View style={[styles.pillDot, { backgroundColor: config.color }]} />
+                        <Text
+                          style={[styles.workoutPillText, { color: config.color }]}
+                          numberOfLines={1}
+                        >
+                          {config.abbr}
+                        </Text>
+                      </View>
                     );
                   })}
+
                   {extraCount > 0 && (
-                    <View style={[styles.typeLabel, { backgroundColor: theme.colors.textMuted }]} />
+                    <View style={[styles.extraPill, { backgroundColor: theme.colors.surfaceLight }]}>
+                      <Text style={[styles.extraPillText, { color: theme.colors.textSecondary }]}>
+                        +{extraCount}
+                      </Text>
+                    </View>
                   )}
                 </View>
               )}
@@ -315,60 +394,84 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingHorizontal: 8,
+    paddingBottom: 6,
   },
 
-  // Header
+  // Apple-Style Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 8,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingTop: 4,
+    paddingBottom: 10,
   },
-  navBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
   },
   monthTitle: {
-    fontSize: 18,
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+  },
+  yearSubtitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  todayButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  todayButtonText: {
+    fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.2,
   },
-  todayBadge: {
-    marginTop: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 10,
+  navPills: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
   },
-  todayBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.3,
+  navArrow: {
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navDivider: {
+    width: StyleSheet.hairlineWidth,
+    height: 14,
   },
 
-  // Day labels
-  dayLabels: {
+  // Day Labels
+  dayLabelsRow: {
     flexDirection: 'row',
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 2,
+    paddingBottom: 6,
   },
   dayLabelCell: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 8,
+    justifyContent: 'center',
   },
   dayLabelText: {
     fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
   },
 
   // Grid
@@ -376,57 +479,78 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 6,
   },
 
-  // Cell
-  cell: {
-    width: `${100 / 7}%` as any,
-    overflow: 'hidden',
+  // Apple "Widget Tile" Cell
+  cellTile: {
+    width: '13.6%',
+    borderRadius: 12,
     paddingHorizontal: 2,
-    paddingTop: 3,
+    paddingVertical: 3,
+    justifyContent: 'flex-start',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
   },
-
-  // Day number
-  dayNumberRow: {
+  tileHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    justifyContent: 'center',
+    marginBottom: 2,
   },
-  dayNumberWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  dayBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
   },
   dayNumber: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11,
   },
 
-  // Workout labels inside cell
-  labelsContainer: {
+  // Workout Pills Container
+  pillsContainer: {
+    flex: 1,
+    gap: 2,
+    justifyContent: 'flex-start',
+    width: '100%',
+  },
+  workoutPill: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 3,
-    marginTop: 2,
-    paddingHorizontal: 4,
+    paddingHorizontal: 3,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+    width: '100%',
   },
-  typeLabel: {
-    borderRadius: 3,
-    width: 12,
+  pillDot: {
+    width: 4,
     height: 4,
+    borderRadius: 2,
+    marginRight: 2.5,
   },
-  typeLabelText: {
-    color: '#FFFFFF',
-    fontSize: 9,
+  workoutPillText: {
+    fontSize: 8.5,
     fontWeight: '700',
-    letterSpacing: 0.2,
+    letterSpacing: -0.2,
+    flexShrink: 1,
   },
-  extraLabel: {
-    fontSize: 9,
-    fontWeight: '700',
-    paddingLeft: 3,
+  extraPill: {
+    alignSelf: 'center',
+    paddingHorizontal: 4,
+    paddingVertical: 0.5,
+    borderRadius: 4,
+    marginTop: 1,
+  },
+  extraPillText: {
+    fontSize: 8,
+    fontWeight: '800',
   },
 });

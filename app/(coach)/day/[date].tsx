@@ -85,45 +85,73 @@ export default function CoachDayScreen() {
   }, []);
 
   const CREATION_OPTIONS = [
-    { id: 'muscu', title: 'Musculation', icon: 'barbell-outline' as any, color: '#6366F1', type: 'strength' as const, iconFamily: 'Ionicons' },
-    { id: 'course', title: 'Course à pied', icon: 'stopwatch-outline' as any, color: '#EF4444', type: 'hybrid' as const, iconFamily: 'Ionicons' },
-    { id: 'technique', title: 'Séance Technique', icon: 'git-merge-outline' as any, color: '#10B981', type: 'hybrid' as const, iconFamily: 'Ionicons' },
-    { id: 'escalier', title: 'Escaliers', icon: 'stats-chart-outline' as any, color: '#8B5CF6', type: 'hybrid' as const, iconFamily: 'Ionicons' },
-    { id: 'repos', title: 'Jour de repos', icon: 'cafe-outline' as any, color: theme.colors.textMuted, type: 'hybrid' as const, iconFamily: 'Ionicons' },
+    { id: 'muscu', title: 'Musculation', icon: 'barbell-outline' as any, color: '#6366F1', type: 'strength' as const },
+    { id: 'course', title: 'Course & Sprint', icon: 'stopwatch-outline' as any, color: '#EF4444', type: 'hybrid' as const },
+    { id: 'technique', title: 'Séance Technique', icon: 'git-merge-outline' as any, color: '#10B981', type: 'hybrid' as const },
+    { id: 'escalier', title: 'Escaliers & Pente', icon: 'stats-chart-outline' as any, color: '#8B5CF6', type: 'hybrid' as const },
+    { id: 'repos', title: 'Jour de repos', icon: 'cafe-outline' as any, color: '#6B7280', type: 'hybrid' as const },
   ];
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {/* Header with guaranteed return to the calendar page */}
       <Header
         title={formattedTitle}
         showBackButton
-        onBackPress={() => router.back()}
+        onBackPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          router.replace('/(coach)/calendar');
+        }}
       />
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         {isLoading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={theme.colors.accent} />
           </View>
         ) : workouts.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            {CREATION_OPTIONS.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={[styles.optionBtn, { backgroundColor: theme.colors.surface }]}
-                onPress={() => openBuilder(item.type, item.title)}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.iconBox, { backgroundColor: item.color + '15' }]}>
-                  <Ionicons name={item.icon} size={22} color={item.color} />
-                </View>
-                <Text style={[styles.optionTitle, { color: theme.colors.text }]}>{item.title}</Text>
-                <Feather name="chevron-right" size={20} color={theme.colors.textMuted} />
-              </TouchableOpacity>
-            ))}
+          <View style={styles.emptyWrapper}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Planifier une séance</Text>
+              <Text style={[styles.sectionSubtitle, { color: theme.colors.textSecondary }]}>
+                Choisissez le type d'entraînement pour cette date
+              </Text>
+            </View>
+
+            <View style={styles.optionsList}>
+              {CREATION_OPTIONS.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={[
+                    styles.appleOptionCard,
+                    { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+                  ]}
+                  onPress={() => openBuilder(item.type, item.title)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.appleIconBox, { backgroundColor: item.color + '15' }]}>
+                    <Ionicons name={item.icon} size={22} color={item.color} />
+                  </View>
+                  <View style={styles.optionContent}>
+                    <Text style={[styles.appleOptionTitle, { color: theme.colors.text }]}>{item.title}</Text>
+                  </View>
+                  <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         ) : (
           <View style={styles.workoutsContainer}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+                {workouts.length} séance{workouts.length > 1 ? 's' : ''} programmée{workouts.length > 1 ? 's' : ''}
+              </Text>
+            </View>
+
             {workouts.map((w, i) => {
               const dateObj = new Date(w.date_prevue);
               const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -151,16 +179,16 @@ export default function CoachDayScreen() {
               );
             })}
 
-            {/* Light Add Button when there are already workouts */}
+            {/* Apple-style floating add button */}
             <TouchableOpacity
-              style={[styles.smallAddBtn, { backgroundColor: 'transparent' }]}
+              style={[styles.appleAddBtn, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
               onPress={() => openBuilder('hybrid')}
               activeOpacity={0.7}
             >
-              <View style={[styles.smallAddIcon, { backgroundColor: theme.colors.accent + '15' }]}>
+              <View style={[styles.appleAddIcon, { backgroundColor: theme.colors.accent + '15' }]}>
                 <Feather name="plus" size={18} color={theme.colors.accent} />
               </View>
-              <Text style={[styles.smallAddText, { color: theme.colors.accent }]}>Nouvelle séance</Text>
+              <Text style={[styles.appleAddText, { color: theme.colors.text }]}>Ajouter une autre séance</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -194,7 +222,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 24,
+    paddingHorizontal: 20,
+    paddingTop: 16,
     paddingBottom: 80,
   },
   centerContainer: {
@@ -202,35 +231,58 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  // Empty State - Elegant List
-  emptyContainer: {
-    gap: 16,
-    paddingTop: 12,
+  sectionHeader: {
+    marginBottom: 16,
   },
-  optionBtn: {
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    marginTop: 4,
+    fontWeight: '500',
+  },
+
+  // Empty State - Apple Grouped List
+  emptyWrapper: {
+    paddingTop: 8,
+  },
+  optionsList: {
+    gap: 12,
+  },
+  appleOptionCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    borderRadius: 24,
+    borderRadius: 20,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 1,
   },
-  iconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+  appleIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    marginRight: 14,
   },
-  optionTitle: {
+  optionContent: {
     flex: 1,
+  },
+  appleOptionTitle: {
     fontSize: 16,
     fontWeight: '700',
   },
 
   // Workouts List
   workoutsContainer: {
-    gap: 16,
+    gap: 14,
   },
   workoutRow: {
     flexDirection: 'row',
@@ -239,28 +291,36 @@ const styles = StyleSheet.create({
   colorBar: {
     width: 4,
     borderRadius: 2,
-    marginRight: 0, // margin handled by WorkoutCard internally or we can wrap it
+    marginRight: 0,
     marginTop: 8,
     marginBottom: 8,
   },
 
-  // Small add btn
-  smallAddBtn: {
+  // Apple Add Button
+  appleAddBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    marginTop: 16,
-  },
-  smallAddIcon: {
-    width: 36,
-    height: 36,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderRadius: 18,
+    borderWidth: 1,
+    marginTop: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  appleAddIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
-  smallAddText: {
+  appleAddText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });
