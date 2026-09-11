@@ -11,7 +11,7 @@ import {
   Platform,
   UIManager,
 } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../core/theme';
 import * as Haptics from 'expo-haptics';
 import { TrainingPeriod } from '../../types/period';
@@ -22,40 +22,40 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 // === Pastel workout banners (matching screenshot style) ===
-export const TYPE_CONFIG: Record<string, { abbr: string; bg: string; text: string }> = {
-  musculation: { abbr: 'Musculation', bg: '#EDE9FE', text: '#5B21B6' },
-  force: { abbr: 'Muscu', bg: '#EDE9FE', text: '#5B21B6' },
-  strength: { abbr: 'Muscu', bg: '#EDE9FE', text: '#5B21B6' },
-  sprint: { abbr: 'Sprint', bg: '#FFE4E6', text: '#BE123C' },
-  vitesse: { abbr: 'Vitesse', bg: '#FFE4E6', text: '#BE123C' },
-  'vitesse maximale': { abbr: 'Vitesse Max', bg: '#FFE4E6', text: '#BE123C' },
-  course: { abbr: 'Course', bg: '#FFE4E6', text: '#BE123C' },
-  lactique: { abbr: 'Lactique', bg: '#FFEDD5', text: '#C2410C' },
-  'endurance sprint': { abbr: 'End. Sprint', bg: '#FFEDD5', text: '#C2410C' },
-  aérobie: { abbr: 'Aérobie', bg: '#BAE6FD', text: '#0369A1' },
-  endurance: { abbr: 'Endurance', bg: '#BAE6FD', text: '#0369A1' },
-  technique: { abbr: 'Technique', bg: '#D1FAE5', text: '#047857' },
-  pliométrie: { abbr: 'Plio', bg: '#F3E8FF', text: '#7E22CE' },
-  plyo: { abbr: 'Plio', bg: '#F3E8FF', text: '#7E22CE' },
-  puissance: { abbr: 'Puissance', bg: '#F3E8FF', text: '#7E22CE' },
-  récupération: { abbr: 'Récup', bg: '#CCFBF1', text: '#0F766E' },
-  repos: { abbr: 'Repos', bg: '#F1F5F9', text: '#475569' },
-  'jour de repos': { abbr: 'Repos', bg: '#F1F5F9', text: '#475569' },
-  compétition: { abbr: 'Compétition', bg: '#FEF3C7', text: '#B45309' },
-  competition: { abbr: 'Compétition', bg: '#FEF3C7', text: '#B45309' },
-  escaliers: { abbr: 'Escaliers', bg: '#E0E7FF', text: '#4338CA' },
-  escalier: { abbr: 'Escaliers', bg: '#E0E7FF', text: '#4338CA' },
-  échauffement: { abbr: 'Échauffement', bg: '#FED7AA', text: '#9A3412' },
-  warmup: { abbr: 'Échauff.', bg: '#FED7AA', text: '#9A3412' },
+export const TYPE_CONFIG: Record<string, { abbr: string; bg: string; text: string; icon?: any }> = {
+  musculation: { abbr: 'Musculation', bg: '#EDE9FE', text: '#5B21B6', icon: 'barbell-outline' },
+  force: { abbr: 'Muscu', bg: '#EDE9FE', text: '#5B21B6', icon: 'barbell-outline' },
+  strength: { abbr: 'Muscu', bg: '#EDE9FE', text: '#5B21B6', icon: 'barbell-outline' },
+  sprint: { abbr: 'Sprint', bg: '#FFE4E6', text: '#BE123C', icon: 'stopwatch-outline' },
+  vitesse: { abbr: 'Vitesse', bg: '#FFE4E6', text: '#BE123C', icon: 'flash-outline' },
+  'vitesse maximale': { abbr: 'Vitesse Max', bg: '#FFE4E6', text: '#BE123C', icon: 'flash-outline' },
+  course: { abbr: 'Course', bg: '#FFE4E6', text: '#BE123C', icon: 'stopwatch-outline' },
+  lactique: { abbr: 'Lactique', bg: '#FFEDD5', text: '#C2410C', icon: 'flame-outline' },
+  'endurance sprint': { abbr: 'End. Sprint', bg: '#FFEDD5', text: '#C2410C', icon: 'flame-outline' },
+  aérobie: { abbr: 'Aérobie', bg: '#BAE6FD', text: '#0369A1', icon: 'water-outline' },
+  endurance: { abbr: 'Endurance', bg: '#BAE6FD', text: '#0369A1', icon: 'pulse-outline' },
+  technique: { abbr: 'Technique', bg: '#D1FAE5', text: '#047857', icon: 'git-merge-outline' },
+  pliométrie: { abbr: 'Plio', bg: '#F3E8FF', text: '#7E22CE', icon: 'fitness-outline' },
+  plyo: { abbr: 'Plio', bg: '#F3E8FF', text: '#7E22CE', icon: 'fitness-outline' },
+  puissance: { abbr: 'Puissance', bg: '#F3E8FF', text: '#7E22CE', icon: 'flash-outline' },
+  récupération: { abbr: 'Récup', bg: '#CCFBF1', text: '#0F766E', icon: 'leaf-outline' },
+  repos: { abbr: 'Repos', bg: '#F1F5F9', text: '#475569', icon: 'cafe-outline' },
+  'jour de repos': { abbr: 'Repos', bg: '#F1F5F9', text: '#475569', icon: 'cafe-outline' },
+  compétition: { abbr: 'Compétition', bg: '#FEF3C7', text: '#B45309', icon: 'trophy-outline' },
+  competition: { abbr: 'Compétition', bg: '#FEF3C7', text: '#B45309', icon: 'trophy-outline' },
+  escaliers: { abbr: 'Escaliers', bg: '#E0E7FF', text: '#4338CA', icon: 'stats-chart-outline' },
+  escalier: { abbr: 'Escaliers', bg: '#E0E7FF', text: '#4338CA', icon: 'stats-chart-outline' },
+  échauffement: { abbr: 'Échauffement', bg: '#FED7AA', text: '#9A3412', icon: 'thermometer-outline' },
+  warmup: { abbr: 'Échauff.', bg: '#FED7AA', text: '#9A3412', icon: 'thermometer-outline' },
 };
 
-export function getWorkoutTypeConfig(typeSeance: string): { abbr: string; bg: string; text: string } {
+export function getWorkoutTypeConfig(typeSeance: string): { abbr: string; bg: string; text: string; icon: any } {
   const lower = (typeSeance || '').toLowerCase().trim();
-  if (TYPE_CONFIG[lower]) return TYPE_CONFIG[lower];
+  if (TYPE_CONFIG[lower]) return { ...TYPE_CONFIG[lower], icon: TYPE_CONFIG[lower].icon || 'calendar-outline' };
   for (const [key, config] of Object.entries(TYPE_CONFIG)) {
-    if (lower.includes(key)) return config;
+    if (lower.includes(key)) return { ...config, icon: config.icon || 'calendar-outline' };
   }
-  return { abbr: typeSeance?.substring(0, 10) || 'Séance', bg: '#E2E8F0', text: '#334155' };
+  return { abbr: typeSeance?.substring(0, 10) || 'Séance', bg: '#E2E8F0', text: '#334155', icon: 'calendar-outline' };
 }
 
 export function getWorkoutColor(typeSeance: string): string {
@@ -438,7 +438,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                     )}
                   </View>
 
-                  {/* Horizontal pastel session banners */}
+                  {/* Horizontal pastel session icons */}
                   {item.isCurrentMonth && hasWorkouts && (
                     <View style={styles.bannersContainer}>
                       {visibleWorkouts.map((w, i) => {
@@ -447,16 +447,15 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                           <View
                             key={i}
                             style={[
-                              styles.sessionBanner,
+                              styles.sessionIconPill,
                               { backgroundColor: config.bg },
                             ]}
                           >
-                            <Text
-                              style={[styles.sessionBannerText, { color: config.text }]}
-                              numberOfLines={1}
-                            >
-                              {config.abbr}
-                            </Text>
+                            <Ionicons
+                              name={config.icon}
+                              size={12}
+                              color={config.text}
+                            />
                           </View>
                         );
                       })}
@@ -634,6 +633,14 @@ const styles = StyleSheet.create({
     paddingVertical: 1.5,
     paddingHorizontal: 3,
     width: '100%',
+  },
+  sessionIconPill: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
   },
   sessionBannerText: {
     fontSize: 8.5,

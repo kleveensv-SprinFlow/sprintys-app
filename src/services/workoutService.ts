@@ -108,7 +108,7 @@ export const workoutService = {
     
     let query = supabase
       .from('workouts')
-      .select('id, date_prevue, type_seance, status, athlete_id, group_id')
+      .select('id, date_prevue, type_seance, status, athlete_id, group_assignment_id')
       .gte('date_prevue', startDate.toISOString())
       .lte('date_prevue', endDate.toISOString());
 

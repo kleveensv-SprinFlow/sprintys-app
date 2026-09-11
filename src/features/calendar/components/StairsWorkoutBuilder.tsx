@@ -75,6 +75,9 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
   const [selectedSubgroupId, setSelectedSubgroupId] = useState<string | null>(null);
   const [selectedAthleteId, setSelectedAthleteId] = useState<string | null>(null);
 
+  // Notes de la séance (consignes)
+  const [sessionNotes, setSessionNotes] = useState('');
+
   // Exercises in the current session
   const [sessionExercises, setSessionExercises] = useState<StairExerciseItem[]>([]);
 
@@ -488,7 +491,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
               athlete_id: member.user_id,
               group_assignment_id: sharedAssignmentId,
               date_prevue: targetDateIso,
-              description: `${athleteFiltered.length} exercice${athleteFiltered.length > 1 ? 's' : ''} d'escalier`,
+              description: sessionNotes.trim() ? sessionNotes.trim() : `${athleteFiltered.length} exercice${athleteFiltered.length > 1 ? 's' : ''} d'escalier`,
               exercises: mappedExercises,
               blocks: [
                 {
@@ -540,7 +543,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
               athlete_id: member.user_id,
               group_assignment_id: sharedAssignmentId,
               date_prevue: targetDateIso,
-              description: `${athleteFiltered.length} exercice${athleteFiltered.length > 1 ? 's' : ''} d'escalier`,
+              description: sessionNotes.trim() ? sessionNotes.trim() : `${athleteFiltered.length} exercice${athleteFiltered.length > 1 ? 's' : ''} d'escalier`,
               exercises: mappedExercises,
               blocks: [
                 {
@@ -563,7 +566,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
           team_id: activeTeamId,
           athlete_id: selectedAthleteId!,
           date_prevue: targetDateIso,
-          description: `${sessionExercises.length} exercice${sessionExercises.length > 1 ? 's' : ''} d'escalier`,
+          description: sessionNotes.trim() ? sessionNotes.trim() : `${sessionExercises.length} exercice${sessionExercises.length > 1 ? 's' : ''} d'escalier`,
           exercises: mappedExercises,
           blocks: [
             {
@@ -734,6 +737,25 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                 })}
               </ScrollView>
             )}
+          </View>
+
+          {/* Section: CONSIGNES */}
+          <View style={styles.sectionHeaderBetween}>
+            <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>CONSIGNES DE SÉANCE</Text>
+          </View>
+          <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+            <TextInput
+              style={[
+                styles.notesInput,
+                { color: theme.colors.text }
+              ]}
+              placeholder="Ajouter une note ou des consignes pour cette séance..."
+              placeholderTextColor={theme.colors.textMuted}
+              multiline
+              value={sessionNotes}
+              onChangeText={setSessionNotes}
+              textAlignVertical="top"
+            />
           </View>
 
           {/* Section: EXERCICES DE LA SÉANCE */}
@@ -1378,7 +1400,13 @@ const styles = StyleSheet.create({
   },
   subScroll: {
     paddingHorizontal: 10,
-    paddingVertical: 10,
+    paddingVertical: 12,
+  },
+  notesInput: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    minHeight: 80,
+    fontSize: 15,
   },
   chip: {
     paddingHorizontal: 12,
