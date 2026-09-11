@@ -12,7 +12,8 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import * as Haptics from 'expo-haptics';
 import uuid from 'react-native-uuid';
@@ -45,6 +46,9 @@ export interface StairExerciseItem {
   target: ExerciseTarget;
 }
 
+const STORAGE_STAIRS_COUNT_KEY = '@sprintflow_stairs_last_count';
+const STORAGE_STAIRS_MODE_KEY = '@sprintflow_stairs_last_mode';
+
 export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
   visible,
   date,
@@ -60,36 +64,38 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
   const [selectedSubgroupId, setSelectedSubgroupId] = useState<string | null>(null);
   const [selectedAthleteId, setSelectedAthleteId] = useState<string | null>(null);
 
+  // Exercises in the current session
+  const [sessionExercises, setSessionExercises] = useState<StairExerciseItem[]>([]);
+
   // Coach's personal library
   const [savedExercises, setSavedExercises] = useState<CoachExercise[]>([]);
-  const [isLoadingLibrary, setIsLoadingLibrary] = useState(false);
+
+  // Sheet Modal: Add / Edit Exercise
+  const [isExerciseSheetVisible, setIsExerciseSheetVisible] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Exercise Form State
+  const [exerciseName, setExerciseName] = useState('');
+  const [isStairsModeManual, setIsStairsModeManual] = useState(true);
+  const [manualStairsText, setManualStairsText] = useState('20');
+  const [setsCount, setSetsCount] = useState<number>(4);
+  const [restSets, setRestSets] = useState<number>(60);
+  const [restExercise, setRestExercise] = useState<number>(180);
+
+  // Exercise-level targeting
+  const [exTargetType, setExTargetType] = useState<'all' | 'subgroup' | 'athlete'>('all');
+  const [exTargetSubgroupId, setExTargetSubgroupId] = useState<string | null>(null);
+  const [exTargetAthleteId, setExTargetAthleteId] = useState<string | null>(null);
+
+  // Rest Picker Modal
+  const [isRestPickerVisible, setIsRestPickerVisible] = useState(false);
+  const [restPickerTarget, setRestPickerTarget] = useState<'sets' | 'exercise'>('sets');
 
   // Library Management Modal
   const [isManageLibraryVisible, setIsManageLibraryVisible] = useState(false);
   const [editingLibraryEx, setEditingLibraryEx] = useState<CoachExercise | null>(null);
   const [editingLibraryName, setEditingLibraryName] = useState('');
 
-  // Rest Time Picker Modal State
-  const [isRestPickerVisible, setIsRestPickerVisible] = useState(false);
-  const [restPickerTarget, setRestPickerTarget] = useState<'sets' | 'exercise'>('sets');
-
-  // Exercises in the current session
-  const [sessionExercises, setSessionExercises] = useState<StairExerciseItem[]>([]);
-
-  // Current exercise form state
-  const [exerciseName, setExerciseName] = useState('');
-  const [isStairsModeManual, setIsStairsModeManual] = useState(true); // true = nombre saisi, false = libre
-  const [manualStairsText, setManualStairsText] = useState('20');
-  const [setsCount, setSetsCount] = useState<number>(4);
-  const [restSets, setRestSets] = useState<number>(60);
-  const [restExercise, setRestExercise] = useState<number>(180);
-
-  // Per-exercise targeting inside the session
-  const [exTargetType, setExTargetType] = useState<'all' | 'subgroup' | 'athlete'>('all');
-  const [exTargetSubgroupId, setExTargetSubgroupId] = useState<string | null>(null);
-  const [exTargetAthleteId, setExTargetAthleteId] = useState<string | null>(null);
-
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Approved team members
@@ -98,18 +104,11 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
     [teamMembers]
   );
 
-  // Load coach's personal exercises from Supabase
-  const loadLibrary = async () => {
-    if (!user?.id) return;
-    setIsLoadingLibrary(true);
-    const list = await coachExerciseService.fetchExercises(user.id, 'escalier');
-    setSavedExercises(list || []);
-    setIsLoadingLibrary(false);
-  };
-
+  // Load persistence and library
   useEffect(() => {
     if (visible && user?.id) {
       loadLibrary();
+      loadStairsMemory();
 
       if (subgroups.length > 0 && !selectedSubgroupId) {
         setSelectedSubgroupId(subgroups[0].id);
@@ -122,34 +121,87 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
     }
   }, [visible, user?.id, subgroups, approvedMembers]);
 
-  // Handle choosing a preset from coach's saved library
+  const loadLibrary = async () => {
+    if (!user?.id) return;
+    const list = await coachExerciseService.fetchExercises(user.id, 'escalier');
+    setSavedExercises(list || []);
+  };
+
+  const loadStairsMemory = async () => {
+    try {
+      const savedCount = await AsyncStorage.getItem(STORAGE_STAIRS_COUNT_KEY);
+      const savedMode = await AsyncStorage.getItem(STORAGE_STAIRS_MODE_KEY);
+      if (savedCount !== null) {
+        setManualStairsText(savedCount);
+      }
+      if (savedMode !== null) {
+        setIsStairsModeManual(savedMode === 'manual');
+      }
+    } catch (e) {
+      console.warn('Could not load stairs memory', e);
+    }
+  };
+
+  const saveStairsMemory = async (countText: string, isManual: boolean) => {
+    try {
+      await AsyncStorage.setItem(STORAGE_STAIRS_COUNT_KEY, countText);
+      await AsyncStorage.setItem(STORAGE_STAIRS_MODE_KEY, isManual ? 'manual' : 'free');
+    } catch (e) {
+      console.warn('Could not save stairs memory', e);
+    }
+  };
+
+  // Open the Add Exercise Sheet
+  const handleOpenAddSheet = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setEditingId(null);
+    setExerciseName('');
+    // Keep the current manualStairsText and isStairsModeManual intact!
+    setSetsCount(4);
+    setRestSets(60);
+    setRestExercise(180);
+    setExTargetType('all');
+    setIsExerciseSheetVisible(true);
+  };
+
+  // Open Edit Exercise Sheet
+  const handleStartEdit = (item: StairExerciseItem) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setEditingId(item.id);
+    setExerciseName(item.name);
+    if (item.stairs !== null && item.stairs !== undefined) {
+      setIsStairsModeManual(true);
+      setManualStairsText(String(item.stairs));
+    } else {
+      setIsStairsModeManual(false);
+    }
+    setSetsCount(item.setsCount);
+    setRestSets(item.restSets);
+    setRestExercise(item.restExercise);
+    setExTargetType(item.target?.type || 'all');
+    if (item.target?.type === 'subgroup') setExTargetSubgroupId(item.target.id || null);
+    if (item.target?.type === 'athlete') setExTargetAthleteId(item.target.id || null);
+    setIsExerciseSheetVisible(true);
+  };
+
+  // Pre-fill from personal library chip
   const handleSelectFromLibrary = (ex: CoachExercise) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setExerciseName(ex.name);
     if (ex.default_stairs) {
       setIsStairsModeManual(true);
       setManualStairsText(String(ex.default_stairs));
+      saveStairsMemory(String(ex.default_stairs), true);
     } else {
       setIsStairsModeManual(false);
+      saveStairsMemory(manualStairsText, false);
     }
     setSetsCount(ex.default_sets || 4);
     setRestSets(ex.default_rest_sets || 60);
     setRestExercise(ex.default_rest_exercise || 180);
   };
 
-  // Reset exercise creation form
-  const resetExerciseForm = () => {
-    setExerciseName('');
-    setIsStairsModeManual(true);
-    setManualStairsText('20');
-    setSetsCount(4);
-    setRestSets(60);
-    setRestExercise(180);
-    setExTargetType('all');
-    setEditingId(null);
-  };
-
-  // Add or update exercise in current session
+  // Save exercise to session list
   const handleSaveExerciseToSession = () => {
     const trimmed = exerciseName.trim();
     if (!trimmed) {
@@ -161,7 +213,9 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
       return;
     }
 
-    // Build target object
+    // Persist stairs settings to memory
+    saveStairsMemory(manualStairsText, isStairsModeManual);
+
     let finalTarget: ExerciseTarget = { type: 'all', id: null, name: 'Tout le groupe' };
     if (exTargetType === 'subgroup') {
       const sg = subgroups.find((s) => s.id === exTargetSubgroupId);
@@ -182,7 +236,6 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
     }
 
     const calculatedStairs = isStairsModeManual ? parseInt(manualStairsText, 10) || null : null;
-
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     if (editingId) {
@@ -214,35 +267,15 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
       setSessionExercises((prev) => [...prev, newItem]);
     }
 
-    resetExerciseForm();
+    setIsExerciseSheetVisible(false);
   };
 
-  // Start editing an existing exercise in the list
-  const handleStartEdit = (item: StairExerciseItem) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setEditingId(item.id);
-    setExerciseName(item.name);
-    if (item.stairs !== null && item.stairs !== undefined) {
-      setIsStairsModeManual(true);
-      setManualStairsText(String(item.stairs));
-    } else {
-      setIsStairsModeManual(false);
-    }
-    setSetsCount(item.setsCount);
-    setRestSets(item.restSets);
-    setRestExercise(item.restExercise);
-    setExTargetType(item.target?.type || 'all');
-    if (item.target?.type === 'subgroup') setExTargetSubgroupId(item.target.id || null);
-    if (item.target?.type === 'athlete') setExTargetAthleteId(item.target.id || null);
-  };
-
-  // Remove exercise from session
   const handleRemoveExercise = (id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSessionExercises((prev) => prev.filter((item) => item.id !== id));
   };
 
-  // Delete exercise from personal library
+  // Library actions
   const handleDeleteFromLibrary = (ex: CoachExercise) => {
     Alert.alert(
       'Supprimer de ma bibliothèque',
@@ -278,7 +311,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
     loadLibrary();
   };
 
-  // Open Wheel Picker
+  // Wheel picker handlers
   const openRestPicker = (target: 'sets' | 'exercise') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRestPickerTarget(target);
@@ -293,12 +326,12 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
     }
   };
 
-  // Submit and assign workout (filtering per athlete so they only see relevant exercises)
+  // Submit and assign workout
   const handleSaveWorkout = async () => {
     if (sessionExercises.length === 0) {
       Alert.alert(
         'Séance vide',
-        "Veuillez ajouter au moins un exercice d'escalier à la séance avant d'enregistrer."
+        "Veuillez ajouter au moins un exercice à la séance avant d'enregistrer."
       );
       return;
     }
@@ -321,7 +354,6 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
     try {
       const activeTeamId = teams.length > 0 ? teams[0].id : null;
 
-      // Helper function to map exercises list to DB schema
       const mapExercisesToPayload = (list: StairExerciseItem[]) =>
         list.map((ex) => ({
           id: ex.id,
@@ -343,7 +375,6 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
           })),
         }));
 
-      // A. Global Team Mode: Tailor workout for EACH athlete individually based on exercise-level target!
       if (targetType === 'team') {
         if (!activeTeamId) {
           Alert.alert('Erreur', 'Aucune équipe trouvée.');
@@ -351,7 +382,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
           return;
         }
 
-        // For each approved athlete, filter exercises that concern them
+        // Filter per athlete so they only see their assigned exercises
         for (const member of approvedMembers) {
           const athleteFiltered = sessionExercises.filter((ex) => {
             if (!ex.target || ex.target.type === 'all') return true;
@@ -360,7 +391,6 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
             return false;
           });
 
-          // Only create workout if the athlete has at least one exercise assigned to them
           if (athleteFiltered.length > 0) {
             const athletePayload = {
               type_seance: 'Escalier',
@@ -385,7 +415,6 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
           }
         }
       } else if (targetType === 'subgroup') {
-        // Filter for members of this subgroup
         const subMembers = approvedMembers.filter((m) => m.subgroup_id === selectedSubgroupId);
         for (const member of subMembers) {
           const athleteFiltered = sessionExercises.filter((ex) => {
@@ -410,7 +439,6 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
           }
         }
       } else {
-        // Individual athlete mode
         const athletePayload = {
           type_seance: 'Escalier',
           coach_id: user.id,
@@ -424,7 +452,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
         await workoutService.createPlannedWorkout(athletePayload);
       }
 
-      // Automatically persist unique exercises to coach's personal library
+      // Persist unique exercises to personal library
       sessionExercises.forEach((ex) => {
         coachExerciseService.saveExercise(user.id, {
           name: ex.name,
@@ -449,721 +477,635 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
   const formatRestDisplay = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    if (mins > 0 && secs > 0) return `${mins} min ${secs} s`;
+    if (mins > 0 && secs > 0) return `${mins}m${secs}`;
     if (mins > 0) return `${mins} min`;
-    return `${secs} s`;
+    return `${secs}s`;
   };
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-          {/* Top Header */}
-          <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-            <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { backgroundColor: theme.colors.surface }]}>
-              <Feather name="x" size={20} color={theme.colors.text} />
-            </TouchableOpacity>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        {/* Top Header */}
+        <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+          <TouchableOpacity onPress={onClose} style={styles.headerTextBtn}>
+            <Text style={[styles.headerCancelText, { color: theme.colors.textSecondary }]}>Annuler</Text>
+          </TouchableOpacity>
 
-            <View style={styles.headerCenter}>
-              <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Séance Escalier</Text>
-              <Text style={[styles.headerSubtitle, { color: theme.colors.textSecondary }]}>
-                {date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              onPress={handleSaveWorkout}
-              disabled={isSubmitting || sessionExercises.length === 0}
-              style={[
-                styles.saveHeaderBtn,
-                {
-                  backgroundColor: sessionExercises.length > 0 ? theme.colors.accent : theme.colors.border,
-                },
-              ]}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Text style={styles.saveHeaderBtnText}>Valider</Text>
-              )}
-            </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Séance Escalier</Text>
+            <Text style={[styles.headerSubtitle, { color: theme.colors.textSecondary }]}>
+              {date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
+            </Text>
           </View>
 
-          <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-            {/* Target Assignment Selector (Session Level) */}
-            <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Cible de la séance</Text>
+          <TouchableOpacity
+            onPress={handleSaveWorkout}
+            disabled={isSubmitting || sessionExercises.length === 0}
+            style={[
+              styles.headerSaveBtn,
+              {
+                backgroundColor: sessionExercises.length > 0 ? theme.colors.accent : theme.colors.border,
+              },
+            ]}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.headerSaveBtnText}>Valider</Text>
+            )}
+          </TouchableOpacity>
+        </View>
 
-              <View style={styles.targetTypeRow}>
-                {[
-                  { id: 'team', label: 'Tout le groupe', icon: 'users' },
-                  { id: 'subgroup', label: 'Sous-groupe', icon: 'layers' },
-                  { id: 'athlete', label: 'Athlète', icon: 'user' },
-                ].map((t) => {
-                  const isSelected = targetType === t.id;
+        <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+          {/* Section: CIBLE */}
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>CIBLE DE LA SÉANCE</Text>
+          </View>
+
+          <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+            <View style={styles.segmentedControl}>
+              {[
+                { id: 'team', label: 'Tout le groupe' },
+                { id: 'subgroup', label: 'Sous-groupe' },
+                { id: 'athlete', label: 'Athlète' },
+              ].map((t) => {
+                const isSelected = targetType === t.id;
+                return (
+                  <TouchableOpacity
+                    key={t.id}
+                    style={[
+                      styles.segmentBtn,
+                      isSelected && [styles.segmentBtnActive, { backgroundColor: theme.colors.background }],
+                    ]}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setTargetType(t.id as any);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.segmentBtnText,
+                        { color: isSelected ? theme.colors.text : theme.colors.textSecondary },
+                      ]}
+                    >
+                      {t.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {targetType === 'subgroup' && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subScroll}>
+                {subgroups.map((sg) => {
+                  const isSelected = selectedSubgroupId === sg.id;
                   return (
                     <TouchableOpacity
-                      key={t.id}
+                      key={sg.id}
                       style={[
-                        styles.targetTypeBtn,
+                        styles.chip,
                         {
-                          backgroundColor: isSelected ? theme.colors.accent : theme.colors.background,
+                          backgroundColor: isSelected ? theme.colors.accent + '20' : theme.colors.background,
                           borderColor: isSelected ? theme.colors.accent : theme.colors.border,
                         },
                       ]}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setTargetType(t.id as any);
-                        if (t.id === 'subgroup' && !selectedSubgroupId && subgroups.length > 0) {
-                          setSelectedSubgroupId(subgroups[0].id);
-                        }
-                        if (t.id === 'athlete' && !selectedAthleteId && approvedMembers.length > 0) {
-                          setSelectedAthleteId(approvedMembers[0].user_id);
-                        }
-                      }}
+                      onPress={() => setSelectedSubgroupId(sg.id)}
                     >
-                      <Feather
-                        name={t.icon as any}
-                        size={13}
-                        color={isSelected ? '#FFFFFF' : theme.colors.textSecondary}
-                      />
-                      <Text
-                        style={[
-                          styles.targetTypeBtnText,
-                          { color: isSelected ? '#FFFFFF' : theme.colors.text },
-                        ]}
-                      >
-                        {t.label}
+                      <Text style={[styles.chipText, { color: isSelected ? theme.colors.accent : theme.colors.text }]}>
+                        {sg.name}
                       </Text>
                     </TouchableOpacity>
                   );
                 })}
-              </View>
+              </ScrollView>
+            )}
 
-              {/* Subgroup selector if chosen at session level */}
-              {targetType === 'subgroup' && (
-                <View style={styles.subSelectorBox}>
-                  {subgroups.length === 0 ? (
-                    <Text style={[styles.emptyHint, { color: theme.colors.textMuted }]}>
-                      Aucun sous-groupe configuré.
-                    </Text>
-                  ) : (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                      {subgroups.map((sg) => {
-                        const isSelected = selectedSubgroupId === sg.id;
-                        return (
-                          <TouchableOpacity
-                            key={sg.id}
-                            style={[
-                              styles.chip,
-                              {
-                                backgroundColor: isSelected ? theme.colors.accent + '20' : theme.colors.background,
-                                borderColor: isSelected ? theme.colors.accent : theme.colors.border,
-                              },
-                            ]}
-                            onPress={() => setSelectedSubgroupId(sg.id)}
-                          >
-                            <Text
-                              style={[
-                                styles.chipText,
-                                { color: isSelected ? theme.colors.accent : theme.colors.text },
-                              ]}
-                            >
-                              {sg.name}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </ScrollView>
-                  )}
-                </View>
-              )}
-
-              {/* Athlete selector if chosen at session level */}
-              {targetType === 'athlete' && (
-                <View style={styles.subSelectorBox}>
-                  {approvedMembers.length === 0 ? (
-                    <Text style={[styles.emptyHint, { color: theme.colors.textMuted }]}>
-                      Aucun athlète dans l'équipe.
-                    </Text>
-                  ) : (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                      {approvedMembers.map((m) => {
-                        const isSelected = selectedAthleteId === m.user_id;
-                        const prof = (Array.isArray(m.profile) ? m.profile[0] : m.profile) as any;
-                        const nameDisplay = prof?.full_name?.trim() || 'Athlète';
-                        return (
-                          <TouchableOpacity
-                            key={m.user_id}
-                            style={[
-                              styles.chip,
-                              {
-                                backgroundColor: isSelected ? theme.colors.accent + '20' : theme.colors.background,
-                                borderColor: isSelected ? theme.colors.accent : theme.colors.border,
-                              },
-                            ]}
-                            onPress={() => setSelectedAthleteId(m.user_id)}
-                          >
-                            <Text
-                              style={[
-                                styles.chipText,
-                                { color: isSelected ? theme.colors.accent : theme.colors.text },
-                              ]}
-                            >
-                              {nameDisplay}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </ScrollView>
-                  )}
-                </View>
-              )}
-            </View>
-
-            {/* Coach's Personal Library (Chips + Gérer) */}
-            <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              <View style={styles.cardHeaderRow}>
-                <View style={styles.cardHeaderLeft}>
-                  <Feather name="book-open" size={16} color={theme.colors.accent} />
-                  <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Ma bibliothèque d'exercices</Text>
-                </View>
-
-                {savedExercises.length > 0 && (
-                  <TouchableOpacity
-                    onPress={() => setIsManageLibraryVisible(true)}
-                    style={styles.manageLibraryBtn}
-                  >
-                    <Feather name="settings" size={12} color={theme.colors.accent} style={{ marginRight: 4 }} />
-                    <Text style={[styles.manageLibraryBtnText, { color: theme.colors.accent }]}>Gérer</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {savedExercises.length === 0 ? (
-                <View style={[styles.emptyLibraryNotice, { backgroundColor: theme.colors.background }]}>
-                  <Feather name="info" size={15} color={theme.colors.accent} style={{ marginTop: 2 }} />
-                  <Text style={[styles.emptyLibraryText, { color: theme.colors.textSecondary }]}>
-                    Votre bibliothèque est vide. Chaque exercice créé sera mémorisé pour vos prochaines séances.
-                  </Text>
-                </View>
-              ) : (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
-                  {savedExercises.map((ex) => (
+            {targetType === 'athlete' && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subScroll}>
+                {approvedMembers.map((m) => {
+                  const isSelected = selectedAthleteId === m.user_id;
+                  const prof = (Array.isArray(m.profile) ? m.profile[0] : m.profile) as any;
+                  const name = prof?.full_name?.trim() || 'Athlète';
+                  return (
                     <TouchableOpacity
-                      key={ex.id}
-                      style={[styles.libraryChip, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
-                      onPress={() => handleSelectFromLibrary(ex)}
-                      activeOpacity={0.7}
-                    >
-                      <Feather name="plus" size={12} color={theme.colors.accent} style={{ marginRight: 4 }} />
-                      <Text style={[styles.libraryChipText, { color: theme.colors.text }]}>{ex.name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              )}
-            </View>
-
-            {/* Session Exercises List */}
-            <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              <View style={styles.cardHeaderRow}>
-                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Exercices de la séance</Text>
-                <Text style={[styles.libraryCount, { color: theme.colors.textSecondary }]}>
-                  {sessionExercises.length} exercice{sessionExercises.length > 1 ? 's' : ''}
-                </Text>
-              </View>
-
-              {sessionExercises.length === 0 ? (
-                <Text style={[styles.emptySessionText, { color: theme.colors.textMuted }]}>
-                  Aucun exercice pour l'instant. Configurez votre premier exercice ci-dessous.
-                </Text>
-              ) : (
-                <View style={styles.exerciseList}>
-                  {sessionExercises.map((item, index) => (
-                    <View
-                      key={item.id}
+                      key={m.user_id}
                       style={[
-                        styles.exerciseItemCard,
-                        { backgroundColor: theme.colors.background, borderColor: theme.colors.border },
-                      ]}
-                    >
-                      <View style={styles.exerciseItemHeader}>
-                        <View style={[styles.exerciseNumberBadge, { backgroundColor: theme.colors.accent }]}>
-                          <Text style={styles.exerciseNumberText}>{index + 1}</Text>
-                        </View>
-                        <Text style={[styles.exerciseItemName, { color: theme.colors.text }]} numberOfLines={1}>
-                          {item.name}
-                        </Text>
-
-                        {/* Exercise Target Badge */}
-                        <View style={[styles.exTargetBadge, { backgroundColor: theme.colors.surface }]}>
-                          <Text style={[styles.exTargetBadgeText, { color: theme.colors.accent }]}>
-                            {item.target?.name || 'Tout le groupe'}
-                          </Text>
-                        </View>
-
-                        <View style={styles.exerciseActions}>
-                          <TouchableOpacity onPress={() => handleStartEdit(item)} style={styles.actionBtn}>
-                            <Feather name="edit-2" size={15} color={theme.colors.textSecondary} />
-                          </TouchableOpacity>
-                          <TouchableOpacity onPress={() => handleRemoveExercise(item.id)} style={styles.actionBtn}>
-                            <Feather name="trash-2" size={15} color={theme.colors.error} />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-
-                      {/* Stats Pills */}
-                      <View style={styles.statsPillsRow}>
-                        <View style={[styles.statPill, { backgroundColor: theme.colors.surface }]}>
-                          <Text style={[styles.statPillLabel, { color: theme.colors.textSecondary }]}>Marches</Text>
-                          <Text style={[styles.statPillValue, { color: theme.colors.text }]}>
-                            {item.stairs ? `${item.stairs}` : 'Libre'}
-                          </Text>
-                        </View>
-
-                        <View style={[styles.statPill, { backgroundColor: theme.colors.surface }]}>
-                          <Text style={[styles.statPillLabel, { color: theme.colors.textSecondary }]}>Séries</Text>
-                          <Text style={[styles.statPillValue, { color: theme.colors.text }]}>{item.setsCount}</Text>
-                        </View>
-
-                        <View style={[styles.statPill, { backgroundColor: theme.colors.surface }]}>
-                          <Text style={[styles.statPillLabel, { color: theme.colors.textSecondary }]}>Réc. séries</Text>
-                          <Text style={[styles.statPillValue, { color: theme.colors.text }]}>{formatRestDisplay(item.restSets)}</Text>
-                        </View>
-
-                        <View style={[styles.statPill, { backgroundColor: theme.colors.surface }]}>
-                          <Text style={[styles.statPillLabel, { color: theme.colors.textSecondary }]}>Réc. exo</Text>
-                          <Text style={[styles.statPillValue, { color: theme.colors.text }]}>{formatRestDisplay(item.restExercise)}</Text>
-                        </View>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-
-            {/* Form: Add / Edit an Exercise */}
-            <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              <View style={styles.cardHeaderRow}>
-                <View style={styles.cardHeaderLeft}>
-                  <Feather name={editingId ? 'edit' : 'plus-circle'} size={16} color={theme.colors.accent} />
-                  <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-                    {editingId ? "Modifier l'exercice" : 'Ajouter un exercice'}
-                  </Text>
-                </View>
-
-                {editingId && (
-                  <TouchableOpacity onPress={resetExerciseForm}>
-                    <Text style={{ fontSize: 13, color: theme.colors.textMuted }}>Annuler</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {/* Field 1: Exercise Name */}
-              <View style={styles.formGroup}>
-                <Text style={[styles.formLabel, { color: theme.colors.text }]}>Nom de l'exercice</Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      backgroundColor: theme.colors.background,
-                      color: theme.colors.text,
-                      borderColor: theme.colors.border,
-                    },
-                  ]}
-                  placeholder="Ex. Montée 2 par 2, Pieds joints, Vitesse..."
-                  placeholderTextColor={theme.colors.textMuted}
-                  value={exerciseName}
-                  onChangeText={setExerciseName}
-                  maxLength={40}
-                />
-              </View>
-
-              {/* Field 2: Per-Exercise Target Selector (in general team session) */}
-              {targetType === 'team' && (
-                <View style={styles.formGroup}>
-                  <Text style={[styles.formLabel, { color: theme.colors.text }]}>Attribuer cet exercice à :</Text>
-                  <View style={styles.targetTypeRow}>
-                    {[
-                      { id: 'all', label: 'Tout le groupe' },
-                      { id: 'subgroup', label: 'Sous-groupe' },
-                      { id: 'athlete', label: 'Athlète' },
-                    ].map((t) => {
-                      const isSelected = exTargetType === t.id;
-                      return (
-                        <TouchableOpacity
-                          key={t.id}
-                          style={[
-                            styles.targetTypeBtn,
-                            {
-                              backgroundColor: isSelected ? theme.colors.accent : theme.colors.background,
-                              borderColor: isSelected ? theme.colors.accent : theme.colors.border,
-                            },
-                          ]}
-                          onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            setExTargetType(t.id as any);
-                          }}
-                        >
-                          <Text
-                            style={[
-                              styles.targetTypeBtnText,
-                              { color: isSelected ? '#FFFFFF' : theme.colors.text },
-                            ]}
-                          >
-                            {t.label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-
-                  {/* Subgroup options for this exercise */}
-                  {exTargetType === 'subgroup' && (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-                      {subgroups.map((sg) => {
-                        const isSelected = exTargetSubgroupId === sg.id;
-                        return (
-                          <TouchableOpacity
-                            key={sg.id}
-                            style={[
-                              styles.chip,
-                              {
-                                backgroundColor: isSelected ? theme.colors.accent + '20' : theme.colors.background,
-                                borderColor: isSelected ? theme.colors.accent : theme.colors.border,
-                              },
-                            ]}
-                            onPress={() => setExTargetSubgroupId(sg.id)}
-                          >
-                            <Text
-                              style={[
-                                styles.chipText,
-                                { color: isSelected ? theme.colors.accent : theme.colors.text },
-                              ]}
-                            >
-                              {sg.name}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </ScrollView>
-                  )}
-
-                  {/* Athlete options for this exercise */}
-                  {exTargetType === 'athlete' && (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-                      {approvedMembers.map((m) => {
-                        const isSelected = exTargetAthleteId === m.user_id;
-                        const prof = (Array.isArray(m.profile) ? m.profile[0] : m.profile) as any;
-                        const nameDisplay = prof?.full_name?.trim() || 'Athlète';
-                        return (
-                          <TouchableOpacity
-                            key={m.user_id}
-                            style={[
-                              styles.chip,
-                              {
-                                backgroundColor: isSelected ? theme.colors.accent + '20' : theme.colors.background,
-                                borderColor: isSelected ? theme.colors.accent : theme.colors.border,
-                              },
-                            ]}
-                            onPress={() => setExTargetAthleteId(m.user_id)}
-                          >
-                            <Text
-                              style={[
-                                styles.chipText,
-                                { color: isSelected ? theme.colors.accent : theme.colors.text },
-                              ]}
-                            >
-                              {nameDisplay}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </ScrollView>
-                  )}
-                </View>
-              )}
-
-              {/* Field 3: Nombre de marches (Libre ou Saisie manuelle) */}
-              <View style={styles.formGroup}>
-                <Text style={[styles.formLabel, { color: theme.colors.text }]}>Nombre de marches</Text>
-                
-                <View style={styles.stairsToggleRow}>
-                  <TouchableOpacity
-                    style={[
-                      styles.stairsToggleBtn,
-                      {
-                        backgroundColor: !isStairsModeManual ? theme.colors.accent : theme.colors.background,
-                        borderColor: !isStairsModeManual ? theme.colors.accent : theme.colors.border,
-                      },
-                    ]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setIsStairsModeManual(false);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.stairsToggleBtnText,
-                        { color: !isStairsModeManual ? '#FFFFFF' : theme.colors.text },
-                      ]}
-                    >
-                      Marches libres
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.stairsToggleBtn,
-                      {
-                        backgroundColor: isStairsModeManual ? theme.colors.accent : theme.colors.background,
-                        borderColor: isStairsModeManual ? theme.colors.accent : theme.colors.border,
-                      },
-                    ]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setIsStairsModeManual(true);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.stairsToggleBtnText,
-                        { color: isStairsModeManual ? '#FFFFFF' : theme.colors.text },
-                      ]}
-                    >
-                      Saisir le nombre
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {isStairsModeManual && (
-                  <View style={styles.manualStairsInputRow}>
-                    <TextInput
-                      style={[
-                        styles.input,
+                        styles.chip,
                         {
-                          flex: 1,
-                          backgroundColor: theme.colors.background,
-                          color: theme.colors.text,
-                          borderColor: theme.colors.border,
-                          textAlign: 'center',
-                          fontSize: 16,
-                          fontWeight: '800',
+                          backgroundColor: isSelected ? theme.colors.accent + '20' : theme.colors.background,
+                          borderColor: isSelected ? theme.colors.accent : theme.colors.border,
                         },
                       ]}
-                      keyboardType="number-pad"
-                      placeholder="Ex. 25"
-                      placeholderTextColor={theme.colors.textMuted}
-                      value={manualStairsText}
-                      onChangeText={setManualStairsText}
-                      maxLength={4}
-                    />
-                    <Text style={[styles.unitLabel, { color: theme.colors.textSecondary }]}>marches</Text>
-                  </View>
-                )}
+                      onPress={() => setSelectedAthleteId(m.user_id)}
+                    >
+                      <Text style={[styles.chipText, { color: isSelected ? theme.colors.accent : theme.colors.text }]}>
+                        {name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            )}
+          </View>
+
+          {/* Section: EXERCICES DE LA SÉANCE */}
+          <View style={styles.sectionHeaderBetween}>
+            <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>
+              EXERCICES ({sessionExercises.length})
+            </Text>
+            {savedExercises.length > 0 && (
+              <TouchableOpacity onPress={() => setIsManageLibraryVisible(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={[styles.linkText, { color: theme.colors.accent }]}>Bibliothèque</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {sessionExercises.length === 0 ? (
+            <View style={[styles.emptyBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+              <View style={[styles.emptyIconCircle, { backgroundColor: theme.colors.accent + '15' }]}>
+                <Feather name="layers" size={24} color={theme.colors.accent} />
               </View>
-
-              {/* Field 4: Nombre de séries (Stepper uniquement avec - et +) */}
-              <View style={styles.formGroup}>
-                <Text style={[styles.formLabel, { color: theme.colors.text }]}>Nombre de séries</Text>
-                <View style={[styles.largeStepperBox, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}>
-                  <TouchableOpacity
-                    style={[styles.largeStepperBtn, { backgroundColor: theme.colors.surface }]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setSetsCount((prev) => Math.max(1, prev - 1));
-                    }}
-                  >
-                    <Feather name="minus" size={20} color={theme.colors.text} />
-                  </TouchableOpacity>
-
-                  <View style={styles.largeStepperTextWrap}>
-                    <Text style={[styles.largeStepperValue, { color: theme.colors.text }]}>{setsCount}</Text>
-                    <Text style={[styles.largeStepperSub, { color: theme.colors.textSecondary }]}>
-                      série{setsCount > 1 ? 's' : ''}
-                    </Text>
-                  </View>
-
-                  <TouchableOpacity
-                    style={[styles.largeStepperBtn, { backgroundColor: theme.colors.surface }]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setSetsCount((prev) => prev + 1);
-                    }}
-                  >
-                    <Feather name="plus" size={20} color={theme.colors.text} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Field 5: Temps de repos entre les séries (Clic pour ouvrir la roue Minutes/Secondes) */}
-              <View style={styles.formGroup}>
-                <Text style={[styles.formLabel, { color: theme.colors.text }]}>Temps de repos entre les séries</Text>
-                <TouchableOpacity
-                  style={[styles.restSelectorCard, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
-                  onPress={() => openRestPicker('sets')}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.restSelectorLeft}>
-                    <Feather name="clock" size={18} color={theme.colors.accent} />
-                    <Text style={[styles.restSelectorValue, { color: theme.colors.text }]}>
-                      {formatRestDisplay(restSets)}
-                    </Text>
-                  </View>
-                  <View style={[styles.restSelectorActionBadge, { backgroundColor: theme.colors.surface }]}>
-                    <Text style={[styles.restSelectorActionText, { color: theme.colors.accent }]}>Modifier</Text>
-                    <Feather name="chevron-right" size={14} color={theme.colors.accent} />
-                  </View>
-                </TouchableOpacity>
-              </View>
-
-              {/* Field 6: Temps de repos après cet exercice */}
-              <View style={styles.formGroup}>
-                <Text style={[styles.formLabel, { color: theme.colors.text }]}>Temps de repos après cet exercice</Text>
-                <TouchableOpacity
-                  style={[styles.restSelectorCard, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
-                  onPress={() => openRestPicker('exercise')}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.restSelectorLeft}>
-                    <Feather name="pause-circle" size={18} color={theme.colors.accent} />
-                    <Text style={[styles.restSelectorValue, { color: theme.colors.text }]}>
-                      {formatRestDisplay(restExercise)}
-                    </Text>
-                  </View>
-                  <View style={[styles.restSelectorActionBadge, { backgroundColor: theme.colors.surface }]}>
-                    <Text style={[styles.restSelectorActionText, { color: theme.colors.accent }]}>Modifier</Text>
-                    <Feather name="chevron-right" size={14} color={theme.colors.accent} />
-                  </View>
-                </TouchableOpacity>
-              </View>
-
-              {/* Button: Ajouter à la séance */}
+              <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Aucun exercice ajouté</Text>
+              <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
+                Composez votre séance en ajoutant un premier exercice ci-dessous.
+              </Text>
               <TouchableOpacity
-                style={[styles.addExerciseBtn, { backgroundColor: theme.colors.accent }]}
-                onPress={handleSaveExerciseToSession}
+                style={[styles.addFirstBtn, { backgroundColor: theme.colors.accent }]}
+                onPress={handleOpenAddSheet}
                 activeOpacity={0.8}
               >
-                <Feather name={editingId ? 'check' : 'plus'} size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-                <Text style={styles.addExerciseBtnText}>
-                  {editingId ? "Mettre à jour l'exercice" : "Ajouter l'exercice à la séance"}
+                <Feather name="plus" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <Text style={styles.addFirstBtnText}>Ajouter un exercice</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+              {sessionExercises.map((item, index) => {
+                const isLast = index === sessionExercises.length - 1;
+                return (
+                  <View
+                    key={item.id}
+                    style={[
+                      styles.exerciseRow,
+                      !isLast && [styles.rowBorder, { borderBottomColor: theme.colors.border }],
+                    ]}
+                  >
+                    <View style={[styles.badgeNumber, { backgroundColor: theme.colors.accent }]}>
+                      <Text style={styles.badgeNumberText}>{index + 1}</Text>
+                    </View>
+
+                    <TouchableOpacity style={styles.exerciseRowCenter} onPress={() => handleStartEdit(item)} activeOpacity={0.7}>
+                      <View style={styles.exerciseNameLine}>
+                        <Text style={[styles.exerciseRowName, { color: theme.colors.text }]} numberOfLines={1}>
+                          {item.name}
+                        </Text>
+                        {item.target?.type !== 'all' && (
+                          <View style={[styles.targetMiniBadge, { backgroundColor: theme.colors.accent + '20' }]}>
+                            <Text style={[styles.targetMiniBadgeText, { color: theme.colors.accent }]}>
+                              {item.target?.name}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={[styles.exerciseRowSubtitle, { color: theme.colors.textSecondary }]}>
+                        {item.stairs ? `${item.stairs} marches` : 'Libre'}  •  {item.setsCount} séries  •  Réc. {formatRestDisplay(item.restSets)}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <View style={styles.exerciseRowActions}>
+                      <TouchableOpacity onPress={() => handleStartEdit(item)} style={styles.iconHit}>
+                        <Feather name="edit-2" size={15} color={theme.colors.textSecondary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleRemoveExercise(item.id)} style={styles.iconHit}>
+                        <Feather name="trash-2" size={15} color={theme.colors.error} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })}
+
+              {/* Add More Button */}
+              <TouchableOpacity
+                style={[styles.addMoreRow, { borderTopColor: theme.colors.border }]}
+                onPress={handleOpenAddSheet}
+                activeOpacity={0.7}
+              >
+                <Feather name="plus-circle" size={16} color={theme.colors.accent} />
+                <Text style={[styles.addMoreRowText, { color: theme.colors.accent }]}>Ajouter un autre exercice</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Quick Add from Coach's Library (Chips under list) */}
+          {savedExercises.length > 0 && (
+            <View style={styles.quickLibraryBox}>
+              <Text style={[styles.quickLibraryLabel, { color: theme.colors.textSecondary }]}>
+                Rappel rapide de votre bibliothèque :
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                {savedExercises.map((ex) => (
+                  <TouchableOpacity
+                    key={ex.id}
+                    style={[styles.libraryChip, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                    onPress={() => {
+                      handleSelectFromLibrary(ex);
+                      setIsExerciseSheetVisible(true);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Feather name="plus" size={12} color={theme.colors.accent} style={{ marginRight: 4 }} />
+                    <Text style={[styles.libraryChipText, { color: theme.colors.text }]}>{ex.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          <View style={{ height: 40 }} />
+        </ScrollView>
+
+        {/* ========================================================================= */}
+        {/* SHEET MODAL: ADD / EDIT EXERCISE (Dedicated Apple Form Sheet)             */}
+        {/* ========================================================================= */}
+        <Modal
+          visible={isExerciseSheetVisible}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setIsExerciseSheetVisible(false)}
+        >
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+              {/* Sheet Header */}
+              <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+                <TouchableOpacity onPress={() => setIsExerciseSheetVisible(false)} style={styles.headerTextBtn}>
+                  <Text style={[styles.headerCancelText, { color: theme.colors.textSecondary }]}>Annuler</Text>
+                </TouchableOpacity>
+
+                <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+                  {editingId ? "Modifier l'exercice" : 'Nouvel exercice'}
                 </Text>
+
+                <TouchableOpacity onPress={handleSaveExerciseToSession} style={styles.headerSaveSheetBtn}>
+                  <Text style={[styles.headerSaveSheetText, { color: theme.colors.accent }]}>
+                    {editingId ? 'Mettre à jour' : 'Ajouter'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                {/* Field 1: Name */}
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>EXERCICE</Text>
+                </View>
+                <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                  <TextInput
+                    style={[styles.sheetInput, { color: theme.colors.text }]}
+                    placeholder="Nom de l'exercice (ex. Montée 2 par 2)"
+                    placeholderTextColor={theme.colors.textMuted}
+                    value={exerciseName}
+                    onChangeText={setExerciseName}
+                    maxLength={40}
+                  />
+                </View>
+
+                {/* Field 2: Target (Only if session is general team) */}
+                {targetType === 'team' && (
+                  <>
+                    <View style={styles.sectionHeader}>
+                      <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>ATTRIBUER À</Text>
+                    </View>
+                    <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                      <View style={styles.segmentedControl}>
+                        {[
+                          { id: 'all', label: 'Tout le groupe' },
+                          { id: 'subgroup', label: 'Sous-groupe' },
+                          { id: 'athlete', label: 'Athlète' },
+                        ].map((t) => {
+                          const isSelected = exTargetType === t.id;
+                          return (
+                            <TouchableOpacity
+                              key={t.id}
+                              style={[
+                                styles.segmentBtn,
+                                isSelected && [styles.segmentBtnActive, { backgroundColor: theme.colors.background }],
+                              ]}
+                              onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                setExTargetType(t.id as any);
+                              }}
+                            >
+                              <Text
+                                style={[
+                                  styles.segmentBtnText,
+                                  { color: isSelected ? theme.colors.text : theme.colors.textSecondary },
+                                ]}
+                              >
+                                {t.label}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+
+                      {exTargetType === 'subgroup' && (
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subScroll}>
+                          {subgroups.map((sg) => {
+                            const isSelected = exTargetSubgroupId === sg.id;
+                            return (
+                              <TouchableOpacity
+                                key={sg.id}
+                                style={[
+                                  styles.chip,
+                                  {
+                                    backgroundColor: isSelected ? theme.colors.accent + '20' : theme.colors.background,
+                                    borderColor: isSelected ? theme.colors.accent : theme.colors.border,
+                                  },
+                                ]}
+                                onPress={() => setExTargetSubgroupId(sg.id)}
+                              >
+                                <Text style={[styles.chipText, { color: isSelected ? theme.colors.accent : theme.colors.text }]}>
+                                  {sg.name}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </ScrollView>
+                      )}
+
+                      {exTargetType === 'athlete' && (
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subScroll}>
+                          {approvedMembers.map((m) => {
+                            const isSelected = exTargetAthleteId === m.user_id;
+                            const prof = (Array.isArray(m.profile) ? m.profile[0] : m.profile) as any;
+                            const name = prof?.full_name?.trim() || 'Athlète';
+                            return (
+                              <TouchableOpacity
+                                key={m.user_id}
+                                style={[
+                                  styles.chip,
+                                  {
+                                    backgroundColor: isSelected ? theme.colors.accent + '20' : theme.colors.background,
+                                    borderColor: isSelected ? theme.colors.accent : theme.colors.border,
+                                  },
+                                ]}
+                                onPress={() => setExTargetAthleteId(m.user_id)}
+                              >
+                                <Text style={[styles.chipText, { color: isSelected ? theme.colors.accent : theme.colors.text }]}>
+                                  {name}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </ScrollView>
+                      )}
+                    </View>
+                  </>
+                )}
+
+                {/* Field 3: Marches & Séries */}
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>RÉPÉTITIONS & SÉRIES</Text>
+                </View>
+                <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                  {/* Marches Row */}
+                  <View style={styles.settingRow}>
+                    <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Marches</Text>
+                    <View style={styles.stairsModeWrapper}>
+                      <TouchableOpacity
+                        style={[
+                          styles.stairsPillBtn,
+                          !isStairsModeManual && [styles.stairsPillActive, { backgroundColor: theme.colors.accent }],
+                        ]}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          setIsStairsModeManual(false);
+                          saveStairsMemory(manualStairsText, false);
+                        }}
+                      >
+                        <Text style={[styles.stairsPillText, { color: !isStairsModeManual ? '#FFF' : theme.colors.textSecondary }]}>
+                          Libre
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.stairsPillBtn,
+                          isStairsModeManual && [styles.stairsPillActive, { backgroundColor: theme.colors.accent }],
+                        ]}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          setIsStairsModeManual(true);
+                          saveStairsMemory(manualStairsText, true);
+                        }}
+                      >
+                        <Text style={[styles.stairsPillText, { color: isStairsModeManual ? '#FFF' : theme.colors.textSecondary }]}>
+                          Saisir
+                        </Text>
+                      </TouchableOpacity>
+
+                      {isStairsModeManual && (
+                        <TextInput
+                          style={[
+                            styles.stairsNumberInput,
+                            {
+                              backgroundColor: theme.colors.background,
+                              color: theme.colors.text,
+                              borderColor: theme.colors.border,
+                            },
+                          ]}
+                          keyboardType="number-pad"
+                          placeholder="20"
+                          placeholderTextColor={theme.colors.textMuted}
+                          value={manualStairsText}
+                          onChangeText={(val) => {
+                            setManualStairsText(val);
+                            saveStairsMemory(val, true);
+                          }}
+                          maxLength={4}
+                        />
+                      )}
+                    </View>
+                  </View>
+
+                  {/* Divider */}
+                  <View style={[styles.rowDivider, { backgroundColor: theme.colors.border }]} />
+
+                  {/* Séries Stepper Row */}
+                  <View style={styles.settingRow}>
+                    <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Nombre de séries</Text>
+                    <View style={styles.stepperContainer}>
+                      <TouchableOpacity
+                        style={[styles.stepperActionBtn, { backgroundColor: theme.colors.background }]}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          setSetsCount((prev) => Math.max(1, prev - 1));
+                        }}
+                      >
+                        <Feather name="minus" size={16} color={theme.colors.text} />
+                      </TouchableOpacity>
+
+                      <Text style={[styles.stepperNumberText, { color: theme.colors.text }]}>
+                        {setsCount}
+                      </Text>
+
+                      <TouchableOpacity
+                        style={[styles.stepperActionBtn, { backgroundColor: theme.colors.background }]}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          setSetsCount((prev) => prev + 1);
+                        }}
+                      >
+                        <Feather name="plus" size={16} color={theme.colors.text} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Field 4: Temps de Repos */}
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>RÉCUPÉRATION</Text>
+                </View>
+                <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                  {/* Repos Séries */}
+                  <TouchableOpacity style={styles.settingRow} onPress={() => openRestPicker('sets')} activeOpacity={0.6}>
+                    <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Entre les séries</Text>
+                    <View style={styles.settingRight}>
+                      <Text style={[styles.settingValueText, { color: theme.colors.accent }]}>
+                        {formatRestDisplay(restSets)}
+                      </Text>
+                      <Feather name="chevron-right" size={14} color={theme.colors.textMuted} />
+                    </View>
+                  </TouchableOpacity>
+
+                  <View style={[styles.rowDivider, { backgroundColor: theme.colors.border }]} />
+
+                  {/* Repos Exercice */}
+                  <TouchableOpacity style={styles.settingRow} onPress={() => openRestPicker('exercise')} activeOpacity={0.6}>
+                    <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Fin d'exercice</Text>
+                    <View style={styles.settingRight}>
+                      <Text style={[styles.settingValueText, { color: theme.colors.accent }]}>
+                        {formatRestDisplay(restExercise)}
+                      </Text>
+                      <Feather name="chevron-right" size={14} color={theme.colors.textMuted} />
+                    </View>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Bottom Add Action Button */}
+                <TouchableOpacity
+                  style={[styles.submitSheetBtn, { backgroundColor: theme.colors.accent }]}
+                  onPress={handleSaveExerciseToSession}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.submitSheetBtnText}>
+                    {editingId ? "Mettre à jour l'exercice" : 'Ajouter à la séance'}
+                  </Text>
+                </TouchableOpacity>
+
+                <View style={{ height: 40 }} />
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+
+        {/* Modal: Wheel Picker for Rest Time */}
+        <RestTimePickerModal
+          visible={isRestPickerVisible}
+          title={restPickerTarget === 'sets' ? 'Repos entre les séries' : "Repos après l'exercice"}
+          initialSeconds={restPickerTarget === 'sets' ? restSets : restExercise}
+          onClose={() => setIsRestPickerVisible(false)}
+          onConfirm={handleConfirmRestPicker}
+        />
+
+        {/* Modal: Manage Coach Library */}
+        <Modal
+          visible={isManageLibraryVisible}
+          animationType="slide"
+          presentationStyle="formSheet"
+          onRequestClose={() => setIsManageLibraryVisible(false)}
+        >
+          <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+            <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+              <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Ma bibliothèque d'escaliers</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setIsManageLibraryVisible(false);
+                  setEditingLibraryEx(null);
+                }}
+                style={styles.headerTextBtn}
+              >
+                <Text style={[styles.headerCancelText, { color: theme.colors.accent }]}>Fermer</Text>
               </TouchableOpacity>
             </View>
 
-            {/* Bottom Spacer */}
-            <View style={{ height: 50 }} />
-          </ScrollView>
-
-          {/* Modal: Wheel Picker for Rest Time (Minutes / Secondes) */}
-          <RestTimePickerModal
-            visible={isRestPickerVisible}
-            title={
-              restPickerTarget === 'sets'
-                ? 'Repos entre les séries'
-                : "Repos après l'exercice"
-            }
-            initialSeconds={restPickerTarget === 'sets' ? restSets : restExercise}
-            onClose={() => setIsRestPickerVisible(false)}
-            onConfirm={handleConfirmRestPicker}
-          />
-
-          {/* Modal: Gérer ma bibliothèque d'exercices */}
-          <Modal
-            visible={isManageLibraryVisible}
-            animationType="slide"
-            presentationStyle="formSheet"
-            onRequestClose={() => setIsManageLibraryVisible(false)}
-          >
-            <View style={[styles.manageModalContainer, { backgroundColor: theme.colors.background }]}>
-              <View style={[styles.manageModalHeader, { borderBottomColor: theme.colors.border }]}>
-                <Text style={[styles.manageModalTitle, { color: theme.colors.text }]}>
-                  Ma bibliothèque d'escaliers
-                </Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    setIsManageLibraryVisible(false);
-                    setEditingLibraryEx(null);
-                  }}
-                  style={[styles.closeBtn, { backgroundColor: theme.colors.surface }]}
-                >
-                  <Feather name="x" size={20} color={theme.colors.text} />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView style={{ flex: 1, padding: 16 }}>
-                {editingLibraryEx && (
-                  <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, marginBottom: 16 }]}>
-                    <Text style={[styles.sectionTitle, { color: theme.colors.text, marginBottom: 8 }]}>
-                      Modifier le nom de l'exercice
-                    </Text>
-                    <TextInput
-                      style={[styles.input, { backgroundColor: theme.colors.background, color: theme.colors.text, borderColor: theme.colors.border }]}
-                      value={editingLibraryName}
-                      onChangeText={setEditingLibraryName}
-                    />
-                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-                      <TouchableOpacity
-                        style={[styles.saveHeaderBtn, { backgroundColor: theme.colors.accent, flex: 1 }]}
-                        onPress={handleSaveLibraryEdit}
-                      >
-                        <Text style={styles.saveHeaderBtnText}>Enregistrer</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.saveHeaderBtn, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}
-                        onPress={() => setEditingLibraryEx(null)}
-                      >
-                        <Text style={[styles.saveHeaderBtnText, { color: theme.colors.text }]}>Annuler</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )}
-
-                {savedExercises.length === 0 ? (
-                  <Text style={[styles.emptySessionText, { color: theme.colors.textMuted }]}>
-                    Aucun exercice enregistré dans votre bibliothèque.
-                  </Text>
-                ) : (
-                  savedExercises.map((ex) => (
-                    <View
-                      key={ex.id}
-                      style={[
-                        styles.libraryManageItem,
-                        { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-                      ]}
+            <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+              {editingLibraryEx && (
+                <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, marginBottom: 16 }]}>
+                  <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary, marginBottom: 8 }]}>RENOMMER</Text>
+                  <TextInput
+                    style={[styles.sheetInput, { color: theme.colors.text, marginBottom: 12 }]}
+                    value={editingLibraryName}
+                    onChangeText={setEditingLibraryName}
+                  />
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <TouchableOpacity
+                      style={[styles.headerSaveBtn, { backgroundColor: theme.colors.accent, flex: 1 }]}
+                      onPress={handleSaveLibraryEdit}
                     >
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.libraryManageName, { color: theme.colors.text }]}>{ex.name}</Text>
-                        <Text style={[styles.libraryManageDetails, { color: theme.colors.textSecondary }]}>
-                          {ex.default_stairs ? `${ex.default_stairs} marches` : 'Marches libres'} • {ex.default_sets || 4} séries
-                        </Text>
-                      </View>
+                      <Text style={styles.headerSaveBtnText}>Enregistrer</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.headerSaveBtn, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}
+                      onPress={() => setEditingLibraryEx(null)}
+                    >
+                      <Text style={[styles.headerSaveBtnText, { color: theme.colors.text }]}>Annuler</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
 
-                      <View style={{ flexDirection: 'row', gap: 6 }}>
-                        <TouchableOpacity
-                          style={styles.actionBtn}
-                          onPress={() => handleStartEditLibraryEx(ex)}
-                        >
-                          <Feather name="edit-2" size={16} color={theme.colors.textSecondary} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.actionBtn}
-                          onPress={() => handleDeleteFromLibrary(ex)}
-                        >
-                          <Feather name="trash-2" size={16} color={theme.colors.error} />
-                        </TouchableOpacity>
+              {savedExercises.length === 0 ? (
+                <Text style={[styles.emptySubtitle, { color: theme.colors.textMuted, textAlign: 'center', marginTop: 40 }]}>
+                  Aucun exercice enregistré dans votre bibliothèque.
+                </Text>
+              ) : (
+                <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                  {savedExercises.map((ex, idx) => {
+                    const isLast = idx === savedExercises.length - 1;
+                    return (
+                      <View
+                        key={ex.id}
+                        style={[
+                          styles.libraryManageRow,
+                          !isLast && [styles.rowBorder, { borderBottomColor: theme.colors.border }],
+                        ]}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.libraryManageName, { color: theme.colors.text }]}>{ex.name}</Text>
+                          <Text style={[styles.libraryManageSub, { color: theme.colors.textSecondary }]}>
+                            {ex.default_stairs ? `${ex.default_stairs} marches` : 'Libre'} • {ex.default_sets || 4} séries
+                          </Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', gap: 12 }}>
+                          <TouchableOpacity onPress={() => handleStartEditLibraryEx(ex)}>
+                            <Feather name="edit-2" size={16} color={theme.colors.textSecondary} />
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => handleDeleteFromLibrary(ex)}>
+                            <Feather name="trash-2" size={16} color={theme.colors.error} />
+                          </TouchableOpacity>
+                        </View>
                       </View>
-                    </View>
-                  ))
-                )}
-              </ScrollView>
-            </View>
-          </Modal>
-        </View>
-      </KeyboardAvoidingView>
+                    );
+                  })}
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </Modal>
+      </View>
     </Modal>
   );
 };
@@ -1185,133 +1127,109 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 17,
+    fontWeight: '700',
     letterSpacing: -0.3,
   },
   headerSubtitle: {
     fontSize: 12,
-    marginTop: 2,
+    marginTop: 1,
     textTransform: 'capitalize',
   },
-  closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
+  headerTextBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 4,
   },
-  saveHeaderBtn: {
+  headerCancelText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  headerSaveBtn: {
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 7,
     borderRadius: 16,
     minWidth: 70,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  saveHeaderBtnText: {
+  headerSaveBtnText: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '700',
+  },
+  headerSaveSheetBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+  },
+  headerSaveSheetText: {
+    fontSize: 15,
+    fontWeight: '700',
   },
   scroll: {
     flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 16,
+    paddingBottom: 40,
   },
-  card: {
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 14,
+  sectionHeader: {
+    marginBottom: 6,
+    marginLeft: 4,
   },
-  cardHeaderRow: {
+  sectionHeaderBetween: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginTop: 16,
+    marginBottom: 6,
+    marginHorizontal: 4,
   },
-  cardHeaderLeft: {
+  sectionCaption: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  linkText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  groupedCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  segmentedControl: {
     flexDirection: 'row',
+    padding: 3,
+    backgroundColor: 'rgba(0,0,0,0.04)',
+  },
+  segmentBtn: {
+    flex: 1,
+    paddingVertical: 8,
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    borderRadius: 12,
   },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: -0.2,
+  segmentBtnActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  libraryCount: {
+  segmentBtnText: {
     fontSize: 12,
     fontWeight: '600',
   },
-  manageLibraryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  manageLibraryBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  emptyLibraryNotice: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    padding: 12,
-    borderRadius: 12,
-    marginTop: 4,
-  },
-  emptyLibraryText: {
-    flex: 1,
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  libraryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 14,
-    borderWidth: 1,
-    marginRight: 8,
-  },
-  libraryChipText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  targetTypeRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 10,
-  },
-  targetTypeBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 9,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 6,
-  },
-  targetTypeBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  subSelectorBox: {
-    marginTop: 10,
-  },
-  emptyHint: {
-    fontSize: 12,
-    fontStyle: 'italic',
+  subScroll: {
+    paddingHorizontal: 10,
+    paddingVertical: 10,
   },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
     marginRight: 8,
   },
@@ -1319,225 +1237,231 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-  emptySessionText: {
-    fontSize: 13,
-    fontStyle: 'italic',
-    lineHeight: 18,
-    marginTop: 4,
-  },
-  exerciseList: {
-    gap: 10,
-    marginTop: 4,
-  },
-  exerciseItemCard: {
-    borderRadius: 14,
+  emptyBox: {
+    borderRadius: 16,
     borderWidth: 1,
-    padding: 12,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  exerciseItemHeader: {
+  emptyIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 18,
+  },
+  addFirstBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 14,
   },
-  exerciseNumberBadge: {
+  addFirstBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  exerciseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  rowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  badgeNumber: {
     width: 22,
     height: 22,
     borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
+    marginRight: 10,
   },
-  exerciseNumberText: {
+  badgeNumberText: {
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '800',
   },
-  exerciseItemName: {
+  exerciseRowCenter: {
     flex: 1,
+  },
+  exerciseNameLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  exerciseRowName: {
     fontSize: 15,
     fontWeight: '700',
   },
-  exTargetBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    marginRight: 6,
+  targetMiniBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
-  exTargetBadgeText: {
+  targetMiniBadgeText: {
     fontSize: 10,
     fontWeight: '700',
   },
-  exerciseActions: {
+  exerciseRowSubtitle: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  exerciseRowActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 10,
+    marginLeft: 8,
   },
-  actionBtn: {
+  iconHit: {
     padding: 6,
   },
-  statsPillsRow: {
+  addMoreRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
     gap: 6,
   },
-  statPill: {
-    flex: 1,
-    paddingVertical: 6,
-    paddingHorizontal: 6,
-    borderRadius: 8,
-    alignItems: 'center',
+  addMoreRowText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
-  statPillLabel: {
-    fontSize: 9,
-    fontWeight: '600',
-    marginBottom: 2,
+  quickLibraryBox: {
+    marginTop: 20,
+    marginHorizontal: 4,
   },
-  statPillValue: {
+  quickLibraryLabel: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
-  formGroup: {
-    marginBottom: 16,
-  },
-  formLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    marginBottom: 6,
-  },
-  input: {
-    borderRadius: 12,
-    borderWidth: 1,
+  libraryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  stairsToggleRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 8,
-  },
-  stairsToggleBtn: {
-    flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 7,
     borderRadius: 12,
     borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginRight: 8,
   },
-  stairsToggleBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  manualStairsInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 4,
-  },
-  unitLabel: {
-    fontSize: 14,
+  libraryChipText: {
+    fontSize: 12,
     fontWeight: '600',
   },
-  largeStepperBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 8,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  largeStepperBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  largeStepperTextWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  largeStepperValue: {
-    fontSize: 24,
-    fontWeight: '800',
-  },
-  largeStepperSub: {
-    fontSize: 11,
+  sheetInput: {
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    fontSize: 15,
     fontWeight: '600',
-    marginTop: 1,
   },
-  restSelectorCard: {
+  settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 14,
     paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1,
+    minHeight: 48,
   },
-  restSelectorLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  restSelectorValue: {
+  settingLabel: {
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
   },
-  restSelectorActionBadge: {
+  settingRight: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+  },
+  settingValueText: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  rowDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: 14,
+  },
+  stairsModeWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  stairsPillBtn: {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
-    gap: 4,
   },
-  restSelectorActionText: {
-    fontSize: 12,
+  stairsPillActive: {},
+  stairsPillText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  stairsNumberInput: {
+    width: 50,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    textAlign: 'center',
+    fontSize: 14,
     fontWeight: '700',
   },
-  addExerciseBtn: {
+  stepperContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
+  },
+  stepperActionBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 14,
-    marginTop: 6,
   },
-  addExerciseBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
+  stepperNumberText: {
+    fontSize: 16,
     fontWeight: '800',
+    minWidth: 20,
+    textAlign: 'center',
   },
-  manageModalContainer: {
-    flex: 1,
+  submitSheetBtn: {
+    marginTop: 24,
+    paddingVertical: 14,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  manageModalHeader: {
+  submitSheetBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  libraryManageRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  manageModalTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  libraryManageItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    marginBottom: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   libraryManageName: {
     fontSize: 15,
     fontWeight: '700',
   },
-  libraryManageDetails: {
+  libraryManageSub: {
     fontSize: 12,
     marginTop: 2,
   },
