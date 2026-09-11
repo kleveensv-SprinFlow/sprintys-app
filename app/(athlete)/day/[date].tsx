@@ -125,9 +125,7 @@ export default function AthleteDayScreen() {
               return (
                 <WorkoutCard
                   key={w.id || i}
-                  time={timeString}
                   title={w.type_seance}
-                  type="Séance"
                   status={w.status}
                   summary={summary}
                   onPress={() => openWorkoutDetail(w)}

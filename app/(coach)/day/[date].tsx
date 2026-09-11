@@ -222,9 +222,7 @@ export default function CoachDayScreen() {
               return (
                 <View key={w.id || i} style={{ flex: 1 }}>
                   <WorkoutCard
-                    time={timeString}
                     title={w.type_seance}
-                    type="Séance Coach"
                     status={w.status}
                     summary={summary}
                     onPress={() => {

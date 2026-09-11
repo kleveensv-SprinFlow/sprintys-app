@@ -1,12 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../core/theme';
+import { getWorkoutTypeConfig } from './MonthlyCalendar';
 
 export interface WorkoutCardProps {
   time?: string;
   title: string;
-  type: string;
+  type?: string;
   duration?: string;
   status?: 'pending' | 'completed' | 'active';
   summary?: string;
@@ -14,57 +15,68 @@ export interface WorkoutCardProps {
 }
 
 export const WorkoutCard: React.FC<WorkoutCardProps> = ({
-  time = 'À définir',
   title,
   type,
-  duration = '-- min',
   status = 'pending',
   summary,
   onPress,
 }) => {
   const theme = useTheme();
 
-  // Determine colors based on status and type
   const isCompleted = status === 'completed';
   const isActive = status === 'active';
   
-  // Choose a subtle tint based on type (for BioAthlete styling)
-  let cardBg = theme.colors.surface;
-  let accentColor = theme.colors.accent;
+  // Dynamic color coding & icon from session type
+  const typeConfig = getWorkoutTypeConfig(title || type || '');
+  const cardBg = theme.colors.surface;
 
-  if (type.toLowerCase().includes('vitesse')) {
-    cardBg = isCompleted ? theme.colors.surface : theme.colors.surfaceLight;
-    accentColor = theme.colors.error; // Red for speed
-  } else if (type.toLowerCase().includes('endurance')) {
-    accentColor = theme.colors.success;
-  } else if (type.toLowerCase().includes('musculation')) {
-    accentColor = theme.colors.warning;
-  }
+  // Only display type subtitle if it's a specific informative category, not generic "Séance" / "Séance Coach"
+  const showTypeSubtitle = type && !type.toLowerCase().includes('séance');
 
   return (
     <View style={styles.containerRow}>
       <TouchableOpacity
-        style={[styles.card, { backgroundColor: cardBg, borderColor: theme.colors.border }]}
+        style={[
+          styles.card,
+          {
+            backgroundColor: cardBg,
+            borderColor: theme.colors.border,
+            borderLeftWidth: 4.5,
+            borderLeftColor: typeConfig.text,
+          },
+        ]}
         onPress={onPress}
         activeOpacity={onPress ? 0.7 : 1}
       >
         <View style={styles.header}>
-          <View>
-            <Text style={[styles.title, { color: theme.colors.text }]}>{title}</Text>
-            <Text style={[styles.type, { color: accentColor }]}>{type}</Text>
+          <View style={styles.headerLeft}>
+            <View style={[styles.iconBox, { backgroundColor: typeConfig.bg }]}>
+              <Ionicons name={typeConfig.icon} size={20} color={typeConfig.text} />
+            </View>
+            <View style={styles.titleWrapper}>
+              <Text style={[styles.title, { color: theme.colors.text }]}>{title}</Text>
+              {showTypeSubtitle && (
+                <Text style={[styles.type, { color: typeConfig.text }]}>{type}</Text>
+              )}
+            </View>
           </View>
-          <TouchableOpacity style={[styles.moreButton, { backgroundColor: theme.colors.background }]}>
+
+          <TouchableOpacity
+            style={[styles.moreButton, { backgroundColor: theme.colors.background }]}
+            onPress={onPress}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <Feather name="more-horizontal" size={20} color={theme.colors.text} />
           </TouchableOpacity>
         </View>
 
-        {summary && (
+        {summary ? (
           <View style={styles.summaryContainer}>
-            <Text style={[styles.summaryText, { color: theme.colors.textSecondary }]} numberOfLines={3}>
+            <Text style={[styles.summaryText, { color: theme.colors.textSecondary }]} numberOfLines={2}>
               {summary}
             </Text>
           </View>
-        )}
+        ) : null}
 
         {(isCompleted || isActive) && (
           <View style={styles.footer}>
@@ -90,43 +102,52 @@ export const WorkoutCard: React.FC<WorkoutCardProps> = ({
 const styles = StyleSheet.create({
   containerRow: {
     flexDirection: 'row',
-    paddingHorizontal: 24,
-    marginBottom: 20,
-  },
-  timeColumn: {
-    width: 50,
-    paddingTop: 8,
-  },
-  timeText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  timeSubText: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 2,
+    paddingHorizontal: 20,
+    marginBottom: 16,
   },
   card: {
     flex: 1,
-    borderRadius: 24,
-    padding: 20,
+    borderRadius: 20,
+    padding: 18,
     borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 2,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  iconBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleWrapper: {
+    flex: 1,
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 4,
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
   type: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
+    marginTop: 2,
   },
   moreButton: {
     width: 32,
@@ -136,12 +157,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   summaryContainer: {
-    marginTop: 16,
-    marginBottom: 16,
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0,0,0,0.06)',
   },
   summaryText: {
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '500',
   },
   footer: {
     flexDirection: 'row',
