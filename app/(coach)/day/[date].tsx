@@ -33,6 +33,7 @@ export default function CoachDayScreen() {
   const [builderTitle, setBuilderTitle] = useState('');
   const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
+  const [showAddOptions, setShowAddOptions] = useState(false);
 
   const { teams, fetchTeams, fetchSubgroups, fetchTeamMembers } = useCoachStore();
 
@@ -101,6 +102,7 @@ export default function CoachDayScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setBuilderTitle(defaultTitle);
     setBuilderType(type);
+    setShowAddOptions(false);
   }, []);
 
   const CREATION_OPTIONS = [
@@ -199,17 +201,58 @@ export default function CoachDayScreen() {
               );
             })}
 
-            {/* Apple-style floating add button */}
-            <TouchableOpacity
-              style={[styles.appleAddBtn, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-              onPress={() => openBuilder('hybrid')}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.appleAddIcon, { backgroundColor: theme.colors.accent + '15' }]}>
-                <Feather name="plus" size={18} color={theme.colors.accent} />
+            {/* Apple-style floating add button OR options list */}
+            {!showAddOptions ? (
+              <TouchableOpacity
+                style={[styles.appleAddBtn, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowAddOptions(true);
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.appleAddIcon, { backgroundColor: theme.colors.accent + '15' }]}>
+                  <Feather name="plus" size={18} color={theme.colors.accent} />
+                </View>
+                <Text style={[styles.appleAddText, { color: theme.colors.text }]}>Ajouter une autre séance</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={[styles.emptyWrapper, { marginTop: 10 }]}>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Ajouter</Text>
+                  <Text style={[styles.sectionSubtitle, { color: theme.colors.textSecondary }]}>
+                    Choisissez le type d'entraînement
+                  </Text>
+                </View>
+                <View style={styles.optionsList}>
+                  {CREATION_OPTIONS.map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={[
+                        styles.appleOptionCard,
+                        { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+                      ]}
+                      onPress={() => openBuilder(item.type, item.title)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[styles.appleIconBox, { backgroundColor: item.color + '15' }]}>
+                        <Ionicons name={item.icon} size={22} color={item.color} />
+                      </View>
+                      <View style={styles.optionContent}>
+                        <Text style={[styles.appleOptionTitle, { color: theme.colors.text }]}>{item.title}</Text>
+                      </View>
+                      <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />
+                    </TouchableOpacity>
+                  ))}
+                  <TouchableOpacity
+                    style={{ alignItems: 'center', marginTop: 12, paddingVertical: 8 }}
+                    onPress={() => setShowAddOptions(false)}
+                  >
+                    <Text style={{ color: theme.colors.textSecondary, fontWeight: '600' }}>Annuler</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-              <Text style={[styles.appleAddText, { color: theme.colors.text }]}>Ajouter une autre séance</Text>
-            </TouchableOpacity>
+            )}
           </View>
         )}
       </ScrollView>

@@ -43,17 +43,6 @@ export const WorkoutCard: React.FC<WorkoutCardProps> = ({
 
   return (
     <View style={styles.containerRow}>
-      <View style={styles.timeColumn}>
-        <Text style={[styles.timeText, { color: theme.colors.text }]}>
-          {time.split(':')[0]}
-        </Text>
-        {time.includes(':') && (
-          <Text style={[styles.timeSubText, { color: theme.colors.textMuted }]}>
-            {time.split(':')[1]}
-          </Text>
-        )}
-      </View>
-
       <TouchableOpacity
         style={[styles.card, { backgroundColor: cardBg, borderColor: theme.colors.border }]}
         onPress={onPress}
@@ -77,27 +66,22 @@ export const WorkoutCard: React.FC<WorkoutCardProps> = ({
           </View>
         )}
 
-        <View style={styles.footer}>
-          <View style={styles.footerInfo}>
-            <Feather name="clock" size={14} color={theme.colors.textMuted} />
-            <Text style={[styles.durationText, { color: theme.colors.textSecondary }]}>
-              {duration}
-            </Text>
+        {(isCompleted || isActive) && (
+          <View style={styles.footer}>
+            {isCompleted && (
+              <View style={styles.statusBadge}>
+                <Feather name="check-circle" size={14} color={theme.colors.success} />
+                <Text style={[styles.statusText, { color: theme.colors.success }]}>Terminée</Text>
+              </View>
+            )}
+            {isActive && (
+              <View style={styles.statusBadge}>
+                <Feather name="activity" size={14} color={theme.colors.accent} />
+                <Text style={[styles.statusText, { color: theme.colors.accent }]}>En cours</Text>
+              </View>
+            )}
           </View>
-
-          {isCompleted && (
-            <View style={styles.statusBadge}>
-              <Feather name="check-circle" size={14} color={theme.colors.success} />
-              <Text style={[styles.statusText, { color: theme.colors.success }]}>Terminée</Text>
-            </View>
-          )}
-          {isActive && (
-            <View style={styles.statusBadge}>
-              <Feather name="activity" size={14} color={theme.colors.accent} />
-              <Text style={[styles.statusText, { color: theme.colors.accent }]}>En cours</Text>
-            </View>
-          )}
-        </View>
+        )}
       </TouchableOpacity>
     </View>
   );
