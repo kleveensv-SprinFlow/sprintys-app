@@ -218,7 +218,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
     for (let i = 1; i <= lastDay.getDate(); i++) {
       allDays.push({ date: new Date(year, month, i), isCurrentMonth: true });
     }
-    const totalNeeded = allDays.length <= 35 ? 35 : 42;
+    const totalNeeded = 42;
     for (let i = 1; i <= totalNeeded - allDays.length; i++) {
       allDays.push({ date: new Date(year, month + 1, i), isCurrentMonth: false });
     }
@@ -249,14 +249,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
     }
   }, [isSameDay, selectedDate, onOpenDate, onSelectDate, currentMonth, navigateMonth]);
 
-  const onGridLayout = useCallback((e: LayoutChangeEvent) => {
-    setGridHeight(e.nativeEvent.layout.height);
-  }, []);
-
   const totalWeeks = weeks.length;
-  const rowGap = 4;
-  const availableGridHeight = gridHeight > 0 ? gridHeight : 480;
-  const cellHeight = Math.max(64, Math.floor((availableGridHeight - (totalWeeks - 1) * rowGap) / totalWeeks));
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]} {...panResponder.panHandlers}>
@@ -347,10 +340,9 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
           styles.gridContainer,
           { opacity: opacityAnim },
         ]}
-        onLayout={onGridLayout}
       >
         {weeks.map((week, weekIndex) => (
-          <View key={weekIndex} style={[styles.weekRow, { height: cellHeight }]}>
+          <View key={weekIndex} style={styles.weekRow}>
             {week.map((item, dayIndex) => {
               const selected = isSameDay(item.date, selectedDate);
               const isTodayCell = isToday(item.date);
@@ -563,6 +555,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   weekRow: {
+    flex: 1,
     flexDirection: 'row',
     gap: 3,
     paddingHorizontal: 2,

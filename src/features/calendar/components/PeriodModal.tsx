@@ -9,6 +9,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
@@ -17,8 +18,8 @@ import {
   TrainingPeriod,
   PERIOD_COLORS,
   PeriodTemplate,
-  DEFAULT_PERIOD_SUGGESTIONS,
 } from '../../../types/period';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { periodService } from '../../../services/periodService';
 import { useAuthStore } from '../../../store/authStore';
 import { useCoachStore } from '../../../store/coach/coachStore';
@@ -63,7 +64,6 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
   const [selectedSubgroupId, setSelectedSubgroupId] = useState<string | null>(null);
   const [selectedAthleteId, setSelectedAthleteId] = useState<string | null>(null);
 
-  const [templates, setTemplates] = useState<PeriodTemplate[]>(DEFAULT_PERIOD_SUGGESTIONS);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -96,37 +96,14 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
         setSelectedSubgroupId(null);
         setSelectedAthleteId(null);
       }
-
-      // Load saved templates for the coach
-      if (user?.id) {
-        periodService.fetchRecentTemplates(user.id).then((tpls) => {
-          if (tpls && tpls.length > 0) setTemplates(tpls);
-        });
-      }
     }
   }, [visible, periodToEdit, selectedDate, user?.id]);
 
-  // Handle template chip tap
-  const handleSelectTemplate = (tpl: PeriodTemplate) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setName(tpl.name);
-    setColor(tpl.color);
-  };
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
 
-  // Quick duration presets
-  const applyDurationPreset = (days: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    try {
-      const parts = startDateStr.split('-');
-      const s = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-      const e = addDays(s, days - 1);
-      setEndDateStr(formatDateToIso(e));
-    } catch (err) {
-      const s = new Date(selectedDate);
-      const e = addDays(s, days - 1);
-      setEndDateStr(formatDateToIso(e));
-    }
-  };
+  const startDateObj = startDateStr ? new Date(startDateStr) : new Date(selectedDate);
+  const endDateObj = endDateStr ? new Date(endDateStr) : addDays(new Date(selectedDate), 13);
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -258,35 +235,7 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
                 maxLength={35}
               />
 
-              {/* Clickable saved/suggested chips */}
-              <View style={styles.chipsContainer}>
-                {templates.map((tpl, i) => {
-                  const isSelected = name.toLowerCase().trim() === tpl.name.toLowerCase().trim();
-                  return (
-                    <TouchableOpacity
-                      key={i}
-                      style={[
-                        styles.chip,
-                        {
-                          backgroundColor: isSelected ? tpl.color + '22' : theme.colors.background,
-                          borderColor: isSelected ? tpl.color : theme.colors.border,
-                        },
-                      ]}
-                      onPress={() => handleSelectTemplate(tpl)}
-                    >
-                      <View style={[styles.chipDot, { backgroundColor: tpl.color }]} />
-                      <Text
-                        style={[
-                          styles.chipText,
-                          { color: isSelected ? tpl.color : theme.colors.textSecondary },
-                        ]}
-                      >
-                        {tpl.name}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+
             </View>
 
             {/* Field: 8 Signature Color Swatches */}
@@ -322,62 +271,88 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
 
               <View style={styles.dateInputsRow}>
                 <View style={styles.dateInputCol}>
-                  <Text style={[styles.dateSubLabel, { color: theme.colors.textSecondary }]}>Début (AAAA-MM-JJ)</Text>
-                  <TextInput
-                    style={[
-                      styles.dateInput,
-                      {
-                        backgroundColor: theme.colors.background,
-                        color: theme.colors.text,
-                        borderColor: theme.colors.border,
-                      },
-                    ]}
-                    value={startDateStr}
-                    onChangeText={setStartDateStr}
-                    placeholder="2026-09-01"
-                    placeholderTextColor={theme.colors.textMuted}
-                    maxLength={10}
-                  />
+                  <Text style={[styles.dateSubLabel, { color: theme.colors.textSecondary }]}>Début</Text>
+                  {Platform.OS === 'android' ? (
+                    <>
+                      <TouchableOpacity
+                        style={[styles.dateInput, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
+                        onPress={() => setShowStartPicker(true)}
+                      >
+                        <Text style={{ color: theme.colors.text, fontWeight: '600' }}>{startDateObj.toLocaleDateString('fr-FR')}</Text>
+                      </TouchableOpacity>
+                      {showStartPicker && (
+                        <DateTimePicker
+                          value={startDateObj}
+                          mode="date"
+                          display="default"
+                          onChange={(event, date) => {
+                            setShowStartPicker(false);
+                            if (event.type === 'set' && date) {
+                              setStartDateStr(formatDateToIso(date));
+                              if (date > endDateObj) setEndDateStr(formatDateToIso(date));
+                            }
+                          }}
+                        />
+                      )}
+                    </>
+                  ) : (
+                    <DateTimePicker
+                      value={startDateObj}
+                      mode="date"
+                      display="default"
+                      onChange={(event, date) => {
+                        if (date) {
+                          setStartDateStr(formatDateToIso(date));
+                          if (date > endDateObj) setEndDateStr(formatDateToIso(date));
+                        }
+                      }}
+                      style={{ marginTop: 4 }}
+                    />
+                  )}
                 </View>
 
                 <Feather name="arrow-right" size={18} color={theme.colors.textMuted} style={{ marginTop: 22 }} />
 
                 <View style={styles.dateInputCol}>
-                  <Text style={[styles.dateSubLabel, { color: theme.colors.textSecondary }]}>Fin (AAAA-MM-JJ)</Text>
-                  <TextInput
-                    style={[
-                      styles.dateInput,
-                      {
-                        backgroundColor: theme.colors.background,
-                        color: theme.colors.text,
-                        borderColor: theme.colors.border,
-                      },
-                    ]}
-                    value={endDateStr}
-                    onChangeText={setEndDateStr}
-                    placeholder="2026-09-14"
-                    placeholderTextColor={theme.colors.textMuted}
-                    maxLength={10}
-                  />
+                  <Text style={[styles.dateSubLabel, { color: theme.colors.textSecondary }]}>Fin</Text>
+                  {Platform.OS === 'android' ? (
+                    <>
+                      <TouchableOpacity
+                        style={[styles.dateInput, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
+                        onPress={() => setShowEndPicker(true)}
+                      >
+                        <Text style={{ color: theme.colors.text, fontWeight: '600' }}>{endDateObj.toLocaleDateString('fr-FR')}</Text>
+                      </TouchableOpacity>
+                      {showEndPicker && (
+                        <DateTimePicker
+                          value={endDateObj}
+                          mode="date"
+                          display="default"
+                          minimumDate={startDateObj}
+                          onChange={(event, date) => {
+                            setShowEndPicker(false);
+                            if (event.type === 'set' && date) {
+                              setEndDateStr(formatDateToIso(date));
+                            }
+                          }}
+                        />
+                      )}
+                    </>
+                  ) : (
+                    <DateTimePicker
+                      value={endDateObj}
+                      mode="date"
+                      display="default"
+                      minimumDate={startDateObj}
+                      onChange={(event, date) => {
+                        if (date) {
+                          setEndDateStr(formatDateToIso(date));
+                        }
+                      }}
+                      style={{ marginTop: 4 }}
+                    />
+                  )}
                 </View>
-              </View>
-
-              {/* Duration Presets */}
-              <View style={styles.presetsRow}>
-                {[
-                  { label: '1 sem.', days: 7 },
-                  { label: '2 sem.', days: 14 },
-                  { label: '3 sem.', days: 21 },
-                  { label: '1 mois', days: 30 },
-                ].map((p, i) => (
-                  <TouchableOpacity
-                    key={i}
-                    style={[styles.presetBtn, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
-                    onPress={() => applyDurationPreset(p.days)}
-                  >
-                    <Text style={[styles.presetBtnText, { color: theme.colors.text }]}>+{p.label}</Text>
-                  </TouchableOpacity>
-                ))}
               </View>
             </View>
 

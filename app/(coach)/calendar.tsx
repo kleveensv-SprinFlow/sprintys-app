@@ -17,7 +17,7 @@ import { useFocusEffect } from '@react-navigation/native';
 export default function CoachCalendarScreen() {
   const theme = useTheme();
   const { user } = useAuthStore();
-  const { fetchTeams } = useCoachStore();
+  const { teams, fetchTeams, fetchSubgroups, fetchTeamMembers } = useCoachStore();
   const router = useRouter();
 
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -50,6 +50,15 @@ export default function CoachCalendarScreen() {
       fetchTeams();
     }, [loadMonthData, selectedDate, fetchTeams])
   );
+
+  // Load team details (subgroups, members) for the period modal
+  useEffect(() => {
+    if (teams.length > 0) {
+      const activeTeamId = teams[0].id;
+      fetchSubgroups(activeTeamId);
+      fetchTeamMembers(activeTeamId);
+    }
+  }, [teams, fetchSubgroups, fetchTeamMembers]);
 
   const handleMonthChange = useCallback((year: number, month: number) => {
     loadMonthData(year, month);
@@ -137,9 +146,9 @@ const styles = StyleSheet.create({
   periodActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 24,
     borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -149,7 +158,7 @@ const styles = StyleSheet.create({
   },
   periodActionBtnText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0.2,
   },
