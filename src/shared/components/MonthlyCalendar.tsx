@@ -14,6 +14,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../core/theme';
 import * as Haptics from 'expo-haptics';
+import { TrainingPeriod } from '../../types/period';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -74,6 +75,9 @@ interface MonthlyCalendarProps {
   onOpenDate?: (date: Date) => void;
   markedDates?: Date[];
   monthWorkouts?: MonthWorkout[];
+  periods?: TrainingPeriod[];
+  onPressPeriodBadge?: (period: TrainingPeriod) => void;
+  isCoach?: boolean;
   onMonthChange?: (year: number, month: number) => void;
 }
 
@@ -83,11 +87,21 @@ const MONTH_NAMES = [
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
 ];
 
+const toLocalDateString = (d: Date): string => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
   selectedDate,
   onSelectDate,
   onOpenDate,
   monthWorkouts = [],
+  periods = [],
+  onPressPeriodBadge,
+  isCoach = false,
   onMonthChange,
 }) => {
   const theme = useTheme();
@@ -124,6 +138,23 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
     const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
     return workoutsByDay[key] || [];
   }, [workoutsByDay]);
+
+  // Find active period for any date (Option A: most recently created has visual priority)
+  const getPeriodForDate = useCallback((date: Date): TrainingPeriod | null => {
+    if (!periods || periods.length === 0) return null;
+    const dateIso = toLocalDateString(date);
+    const matching = periods.filter(p => p.start_date <= dateIso && p.end_date >= dateIso);
+    if (matching.length === 0) return null;
+    return matching.sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )[0];
+  }, [periods]);
+
+  // Active period for currently selected day
+  const activeSelectedPeriod = useMemo(
+    () => getPeriodForDate(selectedDate),
+    [getPeriodForDate, selectedDate]
+  );
 
   // Month navigation (functional update, no stale closures)
   const navigateMonth = useCallback((direction: 'prev' | 'next') => {
@@ -170,7 +201,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
     })
   ).current;
 
-  // Compute 5 or 6 weeks (each week has exactly 7 days)
+  // Compute weeks
   const weeks = useMemo(() => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
@@ -194,7 +225,6 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
       allDays.push({ date: new Date(year, month + 1, i), isCurrentMonth: false });
     }
 
-    // Slice into array of 7-day weeks
     const result: { date: Date; isCurrentMonth: boolean }[][] = [];
     for (let i = 0; i < allDays.length; i += 7) {
       result.push(allDays.slice(i, i + 7));
@@ -202,12 +232,9 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
     return result;
   }, [currentMonth]);
 
-  // === 2-step click interaction ===
-  // 1st click: selects day + smooth contour animation (no navigation)
-  // 2nd click on ALREADY selected day: opens session view
+  // 2-step click interaction
   const handleDayPress = useCallback((date: Date) => {
     if (isSameDay(date, selectedDate)) {
-      // 2nd click: Open session screen
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       if (onOpenDate) {
         onOpenDate(date);
@@ -215,7 +242,6 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
         onSelectDate(date);
       }
     } else {
-      // 1st click: Select day with smooth animation
       Haptics.selectionAsync();
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       onSelectDate(date);
@@ -236,7 +262,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]} {...panResponder.panHandlers}>
-      {/* === Header (Clean Month / Year + Arrows, no Aujourd'hui button) === */}
+      {/* === Header (< Septembre 2026 >) === */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={[styles.monthTitle, { color: theme.colors.text }]}>
@@ -268,7 +294,37 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
         </View>
       </View>
 
-      {/* === Days of Week Header (Strict 7 columns with flex: 1 matching the grid below) === */}
+      {/* === Option A: Active Phase Badge (just under header, above days of week) === */}
+      {activeSelectedPeriod && (
+        <TouchableOpacity
+          style={[
+            styles.periodBadgeRow,
+            {
+              backgroundColor: activeSelectedPeriod.color + '18',
+              borderColor: activeSelectedPeriod.color + '45',
+            },
+          ]}
+          onPress={() => {
+            if (isCoach && onPressPeriodBadge) {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onPressPeriodBadge(activeSelectedPeriod);
+            }
+          }}
+          activeOpacity={isCoach ? 0.7 : 1}
+        >
+          <View style={[styles.periodDot, { backgroundColor: activeSelectedPeriod.color }]} />
+          <Text style={[styles.periodBadgeText, { color: theme.colors.text }]} numberOfLines={1}>
+            Phase active : <Text style={{ fontWeight: '800', color: activeSelectedPeriod.color }}>{activeSelectedPeriod.name}</Text>
+          </Text>
+          {isCoach && (
+            <View style={styles.periodEditHint}>
+              <Feather name="edit-3" size={12} color={activeSelectedPeriod.color} />
+            </View>
+          )}
+        </TouchableOpacity>
+      )}
+
+      {/* === Days of Week Header === */}
       <View style={styles.dayLabelsRow}>
         {DAYS_OF_WEEK.map((day, index) => {
           const isSunday = index === 6;
@@ -287,7 +343,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
         })}
       </View>
 
-      {/* === Calendar Grid (organized in week rows for 100% perfect column alignment) === */}
+      {/* === Calendar Grid (with 15% tinted period backgrounds) === */}
       <Animated.View
         style={[
           styles.gridContainer,
@@ -304,7 +360,22 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
               const isSunday = dayIndex === 6;
               const hasWorkouts = dayWorkouts.length > 0;
 
-              // Display up to 3 pastel banners (as in user's screenshot), then +N
+              // Period covering this specific day
+              const period = item.isCurrentMonth ? getPeriodForDate(item.date) : null;
+              const periodColor = period ? period.color : null;
+
+              // Background tint calculation:
+              // - If day is in active period: 15% opacity tint of period color (#RRGGBB26)
+              // - If day has workouts but no period: subtle light tint
+              // - Else standard clean surface
+              const cellBgColor = !item.isCurrentMonth
+                ? 'transparent'
+                : periodColor
+                  ? periodColor + '26' // 15% opacity tint
+                  : hasWorkouts
+                    ? 'rgba(186, 230, 253, 0.08)'
+                    : theme.colors.surface;
+
               const visibleWorkouts = dayWorkouts.slice(0, 3);
               const extraCount = dayWorkouts.length - 3;
 
@@ -314,16 +385,12 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                   style={[
                     styles.cell,
                     {
-                      backgroundColor: !item.isCurrentMonth
-                        ? 'transparent'
-                        : selected
-                          ? theme.colors.surface
-                          : hasWorkouts
-                            ? 'rgba(186, 230, 253, 0.08)'
-                            : theme.colors.surface,
+                      backgroundColor: cellBgColor,
                       borderColor: selected
                         ? theme.colors.text
-                        : theme.colors.border,
+                        : periodColor
+                          ? periodColor + '40'
+                          : theme.colors.border,
                       borderWidth: selected ? 1.5 : StyleSheet.hairlineWidth,
                       opacity: item.isCurrentMonth ? 1 : 0.28,
                     },
@@ -358,7 +425,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                     )}
                   </View>
 
-                  {/* Horizontal pastel session banners (matching user screenshot) */}
+                  {/* Horizontal pastel session banners */}
                   {item.isCurrentMonth && hasWorkouts && (
                     <View style={styles.bannersContainer}>
                       {visibleWorkouts.map((w, i) => {
@@ -405,14 +472,14 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
 
-  // Header (no Aujourd'hui button, clean title + navigation)
+  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 8,
     paddingTop: 4,
-    paddingBottom: 10,
+    paddingBottom: 8,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -446,7 +513,34 @@ const styles = StyleSheet.create({
     height: 14,
   },
 
-  // Days of Week Header (same 7 flex:1 columns as the week rows below)
+  // Active Phase Badge (Option A: under header, above day labels)
+  periodBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginHorizontal: 8,
+    marginBottom: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 6,
+  },
+  periodDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
+  periodBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  periodEditHint: {
+    marginLeft: 2,
+    opacity: 0.8,
+  },
+
+  // Days of Week Header
   dayLabelsRow: {
     flexDirection: 'row',
     paddingHorizontal: 2,
@@ -465,7 +559,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
-  // Grid Container (weeks)
+  // Grid Container
   gridContainer: {
     flex: 1,
     gap: 4,
@@ -476,7 +570,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
 
-  // Each individual cell (slightly rounded corners, perfect column alignment)
+  // Cells
   cell: {
     flex: 1,
     borderRadius: 10,
@@ -487,7 +581,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
 
-  // Date number at the top of the cell
+  // Date number
   dateHeaderRow: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -510,7 +604,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 
-  // Pastel session banners container
+  // Session banners
   bannersContainer: {
     flex: 1,
     gap: 2,

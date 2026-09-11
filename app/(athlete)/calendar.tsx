@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useTheme } from '../../src/core/theme';
 import { Header } from '../../src/shared/components/Header';
-import { MonthlyCalendar } from '../../src/shared/components/MonthlyCalendar';
+import { MonthlyCalendar, MonthWorkout } from '../../src/shared/components/MonthlyCalendar';
 import { workoutService } from '../../src/services/workoutService';
+import { periodService } from '../../src/services/periodService';
+import { TrainingPeriod } from '../../src/types/period';
 import { useAuthStore } from '../../src/store/authStore';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function CalendarScreen() {
   const theme = useTheme();
@@ -13,31 +16,40 @@ export default function CalendarScreen() {
   const router = useRouter();
 
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [workouts, setWorkouts] = useState<any[]>([]);
+  const [monthWorkouts, setMonthWorkouts] = useState<MonthWorkout[]>([]);
+  const [periods, setPeriods] = useState<TrainingPeriod[]>([]);
 
-  useEffect(() => {
-    if (user?.id) {
-      fetchWorkouts(selectedDate);
-    }
-  }, [selectedDate, user?.id]);
-
-  const fetchWorkouts = async (date: Date) => {
+  // === Load month overview (workouts & periods in consultation mode) ===
+  const loadMonthData = useCallback(async (year: number, month: number) => {
+    if (!user?.id) return;
     try {
-      const data = await workoutService.fetchWorkoutsForDate(user!.id, date, 'athlete');
-      setWorkouts(data || []);
+      const [workoutsData, periodsData] = await Promise.all([
+        workoutService.fetchWorkoutsForMonth(user.id, year, month, 'athlete'),
+        periodService.fetchPeriodsForMonth(user.id, year, month, 'athlete'),
+      ]);
+      setMonthWorkouts(workoutsData || []);
+      setPeriods(periodsData || []);
     } catch (error) {
-      console.error('Error fetching workouts:', error);
+      console.error('Error loading athlete calendar month data:', error);
     }
-  };
+  }, [user?.id]);
 
-  const getMarkedDates = () => {
-    return workouts.length > 0 ? [selectedDate] : [];
-  };
+  useFocusEffect(
+    useCallback(() => {
+      loadMonthData(selectedDate.getFullYear(), selectedDate.getMonth());
+    }, [loadMonthData, selectedDate])
+  );
 
+  const handleMonthChange = useCallback((year: number, month: number) => {
+    loadMonthData(year, month);
+  }, [loadMonthData]);
+
+  // 1st click: selects date
   const handleSelectDate = (date: Date) => {
     setSelectedDate(date);
   };
 
+  // 2nd click on selected date: opens day view
   const handleOpenDate = (date: Date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -49,11 +61,14 @@ export default function CalendarScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header title="Calendrier" />
-      <MonthlyCalendar 
-        selectedDate={selectedDate} 
+      <MonthlyCalendar
+        selectedDate={selectedDate}
         onSelectDate={handleSelectDate}
         onOpenDate={handleOpenDate}
-        markedDates={getMarkedDates()}
+        monthWorkouts={monthWorkouts}
+        periods={periods}
+        isCoach={false}
+        onMonthChange={handleMonthChange}
       />
     </View>
   );
