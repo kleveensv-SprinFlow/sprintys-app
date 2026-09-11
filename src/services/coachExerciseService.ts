@@ -5,10 +5,13 @@ export interface CoachExercise {
   coach_id: string;
   name: string;
   category: string;
-  default_stairs: number;
+  default_stairs?: number;
   default_sets: number;
+  default_reps?: number;
+  default_weight?: number;
+  default_weight_type?: string;
   default_rest_sets: number; // in seconds
-  default_rest_exercise: number; // in seconds
+  default_rest_exercise?: number; // in seconds
   created_at: string;
 }
 
@@ -40,6 +43,9 @@ export const coachExerciseService = {
       category?: string;
       default_stairs?: number;
       default_sets?: number;
+      default_reps?: number;
+      default_weight?: number;
+      default_weight_type?: string;
       default_rest_sets?: number;
       default_rest_exercise?: number;
     }
@@ -48,15 +54,22 @@ export const coachExerciseService = {
     if (!cleanName) return null;
 
     try {
-      const payload = {
+      const payload: any = {
         coach_id: coachId,
         name: cleanName,
         category: exercise.category || 'escalier',
-        default_stairs: exercise.default_stairs || 20,
         default_sets: exercise.default_sets || 4,
         default_rest_sets: exercise.default_rest_sets || 60,
-        default_rest_exercise: exercise.default_rest_exercise || 180,
       };
+
+      if (exercise.category === 'escalier') {
+        payload.default_stairs = exercise.default_stairs || 20;
+        payload.default_rest_exercise = exercise.default_rest_exercise || 180;
+      } else if (exercise.category === 'musculation') {
+        payload.default_reps = exercise.default_reps ?? 10;
+        payload.default_weight = exercise.default_weight ?? 0;
+        payload.default_weight_type = exercise.default_weight_type || 'kg';
+      }
 
       const { data, error } = await supabase
         .from('coach_exercises')
@@ -81,6 +94,9 @@ export const coachExerciseService = {
       name?: string;
       default_stairs?: number | null;
       default_sets?: number;
+      default_reps?: number;
+      default_weight?: number;
+      default_weight_type?: string;
       default_rest_sets?: number;
       default_rest_exercise?: number;
     }

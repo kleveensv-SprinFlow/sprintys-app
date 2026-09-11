@@ -90,7 +90,14 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                         }
                         if (set.distance) setDetails.push(`${set.distance}m`);
                         if (set.duration) setDetails.push(set.duration);
-                        if (set.weight) setDetails.push(`${set.weight}kg`);
+                        if (set.weight !== undefined && set.weight !== null) {
+                          const wType = (set as any).weight_type || (set as any).weightType;
+                          if (wType === 'percent_1rm' || String(set.weight).includes('%')) {
+                            setDetails.push(`${set.weight}% 1RM`);
+                          } else {
+                            setDetails.push(`${set.weight}kg`);
+                          }
+                        }
                         if (set.restSeconds) {
                           const r = set.restSeconds >= 60 ? `${Math.floor(set.restSeconds / 60)}m${set.restSeconds % 60 ? (set.restSeconds % 60) : ''}` : `${set.restSeconds}s`;
                           setDetails.push(`Réc: ${r}`);

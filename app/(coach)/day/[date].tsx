@@ -224,13 +224,12 @@ export default function CoachDayScreen() {
         />
       </Modal>
 
-      <Modal visible={builderType === 'strength'} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setBuilderType('none')}>
-        <StrengthWorkoutBuilder
-          date={parsedDate}
-          onClose={() => setBuilderType('none')}
-          onSave={handleSaveWorkout}
-        />
-      </Modal>
+      <StrengthWorkoutBuilder
+        visible={builderType === 'strength'}
+        date={parsedDate}
+        onClose={() => setBuilderType('none')}
+        onSave={handleSaveWorkout}
+      />
 
       <StairsWorkoutBuilder
         visible={builderType === 'escalier'}
