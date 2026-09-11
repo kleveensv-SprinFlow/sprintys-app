@@ -11,6 +11,7 @@ import {
   Platform,
   StatusBar,
   KeyboardAvoidingView,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -41,6 +42,23 @@ interface CatalogExercise {
   zones?: string[] | null;
 }
 
+type ExerciseFilter = 'all' | 'haut' | 'bas' | 'haltero';
+
+const UPPER_BODY_ZONES = [
+  'haut du dos', 'grand dorsal', 'main', 'extenseurs de l’avant-bras', 'brachial',
+  'deltoïdes', 'rhomboïdes', 'biceps', 'pectoraux', 'dos', 'trapèzes',
+  'deltoïdes postérieurs', 'dentelé antérieur', 'deltoïde antérieur', 'deltoïde moyen',
+  'coiffe des rotateurs', 'deltoïdes moyens', 'épaules', 'pouce', 'deltoïde postérieur',
+  'pectoraux supérieurs', 'pectoraux inférieurs', 'triceps', 'deltoïdes antérieurs',
+  'fléchisseurs de l’avant-bras', 'avant-bras'
+];
+
+const LOWER_BODY_ZONES = [
+  'ischio-jambiers', 'moyen fessier', 'tibial antérieur', 'soléaire', 'quadriceps',
+  'adducteurs', 'abducteurs', 'gastrocnémien', 'fléchisseurs de hanche', 'jambes',
+  'mollets', 'hanches', 'fessiers'
+];
+
 export const StrengthExerciseSearchModal: React.FC<StrengthExerciseSearchModalProps> = ({
   visible,
   onClose,
@@ -56,16 +74,15 @@ export const StrengthExerciseSearchModal: React.FC<StrengthExerciseSearchModalPr
       : 16;
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState<ExerciseFilter>('all');
   const [catalogResults, setCatalogResults] = useState<CatalogExercise[]>([]);
   const [coachCustomExercises, setCoachCustomExercises] = useState<CoachExercise[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isCreatingCustom, setIsCreatingCustom] = useState(false);
 
-  // Load coach custom exercises on open
   useEffect(() => {
     if (visible && user?.id) {
       loadCoachCustoms();
-      fetchInitialCatalog();
     }
   }, [visible, user?.id]);
 
@@ -79,58 +96,48 @@ export const StrengthExerciseSearchModal: React.FC<StrengthExerciseSearchModalPr
     }
   };
 
-  const fetchInitialCatalog = async () => {
+  useEffect(() => {
+    if (!visible) return;
+    
+    const timer = setTimeout(() => {
+      fetchCatalog(searchQuery, activeFilter);
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, activeFilter, visible]);
+
+  const fetchCatalog = async (query: string, filter: ExerciseFilter) => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      const { data, error } = await supabase
-        .from('exercises_catalog')
-        .select('id, name_fr, name_en, equipment, zones')
-        .limit(30);
+      let req = supabase.from('exercises_catalog').select('id, name_fr, name_en, equipment, zones');
+      
+      if (query.trim()) {
+        const escaped = query.trim().replace(/'/g, "''");
+        req = req.or(`name_fr.ilike.%${escaped}%,name_en.ilike.%${escaped}%`);
+      }
+
+      if (filter === 'haut') {
+        req = req.overlaps('zones', UPPER_BODY_ZONES);
+      } else if (filter === 'bas') {
+        req = req.overlaps('zones', LOWER_BODY_ZONES);
+      } else if (filter === 'haltero') {
+        req = req.or('name_fr.ilike.%arraché%,name_fr.ilike.%épaulé%,name_fr.ilike.%jeté%,name_en.ilike.%snatch%,name_en.ilike.%clean%,name_en.ilike.%jerk%');
+      }
+
+      const { data, error } = await req.limit(40);
 
       if (!error && data) {
         setCatalogResults(data);
+      } else {
+        setCatalogResults([]);
       }
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error('Erreur recherche exercices catalog:', err);
+      setCatalogResults([]);
     } finally {
       setIsLoading(false);
     }
   };
-
-  // Debounced search across catalog
-  useEffect(() => {
-    if (!visible) return;
-    const clean = searchQuery.trim();
-    if (!clean) {
-      fetchInitialCatalog();
-      return;
-    }
-
-    const timer = setTimeout(async () => {
-      setIsLoading(true);
-      try {
-        const escaped = clean.replace(/'/g, "''");
-        const { data, error } = await supabase
-          .from('exercises_catalog')
-          .select('id, name_fr, name_en, equipment, zones')
-          .or(`name_fr.ilike.%${escaped}%,name_en.ilike.%${escaped}%`)
-          .limit(40);
-
-        if (!error && data) {
-          setCatalogResults(data);
-        } else {
-          setCatalogResults([]);
-        }
-      } catch (err) {
-        console.error('Erreur recherche exercices catalog:', err);
-        setCatalogResults([]);
-      } finally {
-        setIsLoading(false);
-      }
-    }, 250);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery, visible]);
 
   // Filter coach custom exercises by search query
   const filteredCoachExercises = coachCustomExercises.filter((item) => {
@@ -138,7 +145,6 @@ export const StrengthExerciseSearchModal: React.FC<StrengthExerciseSearchModalPr
     return item.name.toLowerCase().includes(searchQuery.trim().toLowerCase());
   });
 
-  // Handle select an existing catalog exercise
   const handleSelectCatalog = (item: CatalogExercise) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onSelect({
@@ -150,7 +156,6 @@ export const StrengthExerciseSearchModal: React.FC<StrengthExerciseSearchModalPr
     onClose();
   };
 
-  // Handle select coach custom exercise
   const handleSelectCoach = (item: CoachExercise) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onSelect({
@@ -161,7 +166,6 @@ export const StrengthExerciseSearchModal: React.FC<StrengthExerciseSearchModalPr
     onClose();
   };
 
-  // Handle create new coach custom exercise
   const handleCreateCustom = async () => {
     const trimmed = searchQuery.trim();
     if (!trimmed || !user?.id) return;
@@ -184,7 +188,6 @@ export const StrengthExerciseSearchModal: React.FC<StrengthExerciseSearchModalPr
         });
         onClose();
       } else {
-        // Fallback if network or duplicate
         onSelect({
           name: trimmed,
           is_custom: true,
@@ -203,7 +206,6 @@ export const StrengthExerciseSearchModal: React.FC<StrengthExerciseSearchModalPr
     }
   };
 
-  // Check if current search exactly matches any existing name
   const exactMatchExists =
     filteredCoachExercises.some((c) => c.name.toLowerCase() === searchQuery.trim().toLowerCase()) ||
     catalogResults.some(
@@ -211,6 +213,31 @@ export const StrengthExerciseSearchModal: React.FC<StrengthExerciseSearchModalPr
         c.name_fr.toLowerCase() === searchQuery.trim().toLowerCase() ||
         (c.name_en && c.name_en.toLowerCase() === searchQuery.trim().toLowerCase())
     );
+
+  const FilterPill = ({ label, value }: { label: string; value: ExerciseFilter }) => {
+    const isActive = activeFilter === value;
+    return (
+      <TouchableOpacity
+        style={[
+          styles.filterPill,
+          { backgroundColor: isActive ? theme.colors.accent : theme.colors.surface },
+          !isActive && { borderColor: theme.colors.border, borderWidth: 1 }
+        ]}
+        onPress={() => {
+          Haptics.selectionAsync();
+          setActiveFilter(value);
+        }}
+        activeOpacity={0.7}
+      >
+        <Text style={[
+          styles.filterText,
+          { color: isActive ? '#fff' : theme.colors.textSecondary }
+        ]}>
+          {label}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
@@ -239,6 +266,16 @@ export const StrengthExerciseSearchModal: React.FC<StrengthExerciseSearchModalPr
             <TouchableOpacity onPress={onClose} style={styles.cancelBtn}>
               <Text style={[styles.cancelText, { color: theme.colors.accent }]}>Annuler</Text>
             </TouchableOpacity>
+          </View>
+
+          {/* Filters */}
+          <View style={[styles.filtersContainer, { borderBottomColor: theme.colors.border }]}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersScroll}>
+              <FilterPill label="Tous" value="all" />
+              <FilterPill label="Haut du corps" value="haut" />
+              <FilterPill label="Bas du corps" value="bas" />
+              <FilterPill label="Haltérophilie" value="haltero" />
+            </ScrollView>
           </View>
 
           {/* Quick Action: Create Custom Exercise if query is typed */}
@@ -272,7 +309,7 @@ export const StrengthExerciseSearchModal: React.FC<StrengthExerciseSearchModalPr
           {isLoading ? (
             <View style={styles.loaderContainer}>
               <ActivityIndicator size="small" color={theme.colors.accent} />
-              <Text style={[styles.loaderText, { color: theme.colors.textSecondary }]}>Recherche dans la base...</Text>
+              <Text style={[styles.loaderText, { color: theme.colors.textSecondary }]}>Recherche...</Text>
             </View>
           ) : (
             <FlatList
@@ -285,7 +322,7 @@ export const StrengthExerciseSearchModal: React.FC<StrengthExerciseSearchModalPr
               ListHeaderComponent={
                 <View>
                   {/* Coach Custom Exercises Section */}
-                  {filteredCoachExercises.length > 0 && (
+                  {filteredCoachExercises.length > 0 && activeFilter === 'all' && (
                     <View style={styles.sectionBlock}>
                       <View style={styles.sectionHeader}>
                         <Feather name="bookmark" size={14} color={theme.colors.accent} style={{ marginRight: 6 }} />
@@ -331,7 +368,7 @@ export const StrengthExerciseSearchModal: React.FC<StrengthExerciseSearchModalPr
                     {catalogResults.length === 0 ? (
                       <View style={[styles.emptyBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                         <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>
-                          Aucun exercice trouvé dans le catalogue pour « {searchQuery} »
+                          Aucun exercice trouvé dans le catalogue pour « {searchQuery} » avec le filtre sélectionné.
                         </Text>
                       </View>
                     ) : (
@@ -406,6 +443,26 @@ const styles = StyleSheet.create({
   },
   cancelText: {
     fontSize: 15,
+    fontWeight: '600',
+  },
+  filtersContainer: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    backgroundColor: 'transparent',
+  },
+  filtersScroll: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+    flexDirection: 'row',
+  },
+  filterPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 0,
+  },
+  filterText: {
+    fontSize: 13,
     fontWeight: '600',
   },
   createRow: {
