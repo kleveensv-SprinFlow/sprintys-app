@@ -40,10 +40,14 @@ export default function CoachCalendarScreen() {
     fetchMonthWorkouts(year, month);
   }, [fetchMonthWorkouts]);
 
-  // === Navigate to day view ===
+  // === 1st click: Selects date and moves contour smoothly (no navigation) ===
   const handleSelectDate = useCallback((date: Date) => {
     setSelectedDate(date);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
+
+  // === 2nd click on already selected date: Opens day session view ===
+  const handleOpenDate = useCallback((date: Date) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     // YYYY-MM-DD local format
     const year = date.getFullYear();
@@ -71,6 +75,7 @@ export default function CoachCalendarScreen() {
       <MonthlyCalendar
         selectedDate={selectedDate}
         onSelectDate={handleSelectDate}
+        onOpenDate={handleOpenDate}
         monthWorkouts={monthWorkouts}
         onMonthChange={handleMonthChange}
       />
