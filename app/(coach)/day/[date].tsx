@@ -8,10 +8,12 @@ import { useAuthStore } from '../../../src/store/authStore';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { WorkoutCard } from '../../../src/shared/components/WorkoutCard';
+import { WorkoutDetailModal } from '../../../src/features/calendar/components/WorkoutDetailModal';
 import { RunWorkoutBuilder } from '../../../src/features/calendar/components/RunWorkoutBuilder';
 import { StrengthWorkoutBuilder } from '../../../src/features/calendar/components/StrengthWorkoutBuilder';
 import { StairsWorkoutBuilder } from '../../../src/features/calendar/components/StairsWorkoutBuilder';
 import { getWorkoutColor } from '../../../src/shared/components/MonthlyCalendar';
+import { useCoachStore } from '../../../src/store/coach/coachStore';
 
 const MONTH_NAMES_FULL = [
   'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
@@ -29,6 +31,22 @@ export default function CoachDayScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [builderType, setBuilderType] = useState<'none' | 'hybrid' | 'strength' | 'escalier'>('none');
   const [builderTitle, setBuilderTitle] = useState('');
+  const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
+  const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
+
+  const { teams, fetchTeams, fetchSubgroups, fetchTeamMembers } = useCoachStore();
+
+  useEffect(() => {
+    fetchTeams();
+  }, [fetchTeams]);
+
+  useEffect(() => {
+    if (teams.length > 0) {
+      const activeTeamId = teams[0].id;
+      fetchSubgroups(activeTeamId);
+      fetchTeamMembers(activeTeamId);
+    }
+  }, [teams, fetchSubgroups, fetchTeamMembers]);
 
   const dateString = date as string;
 
@@ -173,7 +191,9 @@ export default function CoachDayScreen() {
                     status={w.status}
                     summary={summary}
                     onPress={() => {
-                      alert('Édition complète en développement.');
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setSelectedWorkout(w);
+                      setIsDetailModalVisible(true);
                     }}
                   />
                 </View>
@@ -217,6 +237,12 @@ export default function CoachDayScreen() {
         date={parsedDate}
         onClose={() => setBuilderType('none')}
         onSave={handleSaveWorkout}
+      />
+
+      <WorkoutDetailModal
+        visible={isDetailModalVisible}
+        workout={selectedWorkout}
+        onClose={() => setIsDetailModalVisible(false)}
       />
     </View>
   );

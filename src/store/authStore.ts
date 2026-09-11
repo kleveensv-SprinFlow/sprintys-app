@@ -132,11 +132,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       } else {
         // Session exists, fetch fresh profile from database
-        const { data: profile } = await supabase
+        let { data: profile } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
           .maybeSingle();
+
+        if (!profile && session.user) {
+          const newProfile = {
+            id: session.user.id,
+            full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Utilisateur',
+            first_name: session.user.user_metadata?.first_name || null,
+            last_name: session.user.user_metadata?.last_name || null,
+            role: session.user.user_metadata?.role || 'athlete',
+          };
+          const { data: upserted } = await supabase
+            .from('profiles')
+            .upsert(newProfile)
+            .select()
+            .maybeSingle();
+          if (upserted) profile = upserted;
+        }
 
         const userProfile = buildUserProfile(session.user, profile);
         await AsyncStorage.setItem(CACHE_PROFILE_KEY, JSON.stringify(userProfile));
@@ -149,11 +165,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         supabase.auth.onAuthStateChange(async (event, currentSession) => {
           if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
             if (currentSession?.user) {
-              const { data: profile } = await supabase
+              let { data: profile } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', currentSession.user.id)
                 .maybeSingle();
+
+              if (!profile) {
+                const newProfile = {
+                  id: currentSession.user.id,
+                  full_name: currentSession.user.user_metadata?.full_name || currentSession.user.user_metadata?.name || 'Utilisateur',
+                  first_name: currentSession.user.user_metadata?.first_name || null,
+                  last_name: currentSession.user.user_metadata?.last_name || null,
+                  role: currentSession.user.user_metadata?.role || 'athlete',
+                };
+                const { data: upserted } = await supabase
+                  .from('profiles')
+                  .upsert(newProfile)
+                  .select()
+                  .maybeSingle();
+                if (upserted) profile = upserted;
+              }
 
               const userProfile = buildUserProfile(currentSession.user, profile);
               await AsyncStorage.setItem(CACHE_PROFILE_KEY, JSON.stringify(userProfile));
@@ -181,11 +213,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (!data.user) throw new Error('Utilisateur non trouvé');
 
       // Fetch role from profiles table
-      const { data: profile } = await supabase
+      let { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', data.user.id)
         .maybeSingle();
+
+      if (!profile) {
+        const newProfile = {
+          id: data.user.id,
+          full_name: data.user.user_metadata?.full_name || data.user.user_metadata?.name || 'Utilisateur',
+          first_name: data.user.user_metadata?.first_name || null,
+          last_name: data.user.user_metadata?.last_name || null,
+          role: data.user.user_metadata?.role || 'athlete',
+        };
+        const { data: upserted } = await supabase
+          .from('profiles')
+          .upsert(newProfile)
+          .select()
+          .maybeSingle();
+        if (upserted) profile = upserted;
+      }
 
       const userProfile = buildUserProfile(data.user, profile);
       await AsyncStorage.setItem(CACHE_PROFILE_KEY, JSON.stringify(userProfile));

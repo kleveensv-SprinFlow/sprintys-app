@@ -57,7 +57,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
 }) => {
   const theme = useTheme();
   const { user } = useAuthStore();
-  const { teams, subgroups, teamMembers } = useCoachStore();
+  const { teams, subgroups, teamMembers, fetchTeams, fetchTeamMembers, fetchSubgroups } = useCoachStore();
 
   // Session-level Target
   const [targetType, setTargetType] = useState<'team' | 'subgroup' | 'athlete'>('team');
@@ -107,19 +107,47 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
   // Load persistence and library
   useEffect(() => {
     if (visible && user?.id) {
+      if (teams.length === 0) {
+        fetchTeams();
+      }
       loadLibrary();
       loadStairsMemory();
+    }
+  }, [visible, user?.id, teams.length]);
 
-      if (subgroups.length > 0 && !selectedSubgroupId) {
-        setSelectedSubgroupId(subgroups[0].id);
-        setExTargetSubgroupId(subgroups[0].id);
+  // Ensure subgroups and members are loaded for the active team
+  useEffect(() => {
+    if (visible && teams.length > 0) {
+      const activeTeamId = teams[0].id;
+      if (teamMembers.length === 0) {
+        fetchTeamMembers(activeTeamId);
       }
-      if (approvedMembers.length > 0 && !selectedAthleteId) {
-        setSelectedAthleteId(approvedMembers[0].user_id);
-        setExTargetAthleteId(approvedMembers[0].user_id);
+      if (subgroups.length === 0) {
+        fetchSubgroups(activeTeamId);
       }
     }
-  }, [visible, user?.id, subgroups, approvedMembers]);
+  }, [visible, teams, teamMembers.length, subgroups.length]);
+
+  // Set default targets when data arrives
+  useEffect(() => {
+    if (subgroups.length > 0 && !selectedSubgroupId) {
+      setSelectedSubgroupId(subgroups[0].id);
+      setExTargetSubgroupId(subgroups[0].id);
+    }
+    if (approvedMembers.length > 0 && !selectedAthleteId) {
+      setSelectedAthleteId(approvedMembers[0].user_id);
+      setExTargetAthleteId(approvedMembers[0].user_id);
+    }
+  }, [subgroups, approvedMembers]);
+
+  // Reset transient form state when modal closes
+  useEffect(() => {
+    if (!visible) {
+      setSessionExercises([]);
+      setExerciseName('');
+      setEditingId(null);
+    }
+  }, [visible]);
 
   const loadLibrary = async () => {
     if (!user?.id) return;
@@ -354,6 +382,11 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
     try {
       const activeTeamId = teams.length > 0 ? teams[0].id : null;
 
+      // Safe date anchor at midday
+      const targetDate = new Date(date);
+      targetDate.setHours(12, 0, 0, 0);
+      const targetDateIso = targetDate.toISOString();
+
       const mapExercisesToPayload = (list: StairExerciseItem[]) =>
         list.map((ex) => ({
           id: ex.id,
@@ -382,6 +415,18 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
           return;
         }
 
+        if (approvedMembers.length === 0) {
+          Alert.alert(
+            'Aucun athlète',
+            "Aucun athlète validé n'a été trouvé dans votre équipe pour recevoir cette séance."
+          );
+          setIsSubmitting(false);
+          return;
+        }
+
+        const sharedAssignmentId = uuid.v4() as string;
+        let assignedCount = 0;
+
         // Filter per athlete so they only see their assigned exercises
         for (const member of approvedMembers) {
           const athleteFiltered = sessionExercises.filter((ex) => {
@@ -392,30 +437,49 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
           });
 
           if (athleteFiltered.length > 0) {
+            const mappedExercises = mapExercisesToPayload(athleteFiltered);
             const athletePayload = {
               type_seance: 'Escalier',
               coach_id: user.id,
               team_id: activeTeamId,
               athlete_id: member.user_id,
-              date_prevue: date.toISOString(),
+              group_assignment_id: sharedAssignmentId,
+              date_prevue: targetDateIso,
               description: `${athleteFiltered.length} exercice${athleteFiltered.length > 1 ? 's' : ''} d'escalier`,
-              exercises: mapExercisesToPayload(athleteFiltered),
+              exercises: mappedExercises,
               blocks: [
                 {
                   id: uuid.v4() as string,
                   name: 'Corps de séance Escalier',
                   type: 'plyo',
-                  exercises: mapExercisesToPayload(athleteFiltered),
+                  exercises: mappedExercises,
                 },
               ],
               status: 'pending',
             };
 
             await workoutService.createPlannedWorkout(athletePayload);
+            assignedCount++;
           }
+        }
+
+        if (assignedCount === 0) {
+          Alert.alert(
+            'Information',
+            'Aucun athlète ne correspond aux cibles choisies pour les exercices.'
+          );
+          setIsSubmitting(false);
+          return;
         }
       } else if (targetType === 'subgroup') {
         const subMembers = approvedMembers.filter((m) => m.subgroup_id === selectedSubgroupId);
+        if (subMembers.length === 0) {
+          Alert.alert('Sous-groupe vide', "Aucun athlète validé n'est présent dans ce sous-groupe.");
+          setIsSubmitting(false);
+          return;
+        }
+
+        const sharedAssignmentId = uuid.v4() as string;
         for (const member of subMembers) {
           const athleteFiltered = sessionExercises.filter((ex) => {
             if (!ex.target || ex.target.type === 'all' || ex.target.type === 'subgroup') return true;
@@ -424,51 +488,72 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
           });
 
           if (athleteFiltered.length > 0) {
+            const mappedExercises = mapExercisesToPayload(athleteFiltered);
             const athletePayload = {
               type_seance: 'Escalier',
               coach_id: user.id,
               team_id: activeTeamId,
               subgroup_id: selectedSubgroupId,
               athlete_id: member.user_id,
-              date_prevue: date.toISOString(),
+              group_assignment_id: sharedAssignmentId,
+              date_prevue: targetDateIso,
               description: `${athleteFiltered.length} exercice${athleteFiltered.length > 1 ? 's' : ''} d'escalier`,
-              exercises: mapExercisesToPayload(athleteFiltered),
+              exercises: mappedExercises,
+              blocks: [
+                {
+                  id: uuid.v4() as string,
+                  name: 'Corps de séance Escalier',
+                  type: 'plyo',
+                  exercises: mappedExercises,
+                },
+              ],
               status: 'pending',
             };
             await workoutService.createPlannedWorkout(athletePayload);
           }
         }
       } else {
+        const mappedExercises = mapExercisesToPayload(sessionExercises);
         const athletePayload = {
           type_seance: 'Escalier',
           coach_id: user.id,
           team_id: activeTeamId,
           athlete_id: selectedAthleteId!,
-          date_prevue: date.toISOString(),
+          date_prevue: targetDateIso,
           description: `${sessionExercises.length} exercice${sessionExercises.length > 1 ? 's' : ''} d'escalier`,
-          exercises: mapExercisesToPayload(sessionExercises),
+          exercises: mappedExercises,
+          blocks: [
+            {
+              id: uuid.v4() as string,
+              name: 'Corps de séance Escalier',
+              type: 'plyo',
+              exercises: mappedExercises,
+            },
+          ],
           status: 'pending',
         };
         await workoutService.createPlannedWorkout(athletePayload);
       }
 
       // Persist unique exercises to personal library
-      sessionExercises.forEach((ex) => {
-        coachExerciseService.saveExercise(user.id, {
-          name: ex.name,
-          default_stairs: ex.stairs || undefined,
-          default_sets: ex.setsCount,
-          default_rest_sets: ex.restSets,
-          default_rest_exercise: ex.restExercise,
-        });
-      });
+      await Promise.all(
+        sessionExercises.map((ex) =>
+          coachExerciseService.saveExercise(user.id, {
+            name: ex.name,
+            default_stairs: ex.stairs || undefined,
+            default_sets: ex.setsCount,
+            default_rest_sets: ex.restSets,
+            default_rest_exercise: ex.restExercise,
+          })
+        )
+      );
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onSave();
       onClose();
     } catch (err: any) {
       console.error('Error saving stairs workout:', err);
-      Alert.alert('Erreur', "Impossible d'enregistrer la séance. Veuillez réessayer.");
+      Alert.alert('Erreur', err?.message || "Impossible d'enregistrer la séance. Veuillez réessayer.");
     } finally {
       setIsSubmitting(false);
     }
