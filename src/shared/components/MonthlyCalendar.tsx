@@ -5,40 +5,40 @@ import { useTheme } from '../../core/theme';
 import * as Haptics from 'expo-haptics';
 
 // === Workout type colors & abbreviations ===
-export const TYPE_CONFIG: Record<string, { abbr: string; color: string; bg: string }> = {
-  musculation: { abbr: 'Muscu', color: '#6366F1', bg: 'rgba(99, 102, 241, 0.15)' },
-  force: { abbr: 'Muscu', color: '#6366F1', bg: 'rgba(99, 102, 241, 0.15)' },
-  strength: { abbr: 'Muscu', color: '#6366F1', bg: 'rgba(99, 102, 241, 0.15)' },
-  sprint: { abbr: 'Sprint', color: '#EF4444', bg: 'rgba(239, 68, 68, 0.15)' },
-  vitesse: { abbr: 'Sprint', color: '#EF4444', bg: 'rgba(239, 68, 68, 0.15)' },
-  'vitesse maximale': { abbr: 'Sprint', color: '#EF4444', bg: 'rgba(239, 68, 68, 0.15)' },
-  course: { abbr: 'Course', color: '#EF4444', bg: 'rgba(239, 68, 68, 0.15)' },
-  lactique: { abbr: 'Lactique', color: '#F97316', bg: 'rgba(249, 115, 22, 0.15)' },
-  'endurance sprint': { abbr: 'Lactique', color: '#F97316', bg: 'rgba(249, 115, 22, 0.15)' },
-  aérobie: { abbr: 'Aérobie', color: '#0EA5E9', bg: 'rgba(14, 165, 233, 0.15)' },
-  endurance: { abbr: 'Aérobie', color: '#0EA5E9', bg: 'rgba(14, 165, 233, 0.15)' },
-  technique: { abbr: 'Technique', color: '#10B981', bg: 'rgba(16, 185, 129, 0.15)' },
-  pliométrie: { abbr: 'Plio', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.15)' },
-  plyo: { abbr: 'Plio', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.15)' },
-  puissance: { abbr: 'Plio', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.15)' },
-  récupération: { abbr: 'Récup', color: '#14B8A6', bg: 'rgba(20, 184, 166, 0.15)' },
-  repos: { abbr: 'Repos', color: '#6B7280', bg: 'rgba(107, 114, 128, 0.15)' },
-  'jour de repos': { abbr: 'Repos', color: '#6B7280', bg: 'rgba(107, 114, 128, 0.15)' },
-  compétition: { abbr: 'Compet', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.15)' },
-  competition: { abbr: 'Compet', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.15)' },
-  escaliers: { abbr: 'Escaliers', color: '#A855F7', bg: 'rgba(168, 85, 247, 0.15)' },
-  escalier: { abbr: 'Escaliers', color: '#A855F7', bg: 'rgba(168, 85, 247, 0.15)' },
-  échauffement: { abbr: 'Échauff.', color: '#FB923C', bg: 'rgba(251, 146, 60, 0.15)' },
-  warmup: { abbr: 'Échauff.', color: '#FB923C', bg: 'rgba(251, 146, 60, 0.15)' },
+export const TYPE_CONFIG: Record<string, { abbr: string; color: string }> = {
+  musculation: { abbr: 'Muscu', color: '#6366F1' },
+  force: { abbr: 'Muscu', color: '#6366F1' },
+  strength: { abbr: 'Muscu', color: '#6366F1' },
+  sprint: { abbr: 'Sprint', color: '#EF4444' },
+  vitesse: { abbr: 'Sprint', color: '#EF4444' },
+  'vitesse maximale': { abbr: 'Sprint', color: '#EF4444' },
+  course: { abbr: 'Course', color: '#EF4444' },
+  lactique: { abbr: 'Lactique', color: '#F97316' },
+  'endurance sprint': { abbr: 'Lactique', color: '#F97316' },
+  aérobie: { abbr: 'Aérobie', color: '#0EA5E9' },
+  endurance: { abbr: 'Aérobie', color: '#0EA5E9' },
+  technique: { abbr: 'Technique', color: '#10B981' },
+  pliométrie: { abbr: 'Plio', color: '#8B5CF6' },
+  plyo: { abbr: 'Plio', color: '#8B5CF6' },
+  puissance: { abbr: 'Plio', color: '#8B5CF6' },
+  récupération: { abbr: 'Récup', color: '#14B8A6' },
+  repos: { abbr: 'Repos', color: '#6B7280' },
+  'jour de repos': { abbr: 'Repos', color: '#6B7280' },
+  compétition: { abbr: 'Compet', color: '#F59E0B' },
+  competition: { abbr: 'Compet', color: '#F59E0B' },
+  escaliers: { abbr: 'Escaliers', color: '#A855F7' },
+  escalier: { abbr: 'Escaliers', color: '#A855F7' },
+  échauffement: { abbr: 'Échauff.', color: '#FB923C' },
+  warmup: { abbr: 'Échauff.', color: '#FB923C' },
 };
 
-export function getWorkoutTypeConfig(typeSeance: string): { abbr: string; color: string; bg: string } {
+export function getWorkoutTypeConfig(typeSeance: string): { abbr: string; color: string } {
   const lower = (typeSeance || '').toLowerCase().trim();
   if (TYPE_CONFIG[lower]) return TYPE_CONFIG[lower];
   for (const [key, config] of Object.entries(TYPE_CONFIG)) {
     if (lower.includes(key)) return config;
   }
-  return { abbr: typeSeance?.substring(0, 8) || 'Séance', color: '#6B7280', bg: 'rgba(107, 114, 128, 0.15)' };
+  return { abbr: typeSeance?.substring(0, 8) || 'Séance', color: '#6B7280' };
 }
 
 export function getWorkoutColor(typeSeance: string): string {
@@ -107,7 +107,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
     return workoutsByDay[key] || [];
   }, [workoutsByDay]);
 
-  // === Safe Month Navigation (Functional state to eliminate stale closures) ===
+  // === Safe Month Navigation ===
   const navigateMonth = useCallback((direction: 'prev' | 'next') => {
     const toValue = direction === 'next' ? -50 : 50;
 
@@ -124,14 +124,13 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
       slideAnim.setValue(-toValue);
       Animated.parallel([
         Animated.timing(opacityAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
-        Animated.timing(slideAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue, duration: 150, useNativeDriver: true }),
       ]).start();
     });
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, [onMonthChange, opacityAnim, slideAnim]);
 
-  // Keep a fresh reference to navigateMonth for PanResponder
   const navigateMonthRef = useRef(navigateMonth);
   useEffect(() => {
     navigateMonthRef.current = navigateMonth;
@@ -146,7 +145,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }, [onSelectDate, onMonthChange]);
 
-  // Swipe gesture handler with ALWAYS up-to-date handler
+  // PanResponder with fresh callback
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
@@ -162,7 +161,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
     })
   ).current;
 
-  // Compute 35 or 42 calendar days
+  // Calendar grid computation
   const calendarData = useMemo(() => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
@@ -202,18 +201,16 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
     setGridHeight(e.nativeEvent.layout.height);
   }, []);
 
-  // Adaptive widget tile height based on screen size
   const totalRows = calendarData.numRows;
-  const verticalGap = 6;
-  const availableGridHeight = gridHeight > 0 ? gridHeight : 460;
-  const cellHeight = Math.max(58, Math.floor((availableGridHeight - (totalRows - 1) * verticalGap) / totalRows));
+  const availableGridHeight = gridHeight > 0 ? gridHeight : 480;
+  const cellHeight = Math.floor(availableGridHeight / totalRows);
 
   const isCurrentMonthToday = currentMonth.getMonth() === today.getMonth() &&
                                currentMonth.getFullYear() === today.getFullYear();
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]} {...panResponder.panHandlers}>
-      {/* === Apple-Style Floating Header === */}
+      {/* === Preserved Clean Navigation Header === */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={[styles.monthTitle, { color: theme.colors.text }]}>
@@ -258,16 +255,16 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
         </View>
       </View>
 
-      {/* === Apple-Style Day Labels === */}
-      <View style={styles.dayLabelsRow}>
+      {/* === Days of Week Header (clean line like screenshot) === */}
+      <View style={[styles.dayLabelsRow, { borderBottomColor: theme.colors.border }]}>
         {DAYS_OF_WEEK.map((day, index) => {
-          const isWeekend = index >= 5;
+          const isSunday = index === 6;
           return (
             <View key={index} style={styles.dayLabelCell}>
               <Text
                 style={[
                   styles.dayLabelText,
-                  { color: isWeekend ? theme.colors.error : theme.colors.textMuted },
+                  { color: isSunday ? '#E11D48' : theme.colors.textSecondary },
                 ]}
               >
                 {day}
@@ -277,7 +274,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
         })}
       </View>
 
-      {/* === Full-Screen Grid with Apple "Widget Tile" Aesthetics === */}
+      {/* === Grid inspired by the requested visual (tall clean columns, subtle dividers, rounded outline for selected) === */}
       <Animated.View
         style={[
           styles.grid,
@@ -289,9 +286,14 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
           const selected = isSameDay(item.date, selectedDate);
           const isTodayCell = isToday(item.date);
           const dayWorkouts = getWorkoutsForDay(item.date);
-          const isWeekend = item.date.getDay() === 0 || item.date.getDay() === 6;
+          const isSunday = item.date.getDay() === 0;
 
-          // Max 2 workouts displayed as sleek iOS pills, rest shown with a "+N" counter
+          const col = index % 7;
+          const row = Math.floor(index / 7);
+          const isLastCol = col === 6;
+          const isLastRow = row === totalRows - 1;
+
+          // Max 2 workouts displayed in the tall cell
           const visibleWorkouts = dayWorkouts.slice(0, 2);
           const extraCount = dayWorkouts.length - 2;
 
@@ -299,90 +301,90 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
             <TouchableOpacity
               key={index}
               style={[
-                styles.cellTile,
+                styles.cell,
                 {
                   height: cellHeight,
-                  backgroundColor: !item.isCurrentMonth
-                    ? 'transparent'
-                    : selected
-                      ? theme.colors.accent + '12'
-                      : isWeekend
-                        ? theme.colors.surfaceLight + '70'
-                        : theme.colors.surface,
-                  borderColor: selected
-                    ? theme.colors.accent
-                    : isTodayCell
-                      ? theme.colors.accent + '60'
-                      : theme.colors.border,
-                  borderWidth: selected ? 2 : StyleSheet.hairlineWidth,
-                  opacity: item.isCurrentMonth ? 1 : 0.35,
+                  borderRightWidth: isLastCol ? 0 : StyleSheet.hairlineWidth,
+                  borderBottomWidth: isLastRow ? 0 : StyleSheet.hairlineWidth,
+                  borderRightColor: theme.colors.border,
+                  borderBottomColor: theme.colors.border,
                 },
               ]}
               onPress={() => handleSelectDate(item.date)}
               activeOpacity={0.7}
             >
-              {/* Day Header (Number with Apple style) */}
-              <View style={styles.tileHeader}>
-                <View
-                  style={[
-                    styles.dayBadge,
-                    isTodayCell && { backgroundColor: theme.colors.accent },
-                    selected && !isTodayCell && { backgroundColor: theme.colors.accent + '25' },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.dayNumber,
-                      {
-                        color: isTodayCell
-                          ? '#FFFFFF'
-                          : selected
-                            ? theme.colors.accent
-                            : isWeekend
-                              ? theme.colors.error
-                              : theme.colors.text,
-                        fontWeight: isTodayCell || selected ? '800' : '600',
-                      },
-                    ]}
-                  >
-                    {item.date.getDate()}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Workout Type Capsules (Apple iOS Pills) */}
-              {item.isCurrentMonth && dayWorkouts.length > 0 && (
-                <View style={styles.pillsContainer}>
-                  {visibleWorkouts.map((w, i) => {
-                    const config = getWorkoutTypeConfig(w.type_seance);
-                    return (
-                      <View
-                        key={i}
-                        style={[
-                          styles.workoutPill,
-                          { backgroundColor: config.bg, borderColor: config.color + '40' },
-                        ]}
-                      >
-                        <View style={[styles.pillDot, { backgroundColor: config.color }]} />
-                        <Text
-                          style={[styles.workoutPillText, { color: config.color }]}
-                          numberOfLines={1}
-                        >
-                          {config.abbr}
-                        </Text>
-                      </View>
-                    );
-                  })}
-
-                  {extraCount > 0 && (
-                    <View style={[styles.extraPill, { backgroundColor: theme.colors.surfaceLight }]}>
-                      <Text style={[styles.extraPillText, { color: theme.colors.textSecondary }]}>
-                        +{extraCount}
+              {/* Inner wrapper: when selected, creates the rounded outlined box shown in the screenshot */}
+              <View
+                style={[
+                  styles.innerCellContent,
+                  selected && [
+                    styles.selectedOutlineBox,
+                    { borderColor: theme.colors.text },
+                  ],
+                ]}
+              >
+                {/* Day number header */}
+                <View style={styles.dateHeaderRow}>
+                  {isTodayCell ? (
+                    // In screenshot: Today has a dark pill/squircle badge
+                    <View style={[styles.todayNumberBadge, { backgroundColor: theme.colors.text }]}>
+                      <Text style={[styles.todayNumberText, { color: theme.colors.background }]}>
+                        {item.date.getDate()}
                       </Text>
                     </View>
+                  ) : (
+                    // Regular number, dimmed if out of month, red on Sunday
+                    <Text
+                      style={[
+                        styles.dayNumberText,
+                        {
+                          color: !item.isCurrentMonth
+                            ? theme.colors.border
+                            : isSunday
+                              ? '#E11D48'
+                              : theme.colors.text,
+                        },
+                      ]}
+                    >
+                      {item.date.getDate()}
+                    </Text>
                   )}
                 </View>
-              )}
+
+                {/* Workout entries: subtle tinted cards with left colored stripe (like day 31 in screenshot) */}
+                {item.isCurrentMonth && dayWorkouts.length > 0 && (
+                  <View style={styles.workoutsContainer}>
+                    {visibleWorkouts.map((w, i) => {
+                      const config = getWorkoutTypeConfig(w.type_seance);
+                      return (
+                        <View
+                          key={i}
+                          style={[
+                            styles.workoutStripeCard,
+                            {
+                              backgroundColor: config.color + '14',
+                              borderLeftColor: config.color,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[styles.workoutStripeText, { color: config.color }]}
+                            numberOfLines={1}
+                          >
+                            {config.abbr}
+                          </Text>
+                        </View>
+                      );
+                    })}
+
+                    {extraCount > 0 && (
+                      <Text style={[styles.extraCountText, { color: theme.colors.textMuted }]}>
+                        +{extraCount}
+                      </Text>
+                    )}
+                  </View>
+                )}
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -394,17 +396,15 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 8,
-    paddingBottom: 6,
   },
 
-  // Apple-Style Header
+  // Preserved Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    paddingTop: 4,
+    paddingHorizontal: 16,
+    paddingTop: 6,
     paddingBottom: 10,
   },
   headerLeft: {
@@ -456,11 +456,12 @@ const styles = StyleSheet.create({
     height: 14,
   },
 
-  // Day Labels
+  // Days of Week Header
   dayLabelsRow: {
     flexDirection: 'row',
-    paddingHorizontal: 2,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     paddingBottom: 6,
+    paddingTop: 2,
   },
   dayLabelCell: {
     flex: 1,
@@ -471,86 +472,92 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.3,
-    textTransform: 'uppercase',
   },
 
-  // Grid
+  // Full-Screen Grid (like screenshot)
   grid: {
     flex: 1,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    rowGap: 6,
   },
 
-  // Apple "Widget Tile" Cell
-  cellTile: {
-    width: '13.6%',
-    borderRadius: 12,
-    paddingHorizontal: 2,
-    paddingVertical: 3,
-    justifyContent: 'flex-start',
+  // Each day column cell
+  cell: {
+    width: '14.285%',
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  tileHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
-  },
-  dayBadge: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayNumber: {
-    fontSize: 11,
+    padding: 1.5,
   },
 
-  // Workout Pills Container
-  pillsContainer: {
+  // Inner wrapper
+  innerCellContent: {
     flex: 1,
-    gap: 2,
+    borderRadius: 10,
+    padding: 2,
     justifyContent: 'flex-start',
-    width: '100%',
+    alignItems: 'stretch',
   },
-  workoutPill: {
-    flexDirection: 'row',
+
+  // Active/Selected state: rounded rectangle outline border like day 11 in screenshot
+  selectedOutlineBox: {
+    borderWidth: 1.5,
+    borderRadius: 10,
+  },
+
+  // Date Header Row
+  dateHeaderRow: {
     alignItems: 'center',
-    paddingHorizontal: 3,
+    justifyContent: 'center',
+    marginTop: 2,
+    marginBottom: 3,
+    minHeight: 22,
+  },
+
+  // Normal day number
+  dayNumberText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  // Today Badge (black pill badge with white text, like screenshot)
+  todayNumberBadge: {
+    paddingHorizontal: 5,
     paddingVertical: 1.5,
     borderRadius: 6,
-    borderWidth: StyleSheet.hairlineWidth,
+    minWidth: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  todayNumberText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+
+  // Workouts Container inside tall cell
+  workoutsContainer: {
+    flex: 1,
+    gap: 2,
+    marginTop: 2,
     width: '100%',
   },
-  pillDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    marginRight: 2.5,
+
+  // Subtle striped workout card (like day 31 in screenshot)
+  workoutStripeCard: {
+    borderLeftWidth: 2,
+    borderTopRightRadius: 3,
+    borderBottomRightRadius: 3,
+    paddingVertical: 1.5,
+    paddingHorizontal: 3,
+    width: '100%',
   },
-  workoutPillText: {
+  workoutStripeText: {
     fontSize: 8.5,
     fontWeight: '700',
     letterSpacing: -0.2,
-    flexShrink: 1,
   },
-  extraPill: {
-    alignSelf: 'center',
-    paddingHorizontal: 4,
-    paddingVertical: 0.5,
-    borderRadius: 4,
-    marginTop: 1,
-  },
-  extraPillText: {
+  extraCountText: {
     fontSize: 8,
     fontWeight: '800',
+    alignSelf: 'center',
+    marginTop: 1,
   },
 });
