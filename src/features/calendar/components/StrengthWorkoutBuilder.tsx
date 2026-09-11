@@ -958,35 +958,22 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
             <Text style={[styles.addExerciseMainText, { color: theme.colors.text }]}>Ajouter un exercice</Text>
           </TouchableOpacity>
 
-          {/* SECTION: MA BIBLIOTHÈQUE DE MUSCULATION */}
+          {/* BOUTON SECONDAIRE : CHOISIR DEPUIS LA BIBLIOTHÈQUE */}
           {coachSavedExercises.length > 0 && (
-            <View style={styles.librarySection}>
-              <View style={styles.libraryHeader}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Feather name="bookmark" size={14} color={theme.colors.accent} style={{ marginRight: 6 }} />
-                  <Text style={[styles.libraryTitle, { color: theme.colors.textSecondary }]}>
-                    MA BIBLIOTHÈQUE DE MUSCULATION
-                  </Text>
-                </View>
-                <TouchableOpacity onPress={() => setIsManageLibraryVisible(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                  <Text style={[styles.manageLibraryBtnText, { color: theme.colors.accent }]}>Gérer</Text>
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.libraryScroll}>
-                {coachSavedExercises.map((ex) => (
-                  <TouchableOpacity
-                    key={ex.id}
-                    style={[styles.libraryChip, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-                    onPress={() => handleSelectFromLibraryChip(ex)}
-                    activeOpacity={0.7}
-                  >
-                    <Feather name="plus" size={12} color={theme.colors.accent} style={{ marginRight: 4 }} />
-                    <Text style={[styles.libraryChipText, { color: theme.colors.text }]}>{ex.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
+            <TouchableOpacity
+              style={[
+                styles.libraryPickerSecondaryBtn,
+                { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+              ]}
+              onPress={() => setIsManageLibraryVisible(true)}
+              activeOpacity={0.7}
+            >
+              <Feather name="book-open" size={16} color={theme.colors.accent} style={{ marginRight: 10 }} />
+              <Text style={[styles.libraryPickerSecondaryText, { color: theme.colors.text }]}>
+                Choisir depuis ma bibliothèque ({coachSavedExercises.length})
+              </Text>
+              <Feather name="chevron-right" size={16} color={theme.colors.textMuted} style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
           )}
 
           <View style={{ height: 40 }} />
@@ -1428,35 +1415,62 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
                   Aucun exercice personnalisé dans votre bibliothèque.
                 </Text>
               ) : (
-                <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                  {coachSavedExercises.map((ex, idx) => {
-                    const isLast = idx === coachSavedExercises.length - 1;
-                    return (
-                      <View
-                        key={ex.id}
-                        style={[
-                          styles.libraryManageRow,
-                          !isLast && [styles.rowBorder, { borderBottomColor: theme.colors.border }],
-                        ]}
-                      >
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.libraryManageName, { color: theme.colors.text }]}>{ex.name}</Text>
-                          <Text style={[styles.libraryManageSub, { color: theme.colors.textSecondary }]}>
-                            {ex.default_sets || 4} séries • {ex.default_reps || 10} reps
-                          </Text>
-                        </View>
-                        <View style={{ flexDirection: 'row', gap: 12 }}>
-                          <TouchableOpacity onPress={() => handleStartEditLibraryEx(ex)}>
-                            <Feather name="edit-2" size={16} color={theme.colors.textSecondary} />
+                <>
+                  <View style={{ marginBottom: 12, marginHorizontal: 4 }}>
+                    <Text style={{ fontSize: 13, color: theme.colors.textSecondary, fontWeight: '500' }}>
+                      Touchez un exercice pour l'ajouter à votre séance :
+                    </Text>
+                  </View>
+                  <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                    {coachSavedExercises.map((ex, idx) => {
+                      const isLast = idx === coachSavedExercises.length - 1;
+                      return (
+                        <View
+                          key={ex.id}
+                          style={[
+                            styles.libraryManageRow,
+                            !isLast && [styles.rowBorder, { borderBottomColor: theme.colors.border }],
+                          ]}
+                        >
+                          <TouchableOpacity
+                            style={{ flex: 1 }}
+                            onPress={() => {
+                              handleSelectFromLibraryChip(ex);
+                              setIsManageLibraryVisible(false);
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={[styles.libraryManageName, { color: theme.colors.text }]}>{ex.name}</Text>
+                            <Text style={[styles.libraryManageSub, { color: theme.colors.textSecondary }]}>
+                              {ex.default_sets || 4} séries • {ex.default_reps || 10} reps
+                            </Text>
                           </TouchableOpacity>
-                          <TouchableOpacity onPress={() => handleDeleteFromLibrary(ex)}>
-                            <Feather name="trash-2" size={16} color={theme.colors.error} />
-                          </TouchableOpacity>
+
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <TouchableOpacity
+                              style={[styles.libraryPickRowBtn, { backgroundColor: theme.colors.accent + '15' }]}
+                              onPress={() => {
+                                handleSelectFromLibraryChip(ex);
+                                setIsManageLibraryVisible(false);
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              <Feather name="plus" size={13} color={theme.colors.accent} style={{ marginRight: 4 }} />
+                              <Text style={[styles.libraryPickRowText, { color: theme.colors.accent }]}>Choisir</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity onPress={() => handleStartEditLibraryEx(ex)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                              <Feather name="edit-2" size={16} color={theme.colors.textSecondary} />
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => handleDeleteFromLibrary(ex)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                              <Feather name="trash-2" size={16} color={theme.colors.error} />
+                            </TouchableOpacity>
+                          </View>
                         </View>
-                      </View>
-                    );
-                  })}
-                </View>
+                      );
+                    })}
+                  </View>
+                </>
               )}
             </ScrollView>
           </View>
@@ -1886,5 +1900,30 @@ const styles = StyleSheet.create({
   },
   rowBorder: {
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  libraryPickerSecondaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginTop: 10,
+    width: '100%',
+  },
+  libraryPickerSecondaryText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  libraryPickRowBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  libraryPickRowText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

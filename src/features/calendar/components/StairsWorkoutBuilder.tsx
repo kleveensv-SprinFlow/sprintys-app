@@ -832,6 +832,23 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                 <Feather name="plus" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
                 <Text style={styles.addFirstBtnText}>Ajouter un exercice</Text>
               </TouchableOpacity>
+
+              {savedExercises.length > 0 && (
+                <TouchableOpacity
+                  style={[
+                    styles.libraryPickerSecondaryBtn,
+                    { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+                  ]}
+                  onPress={() => setIsManageLibraryVisible(true)}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="book-open" size={15} color={theme.colors.accent} style={{ marginRight: 8 }} />
+                  <Text style={[styles.libraryPickerSecondaryText, { color: theme.colors.text }]}>
+                    Choisir depuis ma bibliothèque ({savedExercises.length})
+                  </Text>
+                  <Feather name="chevron-right" size={16} color={theme.colors.textMuted} style={{ marginLeft: 'auto' }} />
+                </TouchableOpacity>
+              )}
             </View>
           ) : (
             <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
@@ -888,31 +905,21 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                 <Feather name="plus-circle" size={16} color={theme.colors.accent} />
                 <Text style={[styles.addMoreRowText, { color: theme.colors.accent }]}>Ajouter un autre exercice</Text>
               </TouchableOpacity>
-            </View>
-          )}
 
-          {/* Quick Add from Coach's Library (Chips under list) */}
-          {savedExercises.length > 0 && (
-            <View style={styles.quickLibraryBox}>
-              <Text style={[styles.quickLibraryLabel, { color: theme.colors.textSecondary }]}>
-                Rappel rapide de votre bibliothèque :
-              </Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-                {savedExercises.map((ex) => (
-                  <TouchableOpacity
-                    key={ex.id}
-                    style={[styles.libraryChip, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-                    onPress={() => {
-                      handleSelectFromLibrary(ex);
-                      setIsExerciseSheetVisible(true);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Feather name="plus" size={12} color={theme.colors.accent} style={{ marginRight: 4 }} />
-                    <Text style={[styles.libraryChipText, { color: theme.colors.text }]}>{ex.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              {/* Secondary Button: Pick from Library */}
+              {savedExercises.length > 0 && (
+                <TouchableOpacity
+                  style={[styles.addMoreRow, { borderTopColor: theme.colors.border }]}
+                  onPress={() => setIsManageLibraryVisible(true)}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="book-open" size={15} color={theme.colors.accent} />
+                  <Text style={[styles.addMoreRowText, { color: theme.colors.accent }]}>
+                    Choisir depuis ma bibliothèque ({savedExercises.length})
+                  </Text>
+                  <Feather name="chevron-right" size={16} color={theme.colors.textMuted} style={{ marginLeft: 'auto' }} />
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
@@ -1293,35 +1300,64 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                   Aucun exercice enregistré dans votre bibliothèque.
                 </Text>
               ) : (
-                <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                  {savedExercises.map((ex, idx) => {
-                    const isLast = idx === savedExercises.length - 1;
-                    return (
-                      <View
-                        key={ex.id}
-                        style={[
-                          styles.libraryManageRow,
-                          !isLast && [styles.rowBorder, { borderBottomColor: theme.colors.border }],
-                        ]}
-                      >
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.libraryManageName, { color: theme.colors.text }]}>{ex.name}</Text>
-                          <Text style={[styles.libraryManageSub, { color: theme.colors.textSecondary }]}>
-                            {ex.default_stairs ? `${ex.default_stairs} marches` : 'Libre'} • {ex.default_sets || 4} séries
-                          </Text>
-                        </View>
-                        <View style={{ flexDirection: 'row', gap: 12 }}>
-                          <TouchableOpacity onPress={() => handleStartEditLibraryEx(ex)}>
-                            <Feather name="edit-2" size={16} color={theme.colors.textSecondary} />
+                <>
+                  <View style={{ marginBottom: 12, marginHorizontal: 4 }}>
+                    <Text style={{ fontSize: 13, color: theme.colors.textSecondary, fontWeight: '500' }}>
+                      Touchez un exercice pour l'ajouter à votre séance :
+                    </Text>
+                  </View>
+                  <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                    {savedExercises.map((ex, idx) => {
+                      const isLast = idx === savedExercises.length - 1;
+                      return (
+                        <View
+                          key={ex.id}
+                          style={[
+                            styles.libraryManageRow,
+                            !isLast && [styles.rowBorder, { borderBottomColor: theme.colors.border }],
+                          ]}
+                        >
+                          <TouchableOpacity
+                            style={{ flex: 1 }}
+                            onPress={() => {
+                              handleSelectFromLibrary(ex);
+                              setIsManageLibraryVisible(false);
+                              setIsExerciseSheetVisible(true);
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={[styles.libraryManageName, { color: theme.colors.text }]}>{ex.name}</Text>
+                            <Text style={[styles.libraryManageSub, { color: theme.colors.textSecondary }]}>
+                              {ex.default_stairs ? `${ex.default_stairs} marches` : 'Libre'} • {ex.default_sets || 4} séries
+                            </Text>
                           </TouchableOpacity>
-                          <TouchableOpacity onPress={() => handleDeleteFromLibrary(ex)}>
-                            <Feather name="trash-2" size={16} color={theme.colors.error} />
-                          </TouchableOpacity>
+
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <TouchableOpacity
+                              style={[styles.libraryPickRowBtn, { backgroundColor: theme.colors.accent + '15' }]}
+                              onPress={() => {
+                                handleSelectFromLibrary(ex);
+                                setIsManageLibraryVisible(false);
+                                setIsExerciseSheetVisible(true);
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              <Feather name="plus" size={13} color={theme.colors.accent} style={{ marginRight: 4 }} />
+                              <Text style={[styles.libraryPickRowText, { color: theme.colors.accent }]}>Choisir</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity onPress={() => handleStartEditLibraryEx(ex)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                              <Feather name="edit-2" size={16} color={theme.colors.textSecondary} />
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => handleDeleteFromLibrary(ex)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                              <Feather name="trash-2" size={16} color={theme.colors.error} />
+                            </TouchableOpacity>
+                          </View>
                         </View>
-                      </View>
-                    );
-                  })}
-                </View>
+                      );
+                    })}
+                  </View>
+                </>
               )}
             </ScrollView>
           </View>
@@ -1710,5 +1746,30 @@ const styles = StyleSheet.create({
   libraryManageSub: {
     fontSize: 12,
     marginTop: 2,
+  },
+  libraryPickerSecondaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginTop: 10,
+    width: '100%',
+  },
+  libraryPickerSecondaryText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  libraryPickRowBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  libraryPickRowText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
 });
