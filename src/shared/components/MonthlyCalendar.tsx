@@ -110,7 +110,6 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
   );
   const [gridHeight, setGridHeight] = useState(0);
 
-  const slideAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
   const today = useMemo(() => new Date(), []);
 
@@ -156,29 +155,28 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
     [getPeriodForDate, selectedDate]
   );
 
-  // Month navigation (functional update, no stale closures)
+  // Month navigation with pure cross-fade (eliminates horizontal column shift)
   const navigateMonth = useCallback((direction: 'prev' | 'next') => {
-    const toValue = direction === 'next' ? -50 : 50;
-
-    Animated.parallel([
-      Animated.timing(opacityAnim, { toValue: 0, duration: 110, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue, duration: 110, useNativeDriver: true }),
-    ]).start(() => {
+    Animated.timing(opacityAnim, {
+      toValue: 0.05,
+      duration: 80,
+      useNativeDriver: true,
+    }).start(() => {
       setCurrentMonth(prev => {
         const nextMonthDate = new Date(prev.getFullYear(), prev.getMonth() + (direction === 'next' ? 1 : -1), 1);
         onMonthChange?.(nextMonthDate.getFullYear(), nextMonthDate.getMonth());
         return nextMonthDate;
       });
 
-      slideAnim.setValue(-toValue);
-      Animated.parallel([
-        Animated.timing(opacityAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
-        Animated.timing(slideAnim, { toValue, duration: 150, useNativeDriver: true }),
-      ]).start();
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 120,
+        useNativeDriver: true,
+      }).start();
     });
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, [onMonthChange, opacityAnim, slideAnim]);
+  }, [onMonthChange, opacityAnim]);
 
   const navigateMonthRef = useRef(navigateMonth);
   useEffect(() => {
@@ -347,7 +345,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
       <Animated.View
         style={[
           styles.gridContainer,
-          { opacity: opacityAnim, transform: [{ translateX: slideAnim }] },
+          { opacity: opacityAnim },
         ]}
         onLayout={onGridLayout}
       >
