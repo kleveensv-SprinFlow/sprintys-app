@@ -50,6 +50,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     flex: 1,
     textAlign: 'center',
+    marginHorizontal: 76,
   },
   leftContainer: {
     position: 'absolute',
@@ -66,10 +67,8 @@ const styles = StyleSheet.create({
     right: 16,
     bottom: 12,
     zIndex: 11,
-    width: 40,
-    height: 40,
-    alignItems: 'center',
+    minHeight: 40,
+    alignItems: 'flex-end',
     justifyContent: 'center',
   },
-
 });

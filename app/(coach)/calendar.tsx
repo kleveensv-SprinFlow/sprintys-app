@@ -106,12 +106,12 @@ export default function CoachCalendarScreen() {
             onPress={handleOpenCreatePeriod}
             style={[
               styles.periodActionBtn,
-              { backgroundColor: theme.colors.accent, borderColor: theme.colors.accent },
+              { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '35' },
             ]}
-            activeOpacity={0.8}
+            activeOpacity={0.7}
           >
-            <Feather name="layers" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
-            <Text style={styles.periodActionBtnText}>Périodisation</Text>
+            <Feather name="plus" size={14} color={theme.colors.accent} style={{ marginRight: 4 }} />
+            <Text style={[styles.periodActionBtnText, { color: theme.colors.accent }]}>Phase</Text>
           </TouchableOpacity>
         }
       />
@@ -123,6 +123,7 @@ export default function CoachCalendarScreen() {
         monthWorkouts={monthWorkouts}
         periods={periods}
         onPressPeriodBadge={handlePressPeriodBadge}
+        onPressCreatePeriod={handleOpenCreatePeriod}
         isCoach={true}
         onMonthChange={handleMonthChange}
       />
@@ -146,20 +147,14 @@ const styles = StyleSheet.create({
   periodActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 24,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 16,
     borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 3,
   },
   periodActionBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: 0.2,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
 });

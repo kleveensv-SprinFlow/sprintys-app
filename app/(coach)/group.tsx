@@ -194,10 +194,14 @@ export default function CoachGroupsScreen() {
                       activeOpacity={0.7}
                     >
                       <View style={styles.avatar}>
-                        <Text style={styles.avatarText}>{member.profile?.first_name?.charAt(0) || ''}</Text>
+                        <Text style={styles.avatarText}>
+                          {(member.profile?.first_name?.charAt(0) || member.profile?.full_name?.charAt(0) || 'A').toUpperCase()}
+                        </Text>
                       </View>
                       <View style={styles.rowInfo}>
-                        <Text style={styles.rowTitle}>{member.profile?.full_name}</Text>
+                        <Text style={styles.rowTitle}>
+                          {member.profile?.full_name || `${member.profile?.first_name || ''} ${member.profile?.last_name || ''}`.trim() || 'Athlète'}
+                        </Text>
                         <Text style={styles.rowSubtitle}>{sg ? sg.name : 'Aucun sous-groupe'}</Text>
                       </View>
                       <TouchableOpacity 

@@ -121,6 +121,16 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
       return;
     }
 
+    if (targetType === 'subgroup' && !selectedSubgroupId) {
+      Alert.alert('Sous-groupe requis', 'Veuillez sélectionner un sous-groupe.');
+      return;
+    }
+
+    if (targetType === 'athlete' && !selectedAthleteId) {
+      Alert.alert('Athlète requis', 'Veuillez sélectionner un athlète.');
+      return;
+    }
+
     if (!user?.id) return;
 
     setIsSubmitting(true);
@@ -203,10 +213,10 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
           <View style={styles.modalHeader}>
             <View>
               <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-                {periodToEdit ? 'Modifier la période' : 'Planifier une période'}
+                {periodToEdit ? 'Modifier la phase' : 'Nouvelle phase d\'entraînement'}
               </Text>
               <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>
-                Périodisation et cycles d'entraînement
+                Cycle d'entraînement (ex : Vitesse, Affûtage, Aérobie)
               </Text>
             </View>
 
@@ -218,7 +228,7 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
           <ScrollView style={styles.scrollBody} showsVerticalScrollIndicator={false}>
             {/* Field: Period Name */}
             <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { color: theme.colors.text }]}>Nom de la période</Text>
+              <Text style={[styles.sectionLabel, { color: theme.colors.text }]}>Nom de la phase (ou cycle)</Text>
               <TextInput
                 style={[
                   styles.textInput,
@@ -228,7 +238,7 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
                     borderColor: theme.colors.border,
                   },
                 ]}
-                placeholder="Ex. Aérobie, Affûtage, Vitesse..."
+                placeholder="Ex. Vitesse, Affûtage, Force, Aérobie..."
                 placeholderTextColor={theme.colors.textMuted}
                 value={name}
                 onChangeText={setName}
@@ -380,6 +390,12 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         setTargetType(t.id as any);
+                        if (t.id === 'subgroup' && !selectedSubgroupId && subgroups.length > 0) {
+                          setSelectedSubgroupId(subgroups[0].id);
+                        }
+                        if (t.id === 'athlete' && !selectedAthleteId && approvedMembers.length > 0) {
+                          setSelectedAthleteId(approvedMembers[0].user_id);
+                        }
                       }}
                     >
                       <Feather
@@ -451,7 +467,13 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
                       {approvedMembers.map((m) => {
                         const isAthSelected = selectedAthleteId === m.user_id;
-                        const nameDisplay = `${m.profile?.first_name || ''} ${m.profile?.last_name || ''}`.trim() || 'Athlète';
+                        const prof = (Array.isArray(m.profile) ? m.profile[0] : m.profile) as any;
+                        const nameDisplay =
+                          prof?.full_name?.trim() ||
+                          `${prof?.first_name || ''} ${prof?.last_name || ''}`.trim() ||
+                          prof?.first_name?.trim() ||
+                          prof?.last_name?.trim() ||
+                          'Athlète';
                         return (
                           <TouchableOpacity
                             key={m.user_id}
@@ -496,7 +518,7 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
                   <>
                     <Feather name="check" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
                     <Text style={styles.saveBtnText}>
-                      {periodToEdit ? 'Enregistrer les modifications' : 'Appliquer la période'}
+                      {periodToEdit ? 'Enregistrer les modifications' : 'Créer la phase'}
                     </Text>
                   </>
                 )}

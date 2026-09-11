@@ -77,6 +77,7 @@ interface MonthlyCalendarProps {
   monthWorkouts?: MonthWorkout[];
   periods?: TrainingPeriod[];
   onPressPeriodBadge?: (period: TrainingPeriod) => void;
+  onPressCreatePeriod?: (date: Date) => void;
   isCoach?: boolean;
   onMonthChange?: (year: number, month: number) => void;
 }
@@ -101,6 +102,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
   monthWorkouts = [],
   periods = [],
   onPressPeriodBadge,
+  onPressCreatePeriod,
   isCoach = false,
   onMonthChange,
 }) => {
@@ -285,8 +287,8 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
         </View>
       </View>
 
-      {/* === Option A: Active Phase Badge (just under header, above days of week) === */}
-      {activeSelectedPeriod && (
+      {/* === Active Phase Badge or Quick Create Prompt === */}
+      {activeSelectedPeriod ? (
         <TouchableOpacity
           style={[
             styles.periodBadgeRow,
@@ -313,7 +315,28 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
             </View>
           )}
         </TouchableOpacity>
-      )}
+      ) : isCoach && onPressCreatePeriod ? (
+        <TouchableOpacity
+          style={[
+            styles.periodBadgeRow,
+            styles.periodBadgeRowEmpty,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
+            },
+          ]}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onPressCreatePeriod(selectedDate);
+          }}
+          activeOpacity={0.7}
+        >
+          <Feather name="plus-circle" size={13} color={theme.colors.textSecondary} />
+          <Text style={[styles.periodBadgeText, { color: theme.colors.textSecondary }]}>
+            Définir une phase d'entraînement
+          </Text>
+        </TouchableOpacity>
+      ) : null}
 
       {/* === Days of Week Header === */}
       <View style={styles.dayLabelsRow}>
@@ -515,6 +538,10 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     gap: 6,
+  },
+  periodBadgeRowEmpty: {
+    borderStyle: 'dashed',
+    opacity: 0.85,
   },
   periodDot: {
     width: 7,

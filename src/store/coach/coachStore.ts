@@ -215,20 +215,20 @@ export const useCoachStore = create<CoachState>((set, get) => ({
         .eq('team_id', teamId);
 
       if (error) throw error;
-            const allMembers = data.map((item: any) => ({
-          user_id: item.user_id,
-          team_id: item.team_id,
-          subgroup_id: item.subgroup_id,
-          status: item.status || 'approved',
-          profile: item.profiles
-        }));
+      const allMembers = (data || []).map((item: any) => ({
+        user_id: item.user_id,
+        team_id: item.team_id,
+        subgroup_id: item.subgroup_id,
+        status: item.status || 'approved',
+        profile: Array.isArray(item.profiles) ? item.profiles[0] : item.profiles,
+      }));
         
-        console.log("DEBUG fetchTeamMembers data:", JSON.stringify(data, null, 2));
-        console.log("DEBUG fetchTeamMembers allMembers mapped:", JSON.stringify(allMembers, null, 2));
+      console.log("DEBUG fetchTeamMembers data:", JSON.stringify(data, null, 2));
+      console.log("DEBUG fetchTeamMembers allMembers mapped:", JSON.stringify(allMembers, null, 2));
 
-        // Séparer les membres approuvés des demandes en attente
-        const approved = allMembers.filter((m: TeamMember) => m.status === 'approved');
-        set({ teamMembers: approved, isLoading: false });
+      // Séparer les membres approuvés des demandes en attente
+      const approved = allMembers.filter((m: TeamMember) => m.status === 'approved');
+      set({ teamMembers: approved, isLoading: false });
       } catch (err: any) {
         console.error("DEBUG fetchTeamMembers error:", err.message);
         set({ error: err.message, isLoading: false });
