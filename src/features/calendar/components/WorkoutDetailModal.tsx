@@ -78,11 +78,18 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                       {exercise.sets.map((set, setIndex) => {
                         // Only show fields that have values (Minimalist UX requested)
                         const setDetails = [];
-                        if (set.reps) setDetails.push(`${set.reps} reps`);
+                        if (set.steps) {
+                          setDetails.push(`${set.steps} marches`);
+                        } else if (set.reps) {
+                          setDetails.push(`${set.reps} reps`);
+                        }
                         if (set.distance) setDetails.push(`${set.distance}m`);
                         if (set.duration) setDetails.push(set.duration);
                         if (set.weight) setDetails.push(`${set.weight}kg`);
-                        if (set.restSeconds) setDetails.push(`Réc: ${set.restSeconds}s`);
+                        if (set.restSeconds) {
+                          const r = set.restSeconds >= 60 ? `${Math.floor(set.restSeconds / 60)}m${set.restSeconds % 60 ? (set.restSeconds % 60) : ''}` : `${set.restSeconds}s`;
+                          setDetails.push(`Réc: ${r}`);
+                        }
 
                         return (
                           <View key={set.id} style={styles.setRow}>
@@ -94,6 +101,14 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                         );
                       })}
                     </View>
+
+                    {exercise.restBetweenExercises ? (
+                      <View style={{ marginTop: 6, paddingTop: 6, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.border }}>
+                        <Text style={{ fontSize: 11, color: theme.colors.textSecondary, fontWeight: '600' }}>
+                          Repos fin d'exercice : {exercise.restBetweenExercises >= 60 ? `${Math.floor(exercise.restBetweenExercises / 60)} min` : `${exercise.restBetweenExercises}s`}
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
                 ))}
               </View>

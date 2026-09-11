@@ -15,6 +15,7 @@ export interface Exercise {
   category?: string;
   sets: Set[];
   notes?: string;
+  restBetweenExercises?: number; // in seconds
 }
 
 export interface WorkoutSession {

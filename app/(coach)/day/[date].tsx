@@ -10,6 +10,7 @@ import * as Haptics from 'expo-haptics';
 import { WorkoutCard } from '../../../src/shared/components/WorkoutCard';
 import { RunWorkoutBuilder } from '../../../src/features/calendar/components/RunWorkoutBuilder';
 import { StrengthWorkoutBuilder } from '../../../src/features/calendar/components/StrengthWorkoutBuilder';
+import { StairsWorkoutBuilder } from '../../../src/features/calendar/components/StairsWorkoutBuilder';
 import { getWorkoutColor } from '../../../src/shared/components/MonthlyCalendar';
 
 const MONTH_NAMES_FULL = [
@@ -26,7 +27,7 @@ export default function CoachDayScreen() {
 
   const [workouts, setWorkouts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [builderType, setBuilderType] = useState<'none' | 'hybrid' | 'strength'>('none');
+  const [builderType, setBuilderType] = useState<'none' | 'hybrid' | 'strength' | 'escalier'>('none');
   const [builderTitle, setBuilderTitle] = useState('');
 
   const dateString = date as string;
@@ -78,7 +79,7 @@ export default function CoachDayScreen() {
     fetchDayWorkouts();
   }, [fetchDayWorkouts]);
 
-  const openBuilder = useCallback((type: 'hybrid' | 'strength', defaultTitle: string = '') => {
+  const openBuilder = useCallback((type: 'hybrid' | 'strength' | 'escalier', defaultTitle: string = '') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setBuilderTitle(defaultTitle);
     setBuilderType(type);
@@ -88,7 +89,7 @@ export default function CoachDayScreen() {
     { id: 'muscu', title: 'Musculation', icon: 'barbell-outline' as any, color: '#6366F1', type: 'strength' as const },
     { id: 'course', title: 'Course & Sprint', icon: 'stopwatch-outline' as any, color: '#EF4444', type: 'hybrid' as const },
     { id: 'technique', title: 'Séance Technique', icon: 'git-merge-outline' as any, color: '#10B981', type: 'hybrid' as const },
-    { id: 'escalier', title: 'Escaliers & Pente', icon: 'stats-chart-outline' as any, color: '#8B5CF6', type: 'hybrid' as const },
+    { id: 'escalier', title: 'Escalier', icon: 'stats-chart-outline' as any, color: '#8B5CF6', type: 'escalier' as const },
     { id: 'repos', title: 'Jour de repos', icon: 'cafe-outline' as any, color: '#6B7280', type: 'hybrid' as const },
   ];
 
@@ -210,6 +211,13 @@ export default function CoachDayScreen() {
           onSave={handleSaveWorkout}
         />
       </Modal>
+
+      <StairsWorkoutBuilder
+        visible={builderType === 'escalier'}
+        date={parsedDate}
+        onClose={() => setBuilderType('none')}
+        onSave={handleSaveWorkout}
+      />
     </View>
   );
 }
