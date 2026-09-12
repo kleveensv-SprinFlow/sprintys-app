@@ -122,6 +122,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
     }
   };
 
+  if (!visible) return null;
   if (!workout) return null;
 
   const handleDelete = () => {
@@ -347,7 +348,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose} transparent={true} statusBarTranslucent={true}>
+    <View style={[StyleSheet.absoluteFill, { zIndex: 1000, elevation: 1000, backgroundColor: "rgba(0,0,0,0.5)" }]}>
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={[styles.header, { paddingTop: safeTop }]}>
           <TouchableOpacity onPress={onClose} style={[styles.closeButton, { backgroundColor: theme.colors.surfaceLight }]}>
@@ -791,7 +792,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
           />
         )}
       </View>
-    </Modal>
+    </View>
   );
 };
 
@@ -1138,3 +1139,6 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
 });
+
+
+

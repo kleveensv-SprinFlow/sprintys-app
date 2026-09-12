@@ -109,6 +109,7 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
   title,
   subtitle,
 }) => {
+  if (!visible) return null;
   const theme = useTheme();
   const [buffer, setBuffer] = useState('');
   const [repsOk, setRepsOk] = useState(true);
@@ -186,13 +187,7 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
   const KEY_SIZE = Math.min(76, Math.floor((SCREEN_WIDTH - 80) / 3));
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
+    <View style={[StyleSheet.absoluteFill, { zIndex: 2000, elevation: 2000 }]}>
       <View style={styles.overlay}>
         {/* Blur / Darkened background */}
         <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.7)' }]} />
@@ -386,7 +381,7 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
           </View>
         </View>
       </View>
-    </Modal>
+    </View>
   );
 };
 
@@ -595,3 +590,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
+
+
+
