@@ -9,7 +9,7 @@ import {
   StatusBar,
   Dimensions,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
+
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../../core/theme';
@@ -195,7 +195,7 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
     >
       <View style={styles.overlay}>
         {/* Blur / Darkened background */}
-        <BlurView intensity={Platform.OS === 'ios' ? 70 : 100} tint="dark" style={StyleSheet.absoluteFill} />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.7)' }]} />
         <View style={styles.darkDimmer} />
 
         <View style={styles.modalContent}>

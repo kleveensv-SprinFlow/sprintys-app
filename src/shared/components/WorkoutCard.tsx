@@ -55,7 +55,7 @@ export const WorkoutCard: React.FC<WorkoutCardProps> = ({
             </View>
             <View style={styles.titleWrapper}>
               <Text style={[styles.title, { color: theme.colors.text }]}>{title}</Text>
-              {showTypeSubtitle && (
+              {!!showTypeSubtitle && (
                 <Text style={[styles.type, { color: typeConfig.text }]}>{type}</Text>
               )}
             </View>
