@@ -52,10 +52,10 @@ export default function RootLayout() {
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(athlete)" />
         <Stack.Screen name="(coach)" />
+        <Stack.Screen name="chat" />
         <Stack.Screen name="index" />
       </Stack>
       <SprintyFeedback />
     </>
   );
 }
-

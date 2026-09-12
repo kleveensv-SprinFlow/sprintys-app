@@ -145,6 +145,12 @@ export default function CoachGroupsScreen() {
               <Text style={styles.detailSubtitle}>Code: {activeTeam.invite_code} <Feather name="copy" size={12} /></Text>
             </TouchableOpacity>
           </View>
+          <TouchableOpacity 
+             onPress={() => router.push(`/chat/team/${activeTeam.id}`)}
+             style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: theme.colors.surfaceLight, alignItems: 'center', justifyContent: 'center' }}
+          >
+             <Feather name="message-circle" size={20} color={theme.colors.text} />
+          </TouchableOpacity>
         </View>
 
         {/* Tabs */}
@@ -204,12 +210,20 @@ export default function CoachGroupsScreen() {
                         </Text>
                         <Text style={styles.rowSubtitle}>{sg ? sg.name : 'Aucun sous-groupe'}</Text>
                       </View>
-                      <TouchableOpacity 
-                        onPress={(e) => { e.stopPropagation(); handleRemoveAthlete(member.user_id); }} 
-                        style={[styles.actionBtnIcon, { backgroundColor: theme.colors.error + '15' }]}
-                      >
-                        <Feather name="user-x" size={18} color={theme.colors.error} />
-                      </TouchableOpacity>
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <TouchableOpacity 
+                          onPress={(e) => { e.stopPropagation(); router.push(`/chat/direct/${member.user_id}`); }} 
+                          style={styles.actionBtnIcon}
+                        >
+                          <Feather name="message-circle" size={18} color={theme.colors.textSecondary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          onPress={(e) => { e.stopPropagation(); handleRemoveAthlete(member.user_id); }} 
+                          style={[styles.actionBtnIcon, { backgroundColor: theme.colors.error + '15' }]}
+                        >
+                          <Feather name="user-x" size={18} color={theme.colors.error} />
+                        </TouchableOpacity>
+                      </View>
                     </TouchableOpacity>
                   );
                 })
