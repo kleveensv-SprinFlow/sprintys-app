@@ -75,11 +75,15 @@ export default function AthleteDayScreen() {
   }, [fetchDayWorkouts]);
 
   const openWorkoutDetail = (workoutData: any) => {
-    const mappedWorkout: WorkoutSession = {
+    const mappedWorkout = {
+      ...workoutData,
       id: workoutData.id,
       name: workoutData.type_seance,
+      type_seance: workoutData.type_seance,
+      description: workoutData.description,
+      measures: workoutData.measures,
       startTime: new Date(workoutData.date_prevue).getTime(),
-      status: workoutData.status as 'active' | 'completed' | 'cancelled' | 'pending' as any,
+      status: workoutData.status,
       exercises: workoutData.exercises || [],
       blocks: workoutData.blocks || undefined,
     };
@@ -119,8 +123,11 @@ export default function AthleteDayScreen() {
               const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
               let summary = '';
-              if (w.blocks) summary = `${w.blocks.length} Blocs d'entraînement`;
-              else if (w.exercises) summary = `${w.exercises.length} Exercices`;
+              if (w.blocks && w.blocks.length > 0) summary = `${w.blocks.length} Blocs d'entraînement`;
+              else if (w.exercises && w.exercises.length > 0) summary = `${w.exercises.length} Exercices`;
+              else if (w.type_seance?.toLowerCase().includes('technique')) summary = 'Consignes techniques';
+              else if (w.type_seance?.toLowerCase().includes('repos')) summary = 'Récupération';
+              else if (w.description) summary = w.description.substring(0, 50);
 
               return (
                 <WorkoutCard

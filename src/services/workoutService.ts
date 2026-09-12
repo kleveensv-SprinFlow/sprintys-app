@@ -193,6 +193,20 @@ export const workoutService = {
       console.error('Error fetching month workouts:', error);
       return [];
     }
+
+    if (role === 'coach') {
+      const seen = new Set<string>();
+      const deduped: any[] = [];
+      for (const w of (data || [])) {
+        const key = w.group_assignment_id || w.id;
+        if (!seen.has(key)) {
+          seen.add(key);
+          deduped.push(w);
+        }
+      }
+      return deduped;
+    }
+
     return data;
   },
 

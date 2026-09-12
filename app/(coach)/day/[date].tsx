@@ -13,6 +13,7 @@ import { RunWorkoutBuilder } from '../../../src/features/calendar/components/Run
 import { StrengthWorkoutBuilder } from '../../../src/features/calendar/components/StrengthWorkoutBuilder';
 import { StairsWorkoutBuilder } from '../../../src/features/calendar/components/StairsWorkoutBuilder';
 import { RestDayBuilder } from '../../../src/features/calendar/components/RestDayBuilder';
+import { TechnicalWorkoutBuilder } from '../../../src/features/calendar/components/TechnicalWorkoutBuilder';
 import { getWorkoutColor } from '../../../src/shared/components/MonthlyCalendar';
 import { useCoachStore } from '../../../src/store/coach/coachStore';
 
@@ -30,7 +31,7 @@ export default function CoachDayScreen() {
 
   const [workouts, setWorkouts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [builderType, setBuilderType] = useState<'none' | 'hybrid' | 'strength' | 'escalier' | 'repos'>('none');
+  const [builderType, setBuilderType] = useState<'none' | 'hybrid' | 'strength' | 'escalier' | 'repos' | 'technique'>('none');
   const [builderTitle, setBuilderTitle] = useState('');
   const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
   const [editingWorkout, setEditingWorkout] = useState<any>(null);
@@ -83,7 +84,17 @@ export default function CoachDayScreen() {
     setIsLoading(true);
     try {
       const data = await workoutService.fetchWorkoutsForDate(user.id, parsedDate, 'coach');
-      setWorkouts(data || []);
+      // Deduplicate workouts with same group_assignment_id
+      const seen = new Set<string>();
+      const dedupedWorkouts: any[] = [];
+      for (const w of (data || [])) {
+        const key = w.group_assignment_id || w.id;
+        if (!seen.has(key)) {
+          seen.add(key);
+          dedupedWorkouts.push(w);
+        }
+      }
+      setWorkouts(dedupedWorkouts);
     } catch (error) {
       console.error('Error fetching day workouts:', error);
     } finally {
@@ -131,12 +142,14 @@ export default function CoachDayScreen() {
       setBuilderType('strength');
     } else if (type.includes('repos')) {
       setBuilderType('repos');
+    } else if (type.includes('technique')) {
+      setBuilderType('technique');
     } else {
       setBuilderType('hybrid');
     }
   }, []);
 
-  const openBuilder = useCallback((type: 'hybrid' | 'strength' | 'escalier' | 'repos', defaultTitle: string = '') => {
+  const openBuilder = useCallback((type: 'hybrid' | 'strength' | 'escalier' | 'repos' | 'technique', defaultTitle: string = '') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setEditingWorkout(null);
     setBuilderTitle(defaultTitle);
@@ -147,7 +160,7 @@ export default function CoachDayScreen() {
   const CREATION_OPTIONS = [
     { id: 'muscu', title: 'Musculation', icon: 'barbell-outline' as any, color: '#6366F1', type: 'strength' as const },
     { id: 'course', title: 'Course & Sprint', icon: 'stopwatch-outline' as any, color: '#EF4444', type: 'hybrid' as const },
-    { id: 'technique', title: 'Séance Technique', icon: 'git-merge-outline' as any, color: '#10B981', type: 'hybrid' as const },
+    { id: 'technique', title: 'Séance Technique', icon: 'git-merge-outline' as any, color: '#10B981', type: 'technique' as const },
     { id: 'escalier', title: 'Escalier', icon: 'stats-chart-outline' as any, color: '#8B5CF6', type: 'escalier' as const },
     { id: 'repos', title: 'Jour de repos', icon: 'cafe-outline' as any, color: '#6B7280', type: 'repos' as const },
   ];
@@ -220,6 +233,14 @@ export default function CoachDayScreen() {
               let summary = w.description ? (w.description.substring(0, 60) + (w.description.length > 60 ? '...' : '')) : '';
               if (w.exercises && Array.isArray(w.exercises) && w.exercises.length > 0) {
                 summary = `${w.exercises.length} exercice${w.exercises.length > 1 ? 's' : ''}`;
+              } else if (w.type_seance?.toLowerCase().includes('technique')) {
+                if (w.measures?.technical_notes && Array.isArray(w.measures.technical_notes) && w.measures.technical_notes.length > 0) {
+                  const count = w.measures.technical_notes.length;
+                  const targets = Array.from(new Set(w.measures.technical_notes.map((n: any) => n.targetName))).filter(Boolean).join(', ');
+                  summary = `${count} consigne${count > 1 ? 's' : ''}${targets ? ` (${targets})` : ''}`;
+                } else {
+                  summary = 'Consignes techniques';
+                }
               }
 
               return (
@@ -330,6 +351,17 @@ export default function CoachDayScreen() {
 
       <RestDayBuilder
         visible={builderType === 'repos'}
+        date={parsedDate}
+        initialWorkout={editingWorkout}
+        onClose={() => {
+          setBuilderType('none');
+          setEditingWorkout(null);
+        }}
+        onSave={handleSaveWorkout}
+      />
+
+      <TechnicalWorkoutBuilder
+        visible={builderType === 'technique'}
         date={parsedDate}
         initialWorkout={editingWorkout}
         onClose={() => {

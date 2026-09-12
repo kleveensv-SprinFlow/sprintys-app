@@ -63,6 +63,8 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
 
   const sessionTitle = workout.type_seance || workout.name || 'Séance';
   const isRestDay = sessionTitle.toLowerCase().includes('repos');
+  const isTechnical = sessionTitle.toLowerCase().includes('technique');
+  const technicalNotes = workout.measures?.technical_notes;
 
   const surfaceMeta = workout.measures?.surface || 
     (workout.description?.includes('Côte') ? 'cote' : workout.description?.includes('Piste') ? 'piste' : null);
@@ -70,7 +72,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
     (workout.description?.includes('Pointes') ? 'pointes' : workout.description?.includes('Baskets') ? 'baskets' : null);
 
   const cleanDescription = workout.description
-    ? workout.description.replace(/^\[.*?\]\s*/, '').trim()
+    ? (isTechnical ? workout.description.trim() : workout.description.replace(/^\[.*?\]\s*/, '').trim())
     : '';
 
   return (
@@ -135,8 +137,8 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
             </View>
           </View>
 
-          {/* Consignes / Notes if provided */}
-          {cleanDescription ? (
+          {/* Consignes / Notes if provided (for non-technical sessions) */}
+          {!isTechnical && cleanDescription ? (
             <View style={[styles.consignesCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
               <View style={styles.consignesHeader}>
                 <Feather name="file-text" size={14} color={theme.colors.accent} />
@@ -157,6 +159,63 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
               <Text style={[styles.restDaySubtitle, { color: theme.colors.textSecondary }]}>
                 Aucun entraînement programmé. Priorité à la récupération et au repos.
               </Text>
+            </View>
+          ) : isTechnical ? (
+            <View style={styles.technicalContainer}>
+              <View style={styles.technicalSectionHeader}>
+                <View style={[styles.technicalIconBox, { backgroundColor: '#D1FAE5' }]}>
+                  <Ionicons name="git-merge-outline" size={16} color="#047857" />
+                </View>
+                <Text style={[styles.technicalSectionTitle, { color: theme.colors.text }]}>
+                  CONSIGNES & ATELIERS TECHNIQUES
+                </Text>
+              </View>
+
+              {Array.isArray(technicalNotes) && technicalNotes.length > 0 ? (
+                technicalNotes.map((note: any, idx: number) => {
+                  const isTeam = note.targetType === 'team';
+                  const isSubgroup = note.targetType === 'subgroup';
+                  const badgeBg = isTeam ? '#E0E7FF' : isSubgroup ? '#D1FAE5' : '#FEF3C7';
+                  const badgeText = isTeam ? '#4338CA' : isSubgroup ? '#047857' : '#B45309';
+                  const badgeIcon = isTeam ? 'people' : isSubgroup ? 'git-branch' : 'person';
+                  const targetLabel = note.targetName || (isTeam ? 'Tout le groupe' : isSubgroup ? 'Sous-groupe' : 'Athlète');
+
+                  return (
+                    <View
+                      key={note.id || idx}
+                      style={[styles.technicalCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                    >
+                      <View style={styles.technicalCardTop}>
+                        <View style={[styles.technicalBadge, { backgroundColor: badgeBg }]}>
+                          <Ionicons name={badgeIcon as any} size={12} color={badgeText} />
+                          <Text style={[styles.technicalBadgeText, { color: badgeText }]}>
+                            {targetLabel}
+                          </Text>
+                        </View>
+                        <Text style={[styles.technicalIndex, { color: theme.colors.textSecondary }]}>
+                          Atelier #{idx + 1}
+                        </Text>
+                      </View>
+
+                      {note.title ? (
+                        <Text style={[styles.technicalNoteTitle, { color: theme.colors.text }]}>
+                          {note.title}
+                        </Text>
+                      ) : null}
+
+                      <Text style={[styles.technicalNoteContent, { color: theme.colors.text }]}>
+                        {note.content}
+                      </Text>
+                    </View>
+                  );
+                })
+              ) : (
+                <View style={[styles.technicalCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                  <Text style={[styles.technicalNoteContent, { color: theme.colors.text }]}>
+                    {cleanDescription || 'Aucune consigne technique renseignée.'}
+                  </Text>
+                </View>
+              )}
             </View>
           ) : (
             <View style={styles.blocksContainer}>
@@ -444,5 +503,67 @@ const styles = StyleSheet.create({
   },
   setDetails: {
     fontSize: 15,
+  },
+  technicalContainer: {
+    gap: 14,
+  },
+  technicalSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  technicalIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  technicalSectionTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+  technicalCard: {
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  technicalCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  technicalBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  technicalBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  technicalIndex: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  technicalNoteTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  technicalNoteContent: {
+    fontSize: 14,
+    lineHeight: 21,
   },
 });
