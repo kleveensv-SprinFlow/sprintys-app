@@ -1,10 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Platform, StatusBar, Alert } from 'react-native';
+import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Platform, StatusBar, Alert, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../../core/theme';
 import { WorkoutBlock, Exercise } from '../../workout/types';
+import { useAuthStore } from '../../../store/authStore';
+import { workoutService } from '../../../services/workoutService';
+import { supabase } from '../../../services/supabase';
 
 interface WorkoutDetailModalProps {
   visible: boolean;
@@ -23,6 +26,13 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
 }) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { user } = useAuthStore();
+  const isCoach = user?.role === 'coach';
+
+  const [athleteResults, setAthleteResults] = React.useState<Record<string, string>>({});
+  const [athleteNotes, setAthleteNotes] = React.useState('');
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
   const safeTop = Platform.OS === 'android'
     ? Math.max(insets.top, StatusBar.currentHeight || 24) + 8
     : (insets.top > 0 ? insets.top + 6 : 16);
@@ -50,6 +60,54 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
   const handleEdit = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onEdit?.(workout);
+  };
+
+  const submitAthleteWorkout = async () => {
+    if (!user || !workout.id) return;
+    setIsSubmitting(true);
+    try {
+      // Build efforts array from athleteResults
+      const efforts = [];
+      const blocks = workout.blocks || [{ id: 'main', exercises: workout.exercises || [] }];
+      
+      let setOrderGlobal = 0;
+      for (const block of blocks) {
+        for (const exercise of block.exercises) {
+          for (let i = 0; i < exercise.sets.length; i++) {
+            const key = `${exercise.id}_${i}`;
+            const val = athleteResults[key];
+            if (val) {
+              efforts.push({
+                workout_id: workout.id,
+                exercise_catalog_id: exercise.catalog_id || null, // Assuming catalog_id exists
+                exercise_category: workout.type_seance,
+                actual_extra: { value: val },
+                set_order: setOrderGlobal
+              });
+            }
+            setOrderGlobal++;
+          }
+        }
+      }
+
+      await workoutService.submitWorkoutResults(workout.id, efforts);
+      
+      if (athleteNotes.trim()) {
+        const updatedMeasures = { ...(workout.measures || {}), athlete_notes: athleteNotes.trim() };
+        await supabase.from('workouts').update({ measures: updatedMeasures }).eq('id', workout.id);
+      }
+      
+      await workoutService.completeWorkout(workout.id);
+      
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('Bravo !', 'Ta séance a été validée avec succès.');
+      onClose();
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Erreur', 'Impossible de valider la séance.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Derive blocks if not provided natively
@@ -83,13 +141,15 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
             <Feather name="x" size={24} color={theme.colors.text} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Détails de la Séance</Text>
-          <TouchableOpacity
-            onPress={handleDelete}
-            style={[styles.closeButton, { backgroundColor: '#FEE2E2' }]}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Feather name="trash-2" size={18} color="#DC2626" />
-          </TouchableOpacity>
+          {isCoach ? (
+            <TouchableOpacity
+              onPress={handleDelete}
+              style={[styles.closeButton, { backgroundColor: '#FEE2E2' }]}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Feather name="trash-2" size={18} color="#DC2626" />
+            </TouchableOpacity>
+          ) : <View style={styles.closeButtonPlaceholder} />}
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -116,25 +176,27 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
               </View>
             )}
 
-            <View style={styles.actionsRow}>
-              <TouchableOpacity
-                style={[styles.actionBtn, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
-                onPress={handleEdit}
-                activeOpacity={0.7}
-              >
-                <Feather name="edit-2" size={15} color={theme.colors.text} style={{ marginRight: 6 }} />
-                <Text style={[styles.actionBtnText, { color: theme.colors.text }]}>Modifier</Text>
-              </TouchableOpacity>
+            {isCoach && (
+              <View style={styles.actionsRow}>
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
+                  onPress={handleEdit}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="edit-2" size={15} color={theme.colors.text} style={{ marginRight: 6 }} />
+                  <Text style={[styles.actionBtnText, { color: theme.colors.text }]}>Modifier</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.actionBtn, { backgroundColor: '#FEE2E2', borderColor: '#FECACA' }]}
-                onPress={handleDelete}
-                activeOpacity={0.7}
-              >
-                <Feather name="trash-2" size={15} color="#DC2626" style={{ marginRight: 6 }} />
-                <Text style={[styles.actionBtnText, { color: '#DC2626' }]}>Supprimer</Text>
-              </TouchableOpacity>
-            </View>
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: '#FEE2E2', borderColor: '#FECACA' }]}
+                  onPress={handleDelete}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="trash-2" size={15} color="#DC2626" style={{ marginRight: 6 }} />
+                  <Text style={[styles.actionBtnText, { color: '#DC2626' }]}>Supprimer</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
 
           {/* Consignes / Notes if provided (for non-technical sessions) */}
@@ -275,12 +337,43 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                           setDetails.push(`Réc: ${r}`);
                         }
 
+                        const isMuscu = sessionTitle.toLowerCase().includes('musculation');
+                        const isCourse = sessionTitle.toLowerCase().includes('course') || sessionTitle.toLowerCase().includes('sprint');
+                        const needsInput = !isCoach && (isMuscu || isCourse);
+                        const inputPlaceholder = isMuscu ? "Poids (kg)" : "Chrono";
+                        const resultKey = `${exercise.id}_${setIndex}`;
+
                         return (
-                          <View key={set.id} style={styles.setRow}>
-                            <Text style={[styles.setNumber, { color: theme.colors.textMuted }]}>{setIndex + 1}</Text>
-                            <Text style={[styles.setDetails, { color: theme.colors.text }]}>
-                              {setDetails.join('  •  ')}
-                            </Text>
+                          <View key={set.id} style={[styles.setRow, needsInput && { flexDirection: 'column', alignItems: 'flex-start', paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.border }]}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                              <Text style={[styles.setNumber, { color: theme.colors.textMuted }]}>{setIndex + 1}</Text>
+                              <Text style={[styles.setDetails, { color: theme.colors.text }]}>
+                                {setDetails.join('  •  ')}
+                              </Text>
+                            </View>
+                            {needsInput && (
+                              <View style={{ marginTop: 8, marginLeft: 28, flexDirection: 'row', alignItems: 'center', width: '100%' }}>
+                                <Feather name="corner-down-right" size={14} color={theme.colors.textMuted} style={{ marginRight: 8 }} />
+                                <TextInput
+                                  style={{
+                                    backgroundColor: theme.colors.background,
+                                    borderRadius: 10,
+                                    paddingHorizontal: 12,
+                                    paddingVertical: 8,
+                                    flex: 1,
+                                    color: theme.colors.text,
+                                    borderWidth: 1,
+                                    borderColor: theme.colors.border,
+                                    fontSize: 14
+                                  }}
+                                  placeholder={inputPlaceholder}
+                                  placeholderTextColor={theme.colors.textMuted}
+                                  value={athleteResults[resultKey] || ''}
+                                  onChangeText={(val) => setAthleteResults(prev => ({ ...prev, [resultKey]: val }))}
+                                  keyboardType={isMuscu ? "decimal-pad" : "default"}
+                                />
+                              </View>
+                            )}
                           </View>
                         );
                       })}
@@ -297,6 +390,51 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                 ))}
               </View>
             ))}
+          </View>
+        )}
+
+        {!isCoach && (
+          <View style={{ marginTop: 24, gap: 16 }}>
+            <View>
+              <Text style={{ fontSize: 15, fontWeight: '700', marginBottom: 8, color: theme.colors.text }}>Commentaires (Optionnel)</Text>
+              <TextInput
+                style={{
+                  backgroundColor: theme.colors.surface,
+                  borderRadius: 12,
+                  padding: 16,
+                  color: theme.colors.text,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  minHeight: 100,
+                  textAlignVertical: 'top',
+                  fontSize: 15
+                }}
+                placeholder="Comment s'est passée la séance ?"
+                placeholderTextColor={theme.colors.textMuted}
+                multiline
+                value={athleteNotes}
+                onChangeText={setAthleteNotes}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={{
+                backgroundColor: workout.status === 'completed' ? theme.colors.success : theme.colors.accent,
+                padding: 16,
+                borderRadius: 16,
+                alignItems: 'center',
+                flexDirection: 'row',
+                justifyContent: 'center',
+                opacity: isSubmitting ? 0.7 : 1
+              }}
+              onPress={submitAthleteWorkout}
+              disabled={isSubmitting}
+            >
+              <Feather name="check-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                {isSubmitting ? 'Validation...' : (workout.status === 'completed' ? 'Mettre à jour' : 'Valider la séance')}
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
         </ScrollView>
