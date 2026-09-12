@@ -63,6 +63,15 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
 
   const sessionTitle = workout.type_seance || workout.name || 'Séance';
 
+  const surfaceMeta = workout.measures?.surface || 
+    (workout.description?.includes('Côte') ? 'cote' : workout.description?.includes('Piste') ? 'piste' : null);
+  const equipmentMeta = workout.measures?.equipment ||
+    (workout.description?.includes('Pointes') ? 'pointes' : workout.description?.includes('Baskets') ? 'baskets' : null);
+
+  const cleanDescription = workout.description
+    ? workout.description.replace(/^\[.*?\]\s*/, '').trim()
+    : '';
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -85,6 +94,25 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
           <View style={[styles.titleContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
             <Text style={[styles.workoutName, { color: theme.colors.text }]}>{sessionTitle}</Text>
             
+            {(surfaceMeta || equipmentMeta) && (
+              <View style={styles.metaRow}>
+                {surfaceMeta && (
+                  <View style={[styles.metaPill, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
+                    <Text style={[styles.metaPillText, { color: theme.colors.accent }]}>
+                      {surfaceMeta === 'cote' ? '⛰️ Côte' : '🏟️ Piste'}
+                    </Text>
+                  </View>
+                )}
+                {equipmentMeta && (
+                  <View style={[styles.metaPill, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
+                    <Text style={[styles.metaPillText, { color: theme.colors.accent }]}>
+                      {equipmentMeta === 'pointes' ? '👟 Pointes' : '👟 Baskets'}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+
             <View style={styles.actionsRow}>
               <TouchableOpacity
                 style={[styles.actionBtn, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
@@ -107,13 +135,13 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
           </View>
 
           {/* Consignes / Notes if provided */}
-          {workout.description ? (
+          {cleanDescription ? (
             <View style={[styles.consignesCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
               <View style={styles.consignesHeader}>
                 <Feather name="file-text" size={14} color={theme.colors.accent} />
                 <Text style={[styles.consignesCaption, { color: theme.colors.accent }]}>CONSIGNES DE SÉANCE</Text>
               </View>
-              <Text style={[styles.consignesBody, { color: theme.colors.text }]}>{workout.description}</Text>
+              <Text style={[styles.consignesBody, { color: theme.colors.text }]}>{cleanDescription}</Text>
             </View>
           ) : null}
 
@@ -156,6 +184,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                           setDetails.push(`${set.reps} reps`);
                         }
                         if (set.distance) setDetails.push(`${set.distance}m`);
+                        if ((set as any).intensity) setDetails.push(`${(set as any).intensity}%`);
                         if (set.duration) setDetails.push(set.duration);
                         if (set.weight !== undefined && set.weight !== null) {
                           const wType = (set as any).weight_type || (set as any).weightType;
@@ -242,7 +271,23 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '800',
     letterSpacing: -0.3,
+    marginBottom: 12,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: 16,
+  },
+  metaPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  metaPillText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   actionsRow: {
     flexDirection: 'row',

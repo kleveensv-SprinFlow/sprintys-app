@@ -292,16 +292,16 @@ export default function CoachDayScreen() {
       </ScrollView>
 
       {/* === Builder Modals === */}
-      <Modal visible={builderType === 'hybrid'} animationType="slide" presentationStyle="formSheet" onRequestClose={() => { setBuilderType('none'); setEditingWorkout(null); }}>
-        <RunWorkoutBuilder
-          date={parsedDate}
-          onClose={() => {
-            setBuilderType('none');
-            setEditingWorkout(null);
-          }}
-          onSave={handleSaveWorkout}
-        />
-      </Modal>
+      <RunWorkoutBuilder
+        visible={builderType === 'hybrid'}
+        date={parsedDate}
+        initialWorkout={editingWorkout}
+        onClose={() => {
+          setBuilderType('none');
+          setEditingWorkout(null);
+        }}
+        onSave={handleSaveWorkout}
+      />
 
       <StrengthWorkoutBuilder
         visible={builderType === 'strength'}
