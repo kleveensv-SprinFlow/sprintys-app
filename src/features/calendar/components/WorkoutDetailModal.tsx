@@ -347,7 +347,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose} transparent={true} statusBarTranslucent={true}>
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={[styles.header, { paddingTop: safeTop }]}>
           <TouchableOpacity onPress={onClose} style={[styles.closeButton, { backgroundColor: theme.colors.surfaceLight }]}>
@@ -544,7 +544,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                       </Text>
                     )}
 
-                    <View style={[styles.setsContainer, needsDataEntry && { gap: 0 }]}>
+                    <View style={[styles.setsContainer, null]}>
                       {/* Column headers for athlete mode */}
                       {needsDataEntry && (exercise.sets || []).length > 0 && (
                         <View style={[styles.athleteSetHeader, { borderBottomColor: theme.colors.border }]}>
