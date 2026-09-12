@@ -12,6 +12,7 @@ import { WorkoutDetailModal } from '../../../src/features/calendar/components/Wo
 import { RunWorkoutBuilder } from '../../../src/features/calendar/components/RunWorkoutBuilder';
 import { StrengthWorkoutBuilder } from '../../../src/features/calendar/components/StrengthWorkoutBuilder';
 import { StairsWorkoutBuilder } from '../../../src/features/calendar/components/StairsWorkoutBuilder';
+import { RestDayBuilder } from '../../../src/features/calendar/components/RestDayBuilder';
 import { getWorkoutColor } from '../../../src/shared/components/MonthlyCalendar';
 import { useCoachStore } from '../../../src/store/coach/coachStore';
 
@@ -29,7 +30,7 @@ export default function CoachDayScreen() {
 
   const [workouts, setWorkouts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [builderType, setBuilderType] = useState<'none' | 'hybrid' | 'strength' | 'escalier'>('none');
+  const [builderType, setBuilderType] = useState<'none' | 'hybrid' | 'strength' | 'escalier' | 'repos'>('none');
   const [builderTitle, setBuilderTitle] = useState('');
   const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
   const [editingWorkout, setEditingWorkout] = useState<any>(null);
@@ -128,12 +129,14 @@ export default function CoachDayScreen() {
       setBuilderType('escalier');
     } else if (type.includes('muscu') || type.includes('force') || type.includes('strength')) {
       setBuilderType('strength');
+    } else if (type.includes('repos')) {
+      setBuilderType('repos');
     } else {
       setBuilderType('hybrid');
     }
   }, []);
 
-  const openBuilder = useCallback((type: 'hybrid' | 'strength' | 'escalier', defaultTitle: string = '') => {
+  const openBuilder = useCallback((type: 'hybrid' | 'strength' | 'escalier' | 'repos', defaultTitle: string = '') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setEditingWorkout(null);
     setBuilderTitle(defaultTitle);
@@ -146,7 +149,7 @@ export default function CoachDayScreen() {
     { id: 'course', title: 'Course & Sprint', icon: 'stopwatch-outline' as any, color: '#EF4444', type: 'hybrid' as const },
     { id: 'technique', title: 'Séance Technique', icon: 'git-merge-outline' as any, color: '#10B981', type: 'hybrid' as const },
     { id: 'escalier', title: 'Escalier', icon: 'stats-chart-outline' as any, color: '#8B5CF6', type: 'escalier' as const },
-    { id: 'repos', title: 'Jour de repos', icon: 'cafe-outline' as any, color: '#6B7280', type: 'hybrid' as const },
+    { id: 'repos', title: 'Jour de repos', icon: 'cafe-outline' as any, color: '#6B7280', type: 'repos' as const },
   ];
 
   return (
@@ -316,6 +319,17 @@ export default function CoachDayScreen() {
 
       <StairsWorkoutBuilder
         visible={builderType === 'escalier'}
+        date={parsedDate}
+        initialWorkout={editingWorkout}
+        onClose={() => {
+          setBuilderType('none');
+          setEditingWorkout(null);
+        }}
+        onSave={handleSaveWorkout}
+      />
+
+      <RestDayBuilder
+        visible={builderType === 'repos'}
         date={parsedDate}
         initialWorkout={editingWorkout}
         onClose={() => {

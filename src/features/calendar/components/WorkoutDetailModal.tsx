@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Platform, StatusBar, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../../core/theme';
 import { WorkoutBlock, Exercise } from '../../workout/types';
@@ -62,6 +62,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
   ];
 
   const sessionTitle = workout.type_seance || workout.name || 'Séance';
+  const isRestDay = sessionTitle.toLowerCase().includes('repos');
 
   const surfaceMeta = workout.measures?.surface || 
     (workout.description?.includes('Côte') ? 'cote' : workout.description?.includes('Piste') ? 'piste' : null);
@@ -94,7 +95,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
           <View style={[styles.titleContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
             <Text style={[styles.workoutName, { color: theme.colors.text }]}>{sessionTitle}</Text>
             
-            {(surfaceMeta || equipmentMeta) && (
+            {!isRestDay && (surfaceMeta || equipmentMeta) && (
               <View style={styles.metaRow}>
                 {surfaceMeta && (
                   <View style={[styles.metaPill, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
@@ -139,14 +140,27 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
             <View style={[styles.consignesCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
               <View style={styles.consignesHeader}>
                 <Feather name="file-text" size={14} color={theme.colors.accent} />
-                <Text style={[styles.consignesCaption, { color: theme.colors.accent }]}>CONSIGNES DE SÉANCE</Text>
+                <Text style={[styles.consignesCaption, { color: theme.colors.accent }]}>
+                  {isRestDay ? 'NOTE DE RÉCUPÉRATION' : 'CONSIGNES DE SÉANCE'}
+                </Text>
               </View>
               <Text style={[styles.consignesBody, { color: theme.colors.text }]}>{cleanDescription}</Text>
             </View>
           ) : null}
 
-          <View style={styles.blocksContainer}>
-            {blocks.map((block, index) => (
+          {isRestDay ? (
+            <View style={[styles.restDayCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+              <View style={[styles.restDayIconCircle, { backgroundColor: '#F1F5F9' }]}>
+                <Ionicons name="cafe-outline" size={30} color="#475569" />
+              </View>
+              <Text style={[styles.restDayTitle, { color: theme.colors.text }]}>Jour de repos</Text>
+              <Text style={[styles.restDaySubtitle, { color: theme.colors.textSecondary }]}>
+                Aucun entraînement programmé. Priorité à la récupération et au repos.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.blocksContainer}>
+              {blocks.map((block, index) => (
               <View key={block.id} style={styles.block}>
                 <View style={styles.blockHeader}>
                   <View style={[styles.blockNumber, { backgroundColor: theme.colors.accent }]}>
@@ -225,6 +239,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
               </View>
             ))}
           </View>
+        )}
         </ScrollView>
       </View>
     </Modal>
@@ -327,6 +342,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '500',
+  },
+  restDayCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 28,
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  restDayIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  restDayTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  restDaySubtitle: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: 12,
   },
   targetBadge: {
     flexDirection: 'row',

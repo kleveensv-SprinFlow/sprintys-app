@@ -99,6 +99,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
 
   // Session metadata
   const [sessionTitle, setSessionTitle] = useState(defaultTitle);
+  const [sessionNotes, setSessionNotes] = useState('');
   const [sessionExercises, setSessionExercises] = useState<StrengthExerciseItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -156,6 +157,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
       if (initialWorkout.type_seance) {
         setSessionTitle(initialWorkout.type_seance);
       }
+      setSessionNotes(initialWorkout.description || '');
       if (initialWorkout.subgroup_id) {
         setTargetType('subgroup');
         setSelectedSubgroupId(initialWorkout.subgroup_id);
@@ -182,6 +184,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
         setSessionExercises(loaded);
       }
     } else if (visible && !initialWorkout) {
+      setSessionNotes('');
       setSessionExercises([]);
       setTargetType('team');
       setSelectedSubgroupId(null);
@@ -587,6 +590,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
               athlete_id: member.user_id,
               group_assignment_id: sharedAssignmentId,
               date_prevue: targetDateIso,
+              description: sessionNotes.trim() ? sessionNotes.trim() : `${athleteFiltered.length} exercice${athleteFiltered.length > 1 ? 's' : ''} de musculation`,
               intensity: 7,
               blocks: [
                 {
@@ -630,6 +634,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
             athlete_id: member.user_id,
             group_assignment_id: sharedAssignmentId,
             date_prevue: targetDateIso,
+            description: sessionNotes.trim() ? sessionNotes.trim() : `${sessionExercises.length} exercice${sessionExercises.length > 1 ? 's' : ''} de musculation`,
             intensity: 7,
             blocks: [
               {
@@ -656,6 +661,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
           team_id: activeTeamId,
           athlete_id: selectedAthleteId,
           date_prevue: targetDateIso,
+          description: sessionNotes.trim() ? sessionNotes.trim() : `${sessionExercises.length} exercice${sessionExercises.length > 1 ? 's' : ''} de musculation`,
           intensity: 7,
           blocks: [
             {
@@ -837,6 +843,22 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
                 )}
               </View>
             )}
+          </View>
+
+          {/* SECTION: CONSIGNES DE SÉANCE */}
+          <View style={[styles.sectionHeader, { marginTop: 16 }]}>
+            <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>CONSIGNES DE SÉANCE</Text>
+          </View>
+          <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, marginBottom: 8 }]}>
+            <TextInput
+              style={[styles.notesInput, { color: theme.colors.text }]}
+              placeholder="Ajouter une note ou des consignes pour cette séance..."
+              placeholderTextColor={theme.colors.textMuted}
+              multiline
+              value={sessionNotes}
+              onChangeText={setSessionNotes}
+              textAlignVertical="top"
+            />
           </View>
 
           {/* SECTION: LISTE DES EXERCICES DE LA SÉANCE */}
@@ -1595,6 +1617,13 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 13,
     fontWeight: '600',
+  },
+  notesInput: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+    minHeight: 80,
+    lineHeight: 20,
   },
   emptyHint: {
     fontSize: 12,
