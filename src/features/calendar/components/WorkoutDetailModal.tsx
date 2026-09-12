@@ -8,6 +8,7 @@ import { WorkoutBlock, Exercise } from '../../workout/types';
 import { useAuthStore } from '../../../store/authStore';
 import { workoutService } from '../../../services/workoutService';
 import { supabase } from '../../../services/supabase';
+import { AthleteValueKeypadModal } from './AthleteValueKeypadModal';
 
 interface WorkoutDetailModalProps {
   visible: boolean;
@@ -45,6 +46,19 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isValidated, setIsValidated] = React.useState(false);
   const [isLoadingData, setIsLoadingData] = React.useState(false);
+
+  // Active Keypad State for intelligent athlete data entry
+  const [activeKeypad, setActiveKeypad] = React.useState<{
+    exerciseId: string;
+    setIndex: number;
+    mode: 'sprint' | 'endurance' | 'weight';
+    distance?: number;
+    title: string;
+    subtitle?: string;
+    initialValue: string;
+    initialRepsOk: boolean;
+    flattenedIndex: number;
+  } | null>(null);
 
   const safeTop = Platform.OS === 'android'
     ? Math.max(insets.top, StatusBar.currentHeight || 24) + 8
@@ -231,6 +245,105 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
       ...prev,
       [key]: { ...(prev[key] || {}), [field]: value }
     }));
+  };
+
+  // Flattened sets array for seamless sequential keypad navigation
+  const allSets = React.useMemo(() => {
+    const list: Array<{
+      exercise: Exercise;
+      set: any;
+      setIndex: number;
+      blockIndex: number;
+      distance?: number;
+      mode: 'sprint' | 'endurance' | 'weight';
+    }> = [];
+
+    const bList = workout?.blocks || [{ id: 'main', exercises: workout?.exercises || [] }];
+    bList.forEach((b: any, bIdx: number) => {
+      (b.exercises || []).forEach((ex: any) => {
+        (ex.sets || []).forEach((st: any, sIdx: number) => {
+          let setMode: 'sprint' | 'endurance' | 'weight' = 'sprint';
+          if (sessionCategory === 'muscu') {
+            setMode = 'weight';
+          } else {
+            const dist = st.distance;
+            if (dist && dist >= 800) {
+              setMode = 'endurance';
+            } else if (dist && dist < 800) {
+              setMode = 'sprint';
+            } else {
+              const str = `${ex.name || ''} ${workout?.type_seance || ''}`.toLowerCase();
+              setMode = (str.includes('800') || str.includes('1000') || str.includes('1500') || str.includes('3000') || str.includes('5000') || str.includes('fond')) ? 'endurance' : 'sprint';
+            }
+          }
+
+          list.push({
+            exercise: ex,
+            set: st,
+            setIndex: sIdx,
+            blockIndex: bIdx,
+            distance: st.distance,
+            mode: setMode,
+          });
+        });
+      });
+    });
+
+    return list;
+  }, [workout, sessionCategory]);
+
+  const openKeypadAtIndex = (flatIndex: number) => {
+    if (flatIndex < 0 || flatIndex >= allSets.length) {
+      setActiveKeypad(null);
+      return;
+    }
+    const item = allSets[flatIndex];
+    const key = `${item.exercise.id}_${item.setIndex}`;
+    const curData = setData[key] || {};
+    const currentVal = item.mode === 'weight' ? (curData.weight || '') : (curData.chrono || '');
+    const currentRepsOk = curData.repsOk !== undefined ? curData.repsOk : true;
+
+    const distText = item.distance ? `${item.distance}m` : '';
+    const setLabel = `Série ${item.setIndex + 1}/${item.exercise.sets.length}`;
+    const title = `${setLabel}${distText ? ` · ${distText}` : ''}`;
+    const subtitle = item.exercise.name;
+
+    setActiveKeypad({
+      exerciseId: item.exercise.id,
+      setIndex: item.setIndex,
+      mode: item.mode,
+      distance: item.distance,
+      title,
+      subtitle,
+      initialValue: currentVal,
+      initialRepsOk: currentRepsOk,
+      flattenedIndex: flatIndex,
+    });
+  };
+
+  const handleKeypadSave = (value: string, repsOk?: boolean) => {
+    if (!activeKeypad) return;
+    const key = `${activeKeypad.exerciseId}_${activeKeypad.setIndex}`;
+    setSetData(prev => ({
+      ...prev,
+      [key]: {
+        ...(prev[key] || {}),
+        ...(activeKeypad.mode === 'weight'
+          ? { weight: value, repsOk: repsOk !== undefined ? repsOk : true }
+          : { chrono: value }
+        ),
+      },
+    }));
+  };
+
+  const handleKeypadNext = () => {
+    if (!activeKeypad) return;
+    const nextIdx = activeKeypad.flattenedIndex + 1;
+    if (nextIdx < allSets.length) {
+      openKeypadAtIndex(nextIdx);
+    } else {
+      setActiveKeypad(null);
+    }
   };
 
   return (
@@ -495,20 +608,28 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
 
                               {sessionCategory === 'muscu' && (
                                 <>
-                                  {/* Weight input */}
-                                  <TextInput
-                                    style={[styles.athleteInput, { 
-                                      backgroundColor: theme.colors.background, 
-                                      borderColor: data.weight ? theme.colors.accent : theme.colors.border,
-                                      color: theme.colors.text,
-                                      width: 70,
-                                    }]}
-                                    placeholder="kg"
-                                    placeholderTextColor={theme.colors.textMuted}
-                                    value={data.weight || ''}
-                                    onChangeText={(val) => updateSetField(resultKey, 'weight', val)}
-                                    keyboardType="decimal-pad"
-                                  />
+                                  {/* Weight Keypad Button */}
+                                  <TouchableOpacity
+                                    style={[
+                                      styles.athleteValueButton,
+                                      { width: 88 },
+                                      data.weight ? styles.athleteValueButtonFilled : null,
+                                    ]}
+                                    onPress={() => {
+                                      const idx = allSets.findIndex(s => s.exercise.id === exercise.id && s.setIndex === setIndex);
+                                      if (idx >= 0) openKeypadAtIndex(idx);
+                                    }}
+                                    activeOpacity={0.7}
+                                  >
+                                    <Text style={[
+                                      styles.athleteValueButtonText,
+                                      { color: data.weight ? theme.colors.accent : theme.colors.textMuted },
+                                      !data.weight && styles.athleteValuePlaceholder,
+                                    ]}>
+                                      {data.weight ? `${data.weight} kg` : '+ Poids'}
+                                    </Text>
+                                  </TouchableOpacity>
+
                                   {/* Reps completed toggle */}
                                   <TouchableOpacity
                                     style={[styles.repsToggle, {
@@ -521,6 +642,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                                       // Toggle: undefined → true → false → true
                                       updateSetField(resultKey, 'repsOk', current === false ? true : current === true ? false : true);
                                     }}
+                                    activeOpacity={0.7}
                                   >
                                     <Feather 
                                       name={data.repsOk === false ? 'x' : 'check'} 
@@ -532,19 +654,32 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                               )}
 
                               {sessionCategory === 'course' && (
-                                <TextInput
-                                  style={[styles.athleteInput, { 
-                                    backgroundColor: theme.colors.background, 
-                                    borderColor: data.chrono ? theme.colors.accent : theme.colors.border,
-                                    color: theme.colors.text,
-                                    width: 90,
-                                  }]}
-                                  placeholder="ex: 12.34"
-                                  placeholderTextColor={theme.colors.textMuted}
-                                  value={data.chrono || ''}
-                                  onChangeText={(val) => updateSetField(resultKey, 'chrono', val)}
-                                  keyboardType="default"
-                                />
+                                <TouchableOpacity
+                                  style={[
+                                    styles.athleteValueButton,
+                                    { minWidth: 105 },
+                                    data.chrono ? styles.athleteValueButtonFilled : null,
+                                  ]}
+                                  onPress={() => {
+                                    const idx = allSets.findIndex(s => s.exercise.id === exercise.id && s.setIndex === setIndex);
+                                    if (idx >= 0) openKeypadAtIndex(idx);
+                                  }}
+                                  activeOpacity={0.7}
+                                >
+                                  <Feather
+                                    name="clock"
+                                    size={13}
+                                    color={data.chrono ? theme.colors.accent : theme.colors.textMuted}
+                                    style={{ marginRight: 6 }}
+                                  />
+                                  <Text style={[
+                                    styles.athleteValueButtonText,
+                                    { color: data.chrono ? theme.colors.accent : theme.colors.textMuted },
+                                    !data.chrono && styles.athleteValuePlaceholder,
+                                  ]}>
+                                    {data.chrono ? `${data.chrono} ${set.distance && set.distance >= 800 ? 'min' : 'sec'}` : '+ Chrono'}
+                                  </Text>
+                                </TouchableOpacity>
                               )}
                             </View>
                           );
@@ -639,6 +774,22 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
           </View>
         )}
         </ScrollView>
+
+        {activeKeypad && (
+          <AthleteValueKeypadModal
+            visible={!!activeKeypad}
+            onClose={() => setActiveKeypad(null)}
+            onSave={handleKeypadSave}
+            onNext={handleKeypadNext}
+            hasNextSet={activeKeypad.flattenedIndex < allSets.length - 1}
+            initialValue={activeKeypad.initialValue}
+            initialRepsOk={activeKeypad.initialRepsOk}
+            mode={activeKeypad.mode}
+            distance={activeKeypad.distance}
+            title={activeKeypad.title}
+            subtitle={activeKeypad.subtitle}
+          />
+        )}
       </View>
     </Modal>
   );
@@ -880,6 +1031,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  athleteValueButton: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  athleteValueButtonFilled: {
+    backgroundColor: 'rgba(99, 102, 241, 0.14)',
+    borderColor: 'rgba(99, 102, 241, 0.5)',
+  },
+  athleteValueButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  athleteValuePlaceholder: {
+    fontWeight: '500',
+    opacity: 0.6,
   },
   repsToggle: {
     width: 36,
