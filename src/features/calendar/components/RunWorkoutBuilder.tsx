@@ -38,25 +38,33 @@ export interface ExerciseTarget {
   name?: string;
 }
 
+export interface RunItem {
+  id: string;
+  distance: number;
+  intensity: number; // 5% to 100%
+}
+
 export interface RunBlockItem {
   id: string;
   name: string;
-  distance: number;
-  repsCount: number;
-  intensity: number; // percentage, e.g. 95
+  mode: 'identical' | 'varied';
+  distance: number; // Used in identical mode
+  repsCount: number; // Used in identical mode
+  intensity: number; // Used in identical mode
+  runs: RunItem[]; // Used in varied mode
   restReps: number; // in seconds
   restBlock: number; // in seconds
   target: ExerciseTarget;
 }
 
-export interface SavedRunTemplate {
+export interface WorkoutTemplateItem {
   id: string;
   name: string;
-  distance: number;
-  repsCount: number;
-  intensity: number;
-  restReps: number;
-  restBlock: number;
+  surface: 'piste' | 'cote';
+  equipment: 'pointes' | 'baskets';
+  description?: string;
+  blocks: RunBlockItem[];
+  created_at?: string;
 }
 
 const STORAGE_RUN_SURFACE_KEY = '@sprintflow_run_last_surface';
@@ -66,19 +74,7 @@ const STORAGE_RUN_REPS_KEY = '@sprintflow_run_last_reps';
 const STORAGE_RUN_INTENSITY_KEY = '@sprintflow_run_last_intensity';
 const STORAGE_RUN_REST_REPS_KEY = '@sprintflow_run_last_rest_reps';
 const STORAGE_RUN_REST_BLOCK_KEY = '@sprintflow_run_last_rest_block';
-const STORAGE_RUN_TEMPLATES_KEY = '@sprintflow_run_library_templates';
-
-const PRESET_DISTANCES = [30, 50, 60, 80, 100, 120, 150, 200, 250, 300, 400];
-const PRESET_REPS = [1, 2, 3, 4, 5, 6, 8, 10];
-const PRESET_INTENSITIES = [80, 85, 90, 95, 100];
-
-const DEFAULT_TEMPLATES: SavedRunTemplate[] = [
-  { id: 'tpl-1', name: '3 × 120m (95%)', distance: 120, repsCount: 3, intensity: 95, restReps: 180, restBlock: 360 },
-  { id: 'tpl-2', name: '4 × 60m (100%) Vitesse max', distance: 60, repsCount: 4, intensity: 100, restReps: 180, restBlock: 300 },
-  { id: 'tpl-3', name: '5 × 30m (100%) Départs', distance: 30, repsCount: 5, intensity: 100, restReps: 150, restBlock: 300 },
-  { id: 'tpl-4', name: '2 × 250m (90%) Lactique', distance: 250, repsCount: 2, intensity: 90, restReps: 300, restBlock: 480 },
-  { id: 'tpl-5', name: '3 × 150m (90%)', distance: 150, repsCount: 3, intensity: 90, restReps: 240, restBlock: 360 },
-];
+const STORAGE_RUN_FAVORITES_KEY = '@sprintflow_run_favorites_cache';
 
 export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
   visible,
@@ -92,7 +88,6 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
   const safeTop = Platform.OS === 'android'
     ? Math.max(insets.top, StatusBar.currentHeight || 24) + 8
     : (insets.top > 0 ? insets.top + 6 : 16);
-  const safeBottom = Math.max(insets.bottom, 16);
 
   const { user } = useAuthStore();
   const { teams, subgroups, teamMembers, fetchTeams, fetchTeamMembers, fetchSubgroups } = useCoachStore();
@@ -112,19 +107,21 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
   // Blocks list
   const [blocks, setBlocks] = useState<RunBlockItem[]>([]);
 
-  // Personal Templates Library
-  const [savedTemplates, setSavedTemplates] = useState<SavedRunTemplate[]>([]);
-  const [isLibraryVisible, setIsLibraryVisible] = useState(false);
-
   // Add / Edit Block Sheet
   const [isBlockSheetVisible, setIsBlockSheetVisible] = useState(false);
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
 
   // Block Form State
+  const [blockMode, setBlockMode] = useState<'identical' | 'varied'>('identical');
   const [blockName, setBlockName] = useState('');
   const [manualDistanceText, setManualDistanceText] = useState('120');
   const [repsCount, setRepsCount] = useState<number>(3);
   const [intensity, setIntensity] = useState<number>(95);
+  const [variedRuns, setVariedRuns] = useState<RunItem[]>([
+    { id: '1', distance: 120, intensity: 95 },
+    { id: '2', distance: 150, intensity: 95 },
+    { id: '3', distance: 120, intensity: 95 },
+  ]);
   const [restReps, setRestReps] = useState<number>(180);
   const [restBlock, setRestBlock] = useState<number>(360);
 
@@ -133,12 +130,21 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
   const [blockTargetSubgroupId, setBlockTargetSubgroupId] = useState<string | null>(null);
   const [blockTargetAthleteId, setBlockTargetAthleteId] = useState<string | null>(null);
 
-  // Save block to library checkbox
-  const [saveToLibraryChecked, setSaveToLibraryChecked] = useState(false);
-
   // Rest Picker Modals
   const [isRestRepsPickerVisible, setIsRestRepsPickerVisible] = useState(false);
   const [isRestBlockPickerVisible, setIsRestBlockPickerVisible] = useState(false);
+
+  // Séances Types Modal
+  const [isTemplatesModalVisible, setIsTemplatesModalVisible] = useState(false);
+  const [templatesTab, setTemplatesTab] = useState<'favorites' | 'recents'>('favorites');
+  const [favoriteTemplates, setFavoriteTemplates] = useState<WorkoutTemplateItem[]>([]);
+  const [recentWorkouts, setRecentWorkouts] = useState<any[]>([]);
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
+
+  // Save Favorite Modal
+  const [isSaveFavoriteModalVisible, setIsSaveFavoriteModalVisible] = useState(false);
+  const [favoriteTitleInput, setFavoriteTitleInput] = useState('');
+  const [isSavingFavorite, setIsSavingFavorite] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -146,23 +152,6 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
   const approvedMembers = useMemo(() => {
     return teamMembers.filter((m) => m.status === 'approved');
   }, [teamMembers]);
-
-  // Load templates from AsyncStorage
-  const loadTemplates = async () => {
-    try {
-      const stored = await AsyncStorage.getItem(STORAGE_RUN_TEMPLATES_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setSavedTemplates(parsed);
-      } else {
-        setSavedTemplates(DEFAULT_TEMPLATES);
-        await AsyncStorage.setItem(STORAGE_RUN_TEMPLATES_KEY, JSON.stringify(DEFAULT_TEMPLATES));
-      }
-    } catch (e) {
-      console.warn('Error loading run templates:', e);
-      setSavedTemplates(DEFAULT_TEMPLATES);
-    }
-  };
 
   // Load memory
   const loadRunMemory = async () => {
@@ -182,7 +171,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
       if (savedEquip === 'baskets' || savedEquip === 'pointes') setEquipment(savedEquip);
       if (savedDist) setManualDistanceText(savedDist);
       if (savedReps) setRepsCount(Math.max(1, parseInt(savedReps, 10) || 3));
-      if (savedInt) setIntensity(Math.min(100, Math.max(50, parseInt(savedInt, 10) || 95)));
+      if (savedInt) setIntensity(Math.min(100, Math.max(5, parseInt(savedInt, 10) || 95)));
       if (savedRestReps) setRestReps(Math.max(10, parseInt(savedRestReps, 10) || 180));
       if (savedRestBlk) setRestBlock(Math.max(0, parseInt(savedRestBlk, 10) || 360));
     } catch (e) {
@@ -190,18 +179,63 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
     }
   };
 
+  // Convert raw block from DB into RunBlockItem
+  const parseRawBlock = (blk: any, idx: number): RunBlockItem => {
+    const exercises = blk.exercises || [];
+    const firstEx = exercises[0] || {};
+    const sets = firstEx.sets || [];
+
+    // Check if distances in sets differ
+    const distances = sets.map((s: any) => s.distance || 100);
+    const isVaried = distances.length > 1 && distances.some((d: number) => d !== distances[0]);
+
+    if (isVaried) {
+      const runs: RunItem[] = sets.map((s: any) => ({
+        id: s.id || String(uuid.v4()),
+        distance: s.distance || 100,
+        intensity: s.intensity || 95,
+      }));
+      return {
+        id: blk.id || String(uuid.v4()),
+        name: blk.name || `Bloc ${idx + 1}`,
+        mode: 'varied',
+        distance: runs[0]?.distance || 100,
+        repsCount: runs.length,
+        intensity: runs[0]?.intensity || 95,
+        runs,
+        restReps: sets[0]?.restSeconds || 180,
+        restBlock: blk.restAfterBlock || 360,
+        target: firstEx.target || { type: 'all', id: null, name: 'Tout le groupe' },
+      };
+    } else {
+      const firstSet = sets[0] || {};
+      const dist = firstSet.distance || 100;
+      const reps = sets.length || 3;
+      const intens = firstSet.intensity || 95;
+      return {
+        id: blk.id || String(uuid.v4()),
+        name: blk.name || `Bloc ${idx + 1}`,
+        mode: 'identical',
+        distance: dist,
+        repsCount: reps,
+        intensity: intens,
+        runs: [],
+        restReps: firstSet.restSeconds || 180,
+        restBlock: blk.restAfterBlock || 360,
+        target: firstEx.target || { type: 'all', id: null, name: 'Tout le groupe' },
+      };
+    }
+  };
+
   // Initialize on modal open
   useEffect(() => {
     if (visible) {
-      loadTemplates();
       loadRunMemory();
 
       if (initialWorkout) {
-        // Populate existing workout
         const desc = initialWorkout.description || '';
         setSessionNotes(desc);
 
-        // Detect surface & equipment from type_seance or measures or description
         const typeSeance = (initialWorkout.type_seance || '').toLowerCase();
         if (typeSeance.includes('côte') || typeSeance.includes('cote')) {
           setSurface('cote');
@@ -221,7 +255,6 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
           setSurface(initialWorkout.measures.surface);
         }
 
-        // Targeting
         if (initialWorkout.subgroup_id) {
           setTargetType('subgroup');
           setSelectedSubgroupId(initialWorkout.subgroup_id);
@@ -232,50 +265,17 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
           setTargetType('team');
         }
 
-        // Parse blocks
         if (initialWorkout.blocks && Array.isArray(initialWorkout.blocks) && initialWorkout.blocks.length > 0) {
-          const loadedBlocks: RunBlockItem[] = initialWorkout.blocks.map((blk: any, idx: number) => {
-            const firstEx = blk.exercises?.[0];
-            const sets = firstEx?.sets || [];
-            const firstSet = sets[0] || {};
-            const dist = firstSet.distance || 100;
-            const reps = sets.length || 3;
-            const intens = firstSet.intensity || 95;
-            const restR = firstSet.restSeconds || 180;
-            const restB = blk.restAfterBlock || 360;
-
-            return {
-              id: blk.id || String(uuid.v4()),
-              name: blk.name || `Bloc ${idx + 1}`,
-              distance: dist,
-              repsCount: reps,
-              intensity: intens,
-              restReps: restR,
-              restBlock: restB,
-              target: firstEx?.target || { type: 'all', id: null, name: 'Tout le groupe' },
-            };
-          });
-          setBlocks(loadedBlocks);
+          setBlocks(initialWorkout.blocks.map(parseRawBlock));
         } else if (initialWorkout.exercises && Array.isArray(initialWorkout.exercises)) {
-          // Fallback if blocks wasn't populated
-          const loadedBlocks: RunBlockItem[] = initialWorkout.exercises.map((ex: any, idx: number) => {
-            const sets = ex.sets || [];
-            const firstSet = sets[0] || {};
-            return {
-              id: ex.id || String(uuid.v4()),
-              name: ex.name || `Bloc ${idx + 1}`,
-              distance: firstSet.distance || 100,
-              repsCount: sets.length || 3,
-              intensity: firstSet.intensity || 95,
-              restReps: firstSet.restSeconds || 180,
-              restBlock: 360,
-              target: ex.target || { type: 'all', id: null, name: 'Tout le groupe' },
-            };
-          });
-          setBlocks(loadedBlocks);
+          const fakeBlock = {
+            id: String(uuid.v4()),
+            name: 'Corps de séance',
+            exercises: initialWorkout.exercises,
+          };
+          setBlocks([parseRawBlock(fakeBlock, 0)]);
         }
       } else {
-        // Fresh creation
         setSessionNotes('');
         setBlocks([]);
         setTargetType('team');
@@ -311,26 +311,47 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
     return `${secs}s`;
   };
 
-  // Open add sheet
+  const getBlockSummary = (blk: RunBlockItem) => {
+    if (blk.mode === 'varied' && blk.runs && blk.runs.length > 0) {
+      const distStr = blk.runs.map((r) => `${r.distance}m`).join(' - ');
+      return `${distStr}  •  Rép: ${formatRestDisplay(blk.restReps)}  •  Bloc: ${formatRestDisplay(blk.restBlock)}`;
+    }
+    return `${blk.repsCount} × ${blk.distance}m  •  ${blk.intensity}%  •  Rép: ${formatRestDisplay(blk.restReps)}  •  Bloc: ${formatRestDisplay(blk.restBlock)}`;
+  };
+
+  // Open Add Sheet
   const handleOpenAddSheet = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setEditingBlockId(null);
+    setBlockMode('identical');
     setBlockName(`Bloc ${blocks.length + 1}`);
     setBlockTargetScope('inherit');
     setBlockTargetSubgroupId(subgroups[0]?.id || null);
     setBlockTargetAthleteId(approvedMembers[0]?.user_id || null);
-    setSaveToLibraryChecked(false);
+    setVariedRuns([
+      { id: String(uuid.v4()), distance: 120, intensity: 95 },
+      { id: String(uuid.v4()), distance: 150, intensity: 95 },
+      { id: String(uuid.v4()), distance: 120, intensity: 95 },
+    ]);
     setIsBlockSheetVisible(true);
   };
 
-  // Open edit sheet
+  // Open Edit Sheet
   const handleStartEdit = (block: RunBlockItem) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setEditingBlockId(block.id);
+    setBlockMode(block.mode || 'identical');
     setBlockName(block.name);
     setManualDistanceText(String(block.distance));
     setRepsCount(block.repsCount);
     setIntensity(block.intensity);
+    if (block.runs && block.runs.length > 0) {
+      setVariedRuns(block.runs.map((r) => ({ ...r })));
+    } else {
+      setVariedRuns([
+        { id: String(uuid.v4()), distance: block.distance, intensity: block.intensity },
+      ]);
+    }
     setRestReps(block.restReps);
     setRestBlock(block.restBlock);
 
@@ -344,7 +365,6 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
       setBlockTargetScope('inherit');
     }
 
-    setSaveToLibraryChecked(false);
     setIsBlockSheetVisible(true);
   };
 
@@ -353,37 +373,35 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
     setBlocks((prev) => prev.filter((b) => b.id !== id));
   };
 
-  // Choose from library
-  const handleSelectTemplate = (tpl: SavedRunTemplate) => {
+  // Varied Runs Management inside Block Sheet
+  const handleAddRunToBlock = () => {
     Haptics.selectionAsync();
-    const newBlock: RunBlockItem = {
-      id: String(uuid.v4()),
-      name: tpl.name || `Bloc ${blocks.length + 1}`,
-      distance: tpl.distance,
-      repsCount: tpl.repsCount,
-      intensity: tpl.intensity,
-      restReps: tpl.restReps,
-      restBlock: tpl.restBlock,
-      target: { type: 'all', id: null, name: 'Tout le groupe' },
-    };
-    setBlocks((prev) => [...prev, newBlock]);
-    setIsLibraryVisible(false);
+    const lastRun = variedRuns[variedRuns.length - 1];
+    const nextDist = lastRun ? lastRun.distance : 120;
+    const nextInt = lastRun ? lastRun.intensity : 95;
+    setVariedRuns((prev) => [
+      ...prev,
+      { id: String(uuid.v4()), distance: nextDist, intensity: nextInt },
+    ]);
   };
 
-  const handleDeleteTemplate = async (templateId: string) => {
-    const updated = savedTemplates.filter((t) => t.id !== templateId);
-    setSavedTemplates(updated);
-    await AsyncStorage.setItem(STORAGE_RUN_TEMPLATES_KEY, JSON.stringify(updated));
-  };
-
-  // Submit Add / Edit Block Sheet
-  const handleSaveBlockSheet = async () => {
-    const distNum = parseInt(manualDistanceText, 10);
-    if (isNaN(distNum) || distNum <= 0) {
-      Alert.alert('Distance invalide', 'Veuillez saisir une distance valide en mètres (ex: 120).');
+  const handleRemoveRunFromBlock = (runId: string) => {
+    Haptics.selectionAsync();
+    if (variedRuns.length <= 1) {
+      Alert.alert('Attention', 'Un bloc doit comporter au moins une course.');
       return;
     }
+    setVariedRuns((prev) => prev.filter((r) => r.id !== runId));
+  };
 
+  const handleUpdateRunField = (runId: string, field: 'distance' | 'intensity', val: number) => {
+    setVariedRuns((prev) =>
+      prev.map((r) => (r.id === runId ? { ...r, [field]: val } : r))
+    );
+  };
+
+  // Submit Block Sheet
+  const handleSaveBlockSheet = () => {
     let target: ExerciseTarget = { type: 'all', id: null, name: 'Tout le groupe' };
     if (blockTargetScope === 'subgroup' && blockTargetSubgroupId) {
       const sg = subgroups.find((s) => s.id === blockTargetSubgroupId);
@@ -395,92 +413,290 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
       target = { type: 'athlete', id: blockTargetAthleteId, name: athleteName };
     }
 
-    const defaultTitle = `${repsCount} × ${distNum}m (${intensity}%)`;
-    const finalName = blockName.trim() || defaultTitle;
+    if (blockMode === 'identical') {
+      const distNum = parseInt(manualDistanceText, 10);
+      if (isNaN(distNum) || distNum <= 0) {
+        Alert.alert('Distance invalide', 'Veuillez saisir une distance valide en mètres.');
+        return;
+      }
 
-    if (editingBlockId) {
-      setBlocks((prev) =>
-        prev.map((b) =>
-          b.id === editingBlockId
-            ? {
-                ...b,
-                name: finalName,
-                distance: distNum,
-                repsCount,
-                intensity,
-                restReps,
-                restBlock,
-                target,
-              }
-            : b
-        )
-      );
+      const defaultTitle = `${repsCount} × ${distNum}m (${intensity}%)`;
+      const finalName = blockName.trim() || defaultTitle;
+
+      if (editingBlockId) {
+        setBlocks((prev) =>
+          prev.map((b) =>
+            b.id === editingBlockId
+              ? {
+                  ...b,
+                  name: finalName,
+                  mode: 'identical',
+                  distance: distNum,
+                  repsCount,
+                  intensity,
+                  runs: [],
+                  restReps,
+                  restBlock,
+                  target,
+                }
+              : b
+          )
+        );
+      } else {
+        const newBlock: RunBlockItem = {
+          id: String(uuid.v4()),
+          name: finalName,
+          mode: 'identical',
+          distance: distNum,
+          repsCount,
+          intensity,
+          runs: [],
+          restReps,
+          restBlock,
+          target,
+        };
+        setBlocks((prev) => [...prev, newBlock]);
+      }
+
+      // Save memory
+      AsyncStorage.setItem(STORAGE_RUN_DISTANCE_KEY, String(distNum));
+      AsyncStorage.setItem(STORAGE_RUN_REPS_KEY, String(repsCount));
+      AsyncStorage.setItem(STORAGE_RUN_INTENSITY_KEY, String(intensity));
+      AsyncStorage.setItem(STORAGE_RUN_REST_REPS_KEY, String(restReps));
+      AsyncStorage.setItem(STORAGE_RUN_REST_BLOCK_KEY, String(restBlock));
     } else {
-      const newBlock: RunBlockItem = {
-        id: String(uuid.v4()),
-        name: finalName,
-        distance: distNum,
-        repsCount,
-        intensity,
-        restReps,
-        restBlock,
-        target,
-      };
-      setBlocks((prev) => [...prev, newBlock]);
-    }
+      // Varied mode
+      if (variedRuns.length === 0) {
+        Alert.alert('Bloc vide', 'Veuillez ajouter au moins une course.');
+        return;
+      }
 
-    // Save memory
-    AsyncStorage.setItem(STORAGE_RUN_DISTANCE_KEY, String(distNum));
-    AsyncStorage.setItem(STORAGE_RUN_REPS_KEY, String(repsCount));
-    AsyncStorage.setItem(STORAGE_RUN_INTENSITY_KEY, String(intensity));
-    AsyncStorage.setItem(STORAGE_RUN_REST_REPS_KEY, String(restReps));
-    AsyncStorage.setItem(STORAGE_RUN_REST_BLOCK_KEY, String(restBlock));
+      const distSummary = variedRuns.map((r) => `${r.distance}m`).join(' - ');
+      const finalName = blockName.trim() || `Bloc : ${distSummary}`;
 
-    // Save to library if toggled
-    if (saveToLibraryChecked) {
-      const newTpl: SavedRunTemplate = {
-        id: String(uuid.v4()),
-        name: finalName,
-        distance: distNum,
-        repsCount,
-        intensity,
-        restReps,
-        restBlock,
-      };
-      const updated = [newTpl, ...savedTemplates];
-      setSavedTemplates(updated);
-      AsyncStorage.setItem(STORAGE_RUN_TEMPLATES_KEY, JSON.stringify(updated));
+      if (editingBlockId) {
+        setBlocks((prev) =>
+          prev.map((b) =>
+            b.id === editingBlockId
+              ? {
+                  ...b,
+                  name: finalName,
+                  mode: 'varied',
+                  distance: variedRuns[0].distance,
+                  repsCount: variedRuns.length,
+                  intensity: variedRuns[0].intensity,
+                  runs: variedRuns,
+                  restReps,
+                  restBlock,
+                  target,
+                }
+              : b
+          )
+        );
+      } else {
+        const newBlock: RunBlockItem = {
+          id: String(uuid.v4()),
+          name: finalName,
+          mode: 'varied',
+          distance: variedRuns[0].distance,
+          repsCount: variedRuns.length,
+          intensity: variedRuns[0].intensity,
+          runs: variedRuns,
+          restReps,
+          restBlock,
+          target,
+        };
+        setBlocks((prev) => [...prev, newBlock]);
+      }
+
+      AsyncStorage.setItem(STORAGE_RUN_REST_REPS_KEY, String(restReps));
+      AsyncStorage.setItem(STORAGE_RUN_REST_BLOCK_KEY, String(restBlock));
     }
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setIsBlockSheetVisible(false);
   };
 
-  // Mapping blocks to workout database payload
+  // Séances Types: Load Templates & Recents
+  const loadTemplatesData = async () => {
+    if (!user?.id) return;
+    setIsLoadingTemplates(true);
+    try {
+      // 1. Favorites from Supabase + Cache
+      const supaFavorites = await workoutService.fetchWorkoutTemplates(user.id);
+      if (supaFavorites && supaFavorites.length > 0) {
+        const mapped: WorkoutTemplateItem[] = supaFavorites.map((t: any) => ({
+          id: t.id,
+          name: t.name,
+          surface: t.measures?.surface || 'piste',
+          equipment: t.measures?.equipment || 'pointes',
+          description: t.description,
+          blocks: (t.blocks || []).map(parseRawBlock),
+          created_at: t.created_at,
+        }));
+        setFavoriteTemplates(mapped);
+        AsyncStorage.setItem(STORAGE_RUN_FAVORITES_KEY, JSON.stringify(mapped));
+      } else {
+        const cached = await AsyncStorage.getItem(STORAGE_RUN_FAVORITES_KEY);
+        if (cached) setFavoriteTemplates(JSON.parse(cached));
+      }
+
+      // 2. Recents (last 5 running workouts)
+      const recents = await workoutService.fetchRecentWorkoutsForCoach(user.id, 5);
+      setRecentWorkouts(recents || []);
+    } catch (e) {
+      console.warn('Error loading templates data:', e);
+    } finally {
+      setIsLoadingTemplates(false);
+    }
+  };
+
+  const handleOpenTemplatesModal = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    loadTemplatesData();
+    setIsTemplatesModalVisible(true);
+  };
+
+  const handleApplyTemplate = (tpl: WorkoutTemplateItem | any, isRecent: boolean = false) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    if (isRecent) {
+      const rawBlocks = tpl.blocks || [];
+      const parsed = rawBlocks.map(parseRawBlock);
+      setBlocks(parsed);
+
+      const desc = tpl.description || '';
+      setSessionNotes(desc.replace(/^\[.*?\]\s*/, '').trim());
+
+      const s = tpl.measures?.surface || (tpl.type_seance?.toLowerCase().includes('côte') ? 'cote' : 'piste');
+      const e = tpl.measures?.equipment || (desc.toLowerCase().includes('basket') ? 'baskets' : 'pointes');
+      setSurface(s);
+      setEquipment(e);
+    } else {
+      setBlocks(tpl.blocks || []);
+      setSurface(tpl.surface || 'piste');
+      setEquipment(tpl.equipment || 'pointes');
+      if (tpl.description) setSessionNotes(tpl.description);
+    }
+
+    setIsTemplatesModalVisible(false);
+  };
+
+  const handleDeleteFavorite = async (tplId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      await workoutService.deleteWorkoutTemplate(tplId);
+      const updated = favoriteTemplates.filter((t) => t.id !== tplId);
+      setFavoriteTemplates(updated);
+      AsyncStorage.setItem(STORAGE_RUN_FAVORITES_KEY, JSON.stringify(updated));
+    } catch (e) {
+      console.error('Error deleting favorite template:', e);
+      Alert.alert('Erreur', 'Impossible de supprimer ce favori.');
+    }
+  };
+
+  // Save Current Session as Favorite
+  const handleOpenSaveFavoriteModal = () => {
+    if (blocks.length === 0) {
+      Alert.alert('Séance vide', 'Ajoutez au moins un bloc avant d’enregistrer la séance en favori.');
+      return;
+    }
+    const defaultTitle = `Séance ${surface === 'cote' ? 'Côte' : 'Piste'} - ${blocks.length} bloc${blocks.length > 1 ? 's' : ''}`;
+    setFavoriteTitleInput(defaultTitle);
+    setIsSaveFavoriteModalVisible(true);
+  };
+
+  const handleConfirmSaveFavorite = async () => {
+    if (!user?.id) return;
+    const cleanTitle = favoriteTitleInput.trim();
+    if (!cleanTitle) {
+      Alert.alert('Titre requis', 'Veuillez saisir un nom pour identifier cette séance type.');
+      return;
+    }
+
+    setIsSavingFavorite(true);
+    try {
+      const mappedBlocks = mapBlocksToPayload(blocks);
+      const payload = {
+        coach_id: user.id,
+        name: cleanTitle,
+        type_seance: surface === 'cote' ? 'Côte' : 'Piste',
+        description: sessionNotes.trim() || undefined,
+        blocks: mappedBlocks,
+        measures: {
+          surface,
+          equipment,
+        },
+      };
+
+      const saved = await workoutService.saveWorkoutTemplate(payload);
+      const newTemplateItem: WorkoutTemplateItem = {
+        id: saved?.[0]?.id || String(uuid.v4()),
+        name: cleanTitle,
+        surface,
+        equipment,
+        description: sessionNotes.trim(),
+        blocks: [...blocks],
+        created_at: new Date().toISOString(),
+      };
+
+      const updated = [newTemplateItem, ...favoriteTemplates];
+      setFavoriteTemplates(updated);
+      AsyncStorage.setItem(STORAGE_RUN_FAVORITES_KEY, JSON.stringify(updated));
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setIsSaveFavoriteModalVisible(false);
+      Alert.alert('Succès', 'Séance enregistrée dans vos séances types favorites !');
+    } catch (err) {
+      console.error('Error saving favorite template:', err);
+      Alert.alert('Erreur', "Impossible d'enregistrer le favori.");
+    } finally {
+      setIsSavingFavorite(false);
+    }
+  };
+
+  // Mapping blocks to database payload
   const mapBlocksToPayload = (items: RunBlockItem[]) => {
     return items.map((blk, idx) => {
       const isLastBlock = idx === items.length - 1;
       const exerciseId = uuid.v4() as string;
-      const sets = Array.from({ length: blk.repsCount }).map((_, sIdx) => {
-        const isLastRepInBlock = sIdx === blk.repsCount - 1;
-        const restSec = isLastRepInBlock ? blk.restBlock : blk.restReps;
-        return {
-          id: uuid.v4() as string,
-          distance: blk.distance,
-          intensity: blk.intensity,
-          restSeconds: restSec,
-        };
-      });
+
+      let sets: any[] = [];
+      let summaryName = '';
+
+      if (blk.mode === 'varied' && blk.runs && blk.runs.length > 0) {
+        summaryName = blk.runs.map((r) => `${r.distance}m`).join(' - ');
+        sets = blk.runs.map((r, sIdx) => {
+          const isLastRun = sIdx === blk.runs.length - 1;
+          return {
+            id: uuid.v4() as string,
+            distance: r.distance,
+            intensity: r.intensity,
+            restSeconds: isLastRun ? blk.restBlock : blk.restReps,
+          };
+        });
+      } else {
+        summaryName = `${blk.repsCount} × ${blk.distance}m`;
+        sets = Array.from({ length: blk.repsCount }).map((_, sIdx) => {
+          const isLastRep = sIdx === blk.repsCount - 1;
+          return {
+            id: uuid.v4() as string,
+            distance: blk.distance,
+            intensity: blk.intensity,
+            restSeconds: isLastRep ? blk.restBlock : blk.restReps,
+          };
+        });
+      }
 
       return {
         id: blk.id || (uuid.v4() as string),
-        name: blk.name || `Bloc ${idx + 1} : ${blk.repsCount} × ${blk.distance}m`,
+        name: blk.name || `Bloc ${idx + 1} : ${summaryName}`,
         type: 'sprint',
         restAfterBlock: blk.restBlock,
         exercises: [
           {
             id: exerciseId,
-            name: `${blk.repsCount} × ${blk.distance}m`,
+            name: summaryName,
             target: blk.target,
             sets,
           },
@@ -502,11 +718,9 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
       const activeTeamId = teams.length > 0 ? teams[0].id : null;
       const targetDateIso = date.toISOString();
 
-      // Persist surface & equipment in memory
       AsyncStorage.setItem(STORAGE_RUN_SURFACE_KEY, surface);
       AsyncStorage.setItem(STORAGE_RUN_EQUIPMENT_KEY, equipment);
 
-      // In edit mode: delete old workout(s) first
       if (initialWorkout?.id) {
         await workoutService.deleteWorkout(
           initialWorkout.id,
@@ -514,7 +728,6 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
         );
       }
 
-      // Build session label and description
       const surfaceLabel = surface === 'cote' ? 'Côte' : 'Piste';
       const equipmentLabel = equipment === 'pointes' ? 'Pointes' : 'Baskets';
       const sessionTypeSeance = surface === 'cote' ? 'Côte' : 'Piste';
@@ -532,10 +745,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
         }
 
         if (approvedMembers.length === 0) {
-          Alert.alert(
-            'Aucun athlète',
-            "Aucun athlète validé n'a été trouvé dans votre équipe pour recevoir cette séance."
-          );
+          Alert.alert('Aucun athlète', "Aucun athlète validé n'a été trouvé dans votre équipe.");
           setIsSubmitting(false);
           return;
         }
@@ -578,10 +788,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
         }
 
         if (assignedCount === 0) {
-          Alert.alert(
-            'Information',
-            'Aucun athlète ne correspond aux cibles choisies pour les blocs.'
-          );
+          Alert.alert('Information', 'Aucun athlète ne correspond aux cibles choisies.');
           setIsSubmitting(false);
           return;
         }
@@ -627,7 +834,6 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
           }
         }
       } else {
-        // Specific Athlete
         const mappedBlocks = mapBlocksToPayload(blocks);
         const flatExercises = mappedBlocks.flatMap((b) => b.exercises);
 
@@ -655,7 +861,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
       onClose();
     } catch (err: any) {
       console.error('Error saving running workout:', err);
-      Alert.alert('Erreur', err?.message || "Impossible d'enregistrer la séance. Veuillez réessayer.");
+      Alert.alert('Erreur', err?.message || "Impossible d'enregistrer la séance.");
     } finally {
       setIsSubmitting(false);
     }
@@ -804,7 +1010,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
             <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>LIEU & ÉQUIPEMENT</Text>
           </View>
           <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-            {/* Lieu / Surface */}
+            {/* Lieu */}
             <View style={styles.contextRow}>
               <View style={styles.contextLabelBox}>
                 <Feather name="map-pin" size={15} color={theme.colors.textSecondary} style={{ marginRight: 8 }} />
@@ -892,7 +1098,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
           <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
             <TextInput
               style={[styles.notesInput, { color: theme.colors.text }]}
-              placeholder="Ajouter une consigne pour les athlètes (ex: départ arrêté, 3 foulées de relance)..."
+              placeholder="Ajouter une consigne pour les athlètes (ex: départ arrêté, relance aux 50m)..."
               placeholderTextColor={theme.colors.textMuted}
               multiline
               value={sessionNotes}
@@ -902,10 +1108,23 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
           </View>
 
           {/* Section: BLOCS */}
-          <View style={styles.sectionHeaderBetween}>
+          <View style={styles.sectionHeaderBetweenRow}>
             <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>
               BLOCS DE COURSE ({blocks.length})
             </Text>
+
+            {blocks.length > 0 && (
+              <TouchableOpacity
+                style={styles.saveFavHeaderLink}
+                onPress={handleOpenSaveFavoriteModal}
+                activeOpacity={0.7}
+              >
+                <Feather name="star" size={13} color={theme.colors.accent} style={{ marginRight: 4 }} />
+                <Text style={[styles.saveFavHeaderText, { color: theme.colors.accent }]}>
+                  Enregistrer en séance type
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {blocks.length === 0 ? (
@@ -915,7 +1134,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
               </View>
               <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Aucun bloc ajouté</Text>
               <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
-                Structurez votre séance en ajoutant un premier bloc de répétitions ci-dessous.
+                Créez vos répétitions de course ou chargez une séance type en un clic.
               </Text>
 
               <View style={styles.actionButtonsContainer}>
@@ -930,28 +1149,21 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                   <Text style={styles.primaryActionText}>Ajouter un bloc</Text>
                 </TouchableOpacity>
 
-                {savedTemplates.length > 0 && (
-                  <TouchableOpacity
-                    style={[
-                      styles.secondaryActionBtn,
-                      { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-                    ]}
-                    onPress={() => setIsLibraryVisible(true)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[styles.secondaryActionIconBox, { backgroundColor: theme.colors.accent + '15' }]}>
-                      <Feather name="bookmark" size={15} color={theme.colors.accent} />
-                    </View>
-                    <Text style={[styles.secondaryActionText, { color: theme.colors.text }]}>
-                      Depuis ma bibliothèque
-                    </Text>
-                    <View style={[styles.countBadge, { backgroundColor: theme.colors.accent + '15' }]}>
-                      <Text style={[styles.countBadgeText, { color: theme.colors.accent }]}>
-                        {savedTemplates.length}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                )}
+                <TouchableOpacity
+                  style={[
+                    styles.secondaryActionBtn,
+                    { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+                  ]}
+                  onPress={handleOpenTemplatesModal}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.secondaryActionIconBox, { backgroundColor: theme.colors.accent + '15' }]}>
+                    <Feather name="copy" size={15} color={theme.colors.accent} />
+                  </View>
+                  <Text style={[styles.secondaryActionText, { color: theme.colors.text }]}>
+                    Séances types
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
           ) : (
@@ -984,7 +1196,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                         )}
                       </View>
                       <Text style={[styles.blockRowSubtitle, { color: theme.colors.textSecondary }]}>
-                        {item.repsCount} × {item.distance}m  •  {item.intensity}%  •  Rép: {formatRestDisplay(item.restReps)}  •  Bloc: {formatRestDisplay(item.restBlock)}
+                        {getBlockSummary(item)}
                       </Text>
                     </TouchableOpacity>
 
@@ -1012,26 +1224,19 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                 <Text style={[styles.addMoreRowText, { color: theme.colors.accent }]}>Ajouter un autre bloc</Text>
               </TouchableOpacity>
 
-              {/* Library Row */}
-              {savedTemplates.length > 0 && (
-                <TouchableOpacity
-                  style={[styles.addMoreRow, { borderTopColor: theme.colors.border }]}
-                  onPress={() => setIsLibraryVisible(true)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.actionRowIconCircle, { backgroundColor: theme.colors.accent + '15' }]}>
-                    <Feather name="bookmark" size={13} color={theme.colors.accent} />
-                  </View>
-                  <Text style={[styles.addMoreRowText, { color: theme.colors.text }]}>
-                    Depuis ma bibliothèque
-                  </Text>
-                  <View style={[styles.countBadge, { backgroundColor: theme.colors.surfaceLight, marginLeft: 'auto' }]}>
-                    <Text style={[styles.countBadgeText, { color: theme.colors.textSecondary }]}>
-                      {savedTemplates.length}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              )}
+              {/* Séances Types Row */}
+              <TouchableOpacity
+                style={[styles.addMoreRow, { borderTopColor: theme.colors.border }]}
+                onPress={handleOpenTemplatesModal}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.actionRowIconCircle, { backgroundColor: theme.colors.accent + '15' }]}>
+                  <Feather name="copy" size={13} color={theme.colors.accent} />
+                </View>
+                <Text style={[styles.addMoreRowText, { color: theme.colors.text }]}>
+                  Séances types (Favoris & Récents)
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -1039,7 +1244,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
         </ScrollView>
 
         {/* ========================================================================= */}
-        {/* SHEET MODAL: ADD / EDIT BLOCK (Clean Apple Form Sheet)                    */}
+        {/* SHEET MODAL: ADD / EDIT BLOCK (Pure minimalist form)                      */}
         {/* ========================================================================= */}
         <Modal
           visible={isBlockSheetVisible}
@@ -1052,7 +1257,6 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           >
             <View style={[styles.sheetContainer, { backgroundColor: theme.colors.background }]}>
-              {/* Sheet Header */}
               <View style={[styles.sheetHeader, { paddingTop: safeTop, borderBottomColor: theme.colors.border }]}>
                 <TouchableOpacity onPress={() => setIsBlockSheetVisible(false)} style={styles.headerTextBtn}>
                   <Text style={[styles.headerCancelText, { color: theme.colors.textSecondary }]}>Annuler</Text>
@@ -1079,189 +1283,236 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                 <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                   <TextInput
                     style={[styles.singleLineInput, { color: theme.colors.text }]}
-                    placeholder={`Ex: Bloc ${blocks.length + 1} ou Sprint départ arrêté`}
+                    placeholder={`Ex: Bloc ${blocks.length + 1} ou Vitesse max`}
                     placeholderTextColor={theme.colors.textMuted}
                     value={blockName}
                     onChangeText={setBlockName}
                   />
                 </View>
 
-                {/* 2. DISTANCE (MANUELLE + PRESETS) */}
+                {/* 2. MODE DU BLOC (IDENTIQUE VS VARIÉ) */}
                 <View style={styles.sectionHeaderBetween}>
-                  <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>DISTANCE (MÈTRES)</Text>
-                </View>
-                <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, padding: 16 }]}>
-                  {/* Manual freeform input */}
-                  <View style={styles.manualDistanceRow}>
-                    <Text style={[styles.distanceLabel, { color: theme.colors.textSecondary }]}>Distance exacte</Text>
-                    <View style={[styles.distanceInputBox, { borderColor: theme.colors.border, backgroundColor: theme.colors.background }]}>
-                      <TextInput
-                        style={[styles.distanceInputField, { color: theme.colors.text }]}
-                        keyboardType="number-pad"
-                        value={manualDistanceText}
-                        onChangeText={setManualDistanceText}
-                        maxLength={5}
-                        selectTextOnFocus
-                      />
-                      <Text style={[styles.meterUnitText, { color: theme.colors.accent }]}>m</Text>
-                    </View>
-                  </View>
-
-                  {/* Preset chips for fast selection */}
-                  <Text style={[styles.presetSubLabel, { color: theme.colors.textSecondary }]}>Distances courantes</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.presetScroll}>
-                    {PRESET_DISTANCES.map((d) => {
-                      const isSelected = manualDistanceText === String(d);
-                      return (
-                        <TouchableOpacity
-                          key={d}
-                          style={[
-                            styles.chip,
-                            {
-                              backgroundColor: isSelected ? theme.colors.accent + '20' : theme.colors.background,
-                              borderColor: isSelected ? theme.colors.accent : theme.colors.border,
-                            },
-                          ]}
-                          onPress={() => {
-                            Haptics.selectionAsync();
-                            setManualDistanceText(String(d));
-                          }}
-                        >
-                          <Text style={[styles.chipText, { color: isSelected ? theme.colors.accent : theme.colors.text }]}>
-                            {d}m
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                </View>
-
-                {/* 3. RÉPÉTITIONS & INTENSITÉ */}
-                <View style={styles.sectionHeaderBetween}>
-                  <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>RÉPÉTITIONS & INTENSITÉ</Text>
+                  <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>STRUCTURE DU BLOC</Text>
                 </View>
                 <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                  {/* Stepper Reps */}
-                  <View style={styles.paramRow}>
-                    <View style={styles.paramLabelBox}>
-                      <Text style={[styles.paramRowTitle, { color: theme.colors.text }]}>Répétitions</Text>
-                      <Text style={[styles.paramRowSub, { color: theme.colors.textSecondary }]}>Nombre de courses dans le bloc</Text>
-                    </View>
-                    <View style={styles.stepperBox}>
-                      <TouchableOpacity
-                        style={[styles.stepperBtn, { backgroundColor: theme.colors.surfaceLight }]}
-                        onPress={() => {
-                          Haptics.selectionAsync();
-                          setRepsCount((r) => Math.max(1, r - 1));
-                        }}
-                      >
-                        <Feather name="minus" size={16} color={theme.colors.text} />
-                      </TouchableOpacity>
-                      <Text style={[styles.stepperValueText, { color: theme.colors.text }]}>{repsCount}</Text>
-                      <TouchableOpacity
-                        style={[styles.stepperBtn, { backgroundColor: theme.colors.surfaceLight }]}
-                        onPress={() => {
-                          Haptics.selectionAsync();
-                          setRepsCount((r) => r + 1);
-                        }}
-                      >
-                        <Feather name="plus" size={16} color={theme.colors.text} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
+                  <View style={styles.segmentedRow}>
+                    <TouchableOpacity
+                      style={[styles.segmentBtn, blockMode === 'identical' && { backgroundColor: theme.colors.accent }]}
+                      onPress={() => {
+                        Haptics.selectionAsync();
+                        setBlockMode('identical');
+                      }}
+                    >
+                      <Text style={[styles.segmentBtnText, { color: blockMode === 'identical' ? '#FFFFFF' : theme.colors.text }]}>
+                        Répétitions identiques
+                      </Text>
+                    </TouchableOpacity>
 
-                  <View style={[styles.rowDivider, { borderBottomColor: theme.colors.border }]} />
-
-                  {/* Preset chips for reps */}
-                  <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                      {PRESET_REPS.map((r) => (
-                        <TouchableOpacity
-                          key={r}
-                          style={[
-                            styles.chipCompact,
-                            {
-                              backgroundColor: repsCount === r ? theme.colors.accent + '20' : theme.colors.background,
-                              borderColor: repsCount === r ? theme.colors.accent : theme.colors.border,
-                            },
-                          ]}
-                          onPress={() => {
-                            Haptics.selectionAsync();
-                            setRepsCount(r);
-                          }}
-                        >
-                          <Text style={[styles.chipText, { color: repsCount === r ? theme.colors.accent : theme.colors.text }]}>
-                            {r}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-
-                  <View style={[styles.rowDivider, { borderBottomColor: theme.colors.border }]} />
-
-                  {/* Stepper Intensity */}
-                  <View style={styles.paramRow}>
-                    <View style={styles.paramLabelBox}>
-                      <Text style={[styles.paramRowTitle, { color: theme.colors.text }]}>Intensité</Text>
-                      <Text style={[styles.paramRowSub, { color: theme.colors.textSecondary }]}>Pourcentage de la vitesse max</Text>
-                    </View>
-                    <View style={styles.stepperBox}>
-                      <TouchableOpacity
-                        style={[styles.stepperBtn, { backgroundColor: theme.colors.surfaceLight }]}
-                        onPress={() => {
-                          Haptics.selectionAsync();
-                          setIntensity((i) => Math.max(50, i - 5));
-                        }}
-                      >
-                        <Feather name="minus" size={16} color={theme.colors.text} />
-                      </TouchableOpacity>
-                      <Text style={[styles.stepperValueText, { color: theme.colors.text }]}>{intensity}%</Text>
-                      <TouchableOpacity
-                        style={[styles.stepperBtn, { backgroundColor: theme.colors.surfaceLight }]}
-                        onPress={() => {
-                          Haptics.selectionAsync();
-                          setIntensity((i) => Math.min(100, i + 5));
-                        }}
-                      >
-                        <Feather name="plus" size={16} color={theme.colors.text} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
-                  {/* Preset chips for intensity */}
-                  <View style={{ paddingHorizontal: 16, paddingBottom: 14 }}>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                      {PRESET_INTENSITIES.map((i) => (
-                        <TouchableOpacity
-                          key={i}
-                          style={[
-                            styles.chipCompact,
-                            {
-                              backgroundColor: intensity === i ? theme.colors.accent + '20' : theme.colors.background,
-                              borderColor: intensity === i ? theme.colors.accent : theme.colors.border,
-                            },
-                          ]}
-                          onPress={() => {
-                            Haptics.selectionAsync();
-                            setIntensity(i);
-                          }}
-                        >
-                          <Text style={[styles.chipText, { color: intensity === i ? theme.colors.accent : theme.colors.text }]}>
-                            {i}%
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
+                    <TouchableOpacity
+                      style={[styles.segmentBtn, blockMode === 'varied' && { backgroundColor: theme.colors.accent }]}
+                      onPress={() => {
+                        Haptics.selectionAsync();
+                        setBlockMode('varied');
+                      }}
+                    >
+                      <Text style={[styles.segmentBtnText, { color: blockMode === 'varied' ? '#FFFFFF' : theme.colors.text }]}>
+                        Enchaînement varié
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
+
+                {/* --- MODE A: RÉPÉTITIONS IDENTIQUES --- */}
+                {blockMode === 'identical' ? (
+                  <>
+                    {/* Distance Manuelle pure (aucune pilule superflue) */}
+                    <View style={styles.sectionHeaderBetween}>
+                      <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>DISTANCE (MÈTRES)</Text>
+                    </View>
+                    <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, padding: 16 }]}>
+                      <View style={styles.manualDistanceRow}>
+                        <Text style={[styles.distanceLabel, { color: theme.colors.text }]}>Distance de course</Text>
+                        <View style={[styles.distanceInputBox, { borderColor: theme.colors.border, backgroundColor: theme.colors.background }]}>
+                          <TextInput
+                            style={[styles.distanceInputField, { color: theme.colors.text }]}
+                            keyboardType="number-pad"
+                            value={manualDistanceText}
+                            onChangeText={setManualDistanceText}
+                            maxLength={5}
+                            selectTextOnFocus
+                          />
+                          <Text style={[styles.meterUnitText, { color: theme.colors.accent }]}>m</Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* Répétitions & Intensité (5% à 100% bloqué) */}
+                    <View style={styles.sectionHeaderBetween}>
+                      <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>RÉPÉTITIONS & INTENSITÉ</Text>
+                    </View>
+                    <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                      {/* Reps Stepper */}
+                      <View style={styles.paramRow}>
+                        <View style={styles.paramLabelBox}>
+                          <Text style={[styles.paramRowTitle, { color: theme.colors.text }]}>Répétitions</Text>
+                          <Text style={[styles.paramRowSub, { color: theme.colors.textSecondary }]}>Nombre de courses dans le bloc</Text>
+                        </View>
+                        <View style={styles.stepperBox}>
+                          <TouchableOpacity
+                            style={[styles.stepperBtn, { backgroundColor: theme.colors.surfaceLight }]}
+                            onPress={() => {
+                              Haptics.selectionAsync();
+                              setRepsCount((r) => Math.max(1, r - 1));
+                            }}
+                          >
+                            <Feather name="minus" size={16} color={theme.colors.text} />
+                          </TouchableOpacity>
+                          <Text style={[styles.stepperValueText, { color: theme.colors.text }]}>{repsCount}</Text>
+                          <TouchableOpacity
+                            style={[styles.stepperBtn, { backgroundColor: theme.colors.surfaceLight }]}
+                            onPress={() => {
+                              Haptics.selectionAsync();
+                              setRepsCount((r) => r + 1);
+                            }}
+                          >
+                            <Feather name="plus" size={16} color={theme.colors.text} />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+
+                      <View style={[styles.rowDivider, { borderBottomColor: theme.colors.border }]} />
+
+                      {/* Intensity Stepper (5% à 100% max) */}
+                      <View style={styles.paramRow}>
+                        <View style={styles.paramLabelBox}>
+                          <Text style={[styles.paramRowTitle, { color: theme.colors.text }]}>Intensité</Text>
+                          <Text style={[styles.paramRowSub, { color: theme.colors.textSecondary }]}>De 5% à 100% max</Text>
+                        </View>
+                        <View style={styles.stepperBox}>
+                          <TouchableOpacity
+                            style={[styles.stepperBtn, { backgroundColor: theme.colors.surfaceLight }]}
+                            onPress={() => {
+                              Haptics.selectionAsync();
+                              setIntensity((i) => Math.max(5, i - 5));
+                            }}
+                          >
+                            <Feather name="minus" size={16} color={theme.colors.text} />
+                          </TouchableOpacity>
+                          <Text style={[styles.stepperValueText, { color: theme.colors.text }]}>{intensity}%</Text>
+                          <TouchableOpacity
+                            style={[styles.stepperBtn, { backgroundColor: theme.colors.surfaceLight }]}
+                            onPress={() => {
+                              Haptics.selectionAsync();
+                              setIntensity((i) => Math.min(100, i + 5));
+                            }}
+                          >
+                            <Feather name="plus" size={16} color={theme.colors.text} />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </View>
+                  </>
+                ) : (
+                  /* --- MODE B: ENCHAÎNEMENT VARIÉ (ex: 120m, 150m, 120m) --- */
+                  <>
+                    <View style={styles.sectionHeaderBetweenRow}>
+                      <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>
+                        COURSES DU BLOC ({variedRuns.length})
+                      </Text>
+                      <TouchableOpacity onPress={handleAddRunToBlock} style={styles.addRunHeaderBtn}>
+                        <Feather name="plus-circle" size={14} color={theme.colors.accent} style={{ marginRight: 4 }} />
+                        <Text style={[styles.addRunHeaderBtnText, { color: theme.colors.accent }]}>Ajouter une course</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                      {variedRuns.map((runItem, runIdx) => {
+                        const isLastRun = runIdx === variedRuns.length - 1;
+                        return (
+                          <View
+                            key={runItem.id}
+                            style={[
+                              styles.variedRunRow,
+                              !isLastRun && [styles.rowDivider, { borderBottomColor: theme.colors.border }],
+                            ]}
+                          >
+                            <View style={[styles.variedIndexBadge, { backgroundColor: theme.colors.accent + '15' }]}>
+                              <Text style={[styles.variedIndexText, { color: theme.colors.accent }]}>{runIdx + 1}</Text>
+                            </View>
+
+                            {/* Distance field */}
+                            <View style={styles.variedFieldCol}>
+                              <Text style={[styles.variedFieldSub, { color: theme.colors.textSecondary }]}>Distance</Text>
+                              <View style={[styles.variedInputBox, { borderColor: theme.colors.border, backgroundColor: theme.colors.background }]}>
+                                <TextInput
+                                  style={[styles.variedInput, { color: theme.colors.text }]}
+                                  keyboardType="number-pad"
+                                  value={String(runItem.distance)}
+                                  onChangeText={(t) => {
+                                    const parsed = parseInt(t, 10);
+                                    handleUpdateRunField(runItem.id, 'distance', isNaN(parsed) ? 0 : parsed);
+                                  }}
+                                  maxLength={5}
+                                  selectTextOnFocus
+                                />
+                                <Text style={[styles.meterUnitText, { color: theme.colors.accent }]}>m</Text>
+                              </View>
+                            </View>
+
+                            {/* Intensity field */}
+                            <View style={styles.variedFieldCol}>
+                              <Text style={[styles.variedFieldSub, { color: theme.colors.textSecondary }]}>Intensité</Text>
+                              <View style={[styles.variedInputBox, { borderColor: theme.colors.border, backgroundColor: theme.colors.background }]}>
+                                <TextInput
+                                  style={[styles.variedInput, { color: theme.colors.text }]}
+                                  keyboardType="number-pad"
+                                  value={String(runItem.intensity)}
+                                  onChangeText={(t) => {
+                                    const parsed = parseInt(t, 10);
+                                    const bounded = isNaN(parsed) ? 5 : Math.min(100, Math.max(5, parsed));
+                                    handleUpdateRunField(runItem.id, 'intensity', bounded);
+                                  }}
+                                  maxLength={3}
+                                  selectTextOnFocus
+                                />
+                                <Text style={[styles.meterUnitText, { color: theme.colors.accent }]}>%</Text>
+                              </View>
+                            </View>
+
+                            {/* Delete run button */}
+                            {variedRuns.length > 1 && (
+                              <TouchableOpacity
+                                onPress={() => handleRemoveRunFromBlock(runItem.id)}
+                                style={styles.iconHit}
+                              >
+                                <Feather name="trash-2" size={15} color={theme.colors.error} />
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        );
+                      })}
+
+                      <TouchableOpacity
+                        style={[styles.addMoreRow, { borderTopColor: theme.colors.border }]}
+                        onPress={handleAddRunToBlock}
+                        activeOpacity={0.7}
+                      >
+                        <View style={[styles.actionRowIconCircle, { backgroundColor: theme.colors.accent + '15' }]}>
+                          <Feather name="plus" size={14} color={theme.colors.accent} />
+                        </View>
+                        <Text style={[styles.addMoreRowText, { color: theme.colors.accent }]}>
+                          Ajouter une course dans ce bloc
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                )}
 
                 {/* 4. TEMPS DE REPOS */}
                 <View style={styles.sectionHeaderBetween}>
                   <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>TEMPS DE RÉCUPÉRATION</Text>
                 </View>
                 <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                  {/* Rest between reps */}
                   <TouchableOpacity
                     style={styles.clickableRow}
                     onPress={() => setIsRestRepsPickerVisible(true)}
@@ -1270,7 +1521,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                     <View style={styles.clickableRowLeft}>
                       <Text style={[styles.clickableRowTitle, { color: theme.colors.text }]}>Repos entre répétitions</Text>
                       <Text style={[styles.clickableRowSub, { color: theme.colors.textSecondary }]}>
-                        Entre chaque {manualDistanceText || '100'}m
+                        Entre chaque course du bloc
                       </Text>
                     </View>
                     <View style={styles.clickableRowRight}>
@@ -1283,7 +1534,6 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
 
                   <View style={[styles.rowDivider, { borderBottomColor: theme.colors.border }]} />
 
-                  {/* Rest after block */}
                   <TouchableOpacity
                     style={styles.clickableRow}
                     onPress={() => setIsRestBlockPickerVisible(true)}
@@ -1304,7 +1554,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                   </TouchableOpacity>
                 </View>
 
-                {/* 5. CIBLE DU BLOC (OPTIONNEL) */}
+                {/* 5. CIBLE DU BLOC */}
                 <View style={styles.sectionHeaderBetween}>
                   <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>
                     CIBLE SPÉCIFIQUE POUR CE BLOC
@@ -1402,35 +1652,6 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                   )}
                 </View>
 
-                {/* 6. OPTION: ENREGISTRER DANS LA BIBLIOTHÈQUE */}
-                {!editingBlockId && (
-                  <View style={{ marginTop: 14 }}>
-                    <TouchableOpacity
-                      style={[
-                        styles.librarySaveToggleRow,
-                        { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-                      ]}
-                      onPress={() => {
-                        Haptics.selectionAsync();
-                        setSaveToLibraryChecked(!saveToLibraryChecked);
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <View style={[styles.checkboxIcon, { borderColor: saveToLibraryChecked ? theme.colors.accent : theme.colors.border, backgroundColor: saveToLibraryChecked ? theme.colors.accent : 'transparent' }]}>
-                        {saveToLibraryChecked && <Feather name="check" size={14} color="#FFFFFF" />}
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.checkboxLabel, { color: theme.colors.text }]}>
-                          Mémoriser ce bloc dans ma bibliothèque
-                        </Text>
-                        <Text style={[styles.checkboxSub, { color: theme.colors.textSecondary }]}>
-                          Pour le réutiliser en 1 clic dans vos prochaines séances
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  </View>
-                )}
-
                 <View style={{ height: 40 }} />
               </ScrollView>
             </View>
@@ -1438,83 +1659,268 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
         </Modal>
 
         {/* ========================================================================= */}
-        {/* MODAL: BIBLIOTHÈQUE DE BLOCS (Modern Vertical List with "Choisir")        */}
+        {/* MODAL: SÉANCES TYPES (Favoris & 5 Dernières créées)                       */}
         {/* ========================================================================= */}
         <Modal
-          visible={isLibraryVisible}
+          visible={isTemplatesModalVisible}
           animationType="slide"
           presentationStyle="pageSheet"
-          onRequestClose={() => setIsLibraryVisible(false)}
+          onRequestClose={() => setIsTemplatesModalVisible(false)}
         >
           <View style={[styles.sheetContainer, { backgroundColor: theme.colors.background }]}>
             <View style={[styles.sheetHeader, { paddingTop: safeTop, borderBottomColor: theme.colors.border }]}>
-              <TouchableOpacity onPress={() => setIsLibraryVisible(false)} style={styles.headerTextBtn}>
+              <TouchableOpacity onPress={() => setIsTemplatesModalVisible(false)} style={styles.headerTextBtn}>
                 <Text style={[styles.headerCancelText, { color: theme.colors.textSecondary }]}>Fermer</Text>
               </TouchableOpacity>
 
-              <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Ma bibliothèque</Text>
+              <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Séances types</Text>
 
               <View style={{ width: 60 }} />
             </View>
 
-            <ScrollView
-              style={styles.sheetScroll}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.sheetScrollContent}
-            >
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>
-                  MODÈLES ENREGISTRÉS ({savedTemplates.length})
-                </Text>
+            {/* Segmented: Favoris vs Récents */}
+            <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6 }}>
+              <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                <View style={styles.segmentedRow}>
+                  <TouchableOpacity
+                    style={[styles.segmentBtn, templatesTab === 'favorites' && { backgroundColor: theme.colors.accent }]}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setTemplatesTab('favorites');
+                    }}
+                  >
+                    <Text style={[styles.segmentBtnText, { color: templatesTab === 'favorites' ? '#FFFFFF' : theme.colors.text }]}>
+                      ⭐ Favoris ({favoriteTemplates.length})
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.segmentBtn, templatesTab === 'recents' && { backgroundColor: theme.colors.accent }]}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setTemplatesTab('recents');
+                    }}
+                  >
+                    <Text style={[styles.segmentBtnText, { color: templatesTab === 'recents' ? '#FFFFFF' : theme.colors.text }]}>
+                      🕒 5 Récents ({recentWorkouts.length})
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+
+            {isLoadingTemplates ? (
+              <View style={{ padding: 40, alignItems: 'center' }}>
+                <ActivityIndicator size="large" color={theme.colors.accent} />
+              </View>
+            ) : (
+              <ScrollView
+                style={styles.sheetScroll}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.sheetScrollContent}
+              >
+                {/* TAB 1: FAVORIS */}
+                {templatesTab === 'favorites' && (
+                  <>
+                    {favoriteTemplates.length === 0 ? (
+                      <View style={[styles.emptyBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                        <Feather name="star" size={32} color={theme.colors.textMuted} style={{ marginBottom: 12 }} />
+                        <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Aucun favori enregistré</Text>
+                        <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
+                          Créez une séance de course et touchez « Enregistrer en séance type » pour la retrouver ici avec votre nom personnalisé.
+                        </Text>
+                      </View>
+                    ) : (
+                      favoriteTemplates.map((tpl) => (
+                        <View
+                          key={tpl.id}
+                          style={[
+                            styles.templateCard,
+                            { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+                          ]}
+                        >
+                          <View style={styles.templateCardHeader}>
+                            <Text style={[styles.templateCardTitle, { color: theme.colors.text }]}>{tpl.name}</Text>
+                            <TouchableOpacity onPress={() => handleDeleteFavorite(tpl.id)} style={styles.iconHit}>
+                              <Feather name="trash-2" size={15} color={theme.colors.error} />
+                            </TouchableOpacity>
+                          </View>
+
+                          <View style={styles.metaRow}>
+                            <View style={[styles.metaPill, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
+                              <Text style={[styles.metaPillText, { color: theme.colors.accent }]}>
+                                {tpl.surface === 'cote' ? '⛰️ Côte' : '🏟️ Piste'}
+                              </Text>
+                            </View>
+                            <View style={[styles.metaPill, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
+                              <Text style={[styles.metaPillText, { color: theme.colors.accent }]}>
+                                {tpl.equipment === 'pointes' ? '👟 Pointes' : '👟 Baskets'}
+                              </Text>
+                            </View>
+                            <View style={[styles.metaPill, { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border }]}>
+                              <Text style={[styles.metaPillText, { color: theme.colors.textSecondary }]}>
+                                {tpl.blocks?.length || 0} bloc{tpl.blocks?.length > 1 ? 's' : ''}
+                              </Text>
+                            </View>
+                          </View>
+
+                          {/* Blocks summary */}
+                          <View style={styles.templateBlocksPreview}>
+                            {(tpl.blocks || []).map((b, bIdx) => (
+                              <Text key={b.id || bIdx} style={[styles.templateBlockPreviewLine, { color: theme.colors.textSecondary }]}>
+                                • {b.name || getBlockSummary(b)}
+                              </Text>
+                            ))}
+                          </View>
+
+                          <TouchableOpacity
+                            style={[styles.applyTemplateBtn, { backgroundColor: theme.colors.accent }]}
+                            onPress={() => handleApplyTemplate(tpl, false)}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={styles.applyTemplateBtnText}>Appliquer cette séance</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ))
+                    )}
+                  </>
+                )}
+
+                {/* TAB 2: RÉCENTS */}
+                {templatesTab === 'recents' && (
+                  <>
+                    {recentWorkouts.length === 0 ? (
+                      <View style={[styles.emptyBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                        <Feather name="clock" size={32} color={theme.colors.textMuted} style={{ marginBottom: 12 }} />
+                        <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Aucune séance récente</Text>
+                        <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
+                          Vos 5 dernières séances créées apparaîtront ici pour être réutilisées d'un simple geste.
+                        </Text>
+                      </View>
+                    ) : (
+                      recentWorkouts.map((w, wIdx) => {
+                        const dateFormatted = new Date(w.date_prevue).toLocaleDateString('fr-FR', {
+                          weekday: 'short',
+                          day: 'numeric',
+                          month: 'short',
+                        });
+                        const blocksCount = w.blocks?.length || 1;
+                        const surfaceVal = w.measures?.surface || (w.type_seance?.toLowerCase().includes('côte') ? 'cote' : 'piste');
+                        const equipVal = w.measures?.equipment || (w.description?.toLowerCase().includes('basket') ? 'baskets' : 'pointes');
+
+                        return (
+                          <View
+                            key={w.id || wIdx}
+                            style={[
+                              styles.templateCard,
+                              { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+                            ]}
+                          >
+                            <View style={styles.templateCardHeader}>
+                              <Text style={[styles.templateCardTitle, { color: theme.colors.text }]}>
+                                Séance du {dateFormatted}
+                              </Text>
+                            </View>
+
+                            <View style={styles.metaRow}>
+                              <View style={[styles.metaPill, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
+                                <Text style={[styles.metaPillText, { color: theme.colors.accent }]}>
+                                  {surfaceVal === 'cote' ? '⛰️ Côte' : '🏟️ Piste'}
+                                </Text>
+                              </View>
+                              <View style={[styles.metaPill, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
+                                <Text style={[styles.metaPillText, { color: theme.colors.accent }]}>
+                                  {equipVal === 'pointes' ? '👟 Pointes' : '👟 Baskets'}
+                                </Text>
+                              </View>
+                              <View style={[styles.metaPill, { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border }]}>
+                                <Text style={[styles.metaPillText, { color: theme.colors.textSecondary }]}>
+                                  {blocksCount} bloc{blocksCount > 1 ? 's' : ''}
+                                </Text>
+                              </View>
+                            </View>
+
+                            {/* Summary lines */}
+                            <View style={styles.templateBlocksPreview}>
+                              {(w.blocks || []).slice(0, 3).map((b: any, bIdx: number) => (
+                                <Text key={b.id || bIdx} style={[styles.templateBlockPreviewLine, { color: theme.colors.textSecondary }]}>
+                                  • {b.name || `Bloc ${bIdx + 1}`}
+                                </Text>
+                              ))}
+                            </View>
+
+                            <TouchableOpacity
+                              style={[styles.applyTemplateBtn, { backgroundColor: theme.colors.accent }]}
+                              onPress={() => handleApplyTemplate(w, true)}
+                              activeOpacity={0.8}
+                            >
+                              <Text style={styles.applyTemplateBtnText}>Appliquer cette séance</Text>
+                            </TouchableOpacity>
+                          </View>
+                        );
+                      })
+                    )}
+                  </>
+                )}
+
+                <View style={{ height: 40 }} />
+              </ScrollView>
+            )}
+          </View>
+        </Modal>
+
+        {/* ========================================================================= */}
+        {/* MODAL: ENREGISTRER COMME SÉANCE TYPE FAVORITE                             */}
+        {/* ========================================================================= */}
+        <Modal
+          visible={isSaveFavoriteModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setIsSaveFavoriteModalVisible(false)}
+        >
+          <View style={styles.alertBackdrop}>
+            <View style={[styles.alertModalCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+              <View style={[styles.alertIconCircle, { backgroundColor: theme.colors.accent + '15' }]}>
+                <Feather name="star" size={24} color={theme.colors.accent} />
               </View>
 
-              {savedTemplates.length === 0 ? (
-                <View style={[styles.emptyBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                  <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Bibliothèque vide</Text>
-                  <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
-                    Vos blocs enregistrés apparaîtront ici pour être réutilisés en un clic.
-                  </Text>
-                </View>
-              ) : (
-                <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                  {savedTemplates.map((tpl, index) => {
-                    const isLast = index === savedTemplates.length - 1;
-                    return (
-                      <View
-                        key={tpl.id}
-                        style={[
-                          styles.libraryRow,
-                          !isLast && [styles.rowBorder, { borderBottomColor: theme.colors.border }],
-                        ]}
-                      >
-                        <View style={{ flex: 1, marginRight: 12 }}>
-                          <Text style={[styles.libraryTitle, { color: theme.colors.text }]}>{tpl.name}</Text>
-                          <Text style={[styles.librarySubtitle, { color: theme.colors.textSecondary }]}>
-                            {tpl.repsCount} × {tpl.distance}m  •  {tpl.intensity}%  •  Rép: {formatRestDisplay(tpl.restReps)}
-                          </Text>
-                        </View>
+              <Text style={[styles.alertTitle, { color: theme.colors.text }]}>Enregistrer en séance type</Text>
+              <Text style={[styles.alertSubtitle, { color: theme.colors.textSecondary }]}>
+                Donnez un titre à cette séance pour la retrouver facilement dans vos favoris.
+              </Text>
 
-                        <TouchableOpacity
-                          style={[styles.libraryPickBtn, { backgroundColor: theme.colors.accent }]}
-                          onPress={() => handleSelectTemplate(tpl)}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={styles.libraryPickBtnText}>Choisir</Text>
-                        </TouchableOpacity>
+              <TextInput
+                style={[styles.alertInput, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.background }]}
+                value={favoriteTitleInput}
+                onChangeText={setFavoriteTitleInput}
+                placeholder="Ex: Lactique 120-150-120 ou Vitesse 4x60m"
+                placeholderTextColor={theme.colors.textMuted}
+                autoFocus
+                selectTextOnFocus
+              />
 
-                        <TouchableOpacity
-                          style={styles.libraryTrashBtn}
-                          onPress={() => handleDeleteTemplate(tpl.id)}
-                          activeOpacity={0.7}
-                        >
-                          <Feather name="trash-2" size={15} color={theme.colors.error} />
-                        </TouchableOpacity>
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
-            </ScrollView>
+              <View style={styles.alertActionsRow}>
+                <TouchableOpacity
+                  style={[styles.alertCancelBtn, { borderColor: theme.colors.border }]}
+                  onPress={() => setIsSaveFavoriteModalVisible(false)}
+                  disabled={isSavingFavorite}
+                >
+                  <Text style={[styles.alertCancelBtnText, { color: theme.colors.textSecondary }]}>Annuler</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.alertConfirmBtn, { backgroundColor: theme.colors.accent }]}
+                  onPress={handleConfirmSaveFavorite}
+                  disabled={isSavingFavorite}
+                >
+                  {isSavingFavorite ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.alertConfirmBtnText}>Enregistrer</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         </Modal>
 
@@ -1604,6 +2010,30 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingHorizontal: 4,
   },
+  sectionHeaderBetweenRow: {
+    marginTop: 24,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  saveFavHeaderLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  saveFavHeaderText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  addRunHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  addRunHeaderBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
   sectionCaption: {
     fontSize: 12,
     fontWeight: '600',
@@ -1638,13 +2068,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-    marginRight: 8,
-  },
-  chipCompact: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
     marginRight: 8,
   },
@@ -1764,16 +2187,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  countBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 10,
-    marginLeft: 8,
-  },
-  countBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
   blockRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1873,10 +2286,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
   },
   distanceLabel: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '500',
   },
   distanceInputBox: {
@@ -1884,29 +2296,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    minWidth: 100,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    minWidth: 110,
   },
   distanceInputField: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     textAlign: 'right',
-    minWidth: 50,
+    minWidth: 60,
     paddingVertical: 0,
   },
   meterUnitText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
     marginLeft: 4,
-  },
-  presetSubLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  presetScroll: {
-    marginBottom: 4,
   },
   paramRow: {
     flexDirection: 'row',
@@ -1933,16 +2337,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   stepperBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepperValueText: {
     fontSize: 17,
     fontWeight: '700',
-    minWidth: 44,
+    minWidth: 48,
     textAlign: 'center',
   },
   clickableRow: {
@@ -1973,57 +2377,170 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
-  librarySaveToggleRow: {
+  variedRunRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 10,
   },
-  checkboxIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 1.5,
+  variedIndexBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
   },
-  checkboxLabel: {
+  variedIndexText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  variedFieldCol: {
+    flex: 1,
+  },
+  variedFieldSub: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  variedInputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  variedInput: {
+    fontSize: 15,
+    fontWeight: '700',
+    flex: 1,
+    textAlign: 'right',
+    paddingVertical: 0,
+  },
+  templateCard: {
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 16,
+    marginBottom: 12,
+  },
+  templateCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  templateCardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    flex: 1,
+    marginRight: 8,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 12,
+    flexWrap: 'wrap',
+  },
+  metaPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  metaPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  templateBlocksPreview: {
+    marginBottom: 14,
+    paddingLeft: 4,
+  },
+  templateBlockPreviewLine: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  applyTemplateBtn: {
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  applyTemplateBtnText: {
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
   },
-  checkboxSub: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  libraryRow: {
-    flexDirection: 'row',
+  alertBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    justifyContent: 'center',
+    padding: 24,
   },
-  libraryTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    marginBottom: 3,
+  alertModalCard: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 20,
+    alignItems: 'center',
   },
-  librarySubtitle: {
-    fontSize: 12,
+  alertIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
-  libraryPickBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 16,
-    marginRight: 10,
+  alertTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 6,
+    textAlign: 'center',
   },
-  libraryPickBtnText: {
-    color: '#FFFFFF',
+  alertSubtitle: {
     fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  alertInput: {
+    width: '100%',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    marginBottom: 16,
+  },
+  alertActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  alertCancelBtn: {
+    flex: 1,
+    paddingVertical: 11,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  alertCancelBtnText: {
+    fontSize: 14,
     fontWeight: '600',
   },
-  libraryTrashBtn: {
-    padding: 6,
+  alertConfirmBtn: {
+    flex: 1,
+    paddingVertical: 11,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  alertConfirmBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

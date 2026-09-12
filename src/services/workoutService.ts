@@ -101,6 +101,76 @@ export const workoutService = {
     return data;
   },
 
+  fetchWorkoutTemplates: async (coachId: string, typeSeance?: string) => {
+    try {
+      let query = supabase
+        .from('workout_templates')
+        .select('*')
+        .eq('coach_id', coachId)
+        .order('created_at', { ascending: false });
+
+      if (typeSeance) {
+        query = query.eq('type_seance', typeSeance);
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        console.error('Error fetching workout templates:', error);
+        return [];
+      }
+      return data || [];
+    } catch (err) {
+      console.error('Unexpected error fetching templates:', err);
+      return [];
+    }
+  },
+
+  deleteWorkoutTemplate: async (templateId: string) => {
+    const { error } = await supabase
+      .from('workout_templates')
+      .delete()
+      .eq('id', templateId);
+
+    if (error) throw error;
+    return true;
+  },
+
+  fetchRecentWorkoutsForCoach: async (coachId: string, limit: number = 5) => {
+    try {
+      const { data, error } = await supabase
+        .from('workouts')
+        .select('*')
+        .eq('coach_id', coachId)
+        .order('created_at', { ascending: false })
+        .limit(30);
+
+      if (error) {
+        console.error('Error fetching recent workouts for coach:', error);
+        return [];
+      }
+
+      // Deduplicate multi-athlete clones (by group_assignment_id or date + description)
+      const seen = new Set<string>();
+      const result: any[] = [];
+      for (const w of (data || [])) {
+        const type = (w.type_seance || '').toLowerCase();
+        const isRun = type.includes('piste') || type.includes('côte') || type.includes('cote') || type.includes('course') || type.includes('sprint');
+        if (!isRun) continue;
+
+        const key = w.group_assignment_id || `${w.date_prevue}_${w.description}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          result.push(w);
+          if (result.length >= limit) break;
+        }
+      }
+      return result;
+    } catch (err) {
+      console.error('Unexpected error fetching recent workouts:', err);
+      return [];
+    }
+  },
+
   
     fetchWorkoutsForMonth: async (userId: string, year: number, month: number, role: 'athlete' | 'coach') => {
     const startDate = new Date(year, month, 1);
