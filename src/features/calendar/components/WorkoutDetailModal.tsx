@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Platform, StatusBar, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Platform, StatusBar, Alert, TextInput, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -17,6 +17,14 @@ interface WorkoutDetailModalProps {
   onEdit?: (workout: any) => void;
 }
 
+// Determine the "category" of the session for athlete data entry
+const getSessionCategory = (typeSeance: string): 'muscu' | 'course' | 'other' => {
+  const t = (typeSeance || '').toLowerCase();
+  if (t.includes('musculation')) return 'muscu';
+  if (t.includes('course') || t.includes('sprint') || t.includes('piste') || t.includes('côte') || t.includes('cote')) return 'course';
+  return 'other';
+};
+
 export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
   visible,
   onClose,
@@ -29,13 +37,76 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
   const { user } = useAuthStore();
   const isCoach = user?.role === 'coach';
 
-  const [athleteResults, setAthleteResults] = React.useState<Record<string, string>>({});
+  // Athlete data entry state
+  // For muscu: { "exerciseId_setIndex": { weight: "80", repsOk: true } }
+  // For course: { "exerciseId_setIndex": { chrono: "12.34" } }
+  const [setData, setSetData] = React.useState<Record<string, any>>({});
   const [athleteNotes, setAthleteNotes] = React.useState('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isValidated, setIsValidated] = React.useState(false);
+  const [isLoadingData, setIsLoadingData] = React.useState(false);
 
   const safeTop = Platform.OS === 'android'
     ? Math.max(insets.top, StatusBar.currentHeight || 24) + 8
     : (insets.top > 0 ? insets.top + 6 : 16);
+
+  // Load existing athlete data when workout changes
+  React.useEffect(() => {
+    if (visible && workout && !isCoach && user) {
+      loadExistingData();
+    }
+  }, [visible, workout?.id]);
+
+  const loadExistingData = async () => {
+    if (!workout?.id || !user?.id) return;
+    setIsLoadingData(true);
+    try {
+      // Load athlete_efforts for this workout
+      const { data: efforts } = await supabase
+        .from('athlete_efforts')
+        .select('*')
+        .eq('workout_id', workout.id)
+        .eq('athlete_id', user.id)
+        .order('set_order', { ascending: true });
+
+      if (efforts && efforts.length > 0) {
+        const loaded: Record<string, any> = {};
+        // Map efforts back to exercise/set keys
+        const blocks = workout.blocks || [{ id: 'main', exercises: workout.exercises || [] }];
+        let globalIdx = 0;
+        for (const block of blocks) {
+          for (const exercise of (block.exercises || [])) {
+            for (let si = 0; si < (exercise.sets || []).length; si++) {
+              const effort = efforts.find((e: any) => e.set_order === globalIdx);
+              if (effort) {
+                const key = `${exercise.id}_${si}`;
+                const extra = effort.actual_extra || {};
+                loaded[key] = {
+                  weight: extra.weight || (effort.actual_weight_kg != null ? String(effort.actual_weight_kg) : ''),
+                  repsOk: extra.repsOk !== undefined ? extra.repsOk : true,
+                  chrono: extra.chrono || '',
+                };
+              }
+              globalIdx++;
+            }
+          }
+        }
+        setSetData(loaded);
+      }
+
+      // Load notes from measures
+      if (workout.measures?.athlete_notes) {
+        setAthleteNotes(workout.measures.athlete_notes);
+      }
+
+      // Check if already completed
+      setIsValidated(workout.status === 'completed');
+    } catch (e) {
+      console.error('Error loading athlete data:', e);
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
 
   if (!workout) return null;
 
@@ -66,42 +137,61 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
     if (!user || !workout.id) return;
     setIsSubmitting(true);
     try {
-      // Build efforts array from athleteResults
-      const efforts = [];
+      const sessionCategory = getSessionCategory(workout.type_seance);
+      const efforts: any[] = [];
       const blocks = workout.blocks || [{ id: 'main', exercises: workout.exercises || [] }];
       
       let setOrderGlobal = 0;
       for (const block of blocks) {
-        for (const exercise of block.exercises) {
-          for (let i = 0; i < exercise.sets.length; i++) {
+        for (const exercise of (block.exercises || [])) {
+          for (let i = 0; i < (exercise.sets || []).length; i++) {
             const key = `${exercise.id}_${i}`;
-            const val = athleteResults[key];
-            if (val) {
-              efforts.push({
-                workout_id: workout.id,
-                exercise_catalog_id: exercise.catalog_id || null, // Assuming catalog_id exists
-                exercise_category: workout.type_seance,
-                actual_extra: { value: val },
-                set_order: setOrderGlobal
-              });
+            const data = setData[key];
+            
+            const effort: any = {
+              workout_id: workout.id,
+              exercise_catalog_id: exercise.catalog_id || null,
+              exercise_category: workout.type_seance,
+              set_order: setOrderGlobal,
+              actual_extra: {},
+            };
+
+            if (sessionCategory === 'muscu' && data) {
+              effort.actual_weight_kg = data.weight ? parseFloat(data.weight) : null;
+              effort.actual_extra = {
+                weight: data.weight || '',
+                repsOk: data.repsOk !== false,
+              };
+            } else if (sessionCategory === 'course' && data) {
+              effort.actual_extra = {
+                chrono: data.chrono || '',
+              };
             }
+
+            efforts.push(effort);
             setOrderGlobal++;
           }
         }
       }
 
-      await workoutService.submitWorkoutResults(workout.id, efforts);
-      
-      if (athleteNotes.trim()) {
-        const updatedMeasures = { ...(workout.measures || {}), athlete_notes: athleteNotes.trim() };
-        await supabase.from('workouts').update({ measures: updatedMeasures }).eq('id', workout.id);
+      // Save efforts
+      if (efforts.length > 0) {
+        await workoutService.submitWorkoutResults(workout.id, efforts);
       }
       
+      // Save notes
+      const updatedMeasures = { ...(workout.measures || {}), athlete_notes: athleteNotes.trim() || null };
+      await supabase.from('workouts').update({ measures: updatedMeasures }).eq('id', workout.id);
+      
+      // Mark as completed
       await workoutService.completeWorkout(workout.id);
       
+      setIsValidated(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Bravo !', 'Ta séance a été validée avec succès.');
-      onClose();
+      Alert.alert(
+        isValidated ? 'Mis à jour ✓' : 'Bravo ! 🎉',
+        isValidated ? 'Tes données ont été mises à jour.' : 'Ta séance a été validée avec succès.'
+      );
     } catch (e) {
       console.error(e);
       Alert.alert('Erreur', 'Impossible de valider la séance.');
@@ -123,6 +213,8 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
   const isRestDay = sessionTitle.toLowerCase().includes('repos');
   const isTechnical = sessionTitle.toLowerCase().includes('technique');
   const technicalNotes = workout.measures?.technical_notes;
+  const sessionCategory = getSessionCategory(sessionTitle);
+  const needsDataEntry = !isCoach && (sessionCategory === 'muscu' || sessionCategory === 'course');
 
   const surfaceMeta = workout.measures?.surface || 
     (workout.description?.includes('Côte') ? 'cote' : workout.description?.includes('Piste') ? 'piste' : null);
@@ -132,6 +224,14 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
   const cleanDescription = workout.description
     ? (isTechnical ? workout.description.trim() : workout.description.replace(/^\[.*?\]\s*/, '').trim())
     : '';
+
+  // Helper: update a specific set's data
+  const updateSetField = (key: string, field: string, value: any) => {
+    setSetData(prev => ({
+      ...prev,
+      [key]: { ...(prev[key] || {}), [field]: value }
+    }));
+  };
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
@@ -153,9 +253,25 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Header Card with Title and Actions */}
+          {/* Header Card with Title and Status */}
           <View style={[styles.titleContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-            <Text style={[styles.workoutName, { color: theme.colors.text }]}>{sessionTitle}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={[styles.workoutName, { color: theme.colors.text, flex: 1 }]}>{sessionTitle}</Text>
+              {!isCoach && (
+                <View style={{
+                  paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+                  backgroundColor: isValidated ? '#D1FAE5' : '#FEF3C7',
+                  marginLeft: 8,
+                }}>
+                  <Text style={{
+                    fontSize: 12, fontWeight: '700',
+                    color: isValidated ? '#047857' : '#B45309',
+                  }}>
+                    {isValidated ? '✓ Validée' : '○ À compléter'}
+                  </Text>
+                </View>
+              )}
+            </View>
             
             {!isRestDay && (surfaceMeta || equipmentMeta) && (
               <View style={styles.metaRow}>
@@ -280,7 +396,13 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
               )}
             </View>
           ) : (
+            /* ========== EXERCISE BLOCKS ========== */
             <View style={styles.blocksContainer}>
+              {isLoadingData && !isCoach && (
+                <View style={{ padding: 20, alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color={theme.colors.accent} />
+                </View>
+              )}
               {blocks.map((block, index) => (
               <View key={block.id} style={styles.block}>
                 <View style={styles.blockHeader}>
@@ -309,9 +431,26 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                       </Text>
                     )}
 
-                    <View style={styles.setsContainer}>
+                    <View style={[styles.setsContainer, needsDataEntry && { gap: 0 }]}>
+                      {/* Column headers for athlete mode */}
+                      {needsDataEntry && exercise.sets.length > 0 && (
+                        <View style={[styles.athleteSetHeader, { borderBottomColor: theme.colors.border }]}>
+                          <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, width: 32 }]}>Série</Text>
+                          <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, flex: 1 }]}>Objectif</Text>
+                          {sessionCategory === 'muscu' && (
+                            <>
+                              <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, width: 70 }]}>Charge</Text>
+                              <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, width: 40, textAlign: 'center' }]}>Reps</Text>
+                            </>
+                          )}
+                          {sessionCategory === 'course' && (
+                            <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, width: 90 }]}>Chrono</Text>
+                          )}
+                        </View>
+                      )}
+
                       {exercise.sets.map((set, setIndex) => {
-                        // Only show fields that have values (Minimalist UX requested)
+                        // Build set objective string
                         const setDetails = [];
                         if (set.steps) {
                           setDetails.push(`${set.steps} marches`);
@@ -337,45 +476,89 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                           setDetails.push(`Réc: ${r}`);
                         }
 
-                        const isMuscu = sessionTitle.toLowerCase().includes('musculation');
-                        const isCourse = sessionTitle.toLowerCase().includes('course') || sessionTitle.toLowerCase().includes('sprint');
-                        const needsInput = !isCoach && (isMuscu || isCourse);
-                        const inputPlaceholder = isMuscu ? "Poids (kg)" : "Chrono";
                         const resultKey = `${exercise.id}_${setIndex}`;
+                        const data = setData[resultKey] || {};
 
-                        return (
-                          <View key={set.id} style={[styles.setRow, needsInput && { flexDirection: 'column', alignItems: 'flex-start', paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.border }]}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        if (needsDataEntry) {
+                          // ===== ATHLETE: Inline data entry =====
+                          return (
+                            <View key={set.id || setIndex} style={[styles.athleteSetRow, { borderBottomColor: theme.colors.border }]}>
+                              {/* Set number */}
+                              <View style={[styles.athleteSetNum, { backgroundColor: theme.colors.surfaceLight }]}>
+                                <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.text }}>{setIndex + 1}</Text>
+                              </View>
+                              
+                              {/* Objective */}
+                              <Text style={{ flex: 1, fontSize: 13, color: theme.colors.textSecondary, fontWeight: '500' }} numberOfLines={1}>
+                                {setDetails.join(' · ')}
+                              </Text>
+
+                              {sessionCategory === 'muscu' && (
+                                <>
+                                  {/* Weight input */}
+                                  <TextInput
+                                    style={[styles.athleteInput, { 
+                                      backgroundColor: theme.colors.background, 
+                                      borderColor: data.weight ? theme.colors.accent : theme.colors.border,
+                                      color: theme.colors.text,
+                                      width: 70,
+                                    }]}
+                                    placeholder="kg"
+                                    placeholderTextColor={theme.colors.textMuted}
+                                    value={data.weight || ''}
+                                    onChangeText={(val) => updateSetField(resultKey, 'weight', val)}
+                                    keyboardType="decimal-pad"
+                                  />
+                                  {/* Reps completed toggle */}
+                                  <TouchableOpacity
+                                    style={[styles.repsToggle, {
+                                      backgroundColor: data.repsOk === false ? '#FEE2E2' : data.repsOk ? '#D1FAE5' : theme.colors.surfaceLight,
+                                      borderColor: data.repsOk === false ? '#FCA5A5' : data.repsOk ? '#6EE7B7' : theme.colors.border,
+                                    }]}
+                                    onPress={() => {
+                                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                      const current = data.repsOk;
+                                      // Toggle: undefined → true → false → true
+                                      updateSetField(resultKey, 'repsOk', current === false ? true : current === true ? false : true);
+                                    }}
+                                  >
+                                    <Feather 
+                                      name={data.repsOk === false ? 'x' : 'check'} 
+                                      size={16} 
+                                      color={data.repsOk === false ? '#DC2626' : data.repsOk ? '#047857' : theme.colors.textMuted} 
+                                    />
+                                  </TouchableOpacity>
+                                </>
+                              )}
+
+                              {sessionCategory === 'course' && (
+                                <TextInput
+                                  style={[styles.athleteInput, { 
+                                    backgroundColor: theme.colors.background, 
+                                    borderColor: data.chrono ? theme.colors.accent : theme.colors.border,
+                                    color: theme.colors.text,
+                                    width: 90,
+                                  }]}
+                                  placeholder="ex: 12.34"
+                                  placeholderTextColor={theme.colors.textMuted}
+                                  value={data.chrono || ''}
+                                  onChangeText={(val) => updateSetField(resultKey, 'chrono', val)}
+                                  keyboardType="default"
+                                />
+                              )}
+                            </View>
+                          );
+                        } else {
+                          // ===== COACH or non-data session: read-only =====
+                          return (
+                            <View key={set.id || setIndex} style={styles.setRow}>
                               <Text style={[styles.setNumber, { color: theme.colors.textMuted }]}>{setIndex + 1}</Text>
                               <Text style={[styles.setDetails, { color: theme.colors.text }]}>
                                 {setDetails.join('  •  ')}
                               </Text>
                             </View>
-                            {needsInput && (
-                              <View style={{ marginTop: 8, marginLeft: 28, flexDirection: 'row', alignItems: 'center', width: '100%' }}>
-                                <Feather name="corner-down-right" size={14} color={theme.colors.textMuted} style={{ marginRight: 8 }} />
-                                <TextInput
-                                  style={{
-                                    backgroundColor: theme.colors.background,
-                                    borderRadius: 10,
-                                    paddingHorizontal: 12,
-                                    paddingVertical: 8,
-                                    flex: 1,
-                                    color: theme.colors.text,
-                                    borderWidth: 1,
-                                    borderColor: theme.colors.border,
-                                    fontSize: 14
-                                  }}
-                                  placeholder={inputPlaceholder}
-                                  placeholderTextColor={theme.colors.textMuted}
-                                  value={athleteResults[resultKey] || ''}
-                                  onChangeText={(val) => setAthleteResults(prev => ({ ...prev, [resultKey]: val }))}
-                                  keyboardType={isMuscu ? "decimal-pad" : "default"}
-                                />
-                              </View>
-                            )}
-                          </View>
-                        );
+                          );
+                        }
                       })}
                     </View>
 
@@ -393,10 +576,14 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
           </View>
         )}
 
+        {/* ========== ATHLETE BOTTOM SECTION ========== */}
         {!isCoach && (
           <View style={{ marginTop: 24, gap: 16 }}>
+            {/* Comment / Notes */}
             <View>
-              <Text style={{ fontSize: 15, fontWeight: '700', marginBottom: 8, color: theme.colors.text }}>Commentaires (Optionnel)</Text>
+              <Text style={{ fontSize: 15, fontWeight: '700', marginBottom: 8, color: theme.colors.text }}>
+                Commentaires {sessionCategory === 'other' ? '' : '(Optionnel)'}
+              </Text>
               <TextInput
                 style={{
                   backgroundColor: theme.colors.surface,
@@ -405,11 +592,15 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                   color: theme.colors.text,
                   borderWidth: 1,
                   borderColor: theme.colors.border,
-                  minHeight: 100,
+                  minHeight: 80,
                   textAlignVertical: 'top',
-                  fontSize: 15
+                  fontSize: 15,
                 }}
-                placeholder="Comment s'est passée la séance ?"
+                placeholder={
+                  sessionCategory === 'other'
+                    ? "Comment s'est passée la séance ? Notes, ressentis..."
+                    : "Comment s'est passée la séance ?"
+                }
                 placeholderTextColor={theme.colors.textMuted}
                 multiline
                 value={athleteNotes}
@@ -417,24 +608,34 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
               />
             </View>
 
+            {/* Submit / Update button */}
             <TouchableOpacity
-              style={{
-                backgroundColor: workout.status === 'completed' ? theme.colors.success : theme.colors.accent,
-                padding: 16,
-                borderRadius: 16,
-                alignItems: 'center',
-                flexDirection: 'row',
-                justifyContent: 'center',
-                opacity: isSubmitting ? 0.7 : 1
-              }}
+              style={[styles.submitBtn, {
+                backgroundColor: isValidated ? theme.colors.accent : theme.colors.success,
+                opacity: isSubmitting ? 0.6 : 1,
+              }]}
               onPress={submitAthleteWorkout}
               disabled={isSubmitting}
+              activeOpacity={0.7}
             >
-              <Feather name="check-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
-              <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
-                {isSubmitting ? 'Validation...' : (workout.status === 'completed' ? 'Mettre à jour' : 'Valider la séance')}
+              {isSubmitting ? (
+                <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+              ) : (
+                <Feather name={isValidated ? 'refresh-cw' : 'check-circle'} size={20} color="#fff" style={{ marginRight: 8 }} />
+              )}
+              <Text style={styles.submitBtnText}>
+                {isSubmitting ? 'Enregistrement...' : isValidated ? 'Mettre à jour' : 'Valider la séance'}
               </Text>
             </TouchableOpacity>
+
+            {isValidated && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingBottom: 8 }}>
+                <Feather name="check" size={14} color={theme.colors.success} />
+                <Text style={{ fontSize: 13, color: theme.colors.success, fontWeight: '600' }}>
+                  Séance validée — tu peux modifier tes données à tout moment
+                </Text>
+              </View>
+            )}
           </View>
         )}
         </ScrollView>
@@ -641,6 +842,64 @@ const styles = StyleSheet.create({
   },
   setDetails: {
     fontSize: 15,
+  },
+  // Athlete data entry styles
+  athleteSetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingBottom: 8,
+    marginBottom: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 8,
+  },
+  athleteHeaderText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  athleteSetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  athleteSetNum: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  athleteInput: {
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  repsToggle: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitBtn: {
+    padding: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  submitBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   technicalContainer: {
     gap: 14,
