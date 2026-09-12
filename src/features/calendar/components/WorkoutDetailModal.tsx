@@ -304,7 +304,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
     const currentRepsOk = curData.repsOk !== undefined ? curData.repsOk : true;
 
     const distText = item.distance ? `${item.distance}m` : '';
-    const setLabel = `Série ${item.setIndex + 1}/${item.exercise.sets.length}`;
+    const setLabel = `Série ${item.setIndex + 1}/${(item.exercise.sets || []).length}`;
     const title = `${setLabel}${distText ? ` · ${distText}` : ''}`;
     const subtitle = item.exercise.name;
 
@@ -386,16 +386,16 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
               )}
             </View>
             
-            {!isRestDay && (surfaceMeta || equipmentMeta) && (
+            {!isRestDay && (!!surfaceMeta || !!equipmentMeta) && (
               <View style={styles.metaRow}>
-                {surfaceMeta && (
+                {!!surfaceMeta && (
                   <View style={[styles.metaPill, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
                     <Text style={[styles.metaPillText, { color: theme.colors.accent }]}>
                       {surfaceMeta === 'cote' ? '⛰️ Côte' : '🏟️ Piste'}
                     </Text>
                   </View>
                 )}
-                {equipmentMeta && (
+                {!!equipmentMeta && (
                   <View style={[styles.metaPill, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
                     <Text style={[styles.metaPillText, { color: theme.colors.accent }]}>
                       {equipmentMeta === 'pointes' ? '👟 Pointes' : '👟 Baskets'}
@@ -525,11 +525,11 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                   <Text style={[styles.blockName, { color: theme.colors.text }]}>{block.name}</Text>
                 </View>
 
-                {block.exercises.map((exercise: Exercise) => (
+                {(block.exercises || []).map((exercise: Exercise) => (
                   <View key={exercise.id} style={[styles.exerciseCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                     <Text style={[styles.exerciseName, { color: theme.colors.text }]}>{exercise.name}</Text>
                     
-                    {(exercise as any).target && (exercise as any).target.type !== 'all' && (
+                    {!!(exercise as any).target && (exercise as any).target.type !== 'all' && (
                       <View style={styles.targetBadge}>
                         <Feather name="user" size={11} color={theme.colors.accent} />
                         <Text style={[styles.targetBadgeText, { color: theme.colors.accent }]}>
@@ -538,7 +538,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                       </View>
                     )}
 
-                    {exercise.notes && (
+                    {!!exercise.notes && (
                       <Text style={[styles.exerciseNotes, { color: theme.colors.textSecondary }]}>
                         {exercise.notes}
                       </Text>
@@ -546,7 +546,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
 
                     <View style={[styles.setsContainer, needsDataEntry && { gap: 0 }]}>
                       {/* Column headers for athlete mode */}
-                      {needsDataEntry && exercise.sets.length > 0 && (
+                      {needsDataEntry && (exercise.sets || []).length > 0 && (
                         <View style={[styles.athleteSetHeader, { borderBottomColor: theme.colors.border }]}>
                           <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, width: 32 }]}>Série</Text>
                           <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, flex: 1 }]}>Objectif</Text>
@@ -562,7 +562,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                         </View>
                       )}
 
-                      {exercise.sets.map((set, setIndex) => {
+                      {(exercise.sets || []).map((set, setIndex) => {
                         // Build set objective string
                         const setDetails = [];
                         if (set.steps) {
@@ -677,7 +677,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                                     { color: data.chrono ? theme.colors.accent : theme.colors.textMuted },
                                     !data.chrono && styles.athleteValuePlaceholder,
                                   ]}>
-                                    {data.chrono ? `${data.chrono} ${set.distance && set.distance >= 800 ? 'min' : 'sec'}` : '+ Chrono'}
+                                    {data.chrono ? `${data.chrono} ${(set.distance || 0) >= 800 ? 'min' : 'sec'}` : '+ Chrono'}
                                   </Text>
                                 </TouchableOpacity>
                               )}
