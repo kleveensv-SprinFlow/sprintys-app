@@ -22,25 +22,30 @@ export const buildSystemPrompt = (): string => {
   const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   const dayOfWeek = now.toLocaleDateString('fr-FR', { weekday: 'long' });
   
-  const todayCheckin = history.find(h => h.date === todayStr);
-  const checkinText = todayCheckin 
-    ? `Fatigue: ${todayCheckin.fatigue_level}/5, Douleurs: ${todayCheckin.pains ? todayCheckin.pains.length : 0} zones, Stress: ${todayCheckin.stress_level}/5, Sommeil: ${todayCheckin.sleep_quality}/5.`
-    : `L'athlète n'a pas encore fait son check-in santé aujourd'hui.`;
+  // Last 7 days checkins
+  const recentCheckins = history.slice(0, 7);
+  let checkinHistoryText = "Aucun historique de check-in récent.";
+  if (recentCheckins.length > 0) {
+    checkinHistoryText = recentCheckins.map(c => 
+      `- ${c.date}: Fatigue ${c.fatigue_level}/5, Sommeil ${c.sleep_quality}/5, Stress ${c.stress_level}/5, Douleurs: ${c.pains ? c.pains.length : 0}`
+    ).join('\n');
+  }
 
-  // Filter workouts for today
-  const todaysWorkouts = upcomingWorkouts.filter(w => {
+  // Filter workouts for a 2-week window (1 week past, 1 week future)
+  const windowWorkouts = upcomingWorkouts.filter(w => {
     if (!w.date_prevue) return false;
     const wDate = new Date(w.date_prevue);
-    return wDate.getFullYear() === now.getFullYear() &&
-           wDate.getMonth() === now.getMonth() &&
-           wDate.getDate() === now.getDate();
+    const diffTime = wDate.getTime() - now.getTime();
+    const diffDays = diffTime / (1000 * 3600 * 24);
+    return diffDays >= -7 && diffDays <= 7;
   });
   
-  let workoutsText = "Aucune séance prévue aujourd'hui.";
-  if (todaysWorkouts.length > 0) {
-    workoutsText = todaysWorkouts.map(w => 
-      `- ${w.nom_seance || w.type_seance} (${w.statut})`
-    ).join('\n');
+  let workoutsText = "Aucune séance prévue ou passée dans les 14 derniers jours.";
+  if (windowWorkouts.length > 0) {
+    workoutsText = windowWorkouts.map(w => {
+      const wDate = new Date(w.date_prevue).toLocaleDateString('fr-FR');
+      return `- ${wDate}: ${w.nom_seance || w.type_seance} (${w.statut})`;
+    }).join('\n');
   }
 
   return `Tu es Sprinty, un coach IA expert en athlétisme (sprint, demi-fond, sauts, etc.) intégré à l'application SprinFlow.
@@ -55,14 +60,17 @@ CONTEXTE DE L'ATHLÈTE :
 - Nom : ${athleteName}
 - Prochaine Compétition : ${nextComp}
 - Objectif Nutritionnel : ${kcalGoal} kcal/jour (Consommé aujourd'hui : ${consumedKcal} kcal)
-- État de Forme du jour : ${checkinText}
-- Séances prévues aujourd'hui : 
+
+📊 HISTORIQUE FORME / SANTÉ (7 derniers jours) :
+${checkinHistoryText}
+
+🏋️ SÉANCES (Semaine passée & à venir) : 
 ${workoutsText}
 
 INSTRUCTIONS DE RÉPONSE :
 1. Prends en compte l'heure actuelle pour contextualiser tes réponses (ex: le matin, parle de la journée à venir ; le soir, parle de la récupération ou du bilan de la journée).
-2. Si l'athlète te pose une question sur son état, utilise ses données (Fatigue, Sommeil, Nutrition) pour lui répondre.
-3. Si sa fatigue ou ses douleurs sont élevées (>7), recommande de l'assouplissement ou du repos.
+2. Si l'athlète te pose une question sur son état, utilise son historique de check-in (Fatigue, Sommeil, Nutrition) et ses séances récentes pour lui répondre avec précision.
+3. Si sa fatigue ou ses douleurs sont élevées, recommande de l'assouplissement, du repos ou adapte la séance du jour.
 4. Sois toujours bienveillant mais très professionnel (style coach d'athlétisme).`;
 };
 
