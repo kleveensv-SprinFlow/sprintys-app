@@ -93,7 +93,7 @@ export default function MessageScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
-  header: { padding: 20, borderBottomWidth: 1, borderBottomColor: theme.colors.border, alignItems: 'center' },
+  header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: theme.colors.border, alignItems: 'center' },
   title: { fontSize: 18, fontWeight: 'bold', color: theme.colors.text },
   subtitle: { fontSize: 12, color: theme.colors.accent, marginTop: 4 },
   chatArea: { flex: 1 },

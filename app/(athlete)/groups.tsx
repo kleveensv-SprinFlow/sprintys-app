@@ -309,7 +309,7 @@ export default function GroupsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, paddingTop: 50 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
   backBtn: { padding: 8, marginLeft: -8 },
   title: { fontSize: 20, fontWeight: 'bold', color: theme.colors.text },
   content: { flex: 1, paddingHorizontal: 20 },

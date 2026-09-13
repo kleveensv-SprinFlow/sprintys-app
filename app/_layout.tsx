@@ -1,9 +1,13 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect } from 'react';
+import { StatusBar } from 'expo-status-bar';
 import { useAuthStore } from '../src/store/authStore';
+import { useTheme } from '../src/core/theme';
 import { SprintyFeedback } from '../src/features/sprinty/SprintyFeedback';
 
 export default function RootLayout() {
+  const theme = useTheme();
+  const isDark = theme.colors.background === '#050505';
   const { user, pendingEmail, isLoading, isInitialized, initializeAuth } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();
@@ -48,6 +52,7 @@ export default function RootLayout() {
 
   return (
     <>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(athlete)" />

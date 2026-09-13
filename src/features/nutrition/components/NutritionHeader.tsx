@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import { useAuthStore } from '../../../store/authStore';
@@ -10,12 +11,16 @@ interface Props {
 
 export const NutritionHeader: React.FC<Props> = ({ onSettingsPress }) => {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
 
   const currentStreak = user?.currentFlowStreak || 0;
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, {
+      backgroundColor: theme.colors.background,
+      paddingTop: Math.max(insets.top, 16) + 6,
+    }]}>
       <View style={styles.streakContainer}>
         <Feather name="zap" size={20} color="#FFD700" />
         <Text style={[styles.streakText, { color: theme.colors.text }]}>{currentStreak}</Text>
@@ -36,8 +41,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 15,
+    paddingBottom: 12,
   },
   streakContainer: {
     flexDirection: 'row',
