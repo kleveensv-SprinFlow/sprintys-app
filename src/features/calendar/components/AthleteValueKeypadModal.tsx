@@ -6,10 +6,11 @@ import {
   TextInput,
   TouchableOpacity,
   Platform,
-  KeyboardAvoidingView,
   Keyboard,
   TouchableWithoutFeedback,
+  Animated,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -104,19 +105,52 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
   subtitle,
 }) => {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
 
   const [buffer, setBuffer] = useState('');
   const [repsOk, setRepsOk] = useState(true);
 
+  // Animated keyboard height tracker to place sheet above keyboard on ALL Android/iOS devices
+  const keyboardHeightAnim = useRef(new Animated.Value(0)).current;
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setIsKeyboardVisible(true);
+      Animated.timing(keyboardHeightAnim, {
+        toValue: e.endCoordinates.height,
+        duration: Platform.OS === 'ios' ? (e.duration || 250) : 150,
+        useNativeDriver: false,
+      }).start();
+    });
+
+    const hideSub = Keyboard.addListener(hideEvent, (e) => {
+      setIsKeyboardVisible(false);
+      Animated.timing(keyboardHeightAnim, {
+        toValue: 0,
+        duration: Platform.OS === 'ios' ? (e.duration || 250) : 150,
+        useNativeDriver: false,
+      }).start();
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
   useEffect(() => {
     if (visible) {
       setBuffer(initialValue || '');
       setRepsOk(initialRepsOk !== undefined ? initialRepsOk : true);
-      // Auto-focus native keyboard on open
+      // Focus native keyboard on open
       const timer = setTimeout(() => {
         inputRef.current?.focus();
-      }, 150);
+      }, 100);
       return () => clearTimeout(timer);
     }
   }, [visible, initialValue, initialRepsOk]);
@@ -196,143 +230,147 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
         <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.82)' }]} />
       </TouchableWithoutFeedback>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.keyboardAvoidingContainer}
+      {/* Sheet dynamically hoisted above keyboard via Animated marginBottom */}
+      <Animated.View
+        style={[
+          styles.sheetContent,
+          {
+            marginBottom: keyboardHeightAnim,
+            paddingBottom: isKeyboardVisible ? 16 : Math.max(insets.bottom, 20),
+          },
+        ]}
       >
-        <View style={styles.sheetContent}>
-          {/* Top Bar */}
-          <View style={styles.topBar}>
-            <TouchableOpacity onPress={handleCancel} style={styles.closeBtn} activeOpacity={0.7}>
-              <Feather name="x" size={22} color="#FFFFFF" />
-            </TouchableOpacity>
+        {/* Top Bar */}
+        <View style={styles.topBar}>
+          <TouchableOpacity onPress={handleCancel} style={styles.closeBtn} activeOpacity={0.7}>
+            <Feather name="x" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
 
-            <View style={styles.headerInfo}>
-              <Text style={styles.headerTitle}>{title}</Text>
-              {subtitle ? <Text style={styles.headerSubtitle}>{subtitle}</Text> : null}
-            </View>
-
-            <TouchableOpacity onPress={handleClear} style={styles.clearBtn} activeOpacity={0.7}>
-              <Text style={styles.clearBtnText}>Effacer</Text>
-            </TouchableOpacity>
+          <View style={styles.headerInfo}>
+            <Text style={styles.headerTitle}>{title}</Text>
+            {subtitle ? <Text style={styles.headerSubtitle}>{subtitle}</Text> : null}
           </View>
 
-          {/* Hero Typography Display: Native TextInput with Big Digits + Unit */}
-          <TouchableWithoutFeedback onPress={() => inputRef.current?.focus()}>
-            <View style={styles.heroDisplayContainer}>
-              <View style={styles.numberWithUnitRow}>
-                <TextInput
-                  ref={inputRef}
-                  style={styles.heroNumberInput}
-                  value={buffer}
-                  onChangeText={handleTextChange}
-                  keyboardType="decimal-pad"
-                  autoFocus={true}
-                  placeholder={mode === 'endurance' ? '--:--' : mode === 'sprint' ? '--.--' : '0'}
-                  placeholderTextColor="rgba(255, 255, 255, 0.25)"
-                  returnKeyType={hasNextSet ? 'next' : 'done'}
-                  onSubmitEditing={() => handleConfirm(false)}
-                  selectTextOnFocus={true}
-                  selectionColor="#818CF8"
-                />
-                <Text style={styles.heroUnit}>{getUnit()}</Text>
-              </View>
+          <TouchableOpacity onPress={handleClear} style={styles.clearBtn} activeOpacity={0.7}>
+            <Text style={styles.clearBtnText}>Effacer</Text>
+          </TouchableOpacity>
+        </View>
 
-              {/* Reps Toggle & Quick Weight Chips (Musculation mode) */}
-              {mode === 'weight' && (
-                <View style={styles.repsToggleWrapper}>
-                  <TouchableOpacity
-                    style={[
-                      styles.repsTogglePill,
-                      repsOk ? styles.repsTogglePillSuccess : styles.repsTogglePillFailed,
-                    ]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setRepsOk(!repsOk);
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons
-                      name={repsOk ? 'checkmark-circle' : 'close-circle'}
-                      size={20}
-                      color={repsOk ? '#10B981' : '#EF4444'}
-                    />
-                    <Text
-                      style={[
-                        styles.repsTogglePillText,
-                        { color: repsOk ? '#10B981' : '#EF4444' },
-                      ]}
-                    >
-                      {repsOk ? 'Reps réussies' : 'Reps non terminées'}
-                    </Text>
-                  </TouchableOpacity>
-
-                  {/* Quick weight adjuster chips */}
-                  <View style={styles.quickWeightRow}>
-                    {[-5, -2.5, +2.5, +5].map((delta) => (
-                      <TouchableOpacity
-                        key={delta}
-                        style={styles.quickWeightChip}
-                        onPress={() => handleAdjustWeight(delta)}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={styles.quickWeightChipText}>
-                          {delta > 0 ? `+${delta}` : delta}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              )}
+        {/* Hero Typography Display: Native TextInput with Big Digits + Unit */}
+        <TouchableWithoutFeedback onPress={() => inputRef.current?.focus()}>
+          <View style={styles.heroDisplayContainer}>
+            <View style={styles.numberWithUnitRow}>
+              <TextInput
+                ref={inputRef}
+                style={styles.heroNumberInput}
+                value={buffer}
+                onChangeText={handleTextChange}
+                keyboardType="decimal-pad"
+                autoFocus={true}
+                placeholder={mode === 'endurance' ? '--:--' : mode === 'sprint' ? '--.--' : '0'}
+                placeholderTextColor="rgba(255, 255, 255, 0.25)"
+                returnKeyType="done"
+                onSubmitEditing={() => handleConfirm(false)}
+                selectTextOnFocus={true}
+                selectionColor="#818CF8"
+              />
+              <Text style={styles.heroUnit}>{getUnit()}</Text>
             </View>
-          </TouchableWithoutFeedback>
 
-          {/* Bottom Action Bar (Directly above native keyboard) */}
-          <View style={styles.bottomBar}>
-            <TouchableOpacity
-              style={styles.cancelActionBtn}
-              onPress={handleCancel}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.cancelActionBtnText}>Annuler</Text>
-            </TouchableOpacity>
-
-            {hasNextSet ? (
-              <>
-                {/* Valider (Enregistre et ferme) */}
+            {/* Reps Toggle & Quick Weight Chips (Musculation mode) */}
+            {mode === 'weight' && (
+              <View style={styles.repsToggleWrapper}>
                 <TouchableOpacity
-                  style={[styles.confirmActionBtn, { backgroundColor: 'rgba(255, 255, 255, 0.15)', flex: 0.85 }]}
-                  onPress={() => handleConfirm(false)}
+                  style={[
+                    styles.repsTogglePill,
+                    repsOk ? styles.repsTogglePillSuccess : styles.repsTogglePillFailed,
+                  ]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setRepsOk(!repsOk);
+                  }}
                   activeOpacity={0.8}
                 >
-                  <Feather name="check" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-                  <Text style={styles.confirmActionBtnText}>Valider</Text>
+                  <Ionicons
+                    name={repsOk ? 'checkmark-circle' : 'close-circle'}
+                    size={20}
+                    color={repsOk ? '#10B981' : '#EF4444'}
+                  />
+                  <Text
+                    style={[
+                      styles.repsTogglePillText,
+                      { color: repsOk ? '#10B981' : '#EF4444' },
+                    ]}
+                  >
+                    {repsOk ? 'Reps réussies' : 'Reps non terminées'}
+                  </Text>
                 </TouchableOpacity>
 
-                {/* Suivant (Enregistre et passe à la série suivante) */}
-                <TouchableOpacity
-                  style={[styles.confirmActionBtn, { backgroundColor: theme.colors.accent, flex: 1.15 }]}
-                  onPress={() => handleConfirm(true)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.confirmActionBtnText}>Suivant</Text>
-                  <Feather name="arrow-right" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
-                </TouchableOpacity>
-              </>
-            ) : (
-              /* Dernier set : bouton Valider principal */
+                {/* Quick weight adjuster chips */}
+                <View style={styles.quickWeightRow}>
+                  {[-5, -2.5, +2.5, +5].map((delta) => (
+                    <TouchableOpacity
+                      key={delta}
+                      style={styles.quickWeightChip}
+                      onPress={() => handleAdjustWeight(delta)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.quickWeightChipText}>
+                        {delta > 0 ? `+${delta}` : delta}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+          </View>
+        </TouchableWithoutFeedback>
+
+        {/* Bottom Action Bar (Directly above native keyboard) */}
+        <View style={styles.bottomBar}>
+          <TouchableOpacity
+            style={styles.cancelActionBtn}
+            onPress={handleCancel}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.cancelActionBtnText}>Annuler</Text>
+          </TouchableOpacity>
+
+          {hasNextSet ? (
+            <>
+              {/* Valider (Enregistre et ferme) */}
               <TouchableOpacity
-                style={[styles.confirmActionBtn, { backgroundColor: '#10B981', flex: 1 }]}
+                style={[styles.confirmActionBtn, { backgroundColor: 'rgba(255, 255, 255, 0.15)', flex: 0.85 }]}
                 onPress={() => handleConfirm(false)}
                 activeOpacity={0.8}
               >
                 <Feather name="check" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
                 <Text style={styles.confirmActionBtnText}>Valider</Text>
               </TouchableOpacity>
-            )}
-          </View>
+
+              {/* Suivant (Enregistre et passe à la série suivante) */}
+              <TouchableOpacity
+                style={[styles.confirmActionBtn, { backgroundColor: theme.colors.accent, flex: 1.15 }]}
+                onPress={() => handleConfirm(true)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.confirmActionBtnText}>Suivant</Text>
+                <Feather name="arrow-right" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
+              </TouchableOpacity>
+            </>
+          ) : (
+            /* Dernier set : bouton Valider principal */
+            <TouchableOpacity
+              style={[styles.confirmActionBtn, { backgroundColor: '#10B981', flex: 1 }]}
+              onPress={() => handleConfirm(false)}
+              activeOpacity={0.8}
+            >
+              <Feather name="check" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+              <Text style={styles.confirmActionBtnText}>Valider</Text>
+            </TouchableOpacity>
+          )}
         </View>
-      </KeyboardAvoidingView>
+      </Animated.View>
     </View>
   );
 };
@@ -344,25 +382,26 @@ const styles = StyleSheet.create({
     zIndex: 2000,
     elevation: 2000,
   },
-  keyboardAvoidingContainer: {
-    width: '100%',
-    justifyContent: 'flex-end',
-  },
   sheetContent: {
+    width: '100%',
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
     backgroundColor: '#161618',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 10,
   },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   closeBtn: {
     width: 38,
@@ -407,7 +446,7 @@ const styles = StyleSheet.create({
   heroDisplayContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 24,
+    paddingVertical: 18,
   },
   numberWithUnitRow: {
     flexDirection: 'row',
@@ -415,17 +454,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   heroNumberInput: {
-    fontSize: 58,
+    fontSize: 52,
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: -1,
     textAlign: 'center',
-    minWidth: 140,
+    minWidth: 130,
     padding: 0,
     margin: 0,
   },
   heroUnit: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '700',
     color: '#818CF8',
     marginLeft: 8,
@@ -434,8 +473,8 @@ const styles = StyleSheet.create({
   // Reps toggle
   repsToggleWrapper: {
     alignItems: 'center',
-    marginTop: 16,
-    gap: 12,
+    marginTop: 14,
+    gap: 10,
   },
   repsTogglePill: {
     flexDirection: 'row',
@@ -484,11 +523,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginTop: 8,
+    marginTop: 6,
   },
   cancelActionBtn: {
-    paddingVertical: 14,
-    paddingHorizontal: 18,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
     borderRadius: 14,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
@@ -500,7 +539,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   confirmActionBtn: {
-    paddingVertical: 14,
+    paddingVertical: 13,
     paddingHorizontal: 16,
     borderRadius: 14,
     flexDirection: 'row',
