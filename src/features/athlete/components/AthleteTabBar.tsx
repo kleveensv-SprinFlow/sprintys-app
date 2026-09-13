@@ -158,6 +158,18 @@ export const AthleteTabBar: React.FC<BottomTabBarProps> = ({
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
+  const currentRoute = state.routes[state.index];
+  const focusedDescriptor = descriptors[currentRoute?.key];
+  const focusedOptions = focusedDescriptor?.options;
+
+  // Only the 4 primary tabs display the bottom navigation bar
+  const PRIMARY_TABS = ['index', 'calendar', 'nutrition', 'message'];
+  const isPrimaryTab = PRIMARY_TABS.includes(currentRoute?.name);
+
+  if (!isPrimaryTab || focusedOptions?.tabBarStyle?.display === 'none') {
+    return null;
+  }
+
   return (
     <View
       style={[
