@@ -67,6 +67,30 @@ interface AuthState {
 }
 
 const CACHE_PROFILE_KEY = '@sprintflow_user_profile';
+const PENDING_SIGNUP_DATA_KEY = '@sprintflow_pending_signup_data';
+
+export const translateAuthError = (err: any): string => {
+  const msg = err?.message || err?.error_description || (typeof err === 'string' ? err : '');
+  if (!msg) return 'Une erreur est survenue. Veuillez réessayer.';
+  
+  const lower = msg.toLowerCase();
+  if (lower.includes('token has expired') || lower.includes('token is invalid') || lower.includes('invalid token') || lower.includes('otp')) {
+    return 'Le code de confirmation est incorrect ou a expiré. Veuillez vérifier le code reçu ou en demander un nouveau.';
+  }
+  if (lower.includes('rate limit') || lower.includes('too many') || lower.includes('over_email_send_rate_limit')) {
+    return 'Veuillez patienter un instant avant de demander un nouveau code.';
+  }
+  if (lower.includes('user already registered') || lower.includes('already exists')) {
+    return 'Un compte existe déjà avec cette adresse email.';
+  }
+  if (lower.includes('invalid login credentials') || lower.includes('invalid credentials')) {
+    return 'Email ou mot de passe incorrect.';
+  }
+  if (lower.includes('network') || lower.includes('failed to fetch')) {
+    return 'Erreur de connexion. Vérifiez votre accès internet.';
+  }
+  return msg;
+};
 
 const buildUserProfile = (authUser: any, profile: any): UserProfile => {
   return {
@@ -254,31 +278,40 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const fullName = `${firstName} ${lastName}`.trim();
 
     try {
+      const profileData = {
+        full_name: fullName,
+        first_name: firstName,
+        last_name: lastName,
+        role: role,
+        gender: gender,
+        disciplines: role === 'athlete' ? (disciplines || null) : null,
+        height: role === 'athlete' ? (height || null) : null,
+        weight: role === 'athlete' ? (weight || null) : null,
+        objective: role === 'athlete' ? (objective || null) : null,
+        group_name: role === 'coach' ? (groupName || null) : null,
+        subgroups: role === 'coach' ? (subgroups || null) : null,
+      };
+
+      // Store in options.data so handle_new_user trigger populates profiles immediately
       const { data, error } = await supabase.auth.signUp({ 
         email: email.trim(), 
         password: pass,
-        options: { data: { full_name: fullName, first_name: firstName, last_name: lastName, role } }
+        options: { 
+          data: profileData 
+        }
       });
       if (error) throw error;
 
       if (data.user) {
-        // Create profile in DB
-        const profileData = {
-          id: data.user.id,
-          full_name: fullName,
-          first_name: firstName,
-          last_name: lastName,
-          role: role,
-          gender: gender,
-          disciplines: role === 'athlete' ? (disciplines || null) : null,
-          height: role === 'athlete' ? (height || null) : null,
-          weight: role === 'athlete' ? (weight || null) : null,
-          objective: role === 'athlete' ? (objective || null) : null,
-          group_name: role === 'coach' ? (groupName || null) : null,
-          subgroups: role === 'coach' ? (subgroups || null) : null,
-        };
+        // Cache pending signup data so verifyOtp can ensure it's saved after authentication
+        await AsyncStorage.setItem(PENDING_SIGNUP_DATA_KEY, JSON.stringify(profileData));
 
-        await supabase.from('profiles').upsert(profileData);
+        // Try writing to profiles directly (works if confirmation is disabled)
+        try {
+          await supabase.from('profiles').upsert({ id: data.user.id, ...profileData });
+        } catch (_) {
+          // Ignored if unauthenticated (will be written on verifyOtp)
+        }
 
         // Check if email confirmation is required
         const isConfirmed = !!data.user.email_confirmed_at || !!data.session;
@@ -315,7 +348,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       return { success: false, requiresVerification: false };
     } catch (err: any) {
-      set({ error: err.message || "Erreur lors de l'inscription", isLoading: false });
+      set({ error: translateAuthError(err), isLoading: false });
       return { success: false, requiresVerification: false };
     }
   },
@@ -345,7 +378,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (error) throw error;
 
       if (data.user) {
-        // Fetch the real profile from DB to get the correct role
+        // Now that the user is officially authenticated, ensure any pending signup data is updated
+        try {
+          const pendingRaw = await AsyncStorage.getItem(PENDING_SIGNUP_DATA_KEY);
+          if (pendingRaw) {
+            const pendingData = JSON.parse(pendingRaw);
+            await supabase.from('profiles').update(pendingData).eq('id', data.user.id);
+            await AsyncStorage.removeItem(PENDING_SIGNUP_DATA_KEY);
+          }
+        } catch (e) {
+          console.warn('Error applying pending signup data on verifyOtp:', e);
+        }
+
+        // Fetch the real profile from DB to get the correct role and all fields
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
@@ -365,7 +410,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       return false;
     } catch (err: any) {
-      set({ error: err.message || 'Code de vérification invalide', isLoading: false });
+      set({ error: translateAuthError(err), isLoading: false });
       return false;
     }
   },
@@ -380,7 +425,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (error) throw error;
       set({ isLoading: false });
     } catch (err: any) {
-      set({ error: err.message, isLoading: false });
+      set({ error: translateAuthError(err), isLoading: false });
     }
   },
 

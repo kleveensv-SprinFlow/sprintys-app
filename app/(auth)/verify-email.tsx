@@ -29,10 +29,8 @@ export default function VerifyEmailScreen() {
   const handleVerify = async () => {
     if (!code.trim()) return;
     clearError();
-    const success = await verifyOtp(targetEmail, code.trim());
-    if (success) {
-      router.replace('/');
-    }
+    await verifyOtp(targetEmail, code.trim());
+    // The root layout automatically navigates to /(athlete) or /(coach) once user is set
   };
 
   const handleResend = async () => {
