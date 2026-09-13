@@ -64,6 +64,10 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
     ? Math.max(insets.top, StatusBar.currentHeight || 24) + 8
     : (insets.top > 0 ? insets.top + 6 : 16);
 
+  // Computed before hooks that depend on it
+  const sessionCategory = getSessionCategory(workout?.type_seance || '');
+  const needsDataEntry = !isCoach && (sessionCategory === 'muscu' || sessionCategory === 'course');
+
   // Load existing athlete data when workout changes
   React.useEffect(() => {
     if (visible && workout && !isCoach && user) {
@@ -122,7 +126,53 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
     }
   };
 
-  if (!visible) return null;
+  // Flattened sets array for seamless sequential keypad navigation
+  const allSets = React.useMemo(() => {
+    const list: Array<{
+      exercise: Exercise;
+      set: any;
+      setIndex: number;
+      blockIndex: number;
+      distance?: number;
+      mode: 'sprint' | 'endurance' | 'weight';
+    }> = [];
+
+    const bList = workout?.blocks || [{ id: 'main', exercises: workout?.exercises || [] }];
+    bList.forEach((b: any, bIdx: number) => {
+      (b.exercises || []).forEach((ex: any) => {
+        (ex.sets || []).forEach((st: any, sIdx: number) => {
+          let setMode: 'sprint' | 'endurance' | 'weight' = 'sprint';
+          if (sessionCategory === 'muscu') {
+            setMode = 'weight';
+          } else {
+            const dist = st.distance;
+            if (dist && dist >= 800) {
+              setMode = 'endurance';
+            } else if (dist && dist < 800) {
+              setMode = 'sprint';
+            } else {
+              const str = `${ex.name || ''} ${workout?.type_seance || ''}`.toLowerCase();
+              setMode = (str.includes('800') || str.includes('1000') || str.includes('1500') || str.includes('3000') || str.includes('5000') || str.includes('fond')) ? 'endurance' : 'sprint';
+            }
+          }
+
+          list.push({
+            exercise: ex,
+            set: st,
+            setIndex: sIdx,
+            blockIndex: bIdx,
+            distance: st.distance,
+            mode: setMode,
+          });
+        });
+      });
+    });
+
+    return list;
+  }, [workout, sessionCategory]);
+
+  // *** ALL HOOKS ARE ABOVE THIS LINE ***
+  // Guard: return null if no workout data (safe because all hooks have been called)
   if (!workout) return null;
 
   const handleDelete = () => {
@@ -152,12 +202,12 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
     if (!user || !workout.id) return;
     setIsSubmitting(true);
     try {
-      const sessionCategory = getSessionCategory(workout.type_seance);
+      const sc = getSessionCategory(workout.type_seance);
       const efforts: any[] = [];
-      const blocks = workout.blocks || [{ id: 'main', exercises: workout.exercises || [] }];
+      const blks = workout.blocks || [{ id: 'main', exercises: workout.exercises || [] }];
       
       let setOrderGlobal = 0;
-      for (const block of blocks) {
+      for (const block of blks) {
         for (const exercise of (block.exercises || [])) {
           for (let i = 0; i < (exercise.sets || []).length; i++) {
             const key = `${exercise.id}_${i}`;
@@ -171,13 +221,13 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
               actual_extra: {},
             };
 
-            if (sessionCategory === 'muscu' && data) {
+            if (sc === 'muscu' && data) {
               effort.actual_weight_kg = data.weight ? parseFloat(data.weight) : null;
               effort.actual_extra = {
                 weight: data.weight || '',
                 repsOk: data.repsOk !== false,
               };
-            } else if (sessionCategory === 'course' && data) {
+            } else if (sc === 'course' && data) {
               effort.actual_extra = {
                 chrono: data.chrono || '',
               };
@@ -228,8 +278,6 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
   const isRestDay = sessionTitle.toLowerCase().includes('repos');
   const isTechnical = sessionTitle.toLowerCase().includes('technique');
   const technicalNotes = workout.measures?.technical_notes;
-  const sessionCategory = getSessionCategory(sessionTitle);
-  const needsDataEntry = !isCoach && (sessionCategory === 'muscu' || sessionCategory === 'course');
 
   const surfaceMeta = workout.measures?.surface || 
     (workout.description?.includes('Côte') ? 'cote' : workout.description?.includes('Piste') ? 'piste' : null);
@@ -247,51 +295,6 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
       [key]: { ...(prev[key] || {}), [field]: value }
     }));
   };
-
-  // Flattened sets array for seamless sequential keypad navigation
-  const allSets = React.useMemo(() => {
-    const list: Array<{
-      exercise: Exercise;
-      set: any;
-      setIndex: number;
-      blockIndex: number;
-      distance?: number;
-      mode: 'sprint' | 'endurance' | 'weight';
-    }> = [];
-
-    const bList = workout?.blocks || [{ id: 'main', exercises: workout?.exercises || [] }];
-    bList.forEach((b: any, bIdx: number) => {
-      (b.exercises || []).forEach((ex: any) => {
-        (ex.sets || []).forEach((st: any, sIdx: number) => {
-          let setMode: 'sprint' | 'endurance' | 'weight' = 'sprint';
-          if (sessionCategory === 'muscu') {
-            setMode = 'weight';
-          } else {
-            const dist = st.distance;
-            if (dist && dist >= 800) {
-              setMode = 'endurance';
-            } else if (dist && dist < 800) {
-              setMode = 'sprint';
-            } else {
-              const str = `${ex.name || ''} ${workout?.type_seance || ''}`.toLowerCase();
-              setMode = (str.includes('800') || str.includes('1000') || str.includes('1500') || str.includes('3000') || str.includes('5000') || str.includes('fond')) ? 'endurance' : 'sprint';
-            }
-          }
-
-          list.push({
-            exercise: ex,
-            set: st,
-            setIndex: sIdx,
-            blockIndex: bIdx,
-            distance: st.distance,
-            mode: setMode,
-          });
-        });
-      });
-    });
-
-    return list;
-  }, [workout, sessionCategory]);
 
   const openKeypadAtIndex = (flatIndex: number) => {
     if (flatIndex < 0 || flatIndex >= allSets.length) {
@@ -348,7 +351,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
   };
 
   return (
-    <View style={[StyleSheet.absoluteFill, { zIndex: 1000, elevation: 1000, backgroundColor: "rgba(0,0,0,0.5)" }]}>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={[styles.header, { paddingTop: safeTop }]}>
           <TouchableOpacity onPress={onClose} style={[styles.closeButton, { backgroundColor: theme.colors.surfaceLight }]}>
@@ -545,7 +548,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                       </Text>
                     )}
 
-                    <View style={[styles.setsContainer, null]}>
+                    <View style={[styles.setsContainer, needsDataEntry && { gap: 0 }]}>
                       {/* Column headers for athlete mode */}
                       {needsDataEntry && (exercise.sets || []).length > 0 && (
                         <View style={[styles.athleteSetHeader, { borderBottomColor: theme.colors.border }]}>
@@ -792,7 +795,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
           />
         )}
       </View>
-    </View>
+    </Modal>
   );
 };
 
@@ -1139,6 +1142,7 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
 });
+
 
 
 
