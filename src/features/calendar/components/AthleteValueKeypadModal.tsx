@@ -1,18 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
+  TextInput,
   TouchableOpacity,
   Platform,
-  Dimensions,
+  KeyboardAvoidingView,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../../core/theme';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export interface AthleteValueKeypadModalProps {
   visible: boolean;
@@ -38,15 +39,15 @@ export function formatSmartValue(
 ): string {
   if (!raw || raw.trim() === '') return '';
 
-  // If user already typed explicit dot or colon
-  if (raw.includes('.') || raw.includes(':')) {
-    return raw;
-  }
-
   const digits = raw.replace(/[^0-9]/g, '');
   if (!digits) return '';
 
   if (mode === 'sprint') {
+    // Sprint (< 800m):
+    // 1-2 digits: e.g. "1" -> "1", "10" -> "10"
+    // 3 digits: e.g. "985" -> for <=100m or first digit >= 6: "9.85", else "10.8"
+    // 4 digits: e.g. "1055" -> "10.55", "2180" -> "21.80"
+    // 5+ digits: e.g. "10245" -> "1:02.45"
     if (digits.length <= 2) {
       return digits;
     } else if (digits.length === 3) {
@@ -64,6 +65,11 @@ export function formatSmartValue(
       return `${mins}:${secs}.${hundredths}`;
     }
   } else if (mode === 'endurance') {
+    // Endurance (>= 800m, e.g. 5000m):
+    // 1-2 digits: "1" -> "1", "14" -> "14"
+    // 3 digits: "152" -> "1:52", "345" -> "3:45"
+    // 4 digits: "1435" -> "14:35" (14 min 35 s)
+    // 5+ digits: "14352" -> "14:35.2" or "143520" -> "14:35.20"
     if (digits.length <= 2) {
       return digits;
     } else if (digits.length === 3) {
@@ -97,8 +103,9 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
   title,
   subtitle,
 }) => {
-  // ALL hooks must be called unconditionally (React Rules of Hooks)
   const theme = useTheme();
+  const inputRef = useRef<TextInput>(null);
+
   const [buffer, setBuffer] = useState('');
   const [repsOk, setRepsOk] = useState(true);
 
@@ -106,57 +113,58 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
     if (visible) {
       setBuffer(initialValue || '');
       setRepsOk(initialRepsOk !== undefined ? initialRepsOk : true);
+      // Auto-focus native keyboard on open
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 150);
+      return () => clearTimeout(timer);
     }
   }, [visible, initialValue, initialRepsOk]);
 
-  // Early return AFTER all hooks
+  // Hook rules: early return only after all hooks
   if (!visible) return null;
 
-  // Handle number press
-  const handleDigitPress = (digit: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setBuffer((prev) => {
-      if (prev.length >= 7) return prev;
-      return prev + digit;
-    });
+  const handleTextChange = (text: string) => {
+    // Standardize decimal separator (French keyboard comma -> dot)
+    const normalized = text.replace(',', '.');
+
+    if (mode === 'weight') {
+      // Weight mode: direct decimal numbers e.g. "80" or "82.5"
+      const cleaned = normalized.replace(/[^0-9.]/g, '');
+      const parts = cleaned.split('.');
+      if (parts.length > 2) return;
+      if (cleaned.length > 6) return;
+      setBuffer(cleaned);
+    } else if (mode === 'sprint') {
+      // Sprint mode: smart athletic time formatting
+      if (normalized.length > 7) return;
+      const digits = normalized.replace(/[^0-9]/g, '');
+      const formatted = formatSmartValue(digits, 'sprint', distance);
+      setBuffer(formatted);
+    } else {
+      // Endurance mode: smart minute/second formatting
+      if (normalized.length > 8) return;
+      const digits = normalized.replace(/[^0-9]/g, '');
+      const formatted = formatSmartValue(digits, 'endurance', distance);
+      setBuffer(formatted);
+    }
   };
 
-  // Handle dot or colon
-  const handleDotPress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const separator = mode === 'endurance' && !buffer.includes(':') ? ':' : '.';
-    setBuffer((prev) => {
-      if (prev.includes(separator)) return prev;
-      if (!prev) return '0' + separator;
-      return prev + separator;
-    });
-  };
-
-  // Handle Backspace
-  const handleBackspace = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setBuffer((prev) => {
-      if (prev.length === 0) return '';
-      return prev.slice(0, -1);
-    });
-  };
-
-  // Clear all
   const handleClear = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setBuffer('');
+    inputRef.current?.focus();
   };
 
-  // Quick weight increments (for muscu)
+  // Quick weight adjustment chips
   const handleAdjustWeight = (delta: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const current = parseFloat(buffer) || 0;
     const next = Math.max(0, current + delta);
-    setBuffer(next === 0 ? '' : next % 1 === 0 ? String(next) : next.toFixed(1));
+    const str = next === 0 ? '' : next % 1 === 0 ? String(next) : next.toFixed(1);
+    setBuffer(str);
+    inputRef.current?.focus();
   };
-
-  // Format the current display value
-  const formattedDisplay = formatSmartValue(buffer, mode, distance);
 
   const getUnit = () => {
     if (mode === 'sprint') return 'sec';
@@ -164,9 +172,11 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
     return 'kg';
   };
 
+  // Confirm and close (or go next)
   const handleConfirm = (goNext: boolean = false) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    onSave(formattedDisplay, repsOk);
+    Keyboard.dismiss();
+    onSave(buffer, repsOk);
     if (goNext && onNext) {
       onNext();
     } else {
@@ -174,200 +184,155 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
     }
   };
 
-  const KEY_SIZE = Math.min(76, Math.floor((SCREEN_WIDTH - 80) / 3));
+  const handleCancel = () => {
+    Keyboard.dismiss();
+    onClose();
+  };
 
   return (
     <View style={[StyleSheet.absoluteFill, styles.overlay]}>
-      {/* Darkened background */}
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.85)' }]} />
+      {/* Darkened Backdrop - tapping outside dismisses keyboard/closes */}
+      <TouchableWithoutFeedback onPress={handleCancel}>
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.82)' }]} />
+      </TouchableWithoutFeedback>
 
-      <View style={styles.modalContent}>
-        {/* Top Header */}
-        <View style={styles.topBar}>
-          <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
-            <Feather name="x" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.keyboardAvoidingContainer}
+      >
+        <View style={styles.sheetContent}>
+          {/* Top Bar */}
+          <View style={styles.topBar}>
+            <TouchableOpacity onPress={handleCancel} style={styles.closeBtn} activeOpacity={0.7}>
+              <Feather name="x" size={22} color="#FFFFFF" />
+            </TouchableOpacity>
 
-          <View style={styles.headerInfo}>
-            <Text style={styles.headerTitle}>{title}</Text>
-            {subtitle ? <Text style={styles.headerSubtitle}>{subtitle}</Text> : null}
+            <View style={styles.headerInfo}>
+              <Text style={styles.headerTitle}>{title}</Text>
+              {subtitle ? <Text style={styles.headerSubtitle}>{subtitle}</Text> : null}
+            </View>
+
+            <TouchableOpacity onPress={handleClear} style={styles.clearBtn} activeOpacity={0.7}>
+              <Text style={styles.clearBtnText}>Effacer</Text>
+            </TouchableOpacity>
           </View>
 
-          <TouchableOpacity onPress={handleClear} style={styles.clearBtn} activeOpacity={0.7}>
-            <Text style={styles.clearBtnText}>Effacer</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Big Typography Display */}
-        <View style={styles.heroDisplayContainer}>
-          <View style={styles.numberWithUnitRow}>
-            <Text
-              style={[
-                styles.heroNumber,
-                !formattedDisplay && styles.heroNumberPlaceholder,
-              ]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-            >
-              {formattedDisplay || (mode === 'endurance' ? '--:--' : mode === 'sprint' ? '--.--' : '0')}
-            </Text>
-            <Text style={styles.heroUnit}>{getUnit()}</Text>
-          </View>
-
-          {/* Reps Toggle (Musculation mode only) */}
-          {mode === 'weight' && (
-            <View style={styles.repsToggleWrapper}>
-              <TouchableOpacity
-                style={[
-                  styles.repsTogglePill,
-                  repsOk ? styles.repsTogglePillSuccess : styles.repsTogglePillFailed,
-                ]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setRepsOk(!repsOk);
-                }}
-                activeOpacity={0.8}
-              >
-                <Ionicons
-                  name={repsOk ? 'checkmark-circle' : 'close-circle'}
-                  size={20}
-                  color={repsOk ? '#10B981' : '#EF4444'}
+          {/* Hero Typography Display: Native TextInput with Big Digits + Unit */}
+          <TouchableWithoutFeedback onPress={() => inputRef.current?.focus()}>
+            <View style={styles.heroDisplayContainer}>
+              <View style={styles.numberWithUnitRow}>
+                <TextInput
+                  ref={inputRef}
+                  style={styles.heroNumberInput}
+                  value={buffer}
+                  onChangeText={handleTextChange}
+                  keyboardType="decimal-pad"
+                  autoFocus={true}
+                  placeholder={mode === 'endurance' ? '--:--' : mode === 'sprint' ? '--.--' : '0'}
+                  placeholderTextColor="rgba(255, 255, 255, 0.25)"
+                  returnKeyType={hasNextSet ? 'next' : 'done'}
+                  onSubmitEditing={() => handleConfirm(false)}
+                  selectTextOnFocus={true}
+                  selectionColor="#818CF8"
                 />
-                <Text
-                  style={[
-                    styles.repsTogglePillText,
-                    { color: repsOk ? '#10B981' : '#EF4444' },
-                  ]}
-                >
-                  {repsOk ? 'Reps réussies' : 'Reps non terminées'}
-                </Text>
-              </TouchableOpacity>
+                <Text style={styles.heroUnit}>{getUnit()}</Text>
+              </View>
 
-              {/* Quick weight adjuster chips */}
-              <View style={styles.quickWeightRow}>
-                {[-5, -2.5, +2.5, +5].map((delta) => (
+              {/* Reps Toggle & Quick Weight Chips (Musculation mode) */}
+              {mode === 'weight' && (
+                <View style={styles.repsToggleWrapper}>
                   <TouchableOpacity
-                    key={delta}
-                    style={styles.quickWeightChip}
-                    onPress={() => handleAdjustWeight(delta)}
-                    activeOpacity={0.7}
+                    style={[
+                      styles.repsTogglePill,
+                      repsOk ? styles.repsTogglePillSuccess : styles.repsTogglePillFailed,
+                    ]}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setRepsOk(!repsOk);
+                    }}
+                    activeOpacity={0.8}
                   >
-                    <Text style={styles.quickWeightChipText}>
-                      {delta > 0 ? `+${delta}` : delta}
+                    <Ionicons
+                      name={repsOk ? 'checkmark-circle' : 'close-circle'}
+                      size={20}
+                      color={repsOk ? '#10B981' : '#EF4444'}
+                    />
+                    <Text
+                      style={[
+                        styles.repsTogglePillText,
+                        { color: repsOk ? '#10B981' : '#EF4444' },
+                      ]}
+                    >
+                      {repsOk ? 'Reps réussies' : 'Reps non terminées'}
                     </Text>
                   </TouchableOpacity>
-                ))}
-              </View>
+
+                  {/* Quick weight adjuster chips */}
+                  <View style={styles.quickWeightRow}>
+                    {[-5, -2.5, +2.5, +5].map((delta) => (
+                      <TouchableOpacity
+                        key={delta}
+                        style={styles.quickWeightChip}
+                        onPress={() => handleAdjustWeight(delta)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.quickWeightChipText}>
+                          {delta > 0 ? `+${delta}` : delta}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
             </View>
-          )}
-        </View>
+          </TouchableWithoutFeedback>
 
-        {/* Custom Numeric Keypad */}
-        <View style={styles.keypadWrapper}>
-          {/* Row 1 */}
-          <View style={styles.keypadRow}>
-            {['1', '2', '3'].map((d) => (
-              <TouchableOpacity
-                key={d}
-                style={[styles.keyButton, { width: KEY_SIZE, height: KEY_SIZE, borderRadius: KEY_SIZE / 2 }]}
-                onPress={() => handleDigitPress(d)}
-                activeOpacity={0.6}
-              >
-                <Text style={styles.keyText}>{d}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Row 2 */}
-          <View style={styles.keypadRow}>
-            {['4', '5', '6'].map((d) => (
-              <TouchableOpacity
-                key={d}
-                style={[styles.keyButton, { width: KEY_SIZE, height: KEY_SIZE, borderRadius: KEY_SIZE / 2 }]}
-                onPress={() => handleDigitPress(d)}
-                activeOpacity={0.6}
-              >
-                <Text style={styles.keyText}>{d}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Row 3 */}
-          <View style={styles.keypadRow}>
-            {['7', '8', '9'].map((d) => (
-              <TouchableOpacity
-                key={d}
-                style={[styles.keyButton, { width: KEY_SIZE, height: KEY_SIZE, borderRadius: KEY_SIZE / 2 }]}
-                onPress={() => handleDigitPress(d)}
-                activeOpacity={0.6}
-              >
-                <Text style={styles.keyText}>{d}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Row 4 */}
-          <View style={styles.keypadRow}>
+          {/* Bottom Action Bar (Directly above native keyboard) */}
+          <View style={styles.bottomBar}>
             <TouchableOpacity
-              style={[styles.keyButton, styles.keyButtonSpecial, { width: KEY_SIZE, height: KEY_SIZE, borderRadius: KEY_SIZE / 2 }]}
-              onPress={handleDotPress}
-              activeOpacity={0.6}
+              style={styles.cancelActionBtn}
+              onPress={handleCancel}
+              activeOpacity={0.7}
             >
-              <Text style={[styles.keyText, { fontSize: 24, fontWeight: '700' }]}>
-                {mode === 'endurance' ? ':' : '.'}
-              </Text>
+              <Text style={styles.cancelActionBtnText}>Annuler</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.keyButton, { width: KEY_SIZE, height: KEY_SIZE, borderRadius: KEY_SIZE / 2 }]}
-              onPress={() => handleDigitPress('0')}
-              activeOpacity={0.6}
-            >
-              <Text style={styles.keyText}>0</Text>
-            </TouchableOpacity>
+            {hasNextSet ? (
+              <>
+                {/* Valider (Enregistre et ferme) */}
+                <TouchableOpacity
+                  style={[styles.confirmActionBtn, { backgroundColor: 'rgba(255, 255, 255, 0.15)', flex: 0.85 }]}
+                  onPress={() => handleConfirm(false)}
+                  activeOpacity={0.8}
+                >
+                  <Feather name="check" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                  <Text style={styles.confirmActionBtnText}>Valider</Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.keyButton, styles.keyButtonSpecial, { width: KEY_SIZE, height: KEY_SIZE, borderRadius: KEY_SIZE / 2 }]}
-              onPress={handleBackspace}
-              onLongPress={handleClear}
-              activeOpacity={0.6}
-            >
-              <Feather name="delete" size={26} color="#FFFFFF" />
-            </TouchableOpacity>
+                {/* Suivant (Enregistre et passe à la série suivante) */}
+                <TouchableOpacity
+                  style={[styles.confirmActionBtn, { backgroundColor: theme.colors.accent, flex: 1.15 }]}
+                  onPress={() => handleConfirm(true)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.confirmActionBtnText}>Suivant</Text>
+                  <Feather name="arrow-right" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                </TouchableOpacity>
+              </>
+            ) : (
+              /* Dernier set : bouton Valider principal */
+              <TouchableOpacity
+                style={[styles.confirmActionBtn, { backgroundColor: '#10B981', flex: 1 }]}
+                onPress={() => handleConfirm(false)}
+                activeOpacity={0.8}
+              >
+                <Feather name="check" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <Text style={styles.confirmActionBtnText}>Valider</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
-
-        {/* Bottom Action Buttons */}
-        <View style={styles.bottomBar}>
-          <TouchableOpacity
-            style={styles.cancelActionBtn}
-            onPress={onClose}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.cancelActionBtnText}>Annuler</Text>
-          </TouchableOpacity>
-
-          {hasNextSet ? (
-            <TouchableOpacity
-              style={[styles.confirmActionBtn, { backgroundColor: theme.colors.accent }]}
-              onPress={() => handleConfirm(true)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.confirmActionBtnText}>Suivant</Text>
-              <Feather name="arrow-right" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={[styles.confirmActionBtn, { backgroundColor: '#10B981' }]}
-              onPress={() => handleConfirm(false)}
-              activeOpacity={0.8}
-            >
-              <Feather name="check" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-              <Text style={styles.confirmActionBtnText}>Valider</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
+      </KeyboardAvoidingView>
     </View>
   );
 };
@@ -379,30 +344,38 @@ const styles = StyleSheet.create({
     zIndex: 2000,
     elevation: 2000,
   },
-  modalContent: {
-    paddingHorizontal: 24,
-    paddingBottom: Platform.OS === 'ios' ? 44 : 24,
+  keyboardAvoidingContainer: {
+    width: '100%',
+    justifyContent: 'flex-end',
+  },
+  sheetContent: {
+    paddingHorizontal: 20,
     paddingTop: 16,
-    justifyContent: 'space-between',
+    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
+    backgroundColor: '#161618',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   closeBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerInfo: {
     alignItems: 'center',
     flex: 1,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
   },
   headerTitle: {
     color: '#FFFFFF',
@@ -420,9 +393,9 @@ const styles = StyleSheet.create({
   },
   clearBtn: {
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    paddingVertical: 7,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   clearBtnText: {
     color: '#EF4444',
@@ -434,34 +407,34 @@ const styles = StyleSheet.create({
   heroDisplayContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 20,
-    minHeight: 140,
+    paddingVertical: 24,
   },
   numberWithUnitRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'center',
   },
-  heroNumber: {
-    fontSize: 60,
+  heroNumberInput: {
+    fontSize: 58,
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: -1,
-  },
-  heroNumberPlaceholder: {
-    color: 'rgba(255, 255, 255, 0.25)',
+    textAlign: 'center',
+    minWidth: 140,
+    padding: 0,
+    margin: 0,
   },
   heroUnit: {
     fontSize: 26,
     fontWeight: '700',
     color: '#818CF8',
-    marginLeft: 10,
+    marginLeft: 8,
   },
 
   // Reps toggle
   repsToggleWrapper: {
     alignItems: 'center',
-    marginTop: 14,
+    marginTop: 16,
     gap: 12,
   },
   repsTogglePill: {
@@ -469,7 +442,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 18,
-    paddingVertical: 9,
+    paddingVertical: 8,
     borderRadius: 24,
     borderWidth: 1.5,
   },
@@ -506,46 +479,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Keypad
-  keypadWrapper: {
-    paddingHorizontal: 16,
-    gap: 12,
-    marginTop: 8,
-    marginBottom: 20,
-    alignSelf: 'center',
-  },
-  keypadRow: {
-    flexDirection: 'row',
-    gap: 20,
-    justifyContent: 'center',
-  },
-  keyButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  keyButtonSpecial: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  keyText: {
-    color: '#FFFFFF',
-    fontSize: 28,
-    fontWeight: '500',
-  },
-
   // Bottom action bar
   bottomBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
+    gap: 10,
+    marginTop: 8,
   },
   cancelActionBtn: {
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderRadius: 14,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -556,22 +500,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   confirmActionBtn: {
-    flex: 1,
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
   },
   confirmActionBtnText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
   },
 });
