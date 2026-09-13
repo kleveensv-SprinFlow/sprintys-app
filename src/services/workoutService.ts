@@ -44,13 +44,13 @@ export const workoutService = {
     return data;
   },
 
-  fetchUpcomingWorkouts: async (athleteId: string, daysAhead: number = 7) => {
+  fetchUpcomingWorkouts: async (athleteId: string, daysBehind: number = 7, daysAhead: number = 14) => {
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 1); // Inclure hier pour le contexte
-    startDate.setHours(0,0,0,0);
+    startDate.setDate(startDate.getDate() - daysBehind);
+    startDate.setHours(0, 0, 0, 0);
     const endDate = new Date();
     endDate.setDate(endDate.getDate() + daysAhead);
-    endDate.setHours(23,59,59,999);
+    endDate.setHours(23, 59, 59, 999);
 
     const { data, error } = await supabase
       .from('workouts')

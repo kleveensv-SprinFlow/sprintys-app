@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { StyleSheet, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/core/theme';
@@ -7,14 +7,24 @@ import { AthleteGauges } from '../../src/features/athlete/components/AthleteGaug
 import { SessionCarousel } from '../../src/features/athlete/components/SessionCarousel';
 import { AthleteWeatherCard } from '../../src/features/athlete/components/AthleteWeatherCard';
 import { useNutritionStore } from '../../src/store/nutrition/nutritionStore';
+import { useAuthStore } from '../../src/store/authStore';
+import { useWorkoutStore } from '../../src/store/workoutStore';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function DashboardScreen() {
   const theme = useTheme();
   const { fetchMealLogs, currentDate } = useNutritionStore();
+  const { user } = useAuthStore();
+  const { loadUpcomingWorkouts } = useWorkoutStore();
 
-  React.useEffect(() => {
-    fetchMealLogs(currentDate);
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchMealLogs(currentDate);
+      if (user?.id) {
+        loadUpcomingWorkouts(user.id);
+      }
+    }, [user?.id, currentDate])
+  );
   
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
