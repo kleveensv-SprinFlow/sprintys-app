@@ -285,58 +285,27 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
               <Text style={[styles.heroUnit, { color: theme.colors.accent }]}>{getUnit()}</Text>
             </View>
 
-            {/* Reps Toggle & Quick Weight Chips (Musculation mode) */}
+            {/* Quick Weight Chips (Musculation mode) */}
             {mode === 'weight' && (
-              <View style={styles.repsToggleWrapper}>
-                <TouchableOpacity
-                  style={[
-                    styles.repsTogglePill,
-                    repsOk
-                      ? { backgroundColor: theme.colors.success + '15', borderColor: theme.colors.success + '40' }
-                      : { backgroundColor: theme.colors.error + '15', borderColor: theme.colors.error + '40' },
-                  ]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setRepsOk(!repsOk);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons
-                    name={repsOk ? 'checkmark-circle' : 'close-circle'}
-                    size={20}
-                    color={repsOk ? theme.colors.success : theme.colors.error}
-                  />
-                  <Text
+              <View style={styles.quickWeightRow}>
+                {[-5, -2.5, +2.5, +5].map((delta) => (
+                  <TouchableOpacity
+                    key={delta}
                     style={[
-                      styles.repsTogglePillText,
-                      { color: repsOk ? theme.colors.success : theme.colors.error },
+                      styles.quickWeightChip,
+                      {
+                        backgroundColor: theme.colors.surfaceLight,
+                        borderColor: theme.colors.border,
+                      },
                     ]}
+                    onPress={() => handleAdjustWeight(delta)}
+                    activeOpacity={0.7}
                   >
-                    {repsOk ? 'Reps réussies' : 'Reps non terminées'}
-                  </Text>
-                </TouchableOpacity>
-
-                {/* Quick weight adjuster chips */}
-                <View style={styles.quickWeightRow}>
-                  {[-5, -2.5, +2.5, +5].map((delta) => (
-                    <TouchableOpacity
-                      key={delta}
-                      style={[
-                        styles.quickWeightChip,
-                        {
-                          backgroundColor: theme.colors.surfaceLight,
-                          borderColor: theme.colors.border,
-                        },
-                      ]}
-                      onPress={() => handleAdjustWeight(delta)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.quickWeightChipText, { color: theme.colors.text }]}>
-                        {delta > 0 ? `+${delta}` : delta}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                    <Text style={[styles.quickWeightChipText, { color: theme.colors.text }]}>
+                      {delta > 0 ? `+${delta}` : delta}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             )}
           </View>

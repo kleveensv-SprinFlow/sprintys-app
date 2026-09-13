@@ -575,10 +575,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                           <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, width: 32 }]}>Série</Text>
                           <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, flex: 1 }]}>Objectif</Text>
                           {sessionCategory === 'muscu' && (
-                            <>
-                              <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, width: 70 }]}>Charge</Text>
-                              <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, width: 40, textAlign: 'center' }]}>Reps</Text>
-                            </>
+                            <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, width: 90 }]}>Charge</Text>
                           )}
                           {sessionCategory === 'course' && (
                             <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, width: 90 }]}>Chrono</Text>
@@ -631,50 +628,26 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                               </Text>
 
                               {sessionCategory === 'muscu' && (
-                                <>
-                                  {/* Weight Keypad Button */}
-                                  <TouchableOpacity
-                                    style={[
-                                      styles.athleteValueButton,
-                                      { width: 88 },
-                                      data.weight ? styles.athleteValueButtonFilled : null,
-                                    ]}
-                                    onPress={() => {
-                                      const idx = allSets.findIndex(s => s.exercise.id === exercise.id && s.setIndex === setIndex);
-                                      if (idx >= 0) openKeypadAtIndex(idx);
-                                    }}
-                                    activeOpacity={0.7}
-                                  >
-                                    <Text style={[
-                                      styles.athleteValueButtonText,
-                                      { color: data.weight ? theme.colors.accent : theme.colors.textMuted },
-                                      !data.weight && styles.athleteValuePlaceholder,
-                                    ]}>
-                                      {data.weight ? `${data.weight} kg` : '+ Poids'}
-                                    </Text>
-                                  </TouchableOpacity>
-
-                                  {/* Reps completed toggle */}
-                                  <TouchableOpacity
-                                    style={[styles.repsToggle, {
-                                      backgroundColor: data.repsOk === false ? '#FEE2E2' : data.repsOk ? '#D1FAE5' : theme.colors.surfaceLight,
-                                      borderColor: data.repsOk === false ? '#FCA5A5' : data.repsOk ? '#6EE7B7' : theme.colors.border,
-                                    }]}
-                                    onPress={() => {
-                                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                      const current = data.repsOk;
-                                      // Toggle: undefined → true → false → true
-                                      updateSetField(resultKey, 'repsOk', current === false ? true : current === true ? false : true);
-                                    }}
-                                    activeOpacity={0.7}
-                                  >
-                                    <Feather 
-                                      name={data.repsOk === false ? 'x' : 'check'} 
-                                      size={16} 
-                                      color={data.repsOk === false ? '#DC2626' : data.repsOk ? '#047857' : theme.colors.textMuted} 
-                                    />
-                                  </TouchableOpacity>
-                                </>
+                                <TouchableOpacity
+                                  style={[
+                                    styles.athleteValueButton,
+                                    { minWidth: 90 },
+                                    data.weight ? styles.athleteValueButtonFilled : null,
+                                  ]}
+                                  onPress={() => {
+                                    const idx = allSets.findIndex(s => s.exercise.id === exercise.id && s.setIndex === setIndex);
+                                    if (idx >= 0) openKeypadAtIndex(idx);
+                                  }}
+                                  activeOpacity={0.7}
+                                >
+                                  <Text style={[
+                                    styles.athleteValueButtonText,
+                                    { color: data.weight ? theme.colors.accent : theme.colors.textMuted },
+                                    !data.weight && styles.athleteValuePlaceholder,
+                                  ]}>
+                                    {data.weight ? `${data.weight} kg` : '+ Poids'}
+                                  </Text>
+                                </TouchableOpacity>
                               )}
 
                               {sessionCategory === 'course' && (
