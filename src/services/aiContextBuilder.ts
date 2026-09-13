@@ -2,13 +2,14 @@ import { useAuthStore } from '../store/authStore';
 import { useCheckInStore } from '../store/checkInStore';
 import { useNutritionStore } from '../store/nutrition/nutritionStore';
 import { useCoachStore } from '../store/coach/coachStore';
+import { useWorkoutStore } from '../store/workoutStore';
 import { supabase } from './supabase';
 
 export const buildSystemPrompt = (): string => {
   const { user } = useAuthStore.getState();
   const { todayHealthScore, history } = useCheckInStore.getState();
   const { mealLogs } = useNutritionStore.getState();
-  const { myGroups } = useCoachStore.getState() as any; 
+  const { upcomingWorkouts } = useWorkoutStore.getState();
 
   const athleteName = user?.name || "Athlète";
   const nextComp = user?.nextCompetitionDate ? new Date(user.nextCompetitionDate).toLocaleDateString('fr-FR') : "Aucune";
@@ -16,26 +17,53 @@ export const buildSystemPrompt = (): string => {
   
   const consumedKcal = mealLogs.reduce((sum, log) => sum + Number(log.calories), 0);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const dayOfWeek = now.toLocaleDateString('fr-FR', { weekday: 'long' });
+  
   const todayCheckin = history.find(h => h.date === todayStr);
   const checkinText = todayCheckin 
     ? `Fatigue: ${todayCheckin.fatigue_level}/5, Douleurs: ${todayCheckin.pains ? todayCheckin.pains.length : 0} zones, Stress: ${todayCheckin.stress_level}/5, Sommeil: ${todayCheckin.sleep_quality}/5.`
     : `L'athlète n'a pas encore fait son check-in santé aujourd'hui.`;
 
+  // Filter workouts for today
+  const todaysWorkouts = upcomingWorkouts.filter(w => {
+    if (!w.date_prevue) return false;
+    const wDate = new Date(w.date_prevue);
+    return wDate.getFullYear() === now.getFullYear() &&
+           wDate.getMonth() === now.getMonth() &&
+           wDate.getDate() === now.getDate();
+  });
+  
+  let workoutsText = "Aucune séance prévue aujourd'hui.";
+  if (todaysWorkouts.length > 0) {
+    workoutsText = todaysWorkouts.map(w => 
+      `- ${w.nom_seance || w.type_seance} (${w.statut})`
+    ).join('\n');
+  }
+
   return `Tu es Sprinty, un coach IA expert en athlétisme (sprint, demi-fond, sauts, etc.) intégré à l'application SprinFlow.
 Ton rôle est d'analyser les données de l'athlète, de le conseiller sur son entraînement, sa nutrition et sa récupération.
 Tu dois répondre en français, de manière experte, concise, motivante et directe. Pas de longues phrases inutiles.
+
+CONTEXTE TEMPOREL :
+- Date actuelle : ${dayOfWeek} ${todayStr}
+- Heure actuelle : ${timeStr}
 
 CONTEXTE DE L'ATHLÈTE :
 - Nom : ${athleteName}
 - Prochaine Compétition : ${nextComp}
 - Objectif Nutritionnel : ${kcalGoal} kcal/jour (Consommé aujourd'hui : ${consumedKcal} kcal)
 - État de Forme du jour : ${checkinText}
+- Séances prévues aujourd'hui : 
+${workoutsText}
 
 INSTRUCTIONS DE RÉPONSE :
-1. Si l'athlète te pose une question sur son état, utilise ses données (Fatigue, Sommeil, Nutrition) pour lui répondre.
-2. Si sa fatigue ou ses douleurs sont élevées (>7), recommande de l'assouplissement ou du repos.
-3. Sois toujours bienveillant mais très professionnel (style coach d'athlétisme).`;
+1. Prends en compte l'heure actuelle pour contextualiser tes réponses (ex: le matin, parle de la journée à venir ; le soir, parle de la récupération ou du bilan de la journée).
+2. Si l'athlète te pose une question sur son état, utilise ses données (Fatigue, Sommeil, Nutrition) pour lui répondre.
+3. Si sa fatigue ou ses douleurs sont élevées (>7), recommande de l'assouplissement ou du repos.
+4. Sois toujours bienveillant mais très professionnel (style coach d'athlétisme).`;
 };
 
 export const buildCoachSystemPromptForAthlete = async (athleteId: string, athleteName: string): Promise<string> => {

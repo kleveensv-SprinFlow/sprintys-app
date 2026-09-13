@@ -20,6 +20,7 @@ export interface ActiveWorkoutSession {
   startTime: number;
   status: 'active';
   blocks: ActiveBlock[];
+  isLocal?: boolean;
 }
 
 interface WorkoutState {
@@ -80,6 +81,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         startTime: Date.now(),
         blocks: [],
         status: 'active',
+        isLocal: true,
       },
       timer: 0,
     });
@@ -256,7 +258,24 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     set({ isLoading: true });
 
     try {
-      if (activeSession.id.length > 20) {
+      let workoutId = activeSession.id;
+
+      if (activeSession.isLocal) {
+        const { useAuthStore } = require('./authStore');
+        const user = useAuthStore.getState().user;
+        if (!user) throw new Error("User not found");
+
+        const newWorkout = await workoutService.createPlannedWorkout({
+          athlete_id: user.id,
+          type_seance: activeSession.name,
+          date_prevue: new Date().toISOString(),
+          status: 'completed',
+          blocks: activeSession.blocks
+        });
+        workoutId = newWorkout[0].id;
+      }
+
+      if (workoutId) {
         const effortsToSubmit: any[] = [];
         let bIdx = 1;
         for (const block of activeSession.blocks) {
@@ -286,10 +305,10 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           }
           bIdx++;
         }
-        await workoutService.submitWorkoutResults(activeSession.id, effortsToSubmit);
+        await workoutService.submitWorkoutResults(workoutId, effortsToSubmit);
       }
       
-      const historyItem = { id: activeSession.id, name: activeSession.name, date: new Date().toISOString(), durationMinutes: Math.floor(timer / 60), totalVolume: 0 };
+      const historyItem = { id: workoutId, name: activeSession.name, date: new Date().toISOString(), durationMinutes: Math.floor(timer / 60), totalVolume: 0 };
       set({ activeSession: null, timer: 0, history: [historyItem, ...history], isLoading: false });
     } catch (error) {
       console.error(error);

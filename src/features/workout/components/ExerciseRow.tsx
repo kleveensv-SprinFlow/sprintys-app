@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Keyboard } from 'react-native';
 import { useWorkoutStore } from '../../../store/workoutStore';
 import { theme } from '../../../core/theme';
 import { WorkoutExercise } from '../../../types/workout';
@@ -81,24 +81,16 @@ const SetRow = ({ blockId, exerciseId, set, isStrength, isRun, isJump }: { block
       
       <View style={{ flex: 1.5, flexDirection: 'row', gap: 4 }}>
         {isStrength && (
-          <>
-            <TextInput
-              style={inputStyle}
-              value={set.actual_weight_kg ? set.actual_weight_kg.toString() : ''}
-              onChangeText={(val) => updateSet(blockId, exerciseId, set.id, { actual_weight_kg: parseFloat(val) || undefined })}
-              keyboardType="numeric"
-              placeholder="KG"
-              placeholderTextColor={theme.colors.textMuted}
-            />
-            <TextInput
-              style={inputStyle}
-              value={set.actual_reps ? set.actual_reps.toString() : ''}
-              onChangeText={(val) => updateSet(blockId, exerciseId, set.id, { actual_reps: parseInt(val) || undefined })}
-              keyboardType="numeric"
-              placeholder="REPS"
-              placeholderTextColor={theme.colors.textMuted}
-            />
-          </>
+          <TextInput
+            style={inputStyle}
+            value={set.actual_weight_kg ? set.actual_weight_kg.toString() : ''}
+            onChangeText={(val) => updateSet(blockId, exerciseId, set.id, { actual_weight_kg: parseFloat(val) || undefined })}
+            keyboardType="numeric"
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
+            placeholder="KG"
+            placeholderTextColor={theme.colors.textMuted}
+          />
         )}
         {isRun && (
           <TextInput
@@ -106,6 +98,8 @@ const SetRow = ({ blockId, exerciseId, set, isStrength, isRun, isJump }: { block
             value={timeText}
             onChangeText={handleTimeChange}
             keyboardType="decimal-pad"
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
             placeholder="Chrono"
             placeholderTextColor={theme.colors.textMuted}
           />
@@ -119,6 +113,8 @@ const SetRow = ({ blockId, exerciseId, set, isStrength, isRun, isJump }: { block
           value={intensityText}
           onChangeText={handleIntensityChange}
           keyboardType="numeric"
+          returnKeyType="done"
+          onSubmitEditing={() => Keyboard.dismiss()}
           placeholder="%"
           placeholderTextColor={theme.colors.textMuted}
         />
