@@ -95,8 +95,6 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
   visible,
   onClose,
   onSave,
-  onNext,
-  hasNextSet = false,
   initialValue = '',
   initialRepsOk = true,
   mode,
@@ -111,7 +109,7 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
   const [buffer, setBuffer] = useState('');
   const [repsOk, setRepsOk] = useState(true);
 
-  // Animated keyboard height tracker to place sheet above keyboard on ALL Android/iOS devices
+  // Animated keyboard height tracker to place sheet above keyboard on ALL devices
   const keyboardHeightAnim = useRef(new Animated.Value(0)).current;
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
@@ -206,16 +204,12 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
     return 'kg';
   };
 
-  // Confirm and close (or go next)
-  const handleConfirm = (goNext: boolean = false) => {
+  // Confirm and close
+  const handleConfirm = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Keyboard.dismiss();
     onSave(buffer, repsOk);
-    if (goNext && onNext) {
-      onNext();
-    } else {
-      onClose();
-    }
+    onClose();
   };
 
   const handleCancel = () => {
@@ -227,14 +221,16 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
     <View style={[StyleSheet.absoluteFill, styles.overlay]}>
       {/* Darkened Backdrop - tapping outside dismisses keyboard/closes */}
       <TouchableWithoutFeedback onPress={handleCancel}>
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.82)' }]} />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0, 0, 0, 0.45)' }]} />
       </TouchableWithoutFeedback>
 
-      {/* Sheet dynamically hoisted above keyboard via Animated marginBottom */}
+      {/* Sheet dynamically hoisted above keyboard via Animated marginBottom, adhering to App Theme */}
       <Animated.View
         style={[
           styles.sheetContent,
           {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.border,
             marginBottom: keyboardHeightAnim,
             paddingBottom: isKeyboardVisible ? 16 : Math.max(insets.bottom, 20),
           },
@@ -242,17 +238,29 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
       >
         {/* Top Bar */}
         <View style={styles.topBar}>
-          <TouchableOpacity onPress={handleCancel} style={styles.closeBtn} activeOpacity={0.7}>
-            <Feather name="x" size={22} color="#FFFFFF" />
+          <TouchableOpacity
+            onPress={handleCancel}
+            style={[styles.closeBtn, { backgroundColor: theme.colors.surfaceLight }]}
+            activeOpacity={0.7}
+          >
+            <Feather name="x" size={20} color={theme.colors.text} />
           </TouchableOpacity>
 
           <View style={styles.headerInfo}>
-            <Text style={styles.headerTitle}>{title}</Text>
-            {subtitle ? <Text style={styles.headerSubtitle}>{subtitle}</Text> : null}
+            <Text style={[styles.headerTitle, { color: theme.colors.text }]}>{title}</Text>
+            {subtitle ? (
+              <Text style={[styles.headerSubtitle, { color: theme.colors.textSecondary }]}>
+                {subtitle}
+              </Text>
+            ) : null}
           </View>
 
-          <TouchableOpacity onPress={handleClear} style={styles.clearBtn} activeOpacity={0.7}>
-            <Text style={styles.clearBtnText}>Effacer</Text>
+          <TouchableOpacity
+            onPress={handleClear}
+            style={[styles.clearBtn, { backgroundColor: theme.colors.surfaceLight }]}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.clearBtnText, { color: theme.colors.error }]}>Effacer</Text>
           </TouchableOpacity>
         </View>
 
@@ -262,19 +270,19 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
             <View style={styles.numberWithUnitRow}>
               <TextInput
                 ref={inputRef}
-                style={styles.heroNumberInput}
+                style={[styles.heroNumberInput, { color: theme.colors.text }]}
                 value={buffer}
                 onChangeText={handleTextChange}
                 keyboardType="decimal-pad"
                 autoFocus={true}
                 placeholder={mode === 'endurance' ? '--:--' : mode === 'sprint' ? '--.--' : '0'}
-                placeholderTextColor="rgba(255, 255, 255, 0.25)"
+                placeholderTextColor={theme.colors.textMuted}
                 returnKeyType="done"
-                onSubmitEditing={() => handleConfirm(false)}
+                onSubmitEditing={handleConfirm}
                 selectTextOnFocus={true}
-                selectionColor="#818CF8"
+                selectionColor={theme.colors.accent}
               />
-              <Text style={styles.heroUnit}>{getUnit()}</Text>
+              <Text style={[styles.heroUnit, { color: theme.colors.accent }]}>{getUnit()}</Text>
             </View>
 
             {/* Reps Toggle & Quick Weight Chips (Musculation mode) */}
@@ -283,7 +291,9 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
                 <TouchableOpacity
                   style={[
                     styles.repsTogglePill,
-                    repsOk ? styles.repsTogglePillSuccess : styles.repsTogglePillFailed,
+                    repsOk
+                      ? { backgroundColor: theme.colors.success + '15', borderColor: theme.colors.success + '40' }
+                      : { backgroundColor: theme.colors.error + '15', borderColor: theme.colors.error + '40' },
                   ]}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -294,12 +304,12 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
                   <Ionicons
                     name={repsOk ? 'checkmark-circle' : 'close-circle'}
                     size={20}
-                    color={repsOk ? '#10B981' : '#EF4444'}
+                    color={repsOk ? theme.colors.success : theme.colors.error}
                   />
                   <Text
                     style={[
                       styles.repsTogglePillText,
-                      { color: repsOk ? '#10B981' : '#EF4444' },
+                      { color: repsOk ? theme.colors.success : theme.colors.error },
                     ]}
                   >
                     {repsOk ? 'Reps réussies' : 'Reps non terminées'}
@@ -311,11 +321,17 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
                   {[-5, -2.5, +2.5, +5].map((delta) => (
                     <TouchableOpacity
                       key={delta}
-                      style={styles.quickWeightChip}
+                      style={[
+                        styles.quickWeightChip,
+                        {
+                          backgroundColor: theme.colors.surfaceLight,
+                          borderColor: theme.colors.border,
+                        },
+                      ]}
                       onPress={() => handleAdjustWeight(delta)}
                       activeOpacity={0.7}
                     >
-                      <Text style={styles.quickWeightChipText}>
+                      <Text style={[styles.quickWeightChipText, { color: theme.colors.text }]}>
                         {delta > 0 ? `+${delta}` : delta}
                       </Text>
                     </TouchableOpacity>
@@ -326,49 +342,26 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
           </View>
         </TouchableWithoutFeedback>
 
-        {/* Bottom Action Bar (Directly above native keyboard) */}
+        {/* Bottom Action Bar: Only Annuler & Valider */}
         <View style={styles.bottomBar}>
           <TouchableOpacity
-            style={styles.cancelActionBtn}
+            style={[styles.cancelActionBtn, { backgroundColor: theme.colors.surfaceLight }]}
             onPress={handleCancel}
             activeOpacity={0.7}
           >
-            <Text style={styles.cancelActionBtnText}>Annuler</Text>
+            <Text style={[styles.cancelActionBtnText, { color: theme.colors.textSecondary }]}>
+              Annuler
+            </Text>
           </TouchableOpacity>
 
-          {hasNextSet ? (
-            <>
-              {/* Valider (Enregistre et ferme) */}
-              <TouchableOpacity
-                style={[styles.confirmActionBtn, { backgroundColor: 'rgba(255, 255, 255, 0.15)', flex: 0.85 }]}
-                onPress={() => handleConfirm(false)}
-                activeOpacity={0.8}
-              >
-                <Feather name="check" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-                <Text style={styles.confirmActionBtnText}>Valider</Text>
-              </TouchableOpacity>
-
-              {/* Suivant (Enregistre et passe à la série suivante) */}
-              <TouchableOpacity
-                style={[styles.confirmActionBtn, { backgroundColor: theme.colors.accent, flex: 1.15 }]}
-                onPress={() => handleConfirm(true)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.confirmActionBtnText}>Suivant</Text>
-                <Feather name="arrow-right" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
-              </TouchableOpacity>
-            </>
-          ) : (
-            /* Dernier set : bouton Valider principal */
-            <TouchableOpacity
-              style={[styles.confirmActionBtn, { backgroundColor: '#10B981', flex: 1 }]}
-              onPress={() => handleConfirm(false)}
-              activeOpacity={0.8}
-            >
-              <Feather name="check" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-              <Text style={styles.confirmActionBtnText}>Valider</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={[styles.confirmActionBtn, { backgroundColor: theme.colors.accent }]}
+            onPress={handleConfirm}
+            activeOpacity={0.8}
+          >
+            <Feather name="check" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+            <Text style={styles.confirmActionBtnText}>Valider</Text>
+          </TouchableOpacity>
         </View>
       </Animated.View>
     </View>
@@ -386,16 +379,14 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: 20,
     paddingTop: 16,
-    backgroundColor: '#161618',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 10,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 8,
   },
   topBar: {
     flexDirection: 'row',
@@ -404,10 +395,9 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   closeBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -417,14 +407,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   headerTitle: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: -0.2,
     textAlign: 'center',
   },
   headerSubtitle: {
-    color: 'rgba(255, 255, 255, 0.6)',
     fontSize: 13,
     fontWeight: '500',
     marginTop: 2,
@@ -434,10 +422,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   clearBtnText: {
-    color: '#EF4444',
     fontSize: 13,
     fontWeight: '600',
   },
@@ -456,7 +442,6 @@ const styles = StyleSheet.create({
   heroNumberInput: {
     fontSize: 52,
     fontWeight: '800',
-    color: '#FFFFFF',
     letterSpacing: -1,
     textAlign: 'center',
     minWidth: 130,
@@ -466,7 +451,6 @@ const styles = StyleSheet.create({
   heroUnit: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#818CF8',
     marginLeft: 8,
   },
 
@@ -485,14 +469,6 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1.5,
   },
-  repsTogglePillSuccess: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderColor: 'rgba(16, 185, 129, 0.4)',
-  },
-  repsTogglePillFailed: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderColor: 'rgba(239, 68, 68, 0.4)',
-  },
   repsTogglePillText: {
     fontSize: 14,
     fontWeight: '700',
@@ -505,15 +481,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   quickWeightChip: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   quickWeightChipText: {
-    color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '600',
   },
@@ -522,38 +495,36 @@ const styles = StyleSheet.create({
   bottomBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     marginTop: 6,
   },
   cancelActionBtn: {
-    paddingVertical: 13,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cancelActionBtnText: {
-    color: 'rgba(255, 255, 255, 0.8)',
     fontSize: 15,
     fontWeight: '600',
   },
   confirmActionBtn: {
-    paddingVertical: 13,
-    paddingHorizontal: 16,
-    borderRadius: 14,
+    flex: 2,
+    paddingVertical: 14,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
-    shadowRadius: 4,
+    shadowRadius: 6,
     elevation: 3,
   },
   confirmActionBtnText: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
   },
 });
