@@ -241,8 +241,12 @@ export const workoutService = {
     return data;
   },
 
-  submitWorkoutResults: async (workoutId: string, efforts: any[]) => {
-    const { error } = await supabase.rpc('submit_workout_results', { p_workout_id: workoutId, p_efforts: efforts });
+  submitWorkoutResults: async (workoutId: string, efforts: any[], measures?: any) => {
+    const { error } = await supabase.rpc('submit_workout_results', {
+      p_workout_id: workoutId,
+      p_efforts: efforts,
+      p_measures: measures || null,
+    });
     if (error) throw error;
   },
 

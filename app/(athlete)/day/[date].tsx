@@ -147,6 +147,7 @@ export default function AthleteDayScreen() {
         visible={isWorkoutModalVisible}
         onClose={() => setIsWorkoutModalVisible(false)}
         workout={selectedWorkout}
+        onUpdated={fetchDayWorkouts}
       />
     </View>
   );

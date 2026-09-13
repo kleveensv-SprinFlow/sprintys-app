@@ -16,6 +16,7 @@ interface WorkoutDetailModalProps {
   workout: any;
   onDelete?: (workout: any) => void;
   onEdit?: (workout: any) => void;
+  onUpdated?: () => void;
 }
 
 // Determine the "category" of the session for athlete data entry
@@ -32,6 +33,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
   workout,
   onDelete,
   onEdit,
+  onUpdated,
 }) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -45,6 +47,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
   const [athleteNotes, setAthleteNotes] = React.useState('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isValidated, setIsValidated] = React.useState(false);
+  const [justSaved, setJustSaved] = React.useState(false);
   const [isLoadingData, setIsLoadingData] = React.useState(false);
 
   // Active Keypad State for intelligent athlete data entry
@@ -199,7 +202,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
   };
 
   const submitAthleteWorkout = async () => {
-    if (!user || !workout.id) return;
+    if (!user || !workout?.id) return;
     setIsSubmitting(true);
     try {
       const sc = getSessionCategory(workout.type_seance);
@@ -207,30 +210,42 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
       const blks = workout.blocks || [{ id: 'main', exercises: workout.exercises || [] }];
       
       let setOrderGlobal = 0;
-      for (const block of blks) {
+      for (let bIdx = 0; bIdx < blks.length; bIdx++) {
+        const block = blks[bIdx];
         for (const exercise of (block.exercises || [])) {
           for (let i = 0; i < (exercise.sets || []).length; i++) {
+            const set = exercise.sets[i];
             const key = `${exercise.id}_${i}`;
             const data = setData[key];
             
             const effort: any = {
               workout_id: workout.id,
-              exercise_catalog_id: exercise.catalog_id || null,
-              exercise_category: workout.type_seance,
+              exercise_catalog_id: exercise.catalog_id ? String(exercise.catalog_id).trim() : null,
+              exercise_category: workout.type_seance || 'Général',
+              block_order: bIdx,
               set_order: setOrderGlobal,
+              planned_reps: set?.reps ? parseInt(String(set.reps), 10) : null,
+              planned_weight_kg: set?.weight !== undefined && set?.weight !== null ? parseFloat(String(set.weight)) : null,
+              planned_distance_m: set?.distance ? parseFloat(String(set.distance)) : null,
               actual_extra: {},
             };
 
-            if (sc === 'muscu' && data) {
-              effort.actual_weight_kg = data.weight ? parseFloat(data.weight) : null;
-              effort.actual_extra = {
-                weight: data.weight || '',
-                repsOk: data.repsOk !== false,
-              };
-            } else if (sc === 'course' && data) {
-              effort.actual_extra = {
-                chrono: data.chrono || '',
-              };
+            if (sc === 'muscu') {
+              if (data) {
+                effort.actual_weight_kg = data.weight ? parseFloat(String(data.weight)) : null;
+                effort.actual_reps = data.repsOk === false ? 0 : (set?.reps ? parseInt(String(set.reps), 10) : null);
+                effort.actual_extra = {
+                  weight: data.weight || '',
+                  repsOk: data.repsOk !== false,
+                };
+              }
+            } else if (sc === 'course') {
+              effort.actual_distance_m = set?.distance ? parseFloat(String(set.distance)) : null;
+              if (data) {
+                effort.actual_extra = {
+                  chrono: data.chrono || '',
+                };
+              }
             }
 
             efforts.push(effort);
@@ -239,27 +254,32 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
         }
       }
 
-      // Save efforts
-      if (efforts.length > 0) {
-        await workoutService.submitWorkoutResults(workout.id, efforts);
-      }
-      
-      // Save notes
+      // Updated measures with athlete notes
       const updatedMeasures = { ...(workout.measures || {}), athlete_notes: athleteNotes.trim() || null };
-      await supabase.from('workouts').update({ measures: updatedMeasures }).eq('id', workout.id);
+
+      // Atomic RPC call: saves efforts, updates measures and marks status = 'completed'
+      await workoutService.submitWorkoutResults(workout.id, efforts, updatedMeasures);
       
-      // Mark as completed
-      await workoutService.completeWorkout(workout.id);
-      
+      // Update local workout properties so UI updates immediately
+      workout.status = 'completed';
+      workout.measures = updatedMeasures;
+
       setIsValidated(true);
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 4000);
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onUpdated?.();
+
       Alert.alert(
-        isValidated ? 'Mis à jour ✓' : 'Bravo ! 🎉',
-        isValidated ? 'Tes données ont été mises à jour.' : 'Ta séance a été validée avec succès.'
+        'Données enregistrées ! ✓',
+        isValidated
+          ? 'Tes modifications ont été mises à jour avec succès.'
+          : 'Ta séance a été validée avec succès !'
       );
-    } catch (e) {
-      console.error(e);
-      Alert.alert('Erreur', 'Impossible de valider la séance.');
+    } catch (e: any) {
+      console.error('Error submitting athlete workout:', e);
+      Alert.alert('Erreur', e?.message || 'Impossible de valider la séance.');
     } finally {
       setIsSubmitting(false);
     }
@@ -747,10 +767,35 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
               />
             </View>
 
+            {/* Success Banner when just saved */}
+            {justSaved && (
+              <View style={{
+                backgroundColor: '#D1FAE5',
+                borderColor: '#6EE7B7',
+                borderWidth: 1,
+                borderRadius: 14,
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+              }}>
+                <Feather name="check-circle" size={18} color="#047857" />
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#047857' }}>
+                  Données enregistrées avec succès !
+                </Text>
+              </View>
+            )}
+
             {/* Submit / Update button */}
             <TouchableOpacity
               style={[styles.submitBtn, {
-                backgroundColor: isValidated ? theme.colors.accent : theme.colors.success,
+                backgroundColor: justSaved
+                  ? '#10B981'
+                  : isValidated
+                    ? theme.colors.accent
+                    : '#10B981',
                 opacity: isSubmitting ? 0.6 : 1,
               }]}
               onPress={submitAthleteWorkout}
@@ -760,16 +805,27 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
               {isSubmitting ? (
                 <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
               ) : (
-                <Feather name={isValidated ? 'refresh-cw' : 'check-circle'} size={20} color="#fff" style={{ marginRight: 8 }} />
+                <Feather
+                  name={justSaved ? 'check' : isValidated ? 'refresh-cw' : 'check-circle'}
+                  size={19}
+                  color="#fff"
+                  style={{ marginRight: 8 }}
+                />
               )}
               <Text style={styles.submitBtnText}>
-                {isSubmitting ? 'Enregistrement...' : isValidated ? 'Mettre à jour' : 'Valider la séance'}
+                {isSubmitting
+                  ? 'Mise à jour en cours...'
+                  : justSaved
+                    ? 'Données à jour ✓'
+                    : isValidated
+                      ? 'Mettre à jour mes chronos & données'
+                      : 'Valider la séance'}
               </Text>
             </TouchableOpacity>
 
             {isValidated && (
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingBottom: 8 }}>
-                <Feather name="check" size={14} color={theme.colors.success} />
+                <Feather name="check-circle" size={14} color={theme.colors.success} />
                 <Text style={{ fontSize: 13, color: theme.colors.success, fontWeight: '600' }}>
                   Séance validée — tu peux modifier tes données à tout moment
                 </Text>
