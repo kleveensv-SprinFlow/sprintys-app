@@ -58,9 +58,10 @@ platform :ios do
     profile_name = Actions.lane_context[SharedValues::SIGH_NAME]
 
     # Force manual signing directly in the pbxproj to prevent Xcode 14+ conflicting settings error
+    project_path = Dir.glob("ios/*.xcodeproj").first
     update_code_signing_settings(
       use_automatic_signing: false,
-      path: "ios/Sprintflow.xcodeproj"
+      path: project_path
     )
 
     build_app(
