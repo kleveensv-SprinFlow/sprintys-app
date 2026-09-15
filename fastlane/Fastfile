@@ -29,15 +29,21 @@ platform :ios do
       app_identifier: "com.sprintflow.inc"
     )
 
+    profile_path = ENV["SIGH_PROFILE_PATH"]
+    team_id = sh("security cms -D -i \"#{profile_path}\" | plutil -extract TeamIdentifier.0 raw -").strip
+    profile_name = ENV["sigh_com.sprintflow.inc_appstore_profile-name"]
+
     build_app(
       workspace: "ios/Sprintflow.xcworkspace",
       scheme: "Sprintflow",
       export_method: "app-store",
       export_options: {
+        teamID: team_id,
         provisioningProfiles: {
-          "com.sprintflow.inc" => ENV["sigh_com.sprintflow.inc_appstore_profile-name"]
+          "com.sprintflow.inc" => profile_name
         }
       },
+      xcargs: "CODE_SIGNING_STYLE=Manual DEVELOPMENT_TEAM='#{team_id}' PROVISIONING_PROFILE_SPECIFIER='#{profile_name}'",
       output_directory: "./build",
       output_name: "Sprintflow.ipa"
     )
