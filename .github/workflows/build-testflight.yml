@@ -11,7 +11,7 @@ on:
 jobs:
   build-ios:
     name: Build & Upload to TestFlight
-    runs-on: macos-15
+    runs-on: macos-latest
 
     steps:
       - name: Checkout repository
