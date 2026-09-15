@@ -20,7 +20,7 @@ platform :ios do
 
     get_certificates(
       api_key: api_key,
-      keychain_name: "ci_keychain",
+      keychain_path: "~/Library/Keychains/ci_keychain-db",
       keychain_password: "ci_keychain_password"
     )
 
