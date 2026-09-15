@@ -1,15 +1,17 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../src/core/theme';
 import { supabase } from '../../src/services/supabase';
 import { useAuthStore } from '../../src/store/authStore';
+import { chatService, GroupDiscussionsSummary } from '../../src/services/chatService';
 import { useRouter } from 'expo-router';
 
 interface MyGroupData {
   team_id: string;
+  coach_id: string;
   status: 'pending' | 'approved';
   team_name: string;
   coach_name: string;
@@ -22,6 +24,8 @@ export default function GroupsScreen() {
   const [inviteCode, setInviteCode] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [myGroup, setMyGroup] = useState<MyGroupData | null>(null);
+  const [discussions, setDiscussions] = useState<GroupDiscussionsSummary | null>(null);
+  const [isDiscussionsLoading, setIsDiscussionsLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [previewTeamName, setPreviewTeamName] = useState<string | null>(null);
 
@@ -46,9 +50,60 @@ export default function GroupsScreen() {
     }
   };
 
+  useFocusEffect(
+    useCallback(() => {
+      fetchMyGroup();
+    }, [user?.id])
+  );
+
+  const formatMessageTime = (dateStr?: string | null) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+      const hours = date.getHours().toString().padStart(2, '0');
+      const mins = date.getMinutes().toString().padStart(2, '0');
+      return `${hours}:${mins}`;
+    } else if (diffDays === 1) {
+      return 'Hier';
+    } else if (diffDays < 7) {
+      const days = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+      return days[date.getDay()];
+    } else {
+      return `${date.getDate()}/${date.getMonth() + 1}`;
+    }
+  };
+
+  const loadDiscussions = async (teamId: string, coachId: string) => {
+    setIsDiscussionsLoading(true);
+    try {
+      const res = await chatService.getAthleteGroupDiscussions(teamId, coachId);
+      setDiscussions(res);
+    } catch (e) {
+      console.error('Error loading discussions:', e);
+    } finally {
+      setIsDiscussionsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetchMyGroup();
-  }, []);
+    if (!myGroup || myGroup.status !== 'approved') return;
+
+    const channel = supabase
+      .channel(`athlete_group_discussions_${myGroup.team_id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => {
+        if (myGroup.team_id && myGroup.coach_id) {
+          loadDiscussions(myGroup.team_id, myGroup.coach_id);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [myGroup?.team_id, myGroup?.coach_id, myGroup?.status]);
 
   const fetchMyGroup = async () => {
     if (!user?.id) return;
@@ -70,20 +125,26 @@ export default function GroupsScreen() {
       if (error) throw error;
 
       if (data && data.teams) {
+        const coachId = (data.teams as any).coach_id;
         // Récupérer le nom du coach
         const { data: coachProfile } = await supabase
           .from('profiles')
           .select('full_name')
-          .eq('id', (data.teams as any).coach_id)
+          .eq('id', coachId)
           .single();
 
         setMyGroup({
           team_id: data.team_id,
+          coach_id: coachId,
           status: data.status as 'pending' | 'approved',
           team_name: (data.teams as any).name,
           coach_name: coachProfile?.full_name || 'Coach',
           subgroup_name: data.subgroups ? (data.subgroups as any).name : null,
         });
+
+        if (data.status === 'approved' && coachId) {
+          loadDiscussions(data.team_id, coachId);
+        }
       } else {
         setMyGroup(null);
       }
@@ -273,7 +334,20 @@ export default function GroupsScreen() {
             {/* Actions du groupe */}
             <Text style={styles.sectionLabel}>ACTIONS</Text>
 
-            <TouchableOpacity style={styles.actionCard} onPress={() => { /* TODO: Ouvrir le tchat coach */ }}>
+            <TouchableOpacity 
+              style={styles.actionCard} 
+              activeOpacity={0.7}
+              onPress={() => {
+                if (myGroup?.coach_id) {
+                  router.push({
+                    pathname: '/chat/[type]/[id]',
+                    params: { type: 'direct', id: myGroup.coach_id, title: `Coach ${myGroup.coach_name}` }
+                  });
+                } else {
+                  Alert.alert('Information', 'Identifiant du coach indisponible.');
+                }
+              }}
+            >
               <View style={[styles.actionIconCircle, { backgroundColor: theme.colors.accent + '20' }]}>
                 <Feather name="message-circle" size={22} color={theme.colors.accent} />
               </View>
@@ -284,7 +358,20 @@ export default function GroupsScreen() {
               <Feather name="chevron-right" size={20} color={theme.colors.textMuted} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionCard} onPress={() => { /* TODO: Ouvrir le tchat de groupe */ }}>
+            <TouchableOpacity 
+              style={styles.actionCard} 
+              activeOpacity={0.7}
+              onPress={() => {
+                if (myGroup?.team_id) {
+                  router.push({
+                    pathname: '/chat/[type]/[id]',
+                    params: { type: 'team', id: myGroup.team_id, title: myGroup.team_name }
+                  });
+                } else {
+                  Alert.alert('Information', 'Identifiant de l\'équipe indisponible.');
+                }
+              }}
+            >
               <View style={[styles.actionIconCircle, { backgroundColor: theme.colors.success + '20' }]}>
                 <Feather name="users" size={22} color={theme.colors.success} />
               </View>
@@ -293,6 +380,108 @@ export default function GroupsScreen() {
                 <Text style={styles.actionDesc}>Discuter avec {myGroup.team_name}</Text>
               </View>
               <Feather name="chevron-right" size={20} color={theme.colors.textMuted} />
+            </TouchableOpacity>
+
+            {/* Discussions du groupe */}
+            <View style={styles.discussionsHeader}>
+              <Text style={styles.sectionLabel}>DISCUSSIONS DU GROUPE</Text>
+              {isDiscussionsLoading && (
+                <ActivityIndicator size="small" color={theme.colors.accent} style={{ marginBottom: 12 }} />
+              )}
+            </View>
+
+            {/* Carte Discussion Coach */}
+            <TouchableOpacity 
+              style={styles.discussionCard}
+              activeOpacity={0.7}
+              onPress={() => {
+                if (myGroup?.coach_id) {
+                  router.push({
+                    pathname: '/chat/[type]/[id]',
+                    params: { type: 'direct', id: myGroup.coach_id, title: `Coach ${myGroup.coach_name}` }
+                  });
+                }
+              }}
+            >
+              <View style={[styles.discussionAvatar, { backgroundColor: theme.colors.accent + '20' }]}>
+                <Feather name="user-check" size={20} color={theme.colors.accent} />
+              </View>
+              <View style={styles.discussionContent}>
+                <View style={styles.discussionTopRow}>
+                  <Text style={styles.discussionTitle}>Coach {myGroup.coach_name}</Text>
+                  {discussions?.coach?.last_message && (
+                    <Text style={styles.discussionDate}>
+                      {formatMessageTime(discussions.coach.last_message.created_at)}
+                    </Text>
+                  )}
+                </View>
+                <View style={styles.discussionBottomRow}>
+                  <Text 
+                    style={[
+                      styles.discussionPreview,
+                      !discussions?.coach?.last_message && styles.discussionPreviewMuted
+                    ]} 
+                    numberOfLines={1}
+                  >
+                    {discussions?.coach?.last_message 
+                      ? `${discussions.coach.last_message.is_me ? 'Vous : ' : ''}${discussions.coach.last_message.content}`
+                      : 'Aucun message pour le moment. Cliquez pour écrire.'}
+                  </Text>
+                  {(discussions?.coach?.unread_count || 0) > 0 && (
+                    <View style={styles.unreadBadge}>
+                      <Text style={styles.unreadBadgeText}>{discussions?.coach?.unread_count}</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+              <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />
+            </TouchableOpacity>
+
+            {/* Carte Discussion Équipe */}
+            <TouchableOpacity 
+              style={styles.discussionCard}
+              activeOpacity={0.7}
+              onPress={() => {
+                if (myGroup?.team_id) {
+                  router.push({
+                    pathname: '/chat/[type]/[id]',
+                    params: { type: 'team', id: myGroup.team_id, title: myGroup.team_name }
+                  });
+                }
+              }}
+            >
+              <View style={[styles.discussionAvatar, { backgroundColor: theme.colors.success + '20' }]}>
+                <Feather name="users" size={20} color={theme.colors.success} />
+              </View>
+              <View style={styles.discussionContent}>
+                <View style={styles.discussionTopRow}>
+                  <Text style={styles.discussionTitle}>Équipe {myGroup.team_name}</Text>
+                  {discussions?.team?.last_message && (
+                    <Text style={styles.discussionDate}>
+                      {formatMessageTime(discussions.team.last_message.created_at)}
+                    </Text>
+                  )}
+                </View>
+                <View style={styles.discussionBottomRow}>
+                  <Text 
+                    style={[
+                      styles.discussionPreview,
+                      !discussions?.team?.last_message && styles.discussionPreviewMuted
+                    ]} 
+                    numberOfLines={1}
+                  >
+                    {discussions?.team?.last_message 
+                      ? `${discussions.team.last_message.sender_name} : ${discussions.team.last_message.content}`
+                      : 'Aucun message dans le groupe pour le moment.'}
+                  </Text>
+                  {(discussions?.team?.unread_count || 0) > 0 && (
+                    <View style={[styles.unreadBadge, { backgroundColor: theme.colors.success }]}>
+                      <Text style={styles.unreadBadgeText}>{discussions?.team?.unread_count}</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+              <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />
             </TouchableOpacity>
 
             {/* Quitter le groupe */}
@@ -342,7 +531,6 @@ const styles = StyleSheet.create({
   previewTextError: { color: theme.colors.error, fontSize: 14 },
   previewTeamName: { fontWeight: 'bold' },
 
-  // Empty State
   emptyState: { alignItems: 'center', paddingVertical: 40 },
   emptyText: { color: theme.colors.textSecondary, marginTop: 12, fontSize: 16, fontWeight: '600' },
   emptySubText: { color: theme.colors.textMuted, marginTop: 4, fontSize: 14 },
@@ -399,6 +587,80 @@ const styles = StyleSheet.create({
   actionTextContainer: { flex: 1 },
   actionTitle: { fontSize: 16, fontWeight: '600', color: theme.colors.text, marginBottom: 2 },
   actionDesc: { fontSize: 13, color: theme.colors.textMuted },
+
+  // Discussions section
+  discussionsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 14,
+  },
+  discussionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  discussionAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  discussionContent: {
+    flex: 1,
+    marginRight: 8,
+  },
+  discussionTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  discussionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  discussionDate: {
+    fontSize: 11,
+    color: theme.colors.textMuted,
+  },
+  discussionBottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  discussionPreview: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+    flex: 1,
+    marginRight: 8,
+  },
+  discussionPreviewMuted: {
+    color: theme.colors.textMuted,
+    fontStyle: 'italic',
+  },
+  unreadBadge: {
+    backgroundColor: theme.colors.accent,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+  },
+  unreadBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
 
   // Leave Button
   leaveBtn: {

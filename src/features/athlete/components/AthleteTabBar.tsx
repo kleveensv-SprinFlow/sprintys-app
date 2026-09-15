@@ -166,7 +166,7 @@ export const AthleteTabBar: React.FC<BottomTabBarProps> = ({
   const PRIMARY_TABS = ['index', 'calendar', 'nutrition', 'message'];
   const isPrimaryTab = PRIMARY_TABS.includes(currentRoute?.name);
 
-  if (!isPrimaryTab || focusedOptions?.tabBarStyle?.display === 'none') {
+  if (!isPrimaryTab || (focusedOptions?.tabBarStyle as any)?.display === 'none') {
     return null;
   }
 

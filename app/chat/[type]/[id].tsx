@@ -10,7 +10,7 @@ import { PollMessage } from '../../../src/features/chat/PollMessage';
 import { BlurView } from 'expo-blur';
 
 export default function ChatScreen() {
-  const { type, id } = useLocalSearchParams();
+  const { type, id, title } = useLocalSearchParams();
   const router = useRouter();
   const { user } = useAuthStore();
   const [messages, setMessages] = useState<any[]>([]);
@@ -47,6 +47,9 @@ export default function ChatScreen() {
       const channel = supabase.channel(`chat_${convo.id}`)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${convo.id}` }, (payload: any) => {
           setMessages(prev => [payload.new, ...prev]);
+          if (user?.id && payload.new.sender_id !== user.id) {
+            chatService.markAsRead(convo.id, user.id, payload.new.id);
+          }
         })
         .subscribe();
       
@@ -59,6 +62,9 @@ export default function ChatScreen() {
   const fetchMessages = async (convoId: string) => {
     const msgs = await chatService.getMessages(convoId);
     setMessages(msgs);
+    if (msgs.length > 0 && user?.id) {
+      chatService.markAsRead(convoId, user.id, msgs[0].id);
+    }
     
     // Fetch profiles for all senders
     const senderIds = [...new Set(msgs.map(m => m.sender_id).filter(Boolean))];
@@ -138,9 +144,14 @@ export default function ChatScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={24} color={theme.colors.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            {type === 'team' ? 'Chat d\'Équipe' : 'Message Privé'}
-          </Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {title ? (title as string) : (type === 'team' ? "Chat d'Équipe" : 'Message Privé')}
+            </Text>
+            <Text style={styles.headerSubtitle}>
+              {type === 'team' ? 'Discussion de groupe' : 'Message direct'}
+            </Text>
+          </View>
         </View>
 
         {/* Messages */}
@@ -242,6 +253,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 18,
     color: theme.colors.text,
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
   },
   listContent: {
     padding: 16,

@@ -4,14 +4,49 @@ import { Database } from '../types/supabase';
 type Message = Database['public']['Tables']['messages']['Row'];
 type Conversation = Database['public']['Tables']['conversations']['Row'];
 
+export interface GroupDiscussionsSummary {
+  team: {
+    conversation_id: string | null;
+    last_message: {
+      content: string;
+      created_at: string;
+      sender_name: string;
+    } | null;
+    unread_count: number;
+  };
+  coach: {
+    conversation_id: string | null;
+    last_message: {
+      content: string;
+      created_at: string;
+      is_me: boolean;
+    } | null;
+    unread_count: number;
+  };
+}
+
 export const chatService = {
   async getOrCreateTeamConversation(teamId: string): Promise<Conversation | null> {
+    try {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_or_create_team_conversation', {
+        p_team_id: teamId
+      });
+      if (!rpcError && rpcData) {
+        return rpcData as Conversation;
+      }
+      if (rpcError) {
+        console.warn('RPC get_or_create_team_conversation warning, fallback:', rpcError.message);
+      }
+    } catch (e) {
+      console.warn('RPC error on get_or_create_team_conversation:', e);
+    }
+
     const { data: existing, error: findError } = await supabase
       .from('conversations')
       .select('*')
       .eq('team_id', teamId)
       .eq('type', 'team')
-      .single();
+      .maybeSingle();
 
     if (existing) return existing;
     if (findError && findError.code !== 'PGRST116') {
@@ -24,7 +59,7 @@ export const chatService = {
       .from('conversations')
       .insert({ type: 'team', team_id: teamId })
       .select()
-      .single();
+      .maybeSingle();
 
     if (createError) {
       console.error('Error creating team conversation:', createError);
@@ -35,8 +70,21 @@ export const chatService = {
   },
 
   async getOrCreateDirectConversation(userId1: string, userId2: string): Promise<Conversation | null> {
-    // Note: In a real app we'd query via participants, but due to RLS it can be tricky.
-    // We'll look for existing direct convos for userId1, then check if userId2 is in it.
+    try {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_or_create_direct_conversation', {
+        p_other_user_id: userId2
+      });
+      if (!rpcError && rpcData) {
+        return rpcData as Conversation;
+      }
+      if (rpcError) {
+        console.warn('RPC get_or_create_direct_conversation warning, fallback:', rpcError.message);
+      }
+    } catch (e) {
+      console.warn('RPC error on get_or_create_direct_conversation:', e);
+    }
+
+    // Fallback: look for existing direct convos for userId1, then check if userId2 is in it.
     const { data: myConvos } = await supabase
       .from('conversation_participants')
       .select('conversation_id, conversations(type)')
@@ -54,12 +102,11 @@ export const chatService = {
         .in('conversation_id', directConvoIds);
 
       if (otherParticipants && otherParticipants.length > 0) {
-        // Found existing conversation
         const { data: convo } = await supabase
           .from('conversations')
           .select('*')
           .eq('id', otherParticipants[0].conversation_id)
-          .single();
+          .maybeSingle();
         if (convo) return convo;
       }
     }
@@ -69,7 +116,7 @@ export const chatService = {
       .from('conversations')
       .insert({ type: 'direct' })
       .select()
-      .single();
+      .maybeSingle();
 
     if (createError || !newConvo) {
       console.error('Error creating direct conversation:', createError);
@@ -83,6 +130,20 @@ export const chatService = {
     ]);
 
     return newConvo;
+  },
+
+  async getAthleteGroupDiscussions(teamId: string, coachId: string): Promise<GroupDiscussionsSummary | null> {
+    try {
+      const { data, error } = await supabase.rpc('get_athlete_group_discussions', {
+        p_team_id: teamId,
+        p_coach_id: coachId
+      });
+      if (error) throw error;
+      return data as GroupDiscussionsSummary;
+    } catch (e) {
+      console.error('Error fetching athlete group discussions:', e);
+      return null;
+    }
   },
 
   async ensureParticipant(conversationId: string, userId: string) {
