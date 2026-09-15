@@ -1,0 +1,50 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Build and deploy to TestFlight"
+  lane :beta do
+    api_key = app_store_connect_api_key(
+      key_id: ENV["APP_STORE_CONNECT_KEY_ID"],
+      issuer_id: ENV["APP_STORE_CONNECT_ISSUER_ID"],
+      key_filepath: "AuthKey.p8",
+      in_house: false
+    )
+
+    create_keychain(
+      name: "ci_keychain",
+      password: "ci_keychain_password",
+      default_keychain: true,
+      unlock: true,
+      timeout: 3600
+    )
+
+    get_certificates(
+      api_key: api_key,
+      keychain_name: "ci_keychain",
+      keychain_password: "ci_keychain_password"
+    )
+
+    get_provisioning_profile(
+      api_key: api_key,
+      app_identifier: "com.sprintflow.inc"
+    )
+
+    build_app(
+      workspace: "ios/Sprintflow.xcworkspace",
+      scheme: "Sprintflow",
+      export_method: "app-store",
+      export_options: {
+        provisioningProfiles: {
+          "com.sprintflow.inc" => ENV["sigh_com.sprintflow.inc_appstore_profile-name"]
+        }
+      },
+      output_directory: "./build",
+      output_name: "Sprintflow.ipa"
+    )
+
+    upload_to_testflight(
+      api_key: api_key,
+      skip_waiting_for_build_processing: true
+    )
+  end
+end
