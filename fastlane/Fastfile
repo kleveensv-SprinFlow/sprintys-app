@@ -57,6 +57,9 @@ platform :ios do
     team_id = sh("security cms -D -i \"#{profile_path}\" | plutil -extract TeamIdentifier.0 raw -").strip
     profile_name = Actions.lane_context[SharedValues::SIGH_NAME]
 
+    # Force manual signing directly in the pbxproj to prevent Xcode 14+ conflicting settings error
+    sh("sed -i '' 's/ProvisioningStyle = Automatic;/ProvisioningStyle = Manual;/g' ios/Sprintflow.xcodeproj/project.pbxproj")
+
     build_app(
       workspace: "ios/Sprintflow.xcworkspace",
       scheme: "Sprintflow",
