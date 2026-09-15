@@ -61,7 +61,10 @@ platform :ios do
     project_path = File.expand_path(Dir.glob("../ios/*.xcodeproj").first, Dir.pwd)
     update_code_signing_settings(
       use_automatic_signing: false,
-      path: project_path
+      path: project_path,
+      code_sign_identity: "Apple Distribution",
+      profile_name: profile_name,
+      team_id: team_id
     )
 
     build_app(
@@ -74,7 +77,7 @@ platform :ios do
           "com.sprintflow.inc" => profile_name
         }
       },
-      xcargs: "CODE_SIGNING_STYLE=Manual DEVELOPMENT_TEAM='#{team_id}' PROVISIONING_PROFILE_SPECIFIER='#{profile_name}'",
+      xcargs: "CODE_SIGNING_STYLE=Manual DEVELOPMENT_TEAM='#{team_id}' PROVISIONING_PROFILE_SPECIFIER='#{profile_name}' CODE_SIGNING_IDENTITY='Apple Distribution'",
       output_directory: "./build",
       output_name: "Sprintflow.ipa"
     )
