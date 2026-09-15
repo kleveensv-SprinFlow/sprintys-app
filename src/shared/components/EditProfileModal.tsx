@@ -16,16 +16,14 @@ export const EditProfileModal = ({ visible, onClose }: Props) => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [height, setHeight] = useState('');
-  const [weight, setWeight] = useState('');
   
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (user && visible) {
-      setFirstName(user.firstName || '');
-      setLastName(user.lastName || '');
+      setFirstName(user.firstName || user.name?.split(' ')[0] || '');
+      setLastName(user.lastName || (user.name?.includes(' ') ? user.name.split(' ').slice(1).join(' ') : ''));
       setHeight(user.height ? String(user.height) : '');
-      setWeight(user.weight ? String(user.weight) : '');
     }
   }, [user, visible]);
 
@@ -36,9 +34,8 @@ export const EditProfileModal = ({ visible, onClose }: Props) => {
     await updateProfile({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
-      name: fullName,
-      height: height ? Number(height) : undefined,
-      weight: weight ? Number(weight) : undefined,
+      name: fullName || 'Athlète',
+      height: height ? Number(height) : null,
     });
     
     setIsSaving(false);
@@ -86,30 +83,16 @@ export const EditProfileModal = ({ visible, onClose }: Props) => {
                 />
               </View>
 
-              <View style={styles.row}>
-                <View style={[styles.inputGroup, { flex: 1 }]}>
-                  <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Taille (cm)</Text>
-                  <TextInput
-                    style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.background }]}
-                    value={height}
-                    onChangeText={setHeight}
-                    placeholder="180"
-                    placeholderTextColor={theme.colors.textMuted}
-                    keyboardType="numeric"
-                  />
-                </View>
-                <View style={{ width: 16 }} />
-                <View style={[styles.inputGroup, { flex: 1 }]}>
-                  <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Poids (kg)</Text>
-                  <TextInput
-                    style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.background }]}
-                    value={weight}
-                    onChangeText={setWeight}
-                    placeholder="75"
-                    placeholderTextColor={theme.colors.textMuted}
-                    keyboardType="numeric"
-                  />
-                </View>
+              <View style={styles.inputGroup}>
+                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Taille (cm)</Text>
+                <TextInput
+                  style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.background }]}
+                  value={height}
+                  onChangeText={setHeight}
+                  placeholder="Ex: 180"
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="numeric"
+                />
               </View>
 
               <TouchableOpacity 

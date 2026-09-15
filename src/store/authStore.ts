@@ -15,6 +15,7 @@ export interface UserProfile {
   disciplines?: string[] | null;
   height?: number | null;
   weight?: number | null;
+  avatarUrl?: string | null;
   objective?: string | null;
   groupName?: string | null;
   subgroups?: string[] | null;
@@ -64,6 +65,7 @@ interface AuthState {
   setPendingEmail: (email: string | null) => void;
   updateSleepGoal: (goal: number) => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<boolean>;
+  reloadProfile: () => Promise<void>;
 }
 
 const CACHE_PROFILE_KEY = '@sprintflow_user_profile';
@@ -98,12 +100,13 @@ const buildUserProfile = (authUser: any, profile: any): UserProfile => {
     email: authUser.email || '',
     name: profile?.full_name || authUser.user_metadata?.full_name || 'Athlète',
     role: (profile?.role || authUser.user_metadata?.role || 'athlete') as UserRole,
-    firstName: profile?.first_name || authUser.user_metadata?.first_name,
-    lastName: profile?.last_name || authUser.user_metadata?.last_name,
+    firstName: profile?.first_name || authUser.user_metadata?.first_name || (profile?.full_name ? profile.full_name.split(' ')[0] : undefined),
+    lastName: profile?.last_name || authUser.user_metadata?.last_name || (profile?.full_name && profile.full_name.includes(' ') ? profile.full_name.split(' ').slice(1).join(' ') : undefined),
     gender: profile?.gender,
     disciplines: profile?.disciplines,
     height: profile?.height,
     weight: profile?.weight,
+    avatarUrl: profile?.avatar_url || authUser.user_metadata?.avatar_url || null,
     objective: profile?.objective,
     groupName: profile?.group_name,
     subgroups: profile?.subgroups,
@@ -478,6 +481,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (updates.height !== undefined) dbUpdates.height = updates.height;
     if (updates.weight !== undefined) dbUpdates.weight = updates.weight;
     if (updates.objective !== undefined) dbUpdates.objective = updates.objective;
+    if (updates.avatarUrl !== undefined) dbUpdates.avatar_url = updates.avatarUrl;
 
     if (Object.keys(dbUpdates).length === 0) return true;
 
@@ -495,6 +499,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (err) {
       console.error('Exception updating profile:', err);
       return false;
+    }
+  },
+
+  reloadProfile: async () => {
+    const { user } = get();
+    if (!user?.id) return;
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (profile && !error) {
+        const { data: { session } } = await supabase.auth.getSession();
+        const userProfile = buildUserProfile(session?.user || { id: user.id, email: user.email }, profile);
+        await AsyncStorage.setItem(CACHE_PROFILE_KEY, JSON.stringify(userProfile));
+        set({ user: userProfile });
+      }
+    } catch (err) {
+      console.warn('Error reloading profile in store:', err);
     }
   },
 }));
