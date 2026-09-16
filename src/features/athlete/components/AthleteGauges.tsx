@@ -7,6 +7,7 @@ import { CheckInSummaryModal } from '../../checkin/components/CheckInSummaryModa
 import { useCheckInStore } from '../../../store/checkInStore';
 import { useAuthStore } from '../../../store/authStore';
 import { useNutritionStore } from '../../../store/nutrition/nutritionStore';
+import { BlurView } from 'expo-blur';
 
 export const AthleteGauges = () => {
   const theme = useTheme();
@@ -27,10 +28,8 @@ export const AthleteGauges = () => {
     if (!user?.id) return;
     
     if (todayHealthScore !== null) {
-      // Already checked in -> Show Summary
       setSummaryVisible(true);
     } else {
-      // Not checked in -> Start new
       startCheckIn(user.id);
       setModalVisible(true);
     }
@@ -49,19 +48,17 @@ export const AthleteGauges = () => {
   };
 
   const scoreValue = todayHealthScore !== null ? todayHealthScore : 0;
-  const scoreColor = todayHealthScore !== null ? getScoreColor(scoreValue) : theme.colors.border;
+  const scoreColor = todayHealthScore !== null ? getScoreColor(scoreValue) : theme.colors.accent;
   const showScore = todayHealthScore !== null;
 
-  // Calcul Jauge Nutrition
   const kcalGoal = user?.manualKcalGoal || 2000;
   const consumedKcal = mealLogs.reduce((sum, log) => sum + Number(log.calories), 0);
   const nutritionPercentage = Math.min(100, Math.round((consumedKcal / kcalGoal) * 100)) || 0;
 
-  // Calcul Jauge Compétition
   let compValue = "Aucune";
   let compLabel = "Compétition";
   let compPercentage = 0;
-  let compColor = theme.colors.border;
+  let compColor = 'rgba(255,255,255,0.2)';
 
   if (user?.nextCompetitionDate) {
     const compDate = new Date(user.nextCompetitionDate);
@@ -71,123 +68,128 @@ export const AthleteGauges = () => {
     
     if (diffDays === 0) {
       compValue = "Jour-J !";
-      compLabel = "Compétition";
       compPercentage = 100;
       compColor = theme.colors.success;
     } else if (diffDays > 0) {
       compValue = `J-${diffDays}`;
-      compLabel = "Compétition";
-      // La jauge se remplit sur une base de 90 jours (3 mois) environ
       compPercentage = Math.max(5, 100 - (diffDays / 90) * 100); 
       compColor = diffDays <= 7 ? theme.colors.error : theme.colors.warning;
     } else {
       compValue = "Terminée";
-      compLabel = "Compétition";
       compPercentage = 100;
-      compColor = theme.colors.border;
     }
   }
 
   return (
     <View style={styles.container}>
-      
       {/* 1. Main Pill: Check-In / Readiness */}
-      <TouchableOpacity 
-        style={[
-          styles.mainPill, 
-          { backgroundColor: theme.colors.surface, borderColor: showScore ? scoreColor : theme.colors.border }
-        ]} 
-        onPress={handleCheckInPress}
-        activeOpacity={0.8}
-      >
-        {!showScore ? (
-          <View style={styles.mainPillContent}>
-            <View style={[styles.iconCircle, { backgroundColor: theme.colors.accent + '20' }]}>
-              <Feather name="activity" size={24} color={theme.colors.accent} />
+      <TouchableOpacity onPress={handleCheckInPress} activeOpacity={0.8} style={styles.cardWrapper}>
+        {/* Glow Effect behind the main card if action needed */}
+        {!showScore && <View style={[styles.glowBackground, { backgroundColor: theme.colors.accent }]} />}
+        
+        <BlurView intensity={30} tint="dark" style={[styles.glassCard, { borderColor: showScore ? scoreColor : theme.colors.accent }]}>
+          {!showScore ? (
+            <View style={styles.mainPillContent}>
+              <View style={[styles.iconCircle, { backgroundColor: theme.colors.accent }]}>
+                <Feather name="activity" size={24} color="#FFF" />
+              </View>
+              <View style={styles.mainPillText}>
+                <Text style={[styles.mainTitle, { color: theme.colors.text }]}>Faire le Check-In</Text>
+                <Text style={[styles.mainSubtitle, { color: theme.colors.accent }]}>Action requise 🔥</Text>
+              </View>
+              <Feather name="chevron-right" size={24} color={theme.colors.textSecondary} />
             </View>
-            <View style={styles.mainPillText}>
-              <Text style={[styles.mainTitle, { color: theme.colors.text }]}>Faire le Check-In</Text>
-              <Text style={[styles.mainSubtitle, { color: theme.colors.textMuted }]}>Évalue ta forme du jour</Text>
+          ) : (
+            <View style={styles.mainPillContent}>
+              <View style={[styles.scoreCircle, { borderColor: scoreColor, shadowColor: scoreColor }]}>
+                <Text style={[styles.scoreValueText, { color: scoreColor }]}>{scoreValue}</Text>
+              </View>
+              <View style={styles.mainPillText}>
+                <Text style={[styles.mainTitle, { color: theme.colors.text }]}>Forme du jour</Text>
+                <Text style={[styles.mainSubtitle, { color: theme.colors.textSecondary }]}>
+                  {scoreValue >= 70 ? 'Prêt à performer ⚡' : scoreValue >= 40 ? 'À surveiller 👀' : 'Repos conseillé 🧘'}
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={20} color={theme.colors.textSecondary} />
             </View>
-            <Feather name="chevron-right" size={24} color={theme.colors.textMuted} />
-          </View>
-        ) : (
-          <View style={styles.mainPillContent}>
-            <View style={[styles.scoreCircle, { borderColor: scoreColor }]}>
-              <Text style={[styles.scoreValueText, { color: scoreColor }]}>{scoreValue}</Text>
-            </View>
-            <View style={styles.mainPillText}>
-              <Text style={[styles.mainTitle, { color: theme.colors.text }]}>Forme du jour</Text>
-              <Text style={[styles.mainSubtitle, { color: theme.colors.textMuted }]}>
-                {scoreValue >= 70 ? 'Prêt à performer' : scoreValue >= 40 ? 'À surveiller' : 'Repos conseillé'}
-              </Text>
-            </View>
-            <Feather name="chevron-right" size={20} color={theme.colors.textMuted} />
-          </View>
-        )}
+          )}
+        </BlurView>
       </TouchableOpacity>
 
-      {/* 2. Secondary Pills Row */}
+      {/* 2. Secondary Row */}
       <View style={styles.secondaryRow}>
-        
-        {/* Nutrition Pill */}
-        <View style={[styles.secondaryPill, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <View style={styles.secondaryHeader}>
-            <Feather name="zap" size={16} color={theme.colors.accent} style={{ marginBottom: 8 }} />
-            <Text style={[styles.secondaryValue, { color: theme.colors.text }]}>
-              {Math.round(consumedKcal)} <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>/ {kcalGoal} kcal</Text>
-            </Text>
-          </View>
-          {/* Progress Bar */}
-          <View style={[styles.progressBarBg, { backgroundColor: theme.colors.background }]}>
-            <View style={[styles.progressBarFill, { width: `${nutritionPercentage}%`, backgroundColor: theme.colors.accent }]} />
-          </View>
+        {/* Nutrition */}
+        <View style={styles.secondaryPillWrapper}>
+          <BlurView intensity={20} tint="dark" style={styles.secondaryGlassCard}>
+            <View style={styles.secondaryHeader}>
+              <View style={[styles.smallIconCircle, { backgroundColor: 'rgba(255, 87, 34, 0.2)' }]}>
+                <Feather name="zap" size={16} color={theme.colors.accent} />
+              </View>
+              <Text style={[styles.secondaryValue, { color: theme.colors.text }]}>
+                {Math.round(consumedKcal)} <Text style={{ fontSize: 12, color: theme.colors.textSecondary, fontWeight: 'normal' }}>/ {kcalGoal}</Text>
+              </Text>
+            </View>
+            <View style={styles.progressBarBg}>
+              <View style={[styles.progressBarFill, { width: `${nutritionPercentage}%`, backgroundColor: theme.colors.accent }]} />
+            </View>
+          </BlurView>
         </View>
 
-        {/* Competition Pill */}
-        <View style={[styles.secondaryPill, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <View style={styles.secondaryHeader}>
-            <Feather name="flag" size={16} color={compColor} style={{ marginBottom: 8 }} />
-            <Text style={[styles.secondaryValue, { color: theme.colors.text }]}>
-              {compValue} <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>- {compLabel}</Text>
-            </Text>
-          </View>
-          {/* Progress Bar */}
-          <View style={[styles.progressBarBg, { backgroundColor: theme.colors.background }]}>
-            <View style={[styles.progressBarFill, { width: `${compPercentage}%`, backgroundColor: compColor }]} />
-          </View>
+        {/* Competition */}
+        <View style={styles.secondaryPillWrapper}>
+          <BlurView intensity={20} tint="dark" style={styles.secondaryGlassCard}>
+            <View style={styles.secondaryHeader}>
+              <View style={[styles.smallIconCircle, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}>
+                <Feather name="flag" size={16} color={theme.colors.text} />
+              </View>
+              <Text style={[styles.secondaryValue, { color: theme.colors.text }]}>
+                {compValue} <Text style={{ fontSize: 12, color: theme.colors.textSecondary, fontWeight: 'normal' }}>- Objectif</Text>
+              </Text>
+            </View>
+            <View style={styles.progressBarBg}>
+              <View style={[styles.progressBarFill, { width: `${compPercentage}%`, backgroundColor: compColor }]} />
+            </View>
+          </BlurView>
         </View>
-
       </View>
 
       <CheckInModal visible={modalVisible} onClose={() => setModalVisible(false)} />
-      <CheckInSummaryModal 
-        visible={summaryVisible} 
-        onClose={() => setSummaryVisible(false)} 
-        onEdit={handleEditCheckIn} 
-      />
+      <CheckInSummaryModal visible={summaryVisible} onClose={() => setSummaryVisible(false)} onEdit={handleEditCheckIn} />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    gap: 12, // Espace entre la grosse pilule et la ligne du bas
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    gap: 16,
   },
-  
-  // Main Pill
-  mainPill: {
+  cardWrapper: {
     width: '100%',
+    position: 'relative',
+  },
+  glowBackground: {
+    position: 'absolute',
+    top: 5,
+    left: 10,
+    right: 10,
+    bottom: 5,
     borderRadius: 24,
-    borderWidth: 1,
+    opacity: 0.15,
+    filter: 'blur(20px)', // Web/New RN prop for intense shadow glow
+    shadowColor: '#FF5722',
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 10,
+  },
+  glassCard: {
+    borderRadius: 24,
     padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 4,
+    borderWidth: 1,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.03)',
   },
   mainPillContent: {
     flexDirection: 'row',
@@ -195,72 +197,81 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   iconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#FF5722',
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
   },
   scoreCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     borderWidth: 2,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
   },
   scoreValueText: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '900',
   },
   mainPillText: {
     flex: 1,
   },
   mainTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '800',
     marginBottom: 4,
   },
   mainSubtitle: {
-    fontSize: 13,
+    fontSize: 14,
+    fontWeight: '600',
   },
 
-  // Secondary Row
   secondaryRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
   },
-  secondaryPill: {
+  secondaryPillWrapper: {
     flex: 1,
+  },
+  secondaryGlassCard: {
     borderRadius: 20,
-    borderWidth: 1,
     padding: 16,
-    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.03)',
   },
   secondaryHeader: {
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 16,
+    gap: 8,
   },
-  secondaryTitleRow: {
-    flexDirection: 'row',
+  smallIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 6,
-  },
-  secondaryTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
   },
   secondaryValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '800',
   },
-  
-  // Progress Bars
   progressBarBg: {
     height: 6,
     width: '100%',
     borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.1)',
     overflow: 'hidden',
   },
   progressBarFill: {
