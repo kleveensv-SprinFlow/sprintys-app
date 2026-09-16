@@ -17,6 +17,7 @@ const radius = {
   md: 12,
   lg: 16,
   xl: 24,
+  xxl: 32,
   full: 9999,
 };
 
@@ -26,6 +27,7 @@ const typography = {
     medium: '500',
     semibold: '600',
     bold: '700',
+    black: '900',
   },
   letterSpacing: {
     tight: -0.5,
@@ -34,83 +36,60 @@ const typography = {
   },
 };
 
-export const lightColors = {
-  background: '#F8F9FA', // Very light grey/white
-  surface: '#FFFFFF',    // White cards
-  surfaceLight: '#F1F3F5', // Elevated slightly darker surface
-  accent: '#6366F1',     // Indigo/Purple/Blue accent like the image
-  accentMuted: 'rgba(99, 102, 241, 0.1)',
-  text: '#111827',       // Dark grey/almost black for contrast
-  textSecondary: '#6B7280', // Grey for secondary text
-  textMuted: '#9CA3AF',
-  border: '#E5E7EB',     // Light grey border
-  error: '#EF4444',
-  success: '#10B981',
-  warning: '#F59E0B',
-};
-
+// Sprintflow "Living Flow" Identity
+// Defaulting to Dark Mode for everyone to keep the strong, vibrant athletic identity
 export const darkColors = {
-  background: '#050505', // Near black
-  surface: '#121212',    // Slightly lighter dark for cards/modals
+  background: '#050505', // Deep abyss black
+  surface: '#121212',    // Dark grey for cards
   surfaceLight: '#1C1C1E', // Elevated surface
-  accent: '#6366F1',     // Keep the new accent color for dark mode too for brand consistency
-  accentMuted: 'rgba(99, 102, 241, 0.15)',
+  accent: '#FF5722',     // SPRINT FIRE ORANGE! (Primary energetic color)
+  accentMuted: 'rgba(255, 87, 34, 0.15)',
   text: '#FFFFFF',
   textSecondary: '#8E8E93',
   textMuted: '#48484A',
-  border: '#2C2C2E',
+  border: '#2C2C2E',     // Subtle borders for glassmorphism
   error: '#FF453A',
   success: '#32D74B',
-  warning: '#FFD60A',
+  warning: '#FF9F0A',
+  // Specific gradients and glows
+  glow: 'rgba(255, 87, 34, 0.4)',
 };
 
-export const lightTheme = {
-  colors: lightColors,
+// We keep lightColors for system compatibility, but ideally Sprintflow is dark-first.
+export const lightColors = {
+  background: '#FFFFFF', 
+  surface: '#F2F2F7',    
+  surfaceLight: '#E5E5EA', 
+  accent: '#FF5722',     
+  accentMuted: 'rgba(255, 87, 34, 0.1)',
+  text: '#000000',       
+  textSecondary: '#8E8E93', 
+  textMuted: '#C7C7CC',
+  border: '#E5E5EA',     
+  error: '#FF3B30',
+  success: '#34C759',
+  warning: '#FF9500',
+  glow: 'rgba(255, 87, 34, 0.3)',
+};
+
+export const theme = {
+  colors: darkColors, // We force dark mode colors for the strong identity for now!
   spacing,
   radius,
   typography,
-  glass: {
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
-    borderColor: 'rgba(0, 0, 0, 0.05)',
-  }
-} as const;
+};
 
-export const darkTheme = {
-  colors: darkColors,
-  spacing,
-  radius,
-  typography,
-  glass: {
-    backgroundColor: 'rgba(28, 28, 30, 0.7)',
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  }
-} as const;
-
-// Create a state manager for the theme to be reactive
-import { create } from 'zustand';
-
-interface ThemeState {
-  colorScheme: 'light' | 'dark' | 'system';
-  setColorScheme: (scheme: 'light' | 'dark' | 'system') => void;
-}
-
-export const useThemeStore = create<ThemeState>((set) => ({
-  colorScheme: 'system',
-  setColorScheme: (scheme) => set({ colorScheme: scheme }),
-}));
-
+// If we want it to be responsive to device settings later:
 export const useTheme = () => {
-  const deviceColorScheme = useDeviceColorScheme();
-  const { colorScheme } = useThemeStore();
-
-  const activeScheme = colorScheme === 'system' ? (deviceColorScheme || 'light') : colorScheme;
-
-  return activeScheme === 'dark' ? darkTheme : lightTheme;
+  const colorScheme = useDeviceColorScheme();
+  // Force dark mode for the "Living Flow" identity, or uncomment to allow light mode
+  // const colors = colorScheme === 'dark' ? darkColors : lightColors;
+  const colors = darkColors;
+  
+  return {
+    colors,
+    spacing,
+    radius,
+    typography,
+  };
 };
-
-// IMPORTANT: Fallback export for backward compatibility
-// DO NOT use this `theme` object directly for dynamic styling anymore,
-// Use `const theme = useTheme()` inside components instead.
-// We keep it exported so the build doesn't break instantly everywhere.
-export const theme = lightTheme;
-export type Theme = typeof lightTheme;
