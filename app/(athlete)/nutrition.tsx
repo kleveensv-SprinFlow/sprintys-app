@@ -8,6 +8,7 @@ import { NutritionSummary } from '../../src/features/nutrition/components/Nutrit
 import { MealSection } from '../../src/features/nutrition/components/MealSection';
 import { FoodSearchModal } from '../../src/features/nutrition/components/FoodSearchModal';
 import { NutritionSettingsModal } from '../../src/features/nutrition/components/NutritionSettingsModal';
+import { StreakCelebrationModal } from '../../src/features/nutrition/components/StreakCelebrationModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../src/store/authStore';
 
@@ -39,6 +40,7 @@ export default function NutritionScreen() {
         visible={settingsVisible}
         onClose={() => setSettingsVisible(false)}
       />
+      <StreakCelebrationModal />
     </View>
   );
 }

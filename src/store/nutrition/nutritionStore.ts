@@ -14,6 +14,9 @@ interface NutritionState {
 
   // UI State
   isSearchModalOpen: boolean;
+  showStreakCelebration: boolean;
+  currentStreakVal: number;
+  closeStreakCelebration: () => void;
   activeSearchMealType: MealType | null;
 
   // Actions
@@ -44,6 +47,10 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
   error: null,
   isSearchModalOpen: false,
   activeSearchMealType: null,
+  showStreakCelebration: false,
+  currentStreakVal: 0,
+
+  closeStreakCelebration: () => set({ showStreakCelebration: false }),
 
   openSearchModal: (mealType) => set({ isSearchModalOpen: true, activeSearchMealType: mealType }),
   closeSearchModal: () => set({ isSearchModalOpen: false, activeSearchMealType: null }),

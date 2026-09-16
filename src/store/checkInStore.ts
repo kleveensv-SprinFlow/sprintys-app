@@ -16,6 +16,7 @@ interface CheckInState {
   updateSleep: (bedtime: string, wakeup_time: string, sleep_hours: number, sleep_quality: number) => void;
   updateMental: (stress: number, fatigue: number, motivation: number) => void;
   setMenstruation: (isMenstruating: boolean) => void;
+  setWeight: (weight: number) => void;
   addPain: (pain: PainInfo) => void;
   removePain: (muscle_id: string) => void;
   submitCheckIn: () => Promise<boolean>;
@@ -92,6 +93,7 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
     });
   },
 
+  setWeight: (weight) => set((state) => { if (!state.currentCheckIn) return state; return { currentCheckIn: { ...state.currentCheckIn, weight } }; }),
   setMenstruation: (isMenstruating) => set((state) => {
     if (!state.currentCheckIn) return state;
     return { currentCheckIn: { ...state.currentCheckIn, menstruation: isMenstruating } };
@@ -159,6 +161,12 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
       };
 
       const savedData = await checkInService.upsertCheckIn(fullData);
+
+      if (fullData.weight !== undefined && fullData.weight !== null) {
+        const authStore = useAuthStore.getState();
+        await authStore.updateProfile({ weight: fullData.weight, startWeight: fullData.weight });
+        await authStore.reloadProfile();
+      }
       
       const newHistory = [...state.history.filter(h => h.date !== savedData.date), savedData];
       

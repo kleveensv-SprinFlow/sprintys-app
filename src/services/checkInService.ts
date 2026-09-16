@@ -26,6 +26,7 @@ export interface CheckInData {
   motivation_level: number; // 1 to 10
   // Pilier 4 : Cycle (Femmes)
   menstruation?: boolean;
+  weight?: number;
   
   // Scores
   health_score: number; // Score global (Readiness)
@@ -53,6 +54,7 @@ export const checkInService = {
         fatigue_level: data.fatigue_level,
         motivation_level: data.motivation_level,
         menstruation: data.menstruation || false,
+        weight: data.weight,
         health_score: data.health_score,
         sleep_score: data.sleep_score,
         physical_score: data.physical_score,
