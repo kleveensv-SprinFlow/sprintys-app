@@ -10,15 +10,24 @@ export const AthleteHeader = () => {
   const theme = useTheme();
   const router = useRouter();
 
+  const isDark = theme.isDark;
+
   return (
     <View style={styles.container}>
-      <BlurView intensity={20} tint="dark" style={styles.blurContainer}>
+      <BlurView 
+        intensity={isDark ? 30 : 60} 
+        tint={isDark ? "dark" : "light"} 
+        style={[styles.blurContainer, { 
+          backgroundColor: isDark ? 'rgba(30,41,59,0.7)' : 'rgba(255,255,255,0.7)',
+          borderColor: theme.colors.border 
+        }]}
+      >
         {/* Left: Group Logo */}
         <TouchableOpacity 
           onPress={() => router.push('/(athlete)/groups')} 
-          style={styles.iconButton}
+          style={[styles.iconButton, { backgroundColor: theme.colors.surfaceLight }]}
         >
-          <Feather name="users" size={22} color={theme.colors.text} />
+          <Feather name="users" size={20} color={theme.colors.accent} />
         </TouchableOpacity>
 
         {/* Center: Main Logo (SVG) */}
@@ -29,9 +38,9 @@ export const AthleteHeader = () => {
         {/* Right: Profile Logo */}
         <TouchableOpacity 
           onPress={() => router.push('/(athlete)/settings')} 
-          style={styles.iconButton}
+          style={[styles.iconButton, { backgroundColor: theme.colors.surfaceLight }]}
         >
-          <Feather name="user" size={22} color={theme.colors.text} />
+          <Feather name="user" size={20} color={theme.colors.accent} />
         </TouchableOpacity>
       </BlurView>
     </View>
@@ -40,9 +49,9 @@ export const AthleteHeader = () => {
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 15,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
     zIndex: 10,
   },
   blurContainer: {
@@ -52,23 +61,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.03)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
     overflow: 'hidden',
+    shadowColor: '#0026AE',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
   logoContainer: {
     flex: 1,
     alignItems: 'center',
   },
   iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
   },
 });

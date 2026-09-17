@@ -7,7 +7,7 @@ import { CheckInSummaryModal } from '../../checkin/components/CheckInSummaryModa
 import { useCheckInStore } from '../../../store/checkInStore';
 import { useAuthStore } from '../../../store/authStore';
 import { useNutritionStore } from '../../../store/nutrition/nutritionStore';
-import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export const AthleteGauges = () => {
   const theme = useTheme();
@@ -58,7 +58,7 @@ export const AthleteGauges = () => {
   let compValue = "Aucune";
   let compLabel = "Compétition";
   let compPercentage = 0;
-  let compColor = 'rgba(255,255,255,0.2)';
+  let compColor = theme.colors.border;
 
   if (user?.nextCompetitionDate) {
     const compDate = new Date(user.nextCompetitionDate);
@@ -83,25 +83,31 @@ export const AthleteGauges = () => {
   return (
     <View style={styles.container}>
       {/* 1. Main Pill: Check-In / Readiness */}
-      <TouchableOpacity onPress={handleCheckInPress} activeOpacity={0.8} style={styles.cardWrapper}>
-        {/* Glow Effect behind the main card if action needed */}
-        {!showScore && <View style={[styles.glowBackground, { backgroundColor: theme.colors.accent }]} />}
-        
-        <BlurView intensity={30} tint="dark" style={[styles.glassCard, { borderColor: showScore ? scoreColor : theme.colors.accent }]}>
-          {!showScore ? (
+      <TouchableOpacity onPress={handleCheckInPress} activeOpacity={0.8} style={[styles.mainCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        {!showScore ? (
+          <LinearGradient
+            colors={['#0026AE', '#00DCFD']} // Sprintflow logo gradient
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.gradientCard}
+          >
             <View style={styles.mainPillContent}>
-              <View style={[styles.iconCircle, { backgroundColor: theme.colors.accent }]}>
-                <Feather name="activity" size={24} color="#FFF" />
+              <View style={styles.iconCircleWhite}>
+                <Feather name="activity" size={24} color="#0069E8" />
               </View>
               <View style={styles.mainPillText}>
-                <Text style={[styles.mainTitle, { color: theme.colors.text }]}>Faire le Check-In</Text>
-                <Text style={[styles.mainSubtitle, { color: theme.colors.accent }]}>Action requise 🔥</Text>
+                <Text style={styles.mainTitleWhite}>Faire le Check-In</Text>
+                <Text style={styles.mainSubtitleWhite}>Action matinale requise ✨</Text>
               </View>
-              <Feather name="chevron-right" size={24} color={theme.colors.textSecondary} />
+              <View style={styles.chevronCircle}>
+                <Feather name="chevron-right" size={20} color="#FFF" />
+              </View>
             </View>
-          ) : (
+          </LinearGradient>
+        ) : (
+          <View style={[styles.gradientCard, { padding: 16 }]}>
             <View style={styles.mainPillContent}>
-              <View style={[styles.scoreCircle, { borderColor: scoreColor, shadowColor: scoreColor }]}>
+              <View style={[styles.scoreCircle, { borderColor: scoreColor, backgroundColor: theme.colors.surfaceLight }]}>
                 <Text style={[styles.scoreValueText, { color: scoreColor }]}>{scoreValue}</Text>
               </View>
               <View style={styles.mainPillText}>
@@ -110,46 +116,48 @@ export const AthleteGauges = () => {
                   {scoreValue >= 70 ? 'Prêt à performer ⚡' : scoreValue >= 40 ? 'À surveiller 👀' : 'Repos conseillé 🧘'}
                 </Text>
               </View>
-              <Feather name="chevron-right" size={20} color={theme.colors.textSecondary} />
+              <View style={[styles.chevronCircle, { backgroundColor: theme.colors.surfaceLight }]}>
+                <Feather name="chevron-right" size={20} color={theme.colors.textSecondary} />
+              </View>
             </View>
-          )}
-        </BlurView>
+          </View>
+        )}
       </TouchableOpacity>
 
       {/* 2. Secondary Row */}
       <View style={styles.secondaryRow}>
         {/* Nutrition */}
-        <View style={styles.secondaryPillWrapper}>
-          <BlurView intensity={20} tint="dark" style={styles.secondaryGlassCard}>
-            <View style={styles.secondaryHeader}>
-              <View style={[styles.smallIconCircle, { backgroundColor: 'rgba(255, 87, 34, 0.2)' }]}>
-                <Feather name="zap" size={16} color={theme.colors.accent} />
-              </View>
-              <Text style={[styles.secondaryValue, { color: theme.colors.text }]}>
-                {Math.round(consumedKcal)} <Text style={{ fontSize: 12, color: theme.colors.textSecondary, fontWeight: 'normal' }}>/ {kcalGoal}</Text>
-              </Text>
+        <View style={[styles.secondaryPillWrapper, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+          <View style={styles.secondaryHeader}>
+            <View style={[styles.smallIconCircle, { backgroundColor: theme.colors.accentMuted }]}>
+              <Feather name="zap" size={16} color={theme.colors.accent} />
             </View>
-            <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: `${nutritionPercentage}%`, backgroundColor: theme.colors.accent }]} />
-            </View>
-          </BlurView>
+            <Text style={[styles.secondaryValue, { color: theme.colors.text }]}>
+              {Math.round(consumedKcal)} <Text style={{ fontSize: 13, color: theme.colors.textMuted, fontWeight: '500' }}>/ {kcalGoal}</Text>
+            </Text>
+          </View>
+          <View style={[styles.progressBarBg, { backgroundColor: theme.colors.surfaceLight }]}>
+            <LinearGradient
+              colors={['#0069E8', '#00DCFD']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={[styles.progressBarFill, { width: `${nutritionPercentage}%` }]}
+            />
+          </View>
         </View>
 
         {/* Competition */}
-        <View style={styles.secondaryPillWrapper}>
-          <BlurView intensity={20} tint="dark" style={styles.secondaryGlassCard}>
-            <View style={styles.secondaryHeader}>
-              <View style={[styles.smallIconCircle, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}>
-                <Feather name="flag" size={16} color={theme.colors.text} />
-              </View>
-              <Text style={[styles.secondaryValue, { color: theme.colors.text }]}>
-                {compValue} <Text style={{ fontSize: 12, color: theme.colors.textSecondary, fontWeight: 'normal' }}>- Objectif</Text>
-              </Text>
+        <View style={[styles.secondaryPillWrapper, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+          <View style={styles.secondaryHeader}>
+            <View style={[styles.smallIconCircle, { backgroundColor: theme.colors.surfaceLight }]}>
+              <Feather name="flag" size={16} color={theme.colors.text} />
             </View>
-            <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: `${compPercentage}%`, backgroundColor: compColor }]} />
-            </View>
-          </BlurView>
+            <Text style={[styles.secondaryValue, { color: theme.colors.text }]}>
+              {compValue} <Text style={{ fontSize: 13, color: theme.colors.textMuted, fontWeight: '500' }}>- Objectif</Text>
+            </Text>
+          </View>
+          <View style={[styles.progressBarBg, { backgroundColor: theme.colors.surfaceLight }]}>
+            <View style={[styles.progressBarFill, { width: `${compPercentage}%`, backgroundColor: compColor === theme.colors.border ? theme.colors.textMuted : compColor }]} />
+          </View>
         </View>
       </View>
 
@@ -161,63 +169,49 @@ export const AthleteGauges = () => {
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 10,
     gap: 16,
   },
-  cardWrapper: {
+  mainCard: {
     width: '100%',
-    position: 'relative',
-  },
-  glowBackground: {
-    position: 'absolute',
-    top: 5,
-    left: 10,
-    right: 10,
-    bottom: 5,
     borderRadius: 24,
-    opacity: 0.15,
-    filter: 'blur(20px)', // Web/New RN prop for intense shadow glow
-    shadowColor: '#FF5722',
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 10,
-  },
-  glassCard: {
-    borderRadius: 24,
-    padding: 16,
     borderWidth: 1,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    shadowColor: '#0026AE',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 15,
+    elevation: 5,
+  },
+  gradientCard: {
+    width: '100%',
+    padding: 20,
   },
   mainPillContent: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
   },
-  iconCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+  iconCircleWhite: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#FF5722',
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 0 },
+    backgroundColor: '#FFF',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
   },
   scoreCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    borderWidth: 2,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 3,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 0 },
   },
   scoreValueText: {
     fontSize: 20,
@@ -225,6 +219,17 @@ const styles = StyleSheet.create({
   },
   mainPillText: {
     flex: 1,
+  },
+  mainTitleWhite: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFF',
+    marginBottom: 4,
+  },
+  mainSubtitleWhite: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.8)',
   },
   mainTitle: {
     fontSize: 18,
@@ -235,6 +240,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  chevronCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 
   secondaryRow: {
     flexDirection: 'row',
@@ -242,14 +255,14 @@ const styles = StyleSheet.create({
   },
   secondaryPillWrapper: {
     flex: 1,
-  },
-  secondaryGlassCard: {
     borderRadius: 20,
-    padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   secondaryHeader: {
     alignItems: 'flex-start',
@@ -257,25 +270,24 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   smallIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
   },
   secondaryValue: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '800',
   },
   progressBarBg: {
-    height: 6,
+    height: 8,
     width: '100%',
-    borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 4,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: 4,
   },
 });

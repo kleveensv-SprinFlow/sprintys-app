@@ -36,60 +36,62 @@ const typography = {
   },
 };
 
-// Sprintflow "Living Flow" Identity
-// Defaulting to Dark Mode for everyone to keep the strong, vibrant athletic identity
-export const darkColors = {
-  background: '#050505', // Deep abyss black
-  surface: '#121212',    // Dark grey for cards
-  surfaceLight: '#1C1C1E', // Elevated surface
-  accent: '#FF5722',     // SPRINT FIRE ORANGE! (Primary energetic color)
-  accentMuted: 'rgba(255, 87, 34, 0.15)',
-  text: '#FFFFFF',
-  textSecondary: '#8E8E93',
-  textMuted: '#48484A',
-  border: '#2C2C2E',     // Subtle borders for glassmorphism
-  error: '#FF453A',
-  success: '#32D74B',
-  warning: '#FF9F0A',
-  // Specific gradients and glows
-  glow: 'rgba(255, 87, 34, 0.4)',
-};
-
-// We keep lightColors for system compatibility, but ideally Sprintflow is dark-first.
+// Lighter, colorful theme matching the Sprinty logo (Blue/Cyan gradient)
 export const lightColors = {
-  background: '#FFFFFF', 
-  surface: '#F2F2F7',    
-  surfaceLight: '#E5E5EA', 
-  accent: '#FF5722',     
-  accentMuted: 'rgba(255, 87, 34, 0.1)',
-  text: '#000000',       
-  textSecondary: '#8E8E93', 
-  textMuted: '#C7C7CC',
-  border: '#E5E5EA',     
-  error: '#FF3B30',
-  success: '#34C759',
-  warning: '#FF9500',
-  glow: 'rgba(255, 87, 34, 0.3)',
+  background: '#F7F9FC', // Very soft cool grey/blue background
+  surface: '#FFFFFF',    // Pure white for cards
+  surfaceLight: '#F0F4F8', // Slightly darker for secondary areas
+  accent: '#0069E8',     // Main Sprintflow Blue from the logo
+  accentSecondary: '#00DCFD', // Cyan from the logo
+  accentMuted: 'rgba(0, 105, 232, 0.1)', // Very transparent blue
+  text: '#111827',       // Very dark blue/grey
+  textSecondary: '#64748B', 
+  textMuted: '#94A3B8',
+  border: '#E2E8F0',     // Light elegant borders
+  error: '#EF4444',
+  success: '#10B981',
+  warning: '#F59E0B',
+  glow: 'rgba(0, 220, 253, 0.4)', // Cyan glow
 };
 
-export const theme = {
-  colors: darkColors, // We force dark mode colors for the strong identity for now!
-  spacing,
-  radius,
-  typography,
+// Dark mode version in case the user switches their system to dark mode
+export const darkColors = {
+  background: '#0F172A', // Dark slate blue matching the logo vibe
+  surface: '#1E293B',    // Lighter slate
+  surfaceLight: '#334155', 
+  accent: '#00DCFD',     // Cyan stands out better on dark
+  accentSecondary: '#0069E8',
+  accentMuted: 'rgba(0, 220, 253, 0.15)',
+  text: '#F8FAFC',
+  textSecondary: '#94A3B8',
+  textMuted: '#64748B',
+  border: '#334155',
+  error: '#F87171',
+  success: '#34D399',
+  warning: '#FBBF24',
+  glow: 'rgba(0, 220, 253, 0.3)',
 };
 
-// If we want it to be responsive to device settings later:
 export const useTheme = () => {
   const colorScheme = useDeviceColorScheme();
-  // Force dark mode for the "Living Flow" identity, or uncomment to allow light mode
-  // const colors = colorScheme === 'dark' ? darkColors : lightColors;
-  const colors = darkColors;
+  
+  // Actually dynamically use light/dark, but since user explicitly wanted lighter colorful theme,
+  // we will default to light for now, or let system handle it properly.
+  // Many users leave their phones on light mode.
+  const colors = colorScheme === 'dark' ? darkColors : lightColors;
   
   return {
     colors,
     spacing,
     radius,
     typography,
+    isDark: colorScheme === 'dark'
   };
+};
+
+export const theme = {
+  colors: lightColors, // Fallback for static imports
+  spacing,
+  radius,
+  typography,
 };
