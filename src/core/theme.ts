@@ -36,6 +36,11 @@ const typography = {
   },
 };
 
+const glass = {
+  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  borderColor: 'rgba(255, 255, 255, 0.1)',
+};
+
 // Lighter, colorful theme matching the Sprinty logo (Blue/Cyan gradient)
 export const lightColors = {
   background: '#F7F9FC', // Very soft cool grey/blue background
@@ -85,6 +90,7 @@ export const useTheme = () => {
     spacing,
     radius,
     typography,
+    glass,
     isDark: colorScheme === 'dark'
   };
 };
@@ -94,4 +100,5 @@ export const theme = {
   spacing,
   radius,
   typography,
+  glass,
 };
