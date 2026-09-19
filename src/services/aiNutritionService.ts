@@ -1,4 +1,4 @@
-const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
+import { supabase } from './supabase';
 
 export interface AINutritionResult {
   name: string;
@@ -11,26 +11,8 @@ export interface AINutritionResult {
 
 export const aiNutritionService = {
   async analyzeFood(input: { text?: string; base64Image?: string }): Promise<AINutritionResult | null> {
-    const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
-    
-    if (!apiKey) {
-      console.warn('No OpenAI API Key found. Returning mock data.');
-      // Return mock data for testing if no key is present
-      return new Promise((resolve) => setTimeout(() => resolve({
-        name: input.text ? `Repas: ${input.text.substring(0, 10)}...` : 'Plat analysé (Test)',
-        quantity_g: 350,
-        calories: 650,
-        proteines: 35,
-        glucides: 50,
-        lipides: 20
-      }), 2000));
-    }
-
     try {
-      const messages: any[] = [
-        {
-          role: 'system',
-          content: `Tu es un expert en nutrition diététique. 
+      const systemPrompt = `Tu es un expert en nutrition diététique. 
 Ton rôle est d'analyser le texte de l'utilisateur ou la photo de son assiette, d'identifier la nourriture et d'estimer avec précision les grammes, les calories et les macronutriments (protéines, glucides, lipides). 
 Tu dois OBLIGATOIREMENT renvoyer un JSON valide avec cette structure exacte (rien d'autre, pas de markdown) : 
 {
@@ -40,56 +22,55 @@ Tu dois OBLIGATOIREMENT renvoyer un JSON valide avec cette structure exacte (rie
   "proteines": <nombre en grammes>,
   "glucides": <nombre en grammes>,
   "lipides": <nombre en grammes>
-}`
-        }
-      ];
+}`;
+
+      let userMessageContent: any = [];
 
       if (input.base64Image) {
-        messages.push({
-          role: 'user',
-          content: [
-            { type: 'text', text: 'Estime les valeurs nutritionnelles et le poids de cette assiette.' },
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:image/jpeg;base64,${input.base64Image}`,
-                detail: 'low'
-              }
+        userMessageContent = [
+          { type: 'text', text: 'Estime les valeurs nutritionnelles et le poids de cette assiette en respectant le format JSON strict.' },
+          {
+            type: 'image_url',
+            image_url: {
+              url: `data:image/jpeg;base64,${input.base64Image}`,
+              detail: 'low'
             }
-          ]
-        });
+          }
+        ];
       } else if (input.text) {
-        messages.push({
-          role: 'user',
-          content: `Estime les valeurs nutritionnelles de ce repas : "${input.text}"`
-        });
+        userMessageContent = `Estime les valeurs nutritionnelles de ce repas en respectant le format JSON strict : "${input.text}"`;
       } else {
         return null;
       }
 
-      const response = await fetch(OPENAI_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: input.base64Image ? 'gpt-4o-mini' : 'gpt-4o-mini', // We can use 4o-mini for fast vision and text
-          messages,
-          response_format: { type: 'json_object' },
-          max_tokens: 300,
-          temperature: 0.2
-        })
+      const { data, error } = await supabase.functions.invoke('chat', {
+        body: {
+          systemPrompt,
+          messages: [
+            {
+              role: 'user',
+              content: userMessageContent
+            }
+          ],
+          model: 'gpt-4o-mini'
+        }
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('OpenAI Error:', errorData);
-        throw new Error('Erreur API OpenAI');
+      if (error) {
+        console.error('Edge Function Error:', error);
+        throw error;
       }
 
-      const data = await response.json();
-      const content = data.choices[0].message.content;
+      let content = data.reply;
+      
+      // Sometimes AI adds ```json ... ``` markdown blocks, even if told not to. 
+      // Let's clean it up before parsing.
+      if (content.includes('```json')) {
+        content = content.replace(/```json/g, '').replace(/```/g, '').trim();
+      } else if (content.includes('```')) {
+        content = content.replace(/```/g, '').trim();
+      }
+
       return JSON.parse(content) as AINutritionResult;
 
     } catch (error) {
