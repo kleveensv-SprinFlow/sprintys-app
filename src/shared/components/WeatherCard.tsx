@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Modal, ScrollView, Animated, Easing } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useTheme } from '../../../core/theme';
+import { useTheme } from '../../core/theme';
 import * as Location from 'expo-location';
-import { weatherService, WeatherData } from '../../../services/weatherService';
+import { weatherService, WeatherData } from '../../services/weatherService';
 
 export const WeatherCard = () => {
   const theme = useTheme();
