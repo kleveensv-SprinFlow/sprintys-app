@@ -35,15 +35,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ initialTab = 'login' }) 
       </View>
 
       <SafeAreaView style={styles.safeArea}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.keyboardView}
-        >
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
+        {Platform.OS === 'ios' ? (
+          <KeyboardAvoidingView behavior="padding" style={styles.keyboardView}>
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="always"
+              showsVerticalScrollIndicator={false}
+            >
             {/* HERO BRAND HEADER */}
             <View style={styles.heroSection}>
               <View style={styles.logoWrapper}>
@@ -118,8 +116,92 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ initialTab = 'login' }) 
             <Text style={[styles.footerText, { color: theme.colors.textMuted }]}>
               Sprintflow • Athlétisme & Haute Performance
             </Text>
-          </ScrollView>
-        </KeyboardAvoidingView>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        ) : (
+          <View style={styles.keyboardView}>
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="always"
+              showsVerticalScrollIndicator={false}
+            >
+              {/* HERO BRAND HEADER */}
+              <View style={styles.heroSection}>
+                <View style={styles.logoWrapper}>
+                  <SprintyLogo width={180} height={46} />
+                </View>
+                <Text style={[styles.tagline, { color: theme.colors.textSecondary }]}>
+                  L'accélération de votre performance <Text style={{ color: theme.colors.accent }}>⚡</Text>
+                </Text>
+              </View>
+
+              {/* SEGMENTED SWITCHER (Connexion | Inscription) */}
+              <View style={[styles.switcherContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                {/* Tab 1: Connexion */}
+                <TouchableOpacity
+                  style={styles.tabButton}
+                  onPress={() => setActiveTab('login')}
+                  activeOpacity={0.8}
+                >
+                  {activeTab === 'login' ? (
+                    <LinearGradient
+                      colors={['#0026AE', '#0069E8']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.activeTabGradient}
+                    >
+                      <Text style={styles.activeTabText}>Connexion</Text>
+                    </LinearGradient>
+                  ) : (
+                    <View style={styles.inactiveTab}>
+                      <Text style={[styles.inactiveTabText, { color: theme.colors.textSecondary }]}>
+                        Connexion
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                {/* Tab 2: Inscription */}
+                <TouchableOpacity
+                  style={styles.tabButton}
+                  onPress={() => setActiveTab('signup')}
+                  activeOpacity={0.8}
+                >
+                  {activeTab === 'signup' ? (
+                    <LinearGradient
+                      colors={['#0026AE', '#0069E8']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.activeTabGradient}
+                    >
+                      <Text style={styles.activeTabText}>Inscription</Text>
+                    </LinearGradient>
+                  ) : (
+                    <View style={styles.inactiveTab}>
+                      <Text style={[styles.inactiveTabText, { color: theme.colors.textSecondary }]}>
+                        Inscription
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* MAIN CARD CONTAINER */}
+              <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                {activeTab === 'login' ? (
+                  <LoginForm onSwitchToSignup={() => setActiveTab('signup')} />
+                ) : (
+                  <RegisterMultiStep onSwitchToLogin={() => setActiveTab('login')} />
+                )}
+              </View>
+
+              {/* Minimal Footer */}
+              <Text style={[styles.footerText, { color: theme.colors.textMuted }]}>
+                Sprintflow • Athlétisme & Haute Performance
+              </Text>
+            </ScrollView>
+          </View>
+        )}
       </SafeAreaView>
     </View>
   );
