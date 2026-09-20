@@ -47,11 +47,6 @@ export const Input: React.FC<InputProps> = ({
               : isFocused 
                 ? theme.colors.accent 
                 : theme.colors.border,
-            shadowColor: isFocused ? theme.colors.accent : 'transparent',
-            shadowOpacity: isFocused ? 0.12 : 0,
-            shadowRadius: 8,
-            shadowOffset: { width: 0, height: 2 },
-            elevation: isFocused ? 2 : 0,
           }
         ]}
       >
