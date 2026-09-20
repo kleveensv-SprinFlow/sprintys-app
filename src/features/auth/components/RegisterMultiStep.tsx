@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Card } from '../../../shared/components/Card';
 import { useAuthStore, UserRole, SignupData } from '../../../store/authStore';
 import { useTheme } from '../../../core/theme';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { StepRole } from './steps/StepRole';
 import { StepIdentity } from './steps/StepIdentity';
@@ -13,7 +13,11 @@ import { StepObjective } from './steps/StepObjective';
 import { StepCoachGroup } from './steps/StepCoachGroup';
 import { StepAccount } from './steps/StepAccount';
 
-export const RegisterMultiStep = () => {
+interface RegisterMultiStepProps {
+  onSwitchToLogin?: () => void;
+}
+
+export const RegisterMultiStep: React.FC<RegisterMultiStepProps> = ({ onSwitchToLogin }) => {
   const theme = useTheme();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<Partial<SignupData>>({
@@ -31,7 +35,6 @@ export const RegisterMultiStep = () => {
   const totalSteps = isCoach ? 4 : 6;
 
   const updateData = (newData: Partial<SignupData>) => {
-    // Reset step to 1 if the user changes their role to avoid landing on a nonexistent step
     if (newData.role && newData.role !== formData.role) {
       setStep(1);
     }
@@ -40,6 +43,14 @@ export const RegisterMultiStep = () => {
 
   const handleNext = () => setStep(s => s + 1);
   const handleBack = () => setStep(s => s - 1);
+
+  const handleLoginPress = () => {
+    if (onSwitchToLogin) {
+      onSwitchToLogin();
+    } else {
+      router.push('/(auth)/login');
+    }
+  };
 
   const handleSignup = async () => {
     if (!formData.email || !formData.pass || !formData.firstName || !formData.lastName) return;
@@ -117,22 +128,26 @@ export const RegisterMultiStep = () => {
     }
   };
 
-  const dots = Array.from({ length: totalSteps }, (_, i) => i + 1);
-
   return (
-    <Card variant="glass" style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }] as any}>
-
-      {/* Progress Indicator */}
-      <View style={styles.progressContainer}>
-         {dots.map(i => (
-           <View
-             key={i}
-             style={[
-               styles.progressDot,
-               { backgroundColor: i <= step ? theme.colors.accent : theme.colors.border }
-             ]}
-           />
-         ))}
+    <View style={styles.container}>
+      {/* Animated Dynamic Progress Bar */}
+      <View style={styles.progressHeader}>
+        <View style={styles.progressTextRow}>
+          <Text style={[styles.stepLabel, { color: theme.colors.textSecondary }]}>
+            Étape <Text style={[styles.stepLabelBold, { color: theme.colors.accent }]}>{step}</Text> sur {totalSteps}
+          </Text>
+          <Text style={[styles.progressPercent, { color: theme.colors.textMuted }]}>
+            {Math.round((step / totalSteps) * 100)}%
+          </Text>
+        </View>
+        <View style={[styles.progressBarBackground, { backgroundColor: theme.colors.border }]}>
+          <LinearGradient
+            colors={['#0026AE', '#00DCFD']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[styles.progressBarFill, { width: `${(step / totalSteps) * 100}%` }]}
+          />
+        </View>
       </View>
 
       <View style={styles.stepContainer}>
@@ -142,8 +157,9 @@ export const RegisterMultiStep = () => {
 
         {step === 1 && (
           <TouchableOpacity
-            onPress={() => router.push('/(auth)/login')}
+            onPress={handleLoginPress}
             style={styles.loginLink}
+            activeOpacity={0.7}
           >
             <Text style={[styles.loginText, { color: theme.colors.textSecondary }]}>
               Déjà un compte ? <Text style={[styles.loginTextBold, { color: theme.colors.accent }]}>Se connecter</Text>
@@ -151,41 +167,57 @@ export const RegisterMultiStep = () => {
           </TouchableOpacity>
         )}
       </View>
-    </Card>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
+  container: {
     width: '100%',
-    flex: 1, // Let it expand up to its container
-    maxHeight: '85%', // Prevent it from going off screen
-    borderRadius: 24, // softer edges like the image
-    padding: 24,
+  },
+  progressHeader: {
+    marginBottom: 20,
+  },
+  progressTextRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  stepLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  stepLabelBold: {
+    fontWeight: '800',
+  },
+  progressPercent: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  progressBarBackground: {
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+    width: '100%',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 3,
   },
   stepContainer: {
-    flex: 1, // This is crucial for nested ScrollViews to work inside it
-  },
-  progressContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-    gap: 8,
-  },
-  progressDot: {
-    height: 4,
-    width: 24,
-    borderRadius: 2,
+    width: '100%',
   },
   errorText: {
-    fontSize: 14,
-    marginTop: 16,
+    fontSize: 13,
+    marginTop: 14,
     textAlign: 'center',
+    fontWeight: '500',
   },
   loginLink: {
-    marginTop: 24,
+    marginTop: 22,
     alignItems: 'center',
+    paddingVertical: 8,
   },
   loginText: {
     fontSize: 14,
