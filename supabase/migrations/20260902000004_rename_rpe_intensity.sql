@@ -5,14 +5,24 @@ CREATE OR REPLACE FUNCTION public.submit_workout_results(p_workout_id uuid, p_ef
  RETURNS void
  LANGUAGE plpgsql
  SECURITY DEFINER
+ SET search_path = public
 AS $function$
 DECLARE
     v_athlete_id UUID;
     v_effort JSONB;
 BEGIN
+    -- SÉCURITÉ: Vérification stricte de l'authentification
+    IF auth.uid() IS NULL THEN 
+        RAISE EXCEPTION 'Not authenticated'; 
+    END IF;
+
     SELECT athlete_id INTO v_athlete_id FROM public.workouts WHERE id = p_workout_id;
     IF v_athlete_id IS NULL THEN RAISE EXCEPTION 'Workout not found'; END IF;
-    IF v_athlete_id != auth.uid() THEN RAISE EXCEPTION 'Permission denied'; END IF;
+    
+    -- SÉCURITÉ: Utilisation de IS DISTINCT FROM pour éviter le bypass si NULL
+    IF v_athlete_id IS DISTINCT FROM auth.uid() THEN 
+        RAISE EXCEPTION 'Permission denied'; 
+    END IF;
 
     DELETE FROM public.athlete_efforts WHERE workout_id = p_workout_id;
 

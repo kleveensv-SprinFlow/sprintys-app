@@ -35,6 +35,22 @@ export const periodService = {
 
       if (role === 'coach') {
         query = query.eq('coach_id', userId);
+      } else if (role === 'athlete') {
+        // Fetch athlete's team and subgroup to filter periods securely
+        const { data: memberData } = await supabase
+          .from('team_members')
+          .select('team_id, subgroup_id')
+          .eq('user_id', userId)
+          .limit(1)
+          .single();
+
+        if (memberData) {
+          query = query.eq('team_id', memberData.team_id)
+                       .or(`subgroup_id.is.null,subgroup_id.eq.${memberData.subgroup_id}`);
+        } else {
+          // If athlete is not in a team, they shouldn't see periods (or only periods explicitly assigned to them)
+          query = query.eq('athlete_id', userId);
+        }
       }
 
       const { data, error } = await query;

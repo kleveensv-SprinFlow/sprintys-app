@@ -12,11 +12,35 @@ CREATE OR REPLACE FUNCTION assign_workout_to_group(
 RETURNS UUID
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
     v_group_assignment_id UUID;
     v_athlete_id UUID;
 BEGIN
+    -- SÉCURITÉ: Vérifier l'authentification
+    IF auth.uid() IS NULL THEN
+        RAISE EXCEPTION 'Not authenticated';
+    END IF;
+
+    -- SÉCURITÉ: Vérifier que l'appelant est bien le coach de l'équipe
+    IF p_team_id IS NOT NULL THEN
+        IF NOT EXISTS (SELECT 1 FROM public.teams WHERE id = p_team_id AND coach_id = auth.uid()) THEN
+            RAISE EXCEPTION 'Forbidden: You are not the coach of this team';
+        END IF;
+    END IF;
+
+    -- SÉCURITÉ: Vérifier que l'appelant est bien le coach du sous-groupe
+    IF p_subgroup_id IS NOT NULL THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM public.subgroups s 
+            JOIN public.teams t ON s.team_id = t.id 
+            WHERE s.id = p_subgroup_id AND t.coach_id = auth.uid()
+        ) THEN
+            RAISE EXCEPTION 'Forbidden: You are not the coach of this subgroup';
+        END IF;
+    END IF;
+
     -- Generate the shared assignment ID
     v_group_assignment_id := gen_random_uuid();
     

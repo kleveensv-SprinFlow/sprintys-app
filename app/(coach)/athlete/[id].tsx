@@ -130,11 +130,17 @@ export default function AthleteDetailScreen() {
 
         {/* ACTIONS */}
         <Text style={styles.sectionTitle}>ACTIONS</Text>
-        <TouchableOpacity style={styles.actionBtn}>
+        <TouchableOpacity 
+          style={styles.actionBtn}
+          onPress={() => router.push(`/chat/direct/${id}`)}
+        >
           <Feather name="message-circle" size={20} color={theme.colors.accent} />
           <Text style={styles.actionBtnText}>Envoyer un message</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn}>
+        <TouchableOpacity 
+          style={styles.actionBtn}
+          onPress={() => router.push(`/(coach)/assign/${id}`)}
+        >
           <Feather name="calendar" size={20} color={theme.colors.accent} />
           <Text style={styles.actionBtnText}>Assigner une séance</Text>
         </TouchableOpacity>

@@ -5,7 +5,7 @@ import { useTheme } from '../../../core/theme';
 import * as Location from 'expo-location';
 import { weatherService, WeatherData } from '../../../services/weatherService';
 
-export const AthleteWeatherCard = () => {
+export const WeatherCard = () => {
   const theme = useTheme();
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [locationName, setLocationName] = useState<string>('Recherche...');

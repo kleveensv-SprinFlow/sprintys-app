@@ -11,13 +11,11 @@
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
     "@expo/vector-icons": "^15.1.1",
-    "@lottiefiles/dotlottie-react": "^0.13.5",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "^9.1.0",
     "@react-native-community/slider": "5.0.1",
     "@react-navigation/native": "^7.3.18",
     "@supabase/supabase-js": "^2.104.0",
-    "@tanstack/react-query": "^5.99.2",
     "expo": "~54.0.33",
     "expo-blur": "~15.0.8",
     "expo-camera": "~17.0.10",
@@ -33,7 +31,6 @@
     "expo-status-bar": "~3.0.9",
     "expo-system-ui": "~6.0.9",
     "lottie-react-native": "~7.3.1",
-    "lucide-react-native": "^1.35.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",
@@ -57,6 +54,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.37.5",
     "prettier": "^3.8.3",
+    "sharp": "^0.35.4",
     "typescript": "~5.9.2"
   },
   "private": true

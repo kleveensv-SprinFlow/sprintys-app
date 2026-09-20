@@ -8,7 +8,7 @@ import { useAuthStore } from '../../src/store/authStore';
 import { useCoachStore } from '../../src/store/coach/coachStore';
 import { supabase } from '../../src/services/supabase';
 import { workoutService } from '../../src/services/workoutService';
-import { CoachWeatherCard } from '../../src/features/coach/components/CoachWeatherCard';
+import { WeatherCard } from '../../src/shared/components/WeatherCard';
 import { BroadcastModal } from '../../src/features/coach/components/BroadcastModal';
 import { SprintyLogo } from '../../src/shared/components/SprintyLogo';
 import { TeamHealthModal } from '../../src/features/coach/components/TeamHealthModal';
@@ -126,7 +126,7 @@ export default function CoachDashboardScreen() {
         </View>
 
         {/* Météo Coach */}
-        <CoachWeatherCard />
+        <WeatherCard />
 
         {/* Séance du Jour (Aperçu) */}
         <View style={styles.sectionHeader}>

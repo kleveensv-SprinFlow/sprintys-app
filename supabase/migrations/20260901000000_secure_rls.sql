@@ -1,4 +1,4 @@
-﻿-- Migration: 20260901000000_secure_rls.sql
+-- Migration: 20260901000000_secure_rls.sql
 -- Description: Verrouillage complet des permissions RLS et création des fonctions sécurisées (SECURITY DEFINER).
 -- Changements prévus:
 -- 1. Activation de RLS sur toutes les tables (notamment workouts qui était ouvert).
@@ -38,6 +38,9 @@ USING (
     )
 );
 
+CREATE POLICY "profiles_update_policy" ON public.profiles FOR UPDATE
+USING (auth.uid() = id);
+
 -- TEAMS (Visibles par Coach créateur OU Membres (approuvés ou pending))
 CREATE POLICY "teams_select_policy" ON public.teams FOR SELECT
 USING (
@@ -47,6 +50,15 @@ USING (
         WHERE team_id = teams.id AND user_id = auth.uid()
     )
 );
+
+CREATE POLICY "teams_insert_policy" ON public.teams FOR INSERT
+WITH CHECK (coach_id = auth.uid());
+
+CREATE POLICY "teams_update_policy" ON public.teams FOR UPDATE
+USING (coach_id = auth.uid());
+
+CREATE POLICY "teams_delete_policy" ON public.teams FOR DELETE
+USING (coach_id = auth.uid());
 
 -- TEAM_MEMBERS
 CREATE POLICY "team_members_select_policy" ON public.team_members FOR SELECT
@@ -71,6 +83,15 @@ USING (
     EXISTS (SELECT 1 FROM public.team_members WHERE team_id = subgroups.team_id AND user_id = auth.uid())
 );
 
+CREATE POLICY "subgroups_insert_policy" ON public.subgroups FOR INSERT
+WITH CHECK (EXISTS (SELECT 1 FROM public.teams WHERE id = team_id AND coach_id = auth.uid()));
+
+CREATE POLICY "subgroups_update_policy" ON public.subgroups FOR UPDATE
+USING (EXISTS (SELECT 1 FROM public.teams WHERE id = team_id AND coach_id = auth.uid()));
+
+CREATE POLICY "subgroups_delete_policy" ON public.subgroups FOR DELETE
+USING (EXISTS (SELECT 1 FROM public.teams WHERE id = team_id AND coach_id = auth.uid()));
+
 -- CHECK-INS
 CREATE POLICY "checkins_select_policy" ON public.check_ins FOR SELECT
 USING (
@@ -80,6 +101,29 @@ USING (
         JOIN public.teams t ON tm.team_id = t.id
         WHERE tm.user_id = check_ins.athlete_id AND tm.status = 'approved' AND t.coach_id = auth.uid()
     )
+);
+
+CREATE POLICY "checkins_insert_policy" ON public.check_ins FOR INSERT WITH CHECK (athlete_id = auth.uid());
+CREATE POLICY "checkins_update_policy" ON public.check_ins FOR UPDATE USING (athlete_id = auth.uid());
+
+-- SAVED MEALS
+CREATE POLICY "saved_meals_select_policy" ON public.saved_meals FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "saved_meals_insert_policy" ON public.saved_meals FOR INSERT WITH CHECK (user_id = auth.uid());
+CREATE POLICY "saved_meals_update_policy" ON public.saved_meals FOR UPDATE USING (user_id = auth.uid());
+CREATE POLICY "saved_meals_delete_policy" ON public.saved_meals FOR DELETE USING (user_id = auth.uid());
+
+-- SAVED MEAL ITEMS
+CREATE POLICY "saved_meal_items_select_policy" ON public.saved_meal_items FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.saved_meals WHERE id = saved_meal_id AND user_id = auth.uid())
+);
+CREATE POLICY "saved_meal_items_insert_policy" ON public.saved_meal_items FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM public.saved_meals WHERE id = saved_meal_id AND user_id = auth.uid())
+);
+CREATE POLICY "saved_meal_items_update_policy" ON public.saved_meal_items FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM public.saved_meals WHERE id = saved_meal_id AND user_id = auth.uid())
+);
+CREATE POLICY "saved_meal_items_delete_policy" ON public.saved_meal_items FOR DELETE USING (
+    EXISTS (SELECT 1 FROM public.saved_meals WHERE id = saved_meal_id AND user_id = auth.uid())
 );
 
 -- WORKOUTS (Athlète ciblé OU Coach créateur)

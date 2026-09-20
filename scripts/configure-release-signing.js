@@ -7,9 +7,15 @@ if (!fs.existsSync(gradlePath)) {
   process.exit(1);
 }
 
-const keystorePassword = process.env.ANDROID_KEYSTORE_PASSWORD || 'sprintflow2026';
-const keyAlias = process.env.ANDROID_KEY_ALIAS || 'sprintflow-key';
-const keyPassword = process.env.ANDROID_KEY_PASSWORD || 'sprintflow2026';
+const keystorePassword = process.env.ANDROID_KEYSTORE_PASSWORD;
+const keyAlias = process.env.ANDROID_KEY_ALIAS;
+const keyPassword = process.env.ANDROID_KEY_PASSWORD;
+
+if (!keystorePassword || !keyAlias || !keyPassword) {
+  console.error('ERREUR SÉCURITÉ: Les variables ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS et ANDROID_KEY_PASSWORD doivent être définies dans l\'environnement.');
+  console.error('Ne jamais coder ces mots de passe en dur dans ce fichier.');
+  process.exit(1);
+}
 
 let gradle = fs.readFileSync(gradlePath, 'utf8');
 

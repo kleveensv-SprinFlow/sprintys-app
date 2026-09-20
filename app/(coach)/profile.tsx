@@ -6,6 +6,7 @@ import { theme } from '../../src/core/theme';
 import { useAuthStore } from '../../src/store/authStore';
 import { useRouter } from 'expo-router';
 import { EditProfileModal } from '../../src/shared/components/EditProfileModal';
+import { supabase } from '../../src/services/supabase';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
@@ -20,6 +21,31 @@ export default function ProfileScreen() {
           router.replace('/(auth)/login');
       }},
     ]);
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Supprimer mon compte',
+      'ATTENTION : Cette action est irréversible. Toutes tes données seront définitivement supprimées.\n\nEs-tu absolument certain de vouloir continuer ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { 
+          text: 'Supprimer définitivement', 
+          style: 'destructive', 
+          onPress: async () => {
+            try {
+              const { error } = await supabase.rpc('delete_user');
+              if (error) throw error;
+              await logout();
+              router.replace('/(auth)/login');
+            } catch (err) {
+              console.error('Error deleting account:', err);
+              Alert.alert('Erreur', 'Impossible de supprimer le compte pour le moment.');
+            }
+          }
+        },
+      ]
+    );
   };
 
   const SettingsItem = ({ icon, title, value, onPress, isDestructive = false }: any) => (
@@ -87,7 +113,7 @@ export default function ProfileScreen() {
 
         <View style={[styles.card, { marginTop: 30, marginBottom: 40 }]}>
           <SettingsItem icon="log-out" title="Se déconnecter" isDestructive onPress={handleLogout} />
-          <SettingsItem icon="trash-2" title="Supprimer mon compte" isDestructive onPress={() => {}} />
+          <SettingsItem icon="trash-2" title="Supprimer mon compte" isDestructive onPress={handleDeleteAccount} />
         </View>
       </ScrollView>
 

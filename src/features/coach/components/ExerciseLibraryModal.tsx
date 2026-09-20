@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput, ActivityIndicator } from 'react-native';
 import { useWorkoutBuilderStore, LibraryExercise, WorkoutCategory } from '../../../store/workoutBuilderStore';
 import { theme } from '../../../core/theme';
 import { Card } from '../../../shared/components/Card';
 import { Button } from '../../../shared/components/Button';
 import { Input } from '../../../shared/components/Input';
+import { supabase } from '../../../services/supabase';
+import { useAuthStore } from '../../../store/authStore';
 
 interface Props {
   blockId: string;
@@ -14,17 +16,40 @@ interface Props {
 
 const TAGS = ['Haut du corps', 'Bas du corps', 'Ischios', 'Quadri', 'Haltérophilie'];
 
-const MOCK_LIBRARY: LibraryExercise[] = [
-  { id: '1', name: 'Développé Couché', category: 'Musculation', tags: ['Haut du corps'] },
-  { id: '2', name: 'Squat', category: 'Musculation', tags: ['Bas du corps', 'Quadri'] },
-  { id: '3', name: 'Soulevé de terre', category: 'Musculation', tags: ['Bas du corps', 'Ischios'] },
-  { id: '4', name: 'Arraché', category: 'Haltérophilie', tags: ['Haltérophilie', 'Haut du corps', 'Bas du corps'] },
-];
-
 export const ExerciseLibraryModal: React.FC<Props> = ({ blockId, visible, onClose }) => {
+  const { user } = useAuthStore();
   const { addExerciseToBlock } = useWorkoutBuilderStore();
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [customName, setCustomName] = useState('');
+  
+  const [library, setLibrary] = useState<LibraryExercise[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (visible && user?.id) {
+      loadExercises();
+    }
+  }, [visible, user?.id]);
+
+  const loadExercises = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('coach_exercises')
+      .select('*')
+      .eq('coach_id', user!.id)
+      .order('name');
+      
+    if (data) {
+      const mapped: LibraryExercise[] = data.map(d => ({
+        id: d.id,
+        name: d.name,
+        category: d.category as WorkoutCategory,
+        tags: [] // Ajoute des tags si gérés en base plus tard
+      }));
+      setLibrary(mapped);
+    }
+    setLoading(false);
+  };
 
   const toggleTag = (tag: string) => {
     setSelectedTags(prev => 
@@ -32,7 +57,7 @@ export const ExerciseLibraryModal: React.FC<Props> = ({ blockId, visible, onClos
     );
   };
 
-  const filteredLibrary = MOCK_LIBRARY.filter(ex => 
+  const filteredLibrary = library.filter(ex => 
     selectedTags.length === 0 || selectedTags.every(t => ex.tags.includes(t))
   );
 
@@ -41,9 +66,20 @@ export const ExerciseLibraryModal: React.FC<Props> = ({ blockId, visible, onClos
     onClose();
   };
 
-  const handleAddCustom = () => {
-    if (customName) {
+  const handleAddCustom = async () => {
+    if (customName && user?.id) {
+      // 1. Ajouter dans le WorkoutBuilder localement pour que ce soit réactif
       addExerciseToBlock(blockId, customName, 'Général');
+      
+      // 2. Sauvegarder dans la BDD pour les prochaines fois
+      const newEx = {
+        name: customName,
+        category: 'Général',
+        coach_id: user.id
+      };
+      
+      await supabase.from('coach_exercises').insert(newEx);
+      
       setCustomName('');
       onClose();
     }
@@ -94,25 +130,33 @@ export const ExerciseLibraryModal: React.FC<Props> = ({ blockId, visible, onClos
               />
             </View>
 
-            {filteredLibrary.map(ex => (
-              <TouchableOpacity
-                key={ex.id}
-                onPress={() => handleSelect(ex)}
-                style={styles.libItem}
-              >
-                <View>
-                  <Text style={styles.libName}>{ex.name}</Text>
-                  <Text style={styles.libCat}>{ex.category}</Text>
-                </View>
-                <View style={styles.itemTags}>
-                  {ex.tags.map(t => (
-                    <View key={t} style={styles.miniTag}>
-                      <Text style={styles.miniTagText}>{t}</Text>
-                    </View>
-                  ))}
-                </View>
-              </TouchableOpacity>
-            ))}
+            {loading ? (
+              <ActivityIndicator size="small" color={theme.colors.accent} style={{ marginTop: 20 }} />
+            ) : filteredLibrary.length === 0 ? (
+              <Text style={{ color: theme.colors.textMuted, textAlign: 'center', marginTop: 20 }}>
+                Aucun exercice dans votre bibliothèque.
+              </Text>
+            ) : (
+              filteredLibrary.map(ex => (
+                <TouchableOpacity
+                  key={ex.id}
+                  onPress={() => handleSelect(ex)}
+                  style={styles.libItem}
+                >
+                  <View>
+                    <Text style={styles.libName}>{ex.name}</Text>
+                    <Text style={styles.libCat}>{ex.category}</Text>
+                  </View>
+                  <View style={styles.itemTags}>
+                    {ex.tags.map(t => (
+                      <View key={t} style={styles.miniTag}>
+                        <Text style={styles.miniTagText}>{t}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
           </ScrollView>
         </View>
       </View>

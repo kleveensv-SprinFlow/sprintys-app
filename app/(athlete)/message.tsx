@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { theme } from '../../src/core/theme';
 import { buildSystemPrompt } from '../../src/services/aiContextBuilder';
+import { fetchOpenAIResponse } from '../../src/services/aiService';
 import AILoadingIndicator from '../../src/components/AILoadingIndicator';
 import * as Haptics from 'expo-haptics';
 
@@ -51,7 +52,6 @@ export default function MessageScreen() {
     }, 100);
 
     try {
-      const { fetchOpenAIResponse } = require('../../src/services/aiService');
       const response = await fetchOpenAIResponse(
         newMessages.slice(1).map(m => ({ role: m.role, content: m.content })),
         messages[0].content

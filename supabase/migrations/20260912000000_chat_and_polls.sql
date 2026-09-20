@@ -81,9 +81,43 @@ ON public.conversation_participants FOR UPDATE
 USING (user_id = auth.uid());
 
 -- Participants can insert participants (e.g. coach creates a direct chat)
+DROP POLICY IF EXISTS "Users can insert participants if they are coach or self" ON public.conversation_participants;
 CREATE POLICY "Users can insert participants if they are coach or self"
 ON public.conversation_participants FOR INSERT
-WITH CHECK (true);
+WITH CHECK (
+    -- 1. L'appelant est le coach de l'équipe liée à la conversation
+    EXISTS (
+        SELECT 1 FROM public.conversations c
+        JOIN public.teams t ON c.team_id = t.id
+        WHERE c.id = conversation_id AND t.coach_id = auth.uid()
+    )
+    OR
+    -- 2. L'appelant est un membre approuvé de l'équipe (peut rejoindre le chat d'équipe)
+    (
+        user_id = auth.uid() AND
+        EXISTS (
+            SELECT 1 FROM public.conversations c
+            JOIN public.team_members tm ON c.team_id = tm.team_id
+            WHERE c.id = conversation_id AND tm.user_id = auth.uid() AND tm.status = 'approved'
+        )
+    )
+    OR
+    -- 3. L'appelant est DEJA participant (permet d'inviter l'autre personne dans un chat direct)
+    EXISTS (
+        SELECT 1 FROM public.conversation_participants cp
+        WHERE cp.conversation_id = conversation_participants.conversation_id
+        AND cp.user_id = auth.uid()
+    )
+    OR
+    -- 4. Initialisation : S'ajouter soi-même dans une nouvelle conversation vide
+    (
+        user_id = auth.uid() AND
+        NOT EXISTS (
+            SELECT 1 FROM public.conversation_participants cp
+            WHERE cp.conversation_id = conversation_participants.conversation_id
+        )
+    )
+);
 
 -- Allow creating conversations
 CREATE POLICY "Users can create conversations" 

@@ -77,6 +77,31 @@ export default function SettingsScreen() {
     ]);
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Supprimer mon compte',
+      'ATTENTION : Cette action est irréversible. Toutes tes données seront définitivement supprimées.\n\nEs-tu absolument certain de vouloir continuer ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { 
+          text: 'Supprimer définitivement', 
+          style: 'destructive', 
+          onPress: async () => {
+            try {
+              const { error } = await supabase.rpc('delete_user');
+              if (error) throw error;
+              await logout();
+              router.replace('/(auth)/login');
+            } catch (err) {
+              console.error('Error deleting account:', err);
+              Alert.alert('Erreur', 'Impossible de supprimer le compte pour le moment.');
+            }
+          }
+        },
+      ]
+    );
+  };
+
   const handlePickImage = async (fromCamera: boolean) => {
     setIsPhotoSheetVisible(false);
 
@@ -319,7 +344,7 @@ export default function SettingsScreen() {
 
         <View style={[styles.card, { marginTop: 30, marginBottom: 80 }]}>
           <SettingsItem icon="log-out" title="Se déconnecter" isDestructive onPress={handleLogout} />
-          <SettingsItem icon="trash-2" title="Supprimer mon compte" isDestructive onPress={() => {}} />
+          <SettingsItem icon="trash-2" title="Supprimer mon compte" isDestructive onPress={handleDeleteAccount} />
         </View>
       </ScrollView>
 

@@ -31,10 +31,7 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.sprintflow.inc",
-      "versionCode": 1,
-      "permissions": [
-        "INTERNET"
-      ]
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -44,7 +41,19 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Sprintflow to access your camera to scan food barcodes."
+          "cameraPermission": "Sprintflow a besoin de l'appareil photo pour scanner les codes-barres des aliments."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Sprintflow a besoin de votre localisation pour vous fournir la météo de votre lieu d'entraînement."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Sprintflow a besoin d'accéder à vos photos pour modifier votre photo de profil."
         }
       ]
     ]

@@ -36,7 +36,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ initialTab = 'login' }) 
 
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
         >
           <ScrollView
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 40,
+    paddingBottom: 120,
     alignItems: 'center',
   },
   heroSection: {
