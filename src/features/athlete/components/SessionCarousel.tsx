@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+﻿import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
@@ -294,7 +294,7 @@ export const SessionCarousel = () => {
                   </View>
                   <View style={{ flex: 1 }} />
                   <View style={styles.actionPrompt}>
-                    <Text style={[styles.actionPromptText, { color: theme.colors.accent }]}>Détails</Text>
+                    <Text style={[styles.actionPromptText, { color: theme.colors.accent }]}>Voir la séance</Text>
                     <Feather name="chevron-right" size={14} color={theme.colors.accent} />
                   </View>
                 </View>
@@ -497,4 +497,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
 

@@ -17,7 +17,6 @@ interface SprintyChatStore {
 
 const useSprintyChatStore = create<SprintyChatStore>((set) => ({
   messages: [
-    { role: 'system', content: buildSystemPrompt() }, 
     { role: 'assistant', content: "Salut ! Je suis Sprinty, ton coach IA personnel. Je suis prêt à t'accompagner. Que veux-tu faire aujourd'hui ?" }
   ],
   setMessages: (msgs) => set({ messages: msgs }),
@@ -47,7 +46,7 @@ export default function MessageScreen() {
     };
   }, []);
 
-  const sendMessage = async () => {
+    const sendMessage = async () => {
     if (!inputText.trim() || isTyping) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -64,22 +63,26 @@ export default function MessageScreen() {
     }, 100);
 
     try {
+      const systemPrompt = buildSystemPrompt();
       const response = await fetchOpenAIResponse(
-        newMessages.slice(1).map(m => ({ role: m.role, content: m.content })),
-        messages[0].content
+        newMessages.map(m => ({ role: m.role, content: m.content })),
+        systemPrompt
       );
       
-      setMessages(prev => [...prev, { role: 'assistant', content: response.trim() }]);
+      const finalMessages = [...newMessages, { role: 'assistant', content: response.trim() }];
+      setMessages(finalMessages);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
       console.error(err);
-      setMessages(prev => [...prev, { role: 'assistant', content: "Désolé, j'ai rencontré un problème de connexion avec le serveur." }]);
+      const errMessages = [...newMessages, { role: 'assistant', content: "Désolé, j'ai rencontré un problème de connexion avec le serveur." }];
+      setMessages(errMessages);
     } finally {
       setIsTyping(false);
       setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
+  }
   };
 
   return (
@@ -286,4 +289,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   }
 });
+
+
 

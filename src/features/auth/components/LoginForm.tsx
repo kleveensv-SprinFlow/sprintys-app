@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Input } from '../../../shared/components/Input';
@@ -37,13 +37,18 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup }) => {
     }
   };
 
-  const handleForgotPassword = async () => {
+    const handleForgotPassword = async () => {
     if (!email) {
       Alert.alert('Email requis', 'Renseignez votre email ci-dessus pour recevoir un lien de réinitialisation.');
       return;
     }
-    await supabase.auth.resetPasswordForEmail(email);
-    Alert.alert('Email envoyé', 'Un lien de réinitialisation a été envoyé à ' + email);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      if (error) throw error;
+      Alert.alert('Email envoyé', 'Un lien de réinitialisation a été envoyé à ' + email);
+    } catch (e: any) {
+      Alert.alert('Erreur', e.message || 'Impossible d\'envoyer le lien de réinitialisation.');
+    }
   };
 
   return (
@@ -224,3 +229,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
+

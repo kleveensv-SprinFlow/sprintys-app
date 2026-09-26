@@ -97,7 +97,7 @@ export default function AthleteDayScreen() {
         title={formattedTitle}
         showBackButton
         onBackPress={() => {
-          router.replace('/(athlete)/calendar');
+          router.back();
         }}
       />
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+﻿import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -658,3 +658,4 @@ const styles = StyleSheet.create({
     marginTop: 0.5,
   },
 });
+

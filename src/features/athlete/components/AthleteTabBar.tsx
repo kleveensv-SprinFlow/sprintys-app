@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+﻿import React, { useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Platform } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -175,31 +175,37 @@ export const AthleteTabBar: React.FC<BottomTabBarProps> = ({
   const [unreadCount, setUnreadCount] = React.useState(0);
   
   React.useEffect(() => {
-    // Très basique pour le moment : on récupère via Supabase (idéalement via un store global ou un hook spécialisé)
     const fetchUnreads = async () => {
       try {
         const { supabase } = require('../../../services/supabase');
         const { useAuthStore } = require('../../../store/authStore');
+        const { chatService } = require('../../../services/chatService');
         const user = useAuthStore.getState().user;
         if (!user?.id) return;
         
-        // On récupère le nombre total de messages non lus où l'utilisateur n'est pas le sender
-        // Note: une approche complète utiliserait chatService, mais pour rester léger on récupère un count
-        const { count } = await supabase
-          .from('messages')
-          .select('id', { count: 'exact', head: true })
-          .neq('sender_id', user.id)
-          .is('read_at', null);
-          
-        setUnreadCount(count || 0);
+        const { data } = await supabase
+          .from('team_members')
+          .select('team_id, status, teams ( coach_id )')
+          .eq('user_id', user.id)
+          .eq('status', 'approved')
+          .maybeSingle();
+
+        if (data && data.teams) {
+          const t = Array.isArray(data.teams) ? data.teams[0] : data.teams;
+          const summary = await chatService.getAthleteGroupDiscussions(data.team_id, t.coach_id);
+          let count = 0;
+          if (summary?.team?.unread_count) count += summary.team.unread_count;
+          if (summary?.coach?.unread_count) count += summary.coach.unread_count;
+          setUnreadCount(count);
+        } else {
+          setUnreadCount(0);
+        }
       } catch (e) {
         // fail silently
       }
     };
     
     fetchUnreads();
-    
-    // Refresh au changement d'onglet
   }, [state.index]);
 
   if (!isPrimaryTab || (focusedOptions?.tabBarStyle as any)?.display === 'none') {
@@ -323,3 +329,4 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
+
