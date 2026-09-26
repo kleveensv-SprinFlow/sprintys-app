@@ -388,23 +388,6 @@ export default function CoachGroupsScreen() {
             </View>
 
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between', marginBottom: 24 }}>
-              
-              {/* Nutrition */}
-              <TouchableOpacity style={styles.actionSquareBtn} onPress={() => Alert.alert('Bientôt', 'La vue détaillée de la nutrition arrive bientôt.')}>
-                <View style={[styles.actionSquareIcon, { backgroundColor: '#F59E0B20' }]}>
-                  <Feather name="coffee" size={24} color="#F59E0B" />
-                </View>
-                <Text style={styles.actionSquareText}>Nutrition</Text>
-              </TouchableOpacity>
-
-              {/* Check-in */}
-              <TouchableOpacity style={styles.actionSquareBtn} onPress={() => Alert.alert('Bientôt', 'Accès direct au check-in.')}>
-                <View style={[styles.actionSquareIcon, { backgroundColor: '#10B98120' }]}>
-                  <Feather name="check-square" size={24} color="#10B981" />
-                </View>
-                <Text style={styles.actionSquareText}>Check-in</Text>
-              </TouchableOpacity>
-
               {/* Sous-groupe */}
               <TouchableOpacity style={styles.actionSquareBtn} onPress={() => setModalType('change_sg')}>
                 <View style={[styles.actionSquareIcon, { backgroundColor: theme.colors.accent + '20' }]}>

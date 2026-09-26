@@ -31,8 +31,8 @@ const COACH_TABS: Record<string, TabConfig> = {
   },
   chat: {
     name: 'chat',
-    label: 'Chat',
-    renderIcon: (color) => <Feather name="message-circle" size={22} color={color} />,
+    label: 'Sprinty',
+    renderIcon: (color) => <Feather name="zap" size={22} color={color} />,
   },
 };
 

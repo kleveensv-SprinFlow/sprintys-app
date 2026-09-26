@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
@@ -62,9 +62,9 @@ export const CheckInSummaryModal = ({ visible, onClose, onEdit }: Props) => {
               </View>
               <Text style={[styles.overallTitle, { color: theme.colors.text }]}>Forme Globale</Text>
               <Text style={[styles.overallDesc, { color: theme.colors.textSecondary }]}>
-                {todayHealthScore! >= 70 ? 'Excellente disposition pour s\'entraîner fort aujourd\'hui.' :
-                 todayHealthScore! >= 40 ? 'Forme moyenne, adapte l\'intensité si besoin.' :
-                 'Fatigue prononcée, privilégie la récupération ou le repos.'}
+                {todayHealthScore! >= 70 ? 'Excellente disposition pour s\'entraÃ®ner fort aujourd\'hui.' :
+                 todayHealthScore! >= 40 ? 'Forme moyenne, adapte l\'intensitÃ© si besoin.' :
+                 'Fatigue prononcÃ©e, privilÃ©gie la rÃ©cupÃ©ration ou le repos.'}
               </Text>
             </View>
 
@@ -199,3 +199,4 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   }
 });
+

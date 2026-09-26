@@ -1,282 +1,217 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Keyboard, Animated } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../src/core/theme';
-import { buildSystemPrompt } from '../../src/services/aiContextBuilder';
-import { fetchOpenAIResponse } from '../../src/services/aiService';
-import AILoadingIndicator from '../../src/components/AILoadingIndicator';
-import * as Haptics from 'expo-haptics';
+import { supabase } from '../../src/services/supabase';
+import { useAuthStore } from '../../src/store/authStore';
+import { chatService, GroupDiscussionsSummary } from '../../src/services/chatService';
+import { useRouter } from 'expo-router';
 
-export default function MessageScreen() {
-  const [messages, setMessages] = useState([
-    { role: 'system', content: buildSystemPrompt() }, 
-    { role: 'assistant', content: "Salut ! Je suis Sprinty, ton coach IA personnel. Je suis prêt à t'accompagner. Que veux-tu faire aujourd'hui ?" }
-  ]);
-  const [inputText, setInputText] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-  
-  const scrollViewRef = useRef<ScrollView>(null);
+interface MyGroupData {
+  team_id: string;
+  coach_id: string;
+  coach_name: string;
+  team_name: string;
+}
 
-  useEffect(() => {
-    const keyboardWillShowListener = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => setKeyboardHeight(e.endCoordinates.height)
-    );
-    const keyboardWillHideListener = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardHeight(0)
-    );
+export default function MessagesHubScreen() {
+  const { user } = useAuthStore();
+  const router = useRouter();
+  const [myGroup, setMyGroup] = useState<MyGroupData | null>(null);
+  const [discussions, setDiscussions] = useState<GroupDiscussionsSummary | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-    return () => {
-      keyboardWillShowListener.remove();
-      keyboardWillHideListener.remove();
-    };
-  }, []);
-
-  const sendMessage = async () => {
-    if (!inputText.trim() || isTyping) return;
-
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    const userText = inputText.trim();
-    setInputText('');
-    const newMessages = [...messages, { role: 'user', content: userText }];
-    setMessages(newMessages);
-    setIsTyping(true);
-
-    // Scroll to bottom immediately when user sends
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 100);
-
+  const fetchGroupAndDiscussions = async () => {
+    if (!user?.id) return;
     try {
-      const response = await fetchOpenAIResponse(
-        newMessages.slice(1).map(m => ({ role: m.role, content: m.content })),
-        messages[0].content
-      );
-      
-      setMessages(prev => [...prev, { role: 'assistant', content: response.trim() }]);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const { data, error } = await supabase
+        .from('team_members')
+        .select(\
+          team_id,
+          status,
+          teams ( name, coach_id ),
+          coach_name: coachProfile?.full_name || 'Coach'
+        \)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (data?.status === 'approved' && data.teams) {
+        const t = Array.isArray(data.teams) ? data.teams[0] : data.teams;
+        const coachId = t.coach_id;
+        setMyGroup({
+          team_id: data.team_id,
+          coach_id: coachId,
+          team_name: t.name || '�quipe',
+          coach_name: data.coach_name || 'Coach'
+        });
+
+        const summary = await chatService.getGroupDiscussionsSummary(data.team_id, coachId);
+        setDiscussions(summary);
+      } else {
+        setMyGroup(null);
+      }
     } catch (err) {
       console.error(err);
-      setMessages(prev => [...prev, { role: 'assistant', content: "Désolé, j'ai rencontré un problème de connexion avec le serveur." }]);
     } finally {
-      setIsTyping(false);
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      setIsLoading(false);
     }
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchGroupAndDiscussions();
+    }, [user?.id])
+  );
+
+  const formatMessageTime = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const today = new Date();
+    if (d.getDate() === today.getDate() && d.getMonth() === today.getMonth()) {
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    return d.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.avatarContainer}>
-            <Text style={styles.avatarEmoji}>⚡</Text>
-          </View>
-          <View>
-            <Text style={styles.title}>Sprinty IA</Text>
-            <Text style={styles.subtitle}>En ligne</Text>
-          </View>
-        </View>
-        <TouchableOpacity style={styles.headerBtn}>
-          <Feather name="more-vertical" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
+        <Text style={styles.title}>Messages</Text>
       </View>
 
-      <KeyboardAvoidingView 
-        style={styles.keyboardAvoid} 
-        behavior="padding"
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-      >
-        <ScrollView 
-          style={styles.chatArea} 
-          contentContainerStyle={styles.chatContent}
-          ref={scrollViewRef}
-          onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
-          showsVerticalScrollIndicator={false}
-          keyboardDismissMode="interactive"
-          keyboardShouldPersistTaps="handled"
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        
+        {/* SPRINTY IA CARD */}
+        <TouchableOpacity 
+          style={styles.discussionCard}
+          activeOpacity={0.7}
+          onPress={() => router.push('/chat/sprinty')}
         >
-          {messages.filter(m => m.role !== 'system').map((msg, index) => (
-            <View key={index} style={msg.role === 'user' ? styles.messageRowRight : styles.messageRowLeft}>
-              {msg.role === 'assistant' && (
-                <View style={styles.chatAvatar}>
-                  <Text style={styles.chatAvatarEmoji}>⚡</Text>
-                </View>
-              )}
-              <View style={msg.role === 'user' ? styles.messageBubbleRight : styles.messageBubbleLeft}>
-                <Text style={[styles.messageText, msg.role === 'user' && { color: '#FFF' }]}>
-                  {msg.content}
-                </Text>
-              </View>
-            </View>
-          ))}
-          {isTyping && (
-            <View style={styles.messageRowLeft}>
-              <View style={styles.chatAvatar}>
-                <Text style={styles.chatAvatarEmoji}>⚡</Text>
-              </View>
-              <View style={[styles.messageBubbleLeft, { paddingHorizontal: 16, paddingVertical: 12 }]}>
-                <AILoadingIndicator />
-              </View>
-            </View>
-          )}
-        </ScrollView>
-
-        <View style={[styles.inputContainer, { paddingBottom: Math.max(16, keyboardHeight ? 16 : 30) }]}>
-          <View style={styles.inputWrapper}>
-            <TouchableOpacity style={styles.attachBtn}>
-              <Feather name="plus" size={20} color={theme.colors.textMuted} />
-            </TouchableOpacity>
-            <TextInput
-              style={styles.input}
-              placeholder="Message à Sprinty..."
-              placeholderTextColor={theme.colors.textMuted}
-              multiline
-              value={inputText}
-              onChangeText={setInputText}
-              editable={!isTyping}
-            />
-            <TouchableOpacity 
-              style={[styles.sendBtn, (!inputText.trim()) && { opacity: 0.5, backgroundColor: theme.colors.surface }]} 
-              onPress={sendMessage} 
-              disabled={isTyping || !inputText.trim()}
-            >
-              <Ionicons name="send" size={18} color={inputText.trim() ? "#FFF" : theme.colors.textMuted} />
-            </TouchableOpacity>
+          <View style={[styles.discussionAvatar, { backgroundColor: '#0026AE15' }]}>
+            <Text style={{ fontSize: 20 }}>?</Text>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+          <View style={styles.discussionContent}>
+            <View style={styles.discussionTopRow}>
+              <Text style={styles.discussionTitle}>Sprinty IA</Text>
+            </View>
+            <View style={styles.discussionBottomRow}>
+              <Text style={styles.discussionPreview} numberOfLines={1}>
+                Ton assistant personnel
+              </Text>
+            </View>
+          </View>
+          <Feather name=\chevron-right\ size={18} color={theme.colors.textMuted} />
+        </TouchableOpacity>
+
+        <Text style={styles.sectionLabel}>�QUIPE & COACH</Text>
+
+        {isLoading ? (
+          <ActivityIndicator size=\small\ color={theme.colors.accent} style={{ marginTop: 20 }} />
+        ) : myGroup ? (
+          <>
+            {/* COACH CARD */}
+            <TouchableOpacity 
+              style={styles.discussionCard}
+              activeOpacity={0.7}
+              onPress={() => router.push({
+                pathname: '/chat/[type]/[id]',
+                params: { type: 'direct', id: myGroup.coach_id, title: \Coach \\ }
+              })}
+            >
+              <View style={[styles.discussionAvatar, { backgroundColor: theme.colors.accent + '20' }]}>
+                <Feather name=\user-check\ size={20} color={theme.colors.accent} />
+              </View>
+              <View style={styles.discussionContent}>
+                <View style={styles.discussionTopRow}>
+                  <Text style={styles.discussionTitle}>Coach {myGroup.coach_name}</Text>
+                  {discussions?.coach?.last_message && (
+                    <Text style={styles.discussionDate}>
+                      {formatMessageTime(discussions.coach.last_message.created_at)}
+                    </Text>
+                  )}
+                </View>
+                <View style={styles.discussionBottomRow}>
+                  <Text style={[styles.discussionPreview, !discussions?.coach?.last_message && styles.discussionPreviewMuted]} numberOfLines={1}>
+                    {discussions?.coach?.last_message 
+                      ? \\\\
+                      : 'Aucun message pour le moment.'}
+                  </Text>
+                  {(discussions?.coach?.unread_count || 0) > 0 && (
+                    <View style={styles.unreadBadge}>
+                      <Text style={styles.unreadBadgeText}>{discussions?.coach?.unread_count}</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+              <Feather name=\chevron-right\ size={18} color={theme.colors.textMuted} />
+            </TouchableOpacity>
+
+            {/* TEAM CARD */}
+            <TouchableOpacity 
+              style={styles.discussionCard}
+              activeOpacity={0.7}
+              onPress={() => router.push({
+                pathname: '/chat/[type]/[id]',
+                params: { type: 'team', id: myGroup.team_id, title: myGroup.team_name }
+              })}
+            >
+              <View style={[styles.discussionAvatar, { backgroundColor: theme.colors.success + '20' }]}>
+                <Feather name=\users\ size={20} color={theme.colors.success} />
+              </View>
+              <View style={styles.discussionContent}>
+                <View style={styles.discussionTopRow}>
+                  <Text style={styles.discussionTitle}>�quipe {myGroup.team_name}</Text>
+                  {discussions?.team?.last_message && (
+                    <Text style={styles.discussionDate}>
+                      {formatMessageTime(discussions.team.last_message.created_at)}
+                    </Text>
+                  )}
+                </View>
+                <View style={styles.discussionBottomRow}>
+                  <Text style={[styles.discussionPreview, !discussions?.team?.last_message && styles.discussionPreviewMuted]} numberOfLines={1}>
+                    {discussions?.team?.last_message 
+                      ? \\ : \\
+                      : 'Aucun message dans le groupe.'}
+                  </Text>
+                  {(discussions?.team?.unread_count || 0) > 0 && (
+                    <View style={[styles.unreadBadge, { backgroundColor: theme.colors.success }]}>
+                      <Text style={styles.unreadBadgeText}>{discussions?.team?.unread_count}</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+              <Feather name=\chevron-right\ size={18} color={theme.colors.textMuted} />
+            </TouchableOpacity>
+          </>
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>Vous n'avez pas encore rejoint d'�quipe. Allez dans l'onglet Profil > Groupes pour en rejoindre une.</Text>
+          </View>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
-  header: { 
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20, 
-    paddingTop: 10, 
-    paddingBottom: 16, 
-    borderBottomWidth: 1, 
-    borderBottomColor: theme.colors.border,
-    backgroundColor: theme.colors.background,
-    zIndex: 10
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatarContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  avatarEmoji: {
-    fontSize: 20,
-  },
-  title: { fontSize: 18, fontWeight: 'bold', color: theme.colors.text },
-  subtitle: { fontSize: 12, color: theme.colors.success, marginTop: 2, fontWeight: '500' },
-  headerBtn: {
-    padding: 8,
-  },
-  keyboardAvoid: { flex: 1 },
-  chatArea: { flex: 1 },
-  chatContent: { padding: 20, paddingBottom: 10 },
-  messageRowLeft: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginBottom: 16,
-    maxWidth: '90%',
-  },
-  messageRowRight: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginBottom: 16,
-    width: '100%',
-  },
-  chatAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  chatAvatarEmoji: {
-    fontSize: 14,
-  },
-  messageBubbleLeft: {
-    backgroundColor: theme.colors.surface, 
-    padding: 14, 
-    borderRadius: 20,
-    borderBottomLeftRadius: 4, 
-    borderWidth: 1, 
-    borderColor: theme.colors.border,
-  },
-  messageBubbleRight: {
-    backgroundColor: theme.colors.accent, 
-    padding: 14, 
-    borderRadius: 20,
-    borderBottomRightRadius: 4, 
-    maxWidth: '85%',
-  },
-  messageText: { color: theme.colors.text, fontSize: 16, lineHeight: 24 },
-  inputContainer: {
-    backgroundColor: theme.colors.background,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    backgroundColor: theme.colors.surface,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    paddingHorizontal: 4,
-    paddingVertical: 4,
-  },
-  attachBtn: { 
-    padding: 12, 
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  input: {
-    flex: 1, 
-    color: theme.colors.text,
-    fontSize: 16,
-    paddingTop: 12, 
-    paddingBottom: 12,
-    paddingHorizontal: 8,
-    maxHeight: 120, 
-    minHeight: 40,
-  },
-  sendBtn: {
-    backgroundColor: theme.colors.accent, 
-    width: 38, 
-    height: 38,
-    borderRadius: 19, 
-    alignItems: 'center', 
-    justifyContent: 'center',
-    marginRight: 4,
-    marginBottom: 4,
-  }
+  header: { paddingHorizontal: 24, paddingVertical: 20, borderBottomWidth: 1, borderBottomColor: theme.colors.border, backgroundColor: theme.colors.surface },
+  title: { fontSize: 28, fontWeight: '800', color: theme.colors.text },
+  content: { padding: 24 },
+  sectionLabel: { fontSize: 12, fontWeight: '700', color: theme.colors.textMuted, marginTop: 24, marginBottom: 12, letterSpacing: 0.5 },
+  discussionCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface, padding: 14, borderRadius: 14, marginBottom: 10, borderWidth: 1, borderColor: theme.colors.border },
+  discussionAvatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  discussionContent: { flex: 1, justifyContent: 'center' },
+  discussionTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  discussionTitle: { fontSize: 16, fontWeight: '600', color: theme.colors.text },
+  discussionDate: { fontSize: 12, color: theme.colors.textMuted },
+  discussionBottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  discussionPreview: { fontSize: 14, color: theme.colors.textSecondary, flex: 1, paddingRight: 8 },
+  discussionPreviewMuted: { fontStyle: 'italic', color: theme.colors.textMuted },
+  unreadBadge: { backgroundColor: theme.colors.error, borderRadius: 12, paddingHorizontal: 6, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
+  unreadBadgeText: { color: '#FFF', fontSize: 11, fontWeight: '700' },
+  emptyState: { padding: 20, backgroundColor: theme.colors.surface, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border },
+  emptyText: { color: theme.colors.textSecondary, textAlign: 'center', lineHeight: 20 }
 });
+

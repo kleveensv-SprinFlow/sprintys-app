@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../../src/core/theme';
@@ -107,8 +107,8 @@ export default function ProfileScreen() {
 
         <Text style={styles.sectionTitle}>Application</Text>
         <View style={styles.card}>
-          <SettingsItem icon="help-circle" title="FAQ & Aide" onPress={() => {}} />
-          <SettingsItem icon="mail" title="Nous contacter" onPress={() => {}} />
+          <SettingsItem icon="help-circle" title="FAQ & Aide" onPress={() => Linking.openURL('mailto:support@sprintflow.app?subject=FAQ%20%26%20Aide')} />
+          <SettingsItem icon="mail" title="Nous contacter" onPress={() => Linking.openURL('mailto:support@sprintflow.app?subject=Contact')} />
         </View>
 
         <View style={[styles.card, { marginTop: 30, marginBottom: 40 }]}>

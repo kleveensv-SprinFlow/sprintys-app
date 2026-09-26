@@ -78,12 +78,11 @@ export const darkColors = {
 };
 
 export const useTheme = () => {
-  const colorScheme = useDeviceColorScheme();
-  
-  // Actually dynamically use light/dark, but since user explicitly wanted lighter colorful theme,
-  // we will default to light for now, or let system handle it properly.
-  // Many users leave their phones on light mode.
-  const colors = colorScheme === 'dark' ? darkColors : lightColors;
+  // Dark mode désactivé pour l'instant — sera activé quand les 40 fichiers
+  // utilisant l'import statique `theme` auront été migrés vers useTheme().
+  // Sans cette migration, activer le dark mode crée des écrans coupés en deux
+  // (fond sombre + composants en blanc).
+  const colors = lightColors;
   
   return {
     colors,
@@ -91,7 +90,7 @@ export const useTheme = () => {
     radius,
     typography,
     glass,
-    isDark: colorScheme === 'dark'
+    isDark: false
   };
 };
 

@@ -7,7 +7,7 @@ import { SprintyFeedback } from '../src/features/sprinty/SprintyFeedback';
 
 export default function RootLayout() {
   const theme = useTheme();
-  const isDark = theme.colors.background === '#050505';
+  const isDark = theme.isDark;
   const { user, pendingEmail, isLoading, isInitialized, initializeAuth } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();

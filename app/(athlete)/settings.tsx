@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal, Image, ActivityIndicator, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -338,8 +338,8 @@ export default function SettingsScreen() {
 
         <Text style={styles.sectionTitle}>Application</Text>
         <View style={styles.card}>
-          <SettingsItem icon="help-circle" title="FAQ & Aide" onPress={() => {}} />
-          <SettingsItem icon="mail" title="Nous contacter" onPress={() => {}} />
+          <SettingsItem icon="help-circle" title="FAQ & Aide" onPress={() => Linking.openURL('mailto:support@sprintflow.app?subject=FAQ%20%26%20Aide')} />
+          <SettingsItem icon="mail" title="Nous contacter" onPress={() => Linking.openURL('mailto:support@sprintflow.app?subject=Contact')} />
         </View>
 
         <View style={[styles.card, { marginTop: 30, marginBottom: 80 }]}>

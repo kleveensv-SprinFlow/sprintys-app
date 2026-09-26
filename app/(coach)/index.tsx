@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated } from 'react-native';
+﻿import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -21,10 +21,9 @@ export default function CoachDashboardScreen() {
   const [broadcastVisible, setBroadcastVisible] = useState(false);
   const [teamHealthVisible, setTeamHealthVisible] = useState(false);
   const [todayWorkouts, setTodayWorkouts] = useState<any[]>([]);
-  const auraAnim = useRef(new Animated.Value(0.1)).current;
 
   useEffect(() => {
-    // Fetch les check-ins d'aujourd'hui pour l'équipe active
+    // Fetch les check-ins d'aujourd'hui pour l'Ã©quipe active
     if (teams.length > 0) {
       const today = new Date().toISOString().split('T')[0];
       fetchTeamCheckIns(teams[0].id, today);
@@ -43,24 +42,7 @@ export default function CoachDashboardScreen() {
     }
   }, [teams, teamMembers]);
 
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(auraAnim, {
-          toValue: 0.35,
-          duration: 2500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(auraAnim, {
-          toValue: 0.1,
-          duration: 2500,
-          useNativeDriver: true,
-        })
-      ])
-    ).start();
-  }, [auraAnim]);
-
-  // Moyenne de santé du groupe
+  // Moyenne de santÃ© du groupe
   const getGroupHealth = () => {
     if (teamCheckIns.length === 0) return null;
     let sum = 0;
@@ -76,7 +58,7 @@ export default function CoachDashboardScreen() {
 
   const avgHealth = getGroupHealth();
   const avgHealthStr = avgHealth ? `${Math.round(avgHealth)}%` : 'N/A';
-  const healthColor = avgHealth === null ? theme.colors.textMuted : avgHealth >= 80 ? theme.colors.success : avgHealth >= 50 ? '#F59E0B' : theme.colors.error;
+  const healthColor = avgHealth === null ? theme.colors.textMuted : avgHealth >= 70 ? theme.colors.success : avgHealth >= 40 ? '#F59E0B' : theme.colors.error;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -100,43 +82,39 @@ export default function CoachDashboardScreen() {
         
         <Text style={styles.welcomeText}>Bonjour, Coach {user?.firstName || user?.name?.split(' ')[0]}</Text>
 
-        {/* Santé du Groupe (Breathing Aura) */}
+        {/* SantÃ© du Groupe (Breathing Aura) */}
         <View style={styles.statsRow}>
           <TouchableOpacity 
             style={[styles.statCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1, overflow: 'hidden' }]}
             activeOpacity={0.9}
             onPress={() => setTeamHealthVisible(true)}
           >
-            <Animated.View style={[
-              StyleSheet.absoluteFillObject, 
-              { backgroundColor: healthColor, opacity: auraAnim }
-            ]} />
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Feather name="activity" size={20} color={healthColor} />
-                <Text style={styles.statLabel}>SANTÉ DU GROUPE</Text>
+                <Text style={styles.statLabel}>SANTÃ‰ DU GROUPE</Text>
               </View>
               <Feather name="chevron-right" size={20} color={theme.colors.textMuted} />
             </View>
             <Text style={[styles.statValue, { color: theme.colors.text }]}>{avgHealthStr}</Text>
             <Text style={{ color: theme.colors.textSecondary, fontSize: 13, marginTop: 4, fontWeight: '500' }}>
-              {avgHealth !== null ? (avgHealth >= 4 ? 'Excellente forme globale' : avgHealth >= 3 ? 'Fatigue modérée - Vigilance' : 'Récupération critique requise') : 'En attente de données'}
+              {avgHealth !== null ? (avgHealth >= 70 ? 'Excellente forme globale' : avgHealth >= 40 ? 'Fatigue modÃ©rÃ©e - Vigilance' : 'RÃ©cupÃ©ration critique requise') : 'En attente de donnÃ©es'}
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Météo Coach */}
+        {/* MÃ©tÃ©o Coach */}
         <WeatherCard />
 
-        {/* Séance du Jour (Aperçu) */}
+        {/* SÃ©ance du Jour (AperÃ§u) */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>SÉANCES DU JOUR</Text>
+          <Text style={styles.sectionTitle}>SÃ‰ANCES DU JOUR</Text>
         </View>
         
         {todayWorkouts.length === 0 ? (
           <View style={styles.emptyCard}>
             <Feather name="calendar" size={24} color={theme.colors.textMuted} style={{ marginBottom: 12 }} />
-            <Text style={styles.emptyText}>Aucune séance planifiée pour aujourd'hui.</Text>
+            <Text style={styles.emptyText}>Aucune sÃ©ance planifiÃ©e pour aujourd'hui.</Text>
             <TouchableOpacity onPress={() => router.push('/(coach)/calendar')} style={{ marginTop: 16 }}>
               <Text style={{ color: theme.colors.accent, fontWeight: 'bold' }}>Aller au calendrier</Text>
             </TouchableOpacity>
@@ -169,7 +147,7 @@ export default function CoachDashboardScreen() {
                 <Text style={styles.sessionCardDesc} numberOfLines={2}>{workout.description}</Text>
               )}
               <View style={styles.sessionCardFooter}>
-                <Text style={styles.sessionCardAction}>Voir la séance</Text>
+                <Text style={styles.sessionCardAction}>Voir la sÃ©ance</Text>
                 <Feather name="chevron-right" size={16} color={theme.colors.accent} />
               </View>
             </TouchableOpacity>
@@ -323,3 +301,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
   }
 });
+

@@ -32,7 +32,7 @@ const ATHLETE_TABS: Record<string, TabConfig> = {
   },
   message: {
     name: 'message',
-    label: 'Coach',
+    label: 'Messages',
     renderIcon: (color) => <Feather name="message-circle" size={22} color={color} />,
   },
 };
@@ -47,6 +47,7 @@ const TabItem = ({
   isFocused: boolean;
   onPress: () => void;
   onLongPress: () => void;
+  badgeCount?: number;
 }) => {
   const theme = useTheme();
   const scaleAnim = useRef(new Animated.Value(isFocused ? 1 : 0.95)).current;
@@ -128,6 +129,11 @@ const TabItem = ({
           ]}
         />
         {tab.renderIcon(iconColor, isFocused)}
+        {!!badgeCount && badgeCount > 0 && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{badgeCount > 99 ? '99+' : badgeCount}</Text>
+          </View>
+        )}
       </Animated.View>
 
       <Text
@@ -162,9 +168,39 @@ export const AthleteTabBar: React.FC<BottomTabBarProps> = ({
   const focusedDescriptor = descriptors[currentRoute?.key];
   const focusedOptions = focusedDescriptor?.options;
 
-  // Only the 4 primary tabs display the bottom navigation bar
   const PRIMARY_TABS = ['index', 'calendar', 'nutrition', 'message'];
   const isPrimaryTab = PRIMARY_TABS.includes(currentRoute?.name);
+
+  // Fetch des non-lus
+  const [unreadCount, setUnreadCount] = React.useState(0);
+  
+  React.useEffect(() => {
+    // Très basique pour le moment : on récupère via Supabase (idéalement via un store global ou un hook spécialisé)
+    const fetchUnreads = async () => {
+      try {
+        const { supabase } = require('../../../services/supabase');
+        const { useAuthStore } = require('../../../store/authStore');
+        const user = useAuthStore.getState().user;
+        if (!user?.id) return;
+        
+        // On récupère le nombre total de messages non lus où l'utilisateur n'est pas le sender
+        // Note: une approche complète utiliserait chatService, mais pour rester léger on récupère un count
+        const { count } = await supabase
+          .from('messages')
+          .select('id', { count: 'exact', head: true })
+          .neq('sender_id', user.id)
+          .is('read_at', null);
+          
+        setUnreadCount(count || 0);
+      } catch (e) {
+        // fail silently
+      }
+    };
+    
+    fetchUnreads();
+    
+    // Refresh au changement d'onglet
+  }, [state.index]);
 
   if (!isPrimaryTab || (focusedOptions?.tabBarStyle as any)?.display === 'none') {
     return null;
@@ -214,6 +250,7 @@ export const AthleteTabBar: React.FC<BottomTabBarProps> = ({
               isFocused={isFocused}
               onPress={onPress}
               onLongPress={onLongPress}
+              badgeCount={route.name === 'message' ? unreadCount : 0}
             />
           );
         })}
@@ -267,5 +304,22 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     marginTop: 3,
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    backgroundColor: theme.colors.error,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
 });

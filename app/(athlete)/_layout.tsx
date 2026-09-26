@@ -19,8 +19,6 @@ export default function TabsLayout() {
       <Tabs.Screen name="body" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="groups" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="settings" options={{ href: null, tabBarStyle: { display: 'none' } }} />
-      <Tabs.Screen name="assistant" options={{ href: null, tabBarStyle: { display: 'none' } }} />
-      <Tabs.Screen name="assistant/index" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="day/[date]" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="meal/[type]" options={{ href: null, tabBarStyle: { display: 'none' } }} />
     </Tabs>

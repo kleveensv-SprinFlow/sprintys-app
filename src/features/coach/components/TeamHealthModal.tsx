@@ -23,8 +23,8 @@ export const TeamHealthModal = ({ visible, onClose }: Props) => {
   const getScoreColor = (scoreStr: string | null) => {
     if (!scoreStr) return theme.colors.textMuted;
     const s = parseFloat(scoreStr);
-    if (s >= 80) return theme.colors.success;
-    if (s >= 50) return '#F59E0B'; // Orange
+    if (s >= 70) return theme.colors.success;
+    if (s >= 40) return '#F59E0B'; // Orange
     return theme.colors.error;
   };
 

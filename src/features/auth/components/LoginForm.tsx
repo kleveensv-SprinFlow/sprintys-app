@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Input } from '../../../shared/components/Input';
 import { useAuthStore } from '../../../store/authStore';
 import { useTheme } from '../../../core/theme';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { supabase } from '../../../services/supabase';
 
 interface LoginFormProps {
   onSwitchToSignup?: () => void;
@@ -34,6 +35,15 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup }) => {
     } else {
       router.push('/(auth)/signup');
     }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      Alert.alert('Email requis', 'Renseignez votre email ci-dessus pour recevoir un lien de réinitialisation.');
+      return;
+    }
+    await supabase.auth.resetPasswordForEmail(email);
+    Alert.alert('Email envoyé', 'Un lien de réinitialisation a été envoyé à ' + email);
   };
 
   return (
@@ -75,7 +85,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup }) => {
               </TouchableOpacity>
             }
           />
-          <TouchableOpacity style={styles.forgotPasswordLink}>
+          <TouchableOpacity style={styles.forgotPasswordLink} onPress={handleForgotPassword}>
             <Text style={[styles.forgotPasswordText, { color: theme.colors.accent }]}>
               Mot de passe oublié ?
             </Text>
