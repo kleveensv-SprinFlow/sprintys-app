@@ -83,7 +83,7 @@ export default function MessagesHubScreen() {
     const d = new Date(dateStr);
     const today = new Date();
     if (d.getDate() === today.getDate() && d.getMonth() === today.getMonth()) {
-      return d.toLocaleTimeString(5, { hour: '2-digit', minute: '2-digit' });
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
     return d.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
   };
@@ -235,3 +235,4 @@ const styles = StyleSheet.create({
   emptyState: { padding: 20, backgroundColor: theme.colors.surface, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border },
   emptyText: { color: theme.colors.textSecondary, textAlign: 'center', lineHeight: 20 }
 });
+

@@ -119,7 +119,7 @@ export default function CoachDashboardScreen() {
           <View style={styles.emptyCard}>
             <Feather name="calendar" size={24} color={theme.colors.textMuted} style={{ marginBottom: 12 }} />
             <Text style={styles.emptyText}>Aucune sÃ©ance planifiÃ©e pour aujourd'hui.</Text>
-            <TouchableOpacity onPress={() => router.push('/(coach)/day/' + (typeof workout !== 'undefined' && workout?.date_prevue ? workout.date_prevue.split('T')[0] : todayStr))} style={{ marginTop: 16 }}>
+            <TouchableOpacity onPress={() => router.push('/(coach)/day/' + todayStr)} style={{ marginTop: 16 }}>
               <Text style={{ color: theme.colors.accent, fontWeight: 'bold' }}>Aller au calendrier</Text>
             </TouchableOpacity>
           </View>
@@ -129,7 +129,7 @@ export default function CoachDashboardScreen() {
               key={workout.id || index}
               style={styles.sessionCard}
               activeOpacity={0.8}
-              onPress={() => router.push('/(coach)/day/' + (typeof workout !== 'undefined' && workout?.date_prevue ? workout.date_prevue.split('T')[0] : todayStr))}
+              onPress={() => router.push('/(coach)/day/' + (workout.date_prevue ? workout.date_prevue.split('T')[0] : todayStr))}
             >
               <View style={styles.sessionCardHeader}>
                 <View style={[styles.sessionBadge, { backgroundColor: workout.type_seance === 'musculation' ? '#3B82F620' : '#F59E0B20' }]}>
@@ -305,6 +305,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   }
 });
+
 
 
 

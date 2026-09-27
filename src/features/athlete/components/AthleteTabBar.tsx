@@ -42,6 +42,7 @@ const TabItem = ({
   isFocused,
   onPress,
   onLongPress,
+  badgeCount,
 }: {
   tab: TabConfig;
   isFocused: boolean;
@@ -315,7 +316,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -8,
-    backgroundColor: theme.colors.error,
+    backgroundColor: '#EF4444',
     borderRadius: 10,
     minWidth: 18,
     height: 18,

@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+﻿import React, { useEffect } from 'react';
 import { FlatList, StyleSheet, ActivityIndicator, View, Text } from 'react-native';
-import { useCoachStore } from '../../../store/coachStore';
+import { useCoachStore } from '../../../store/coach/coachStore';
 import { AthleteCard } from './AthleteCard';
 import { theme } from '../../../core/theme';
 import { EmptyState } from '../../../shared/components/EmptyState';
@@ -59,3 +59,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
+
