@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -134,7 +134,7 @@ export default function MessagesHubScreen() {
               <TouchableOpacity 
                 style={styles.discussionCard}
                 activeOpacity={0.7}
-                onPress={8) => router.push({
+                onPress={() => router.push({
                   pathname: '/chat/[type]/[id]',
                   params: { type: 'direct', id: myGroup.coach_id, title: `Coach ${myGroup.coach_name}` }
                 })}
