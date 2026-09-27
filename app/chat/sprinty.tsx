@@ -82,7 +82,6 @@ export default function MessageScreen() {
         scrollViewRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
-  }
   };
 
   return (
@@ -289,6 +288,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   }
 });
+
 
 
 
