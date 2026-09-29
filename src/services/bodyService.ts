@@ -5,6 +5,12 @@ export interface BodyMetric {
   athlete_id: string;
   weight: number;
   body_fat?: number;
+  muscle_mass_kg?: number;
+  muscle_mass_percent?: number;
+  fat_mass_kg?: number;
+  water_percentage?: number;
+  visceral_fat?: number;
+  scale_type?: 'none' | '4_electrodes' | '8_electrodes' | 'dexa';
   created_at?: string;
 }
 

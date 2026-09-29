@@ -1,4 +1,5 @@
-import { create } from 'zustand';
+﻿const fs = require('fs');
+let c = import { create } from 'zustand';
 import { bodyService, BodyMetric } from '../services/bodyService';
 import { useSprintyStore } from './sprintyStore';
 
@@ -31,7 +32,6 @@ export const useBodyStore = create<BodyState>((set, get) => ({
     try {
       await bodyService.addMetric(metric);
       
-      // Reload metrics to keep sync
       const data = await bodyService.fetchMetrics(metric.athlete_id);
       set({ metrics: data || [], isLoading: false });
     } catch (error) {
@@ -40,4 +40,5 @@ export const useBodyStore = create<BodyState>((set, get) => ({
       throw error;
     }
   },
-}));
+}));;
+fs.writeFileSync('c:/Users/kleve/Sprintflow/sprintys-app/src/store/bodyStore.ts', c, 'utf8');

@@ -56,7 +56,7 @@ export const AthleteGauges = () => {
   const nutritionPercentage = Math.min(100, Math.round((consumedKcal / kcalGoal) * 100)) || 0;
 
   let compValue = "Aucune";
-  let compLabel = "CompÃ©tition";
+  let compLabel = "Compétition";
   let compPercentage = 0;
   let compColor = theme.colors.border;
 
@@ -75,7 +75,7 @@ export const AthleteGauges = () => {
       compPercentage = Math.max(5, 100 - (diffDays / 90) * 100); 
       compColor = diffDays <= 7 ? theme.colors.error : theme.colors.warning;
     } else {
-      compValue = "TerminÃ©e";
+      compValue = "Terminée";
       compPercentage = 100;
     }
   }
@@ -113,7 +113,7 @@ export const AthleteGauges = () => {
               <View style={styles.mainPillText}>
                 <Text style={[styles.mainTitle, { color: theme.colors.text }]}>Forme du jour</Text>
                 <Text style={[styles.mainSubtitle, { color: theme.colors.textSecondary }]}>
-                  {scoreValue >= 70 ? 'PrÃªt Ã  performer âš¡' : scoreValue >= 40 ? 'Ã€ surveiller ðŸ‘€' : 'Repos conseillÃ© ðŸ§˜'}
+                  {scoreValue >= 70 ? 'Prêt Ã  performer âš¡' : scoreValue >= 40 ? 'À surveiller ðŸ‘€' : 'Repos conseillé ðŸ§˜'}
                 </Text>
               </View>
               <View style={[styles.chevronCircle, { backgroundColor: theme.colors.surfaceLight }]}>

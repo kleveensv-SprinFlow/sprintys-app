@@ -27,7 +27,7 @@ export default function CoachDashboardScreen() {
   const [todayWorkouts, setTodayWorkouts] = useState<any[]>([]);
 
   useEffect(() => {
-    // Fetch les check-ins d'aujourd'hui pour l'Ã©quipe active
+    // Fetch les check-ins d'aujourd'hui pour l'équipe active
     if (teams.length > 0) {
       const today = new Date().toISOString().split('T')[0];
       fetchTeamCheckIns(teams[0].id, today);
@@ -46,7 +46,7 @@ export default function CoachDashboardScreen() {
     }
   }, [teams, teamMembers]);
 
-  // Moyenne de santÃ© du groupe
+  // Moyenne de santé du groupe
   const getGroupHealth = () => {
     if (teamCheckIns.length === 0) return null;
     let sum = 0;
@@ -86,7 +86,7 @@ export default function CoachDashboardScreen() {
         
         <Text style={styles.welcomeText}>Bonjour, Coach {user?.firstName || user?.name?.split(' ')[0]}</Text>
 
-        {/* SantÃ© du Groupe (Breathing Aura) */}
+        {/* Santé du Groupe (Breathing Aura) */}
         <View style={styles.statsRow}>
           <TouchableOpacity 
             style={[styles.statCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1, overflow: 'hidden' }]}
@@ -96,29 +96,29 @@ export default function CoachDashboardScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Feather name="activity" size={20} color={healthColor} />
-                <Text style={styles.statLabel}>SANTÃ‰ DU GROUPE</Text>
+                <Text style={styles.statLabel}>SANTÉ DU GROUPE</Text>
               </View>
               <Feather name="chevron-right" size={20} color={theme.colors.textMuted} />
             </View>
             <Text style={[styles.statValue, { color: theme.colors.text }]}>{avgHealthStr}</Text>
             <Text style={{ color: theme.colors.textSecondary, fontSize: 13, marginTop: 4, fontWeight: '500' }}>
-              {avgHealth !== null ? (avgHealth >= 70 ? 'Excellente forme globale' : avgHealth >= 40 ? 'Fatigue modérée - Vigilance' : 'Récupération critique requise') : 'En attente de donnÃ©es'}
+              {avgHealth !== null ? (avgHealth >= 70 ? 'Excellente forme globale' : avgHealth >= 40 ? 'Fatigue modérée - Vigilance' : 'Récupération critique requise') : 'En attente de données'}
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* MÃ©tÃ©o Coach */}
+        {/* Météo Coach */}
         <WeatherCard />
 
-        {/* SÃ©ance du Jour (AperÃ§u) */}
+        {/* Séance du Jour (Aperçu) */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>SÃ‰ANCES DU JOUR</Text>
+          <Text style={styles.sectionTitle}>SÉANCES DU JOUR</Text>
         </View>
         
         {todayWorkouts.length === 0 ? (
           <View style={styles.emptyCard}>
             <Feather name="calendar" size={24} color={theme.colors.textMuted} style={{ marginBottom: 12 }} />
-            <Text style={styles.emptyText}>Aucune sÃ©ance planifiÃ©e pour aujourd'hui.</Text>
+            <Text style={styles.emptyText}>Aucune séance planifiée pour aujourd'hui.</Text>
             <TouchableOpacity onPress={() => router.push('/(coach)/day/' + todayStr)} style={{ marginTop: 16 }}>
               <Text style={{ color: theme.colors.accent, fontWeight: 'bold' }}>Aller au calendrier</Text>
             </TouchableOpacity>
@@ -151,7 +151,7 @@ export default function CoachDashboardScreen() {
                 <Text style={styles.sessionCardDesc} numberOfLines={2}>{workout.description}</Text>
               )}
               <View style={styles.sessionCardFooter}>
-                <Text style={styles.sessionCardAction}>Voir la sÃ©ance</Text>
+                <Text style={styles.sessionCardAction}>Voir la séance</Text>
                 <Feather name="chevron-right" size={16} color={theme.colors.accent} />
               </View>
             </TouchableOpacity>

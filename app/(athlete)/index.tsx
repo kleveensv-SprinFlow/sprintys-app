@@ -5,6 +5,7 @@ import { useTheme } from '../../src/core/theme';
 import { AthleteHeader } from '../../src/features/athlete/components/AthleteHeader';
 import { AthleteGauges } from '../../src/features/athlete/components/AthleteGauges';
 import { SessionCarousel } from '../../src/features/athlete/components/SessionCarousel';
+import { BodyCompositionCard } from '../../src/features/athlete/components/BodyCompositionCard';
 import { WeatherCard } from '../../src/shared/components/WeatherCard';
 import { useNutritionStore } from '../../src/store/nutrition/nutritionStore';
 import { useAuthStore } from '../../src/store/authStore';
@@ -38,6 +39,7 @@ export default function DashboardScreen() {
           <AthleteGauges />
           <SessionCarousel />
           <WeatherCard />
+          <BodyCompositionCard />
         </ScrollView>
       </SafeAreaView>
     </View>
