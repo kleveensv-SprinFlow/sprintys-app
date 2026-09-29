@@ -25,7 +25,6 @@ export default function BodyCompositionScreen() {
   const [bodyFat, setBodyFat] = useState('');
   const [muscleMass, setMuscleMass] = useState('');
   const [water, setWater] = useState('');
-  const [visceral, setVisceral] = useState('');
 
   const [timeFilter, setTimeFilter] = useState<'week' | 'month' | 'year' | 'all'>('month');
   const [chartMetric, setChartMetric] = useState<'weight' | 'fat' | 'muscle'>('weight');
@@ -44,14 +43,19 @@ export default function BodyCompositionScreen() {
     }
 
     try {
+      const parseNum = (val: string) => {
+        if (!val) return null;
+        const parsed = parseFloat(val.replace(',', '.'));
+        return isNaN(parsed) ? null : parsed;
+      };
+
       await addMetric({
         athlete_id: user.id,
-        weight: parseFloat(weight),
+        weight: parseNum(weight)!,
         scale_type: scaleType,
-        body_fat: bodyFat ? parseFloat(bodyFat) : undefined,
-        muscle_mass_kg: muscleMass ? parseFloat(muscleMass) : undefined,
-        water_percentage: water ? parseFloat(water) : undefined,
-        visceral_fat: visceral ? parseFloat(visceral) : undefined,
+        body_fat: parseNum(bodyFat) ?? undefined,
+        muscle_mass_kg: parseNum(muscleMass) ?? undefined,
+        water_percentage: parseNum(water) ?? undefined,
       });
       showFeedback('success', 'Données enregistrées !');
       router.back();
@@ -176,16 +180,6 @@ export default function BodyCompositionScreen() {
                   placeholder="%"
                   value={water}
                   onChangeText={setWater}
-                />
-              </View>
-              <View style={styles.gridItem}>
-                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>G. Viscérale</Text>
-                <TextInput
-                  style={[styles.input, { backgroundColor: theme.colors.background, color: theme.colors.text, borderColor: theme.colors.border }]}
-                  keyboardType="decimal-pad"
-                  placeholder="Indice"
-                  value={visceral}
-                  onChangeText={setVisceral}
                 />
               </View>
             </View>
