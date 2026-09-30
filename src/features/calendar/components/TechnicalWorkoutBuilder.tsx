@@ -204,12 +204,9 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
       targetDate.setHours(12, 0, 0, 0);
       const targetDateIso = targetDate.toISOString();
 
-      if (initialWorkout?.id) {
-        await workoutService.deleteWorkout(
-          initialWorkout.id,
-          initialWorkout.group_assignment_id || undefined
-        );
-      }
+      // We NO LONGER delete it here to preserve IDs and efforts!
+      const oldGroupAssignmentId = initialWorkout?.group_assignment_id || undefined;
+      const payloadsToUpdate: any[] = [];
 
       if (approvedMembers.length === 0) {
         Alert.alert('Aucun athlète', "Aucun athlète validé n'a été trouvé dans votre équipe.");
@@ -218,7 +215,6 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
       }
 
       const sharedAssignmentId = uuid.v4() as string;
-      let assignedCount = 0;
 
       for (const member of approvedMembers) {
         // Collect notes that apply to this athlete
@@ -237,7 +233,7 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
             })
             .join('\n\n');
 
-          const athletePayload = {
+          payloadsToUpdate.push({
             type_seance: 'Séance Technique',
             coach_id: user.id,
             team_id: activeTeamId,
@@ -253,14 +249,11 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
               technical_notes: validNotes,
               athlete_notes: memberNotes,
             },
-          };
-
-          await workoutService.createPlannedWorkout(athletePayload);
-          assignedCount++;
+          });
         }
       }
 
-      if (assignedCount === 0) {
+      if (payloadsToUpdate.length === 0) {
         Alert.alert(
           'Aucun athlète ciblé',
           "Aucun athlète de votre équipe ne correspond aux sous-groupes ou athlètes sélectionnés."
@@ -268,6 +261,8 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
         setIsSubmitting(false);
         return;
       }
+
+      await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onSave();

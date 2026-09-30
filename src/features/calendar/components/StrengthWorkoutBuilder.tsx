@@ -548,10 +548,10 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
           })),
         }));
 
-      // If we are editing an existing workout, delete the previous record(s) first
-      if (initialWorkout) {
-        await workoutService.deleteWorkout(initialWorkout.id, initialWorkout.group_assignment_id);
-      }
+      // If we are editing an existing workout, we NO LONGER delete it.
+      // We will use smartUpdateWorkouts to preserve IDs and efforts!
+      const oldGroupAssignmentId = initialWorkout?.group_assignment_id || undefined;
+      const payloadsToUpdate: any[] = [];
 
       if (targetType === 'team') {
         if (!activeTeamId) {
@@ -570,7 +570,6 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
         }
 
         const sharedAssignmentId = uuid.v4() as string;
-        let assignedCount = 0;
 
         // Filter per athlete so they only receive the exercises assigned to them
         for (const member of approvedMembers) {
@@ -583,7 +582,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
 
           if (athleteFiltered.length > 0) {
             const mappedExercises = mapExercisesToPayload(athleteFiltered);
-            const athletePayload = {
+            payloadsToUpdate.push({
               type_seance: sessionTitle.trim() || 'Musculation',
               coach_id: user.id,
               team_id: activeTeamId,
@@ -600,17 +599,15 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
                 },
               ],
               status: 'pending',
-            };
-
-            await workoutService.createPlannedWorkout(athletePayload);
-            assignedCount++;
+            });
           }
         }
 
+        await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert(
           'Séance enregistrée !',
-          `La séance de musculation a été programmée pour ${assignedCount} athlète(s) de votre équipe.`
+          `La séance de musculation a été programmée pour ${payloadsToUpdate.length} athlète(s) de votre équipe.`
         );
       } else if (targetType === 'subgroup') {
         const subgroupMembers = approvedMembers.filter(
@@ -627,7 +624,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
         const mappedExercises = mapExercisesToPayload(sessionExercises);
 
         for (const member of subgroupMembers) {
-          const athletePayload = {
+          payloadsToUpdate.push({
             type_seance: sessionTitle.trim() || 'Musculation',
             coach_id: user.id,
             team_id: activeTeamId,
@@ -644,10 +641,10 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
               },
             ],
             status: 'pending',
-          };
-          await workoutService.createPlannedWorkout(athletePayload);
+          });
         }
 
+        await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert(
           'Séance enregistrée !',
@@ -655,7 +652,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
         );
       } else if (targetType === 'athlete') {
         const mappedExercises = mapExercisesToPayload(sessionExercises);
-        const athletePayload = {
+        payloadsToUpdate.push({
           type_seance: sessionTitle.trim() || 'Musculation',
           coach_id: user.id,
           team_id: activeTeamId,
@@ -671,9 +668,9 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
             },
           ],
           status: 'pending',
-        };
+        });
 
-        await workoutService.createPlannedWorkout(athletePayload);
+        await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert('Séance enregistrée !', "La séance a été planifiée pour l'athlète.");
       }

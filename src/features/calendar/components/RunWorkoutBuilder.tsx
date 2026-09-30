@@ -721,12 +721,9 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
       AsyncStorage.setItem(STORAGE_RUN_SURFACE_KEY, surface);
       AsyncStorage.setItem(STORAGE_RUN_EQUIPMENT_KEY, equipment);
 
-      if (initialWorkout?.id) {
-        await workoutService.deleteWorkout(
-          initialWorkout.id,
-          initialWorkout.group_assignment_id || undefined
-        );
-      }
+      // We NO LONGER delete it here to preserve IDs and efforts!
+      const oldGroupAssignmentId = initialWorkout?.group_assignment_id || undefined;
+      const payloadsToUpdate: any[] = [];
 
       const surfaceLabel = surface === 'cote' ? 'Côte' : 'Piste';
       const equipmentLabel = equipment === 'pointes' ? 'Pointes' : 'Baskets';
@@ -751,7 +748,6 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
         }
 
         const sharedAssignmentId = uuid.v4() as string;
-        let assignedCount = 0;
 
         for (const member of approvedMembers) {
           const athleteFilteredBlocks = blocks.filter((blk) => {
@@ -765,7 +761,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
             const mappedBlocks = mapBlocksToPayload(athleteFilteredBlocks);
             const flatExercises = mappedBlocks.flatMap((b) => b.exercises);
 
-            const athletePayload = {
+            payloadsToUpdate.push({
               type_seance: sessionTypeSeance,
               coach_id: user.id,
               team_id: activeTeamId,
@@ -780,18 +776,17 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                 equipment,
               },
               status: 'pending',
-            };
-
-            await workoutService.createPlannedWorkout(athletePayload);
-            assignedCount++;
+            });
           }
         }
 
-        if (assignedCount === 0) {
+        if (payloadsToUpdate.length === 0) {
           Alert.alert('Information', 'Aucun athlète ne correspond aux cibles choisies.');
           setIsSubmitting(false);
           return;
         }
+
+        await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
       } else if (targetType === 'subgroup') {
         const subMembers = approvedMembers.filter((m) => m.subgroup_id === selectedSubgroupId);
         if (subMembers.length === 0) {
@@ -812,7 +807,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
             const mappedBlocks = mapBlocksToPayload(athleteFilteredBlocks);
             const flatExercises = mappedBlocks.flatMap((b) => b.exercises);
 
-            const athletePayload = {
+            payloadsToUpdate.push({
               type_seance: sessionTypeSeance,
               coach_id: user.id,
               team_id: activeTeamId,
@@ -828,16 +823,15 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                 equipment,
               },
               status: 'pending',
-            };
-
-            await workoutService.createPlannedWorkout(athletePayload);
+            });
           }
         }
+        await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
       } else {
         const mappedBlocks = mapBlocksToPayload(blocks);
         const flatExercises = mappedBlocks.flatMap((b) => b.exercises);
 
-        const athletePayload = {
+        payloadsToUpdate.push({
           type_seance: sessionTypeSeance,
           coach_id: user.id,
           team_id: activeTeamId,
@@ -851,9 +845,8 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
             equipment,
           },
           status: 'pending',
-        };
-
-        await workoutService.createPlannedWorkout(athletePayload);
+        });
+        await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

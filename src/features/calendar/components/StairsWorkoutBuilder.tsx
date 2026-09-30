@@ -494,10 +494,9 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
           })),
         }));
 
-      // If we are editing an existing workout, delete the previous record(s) first
-      if (initialWorkout) {
-        await workoutService.deleteWorkout(initialWorkout.id, initialWorkout.group_assignment_id);
-      }
+      // We NO LONGER delete it here to preserve IDs and efforts!
+      const oldGroupAssignmentId = initialWorkout?.group_assignment_id || undefined;
+      const payloadsToUpdate: any[] = [];
 
       if (targetType === 'team') {
         if (!activeTeamId) {
@@ -516,7 +515,6 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
         }
 
         const sharedAssignmentId = uuid.v4() as string;
-        let assignedCount = 0;
 
         // Filter per athlete so they only see their assigned exercises
         for (const member of approvedMembers) {
@@ -529,7 +527,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
 
           if (athleteFiltered.length > 0) {
             const mappedExercises = mapExercisesToPayload(athleteFiltered);
-            const athletePayload = {
+            payloadsToUpdate.push({
               type_seance: 'Escalier',
               coach_id: user.id,
               team_id: activeTeamId,
@@ -547,14 +545,11 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                 },
               ],
               status: 'pending',
-            };
-
-            await workoutService.createPlannedWorkout(athletePayload);
-            assignedCount++;
+            });
           }
         }
 
-        if (assignedCount === 0) {
+        if (payloadsToUpdate.length === 0) {
           Alert.alert(
             'Information',
             'Aucun athlète ne correspond aux cibles choisies pour les exercices.'
@@ -562,6 +557,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
           setIsSubmitting(false);
           return;
         }
+        await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
       } else if (targetType === 'subgroup') {
         const subMembers = approvedMembers.filter((m) => m.subgroup_id === selectedSubgroupId);
         if (subMembers.length === 0) {
@@ -580,7 +576,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
 
           if (athleteFiltered.length > 0) {
             const mappedExercises = mapExercisesToPayload(athleteFiltered);
-            const athletePayload = {
+            payloadsToUpdate.push({
               type_seance: 'Escalier',
               coach_id: user.id,
               team_id: activeTeamId,
@@ -599,13 +595,13 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                 },
               ],
               status: 'pending',
-            };
-            await workoutService.createPlannedWorkout(athletePayload);
+            });
           }
         }
+        await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
       } else {
         const mappedExercises = mapExercisesToPayload(sessionExercises);
-        const athletePayload = {
+        payloadsToUpdate.push({
           type_seance: 'Escalier',
           coach_id: user.id,
           team_id: activeTeamId,
@@ -622,8 +618,8 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
             },
           ],
           status: 'pending',
-        };
-        await workoutService.createPlannedWorkout(athletePayload);
+        });
+        await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
       }
 
       // Persist unique exercises to personal library

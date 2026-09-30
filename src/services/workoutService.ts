@@ -91,6 +91,63 @@ export const workoutService = {
     return data;
   },
 
+  updateWorkout: async (workoutId: string, workoutData: any) => {
+    const { data, error } = await supabase
+      .from('workouts')
+      .update(workoutData)
+      .eq('id', workoutId)
+      .select();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  fetchWorkoutsByGroupAssignment: async (groupAssignmentId: string) => {
+    const { data, error } = await supabase
+      .from('workouts')
+      .select('*')
+      .eq('group_assignment_id', groupAssignmentId);
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  smartUpdateWorkouts: async (oldGroupAssignmentId: string | undefined | null, newPayloads: any[]) => {
+    let existingWorkouts: any[] = [];
+    if (oldGroupAssignmentId) {
+      existingWorkouts = await workoutService.fetchWorkoutsByGroupAssignment(oldGroupAssignmentId);
+    }
+
+    const payloadsToInsert: any[] = [];
+    const idsToKeep: string[] = [];
+
+    for (const payload of newPayloads) {
+      const existing = existingWorkouts.find((w: any) => w.athlete_id === payload.athlete_id);
+      if (existing) {
+        // Option 1: Merge data! We keep the existing ID so athlete_efforts don't break.
+        await workoutService.updateWorkout(existing.id, payload);
+        idsToKeep.push(existing.id);
+      } else {
+        payloadsToInsert.push(payload);
+      }
+    }
+
+    if (payloadsToInsert.length > 0) {
+      const { error } = await supabase.from('workouts').insert(payloadsToInsert);
+      if (error) throw error;
+    }
+
+    // Delete existing workouts that are no longer in the new assigned group
+    const idsToDelete = existingWorkouts
+      .filter((w: any) => !idsToKeep.includes(w.id))
+      .map((w: any) => w.id);
+
+    if (idsToDelete.length > 0) {
+      const { error } = await supabase.from('workouts').delete().in('id', idsToDelete);
+      if (error) throw error;
+    }
+  },
+
   saveWorkoutTemplate: async (templateData: any) => {
     const { data, error } = await supabase
       .from('workout_templates')
