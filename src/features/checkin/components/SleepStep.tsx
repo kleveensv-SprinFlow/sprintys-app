@@ -21,10 +21,8 @@ const SLEEP_EMOJIS = [
 
 export const SleepStep = ({ onNext, onClose }: SleepStepProps) => {
   const theme = useTheme();
-  const { currentCheckIn, updateSleep, setMenstruation } = useCheckInStore();
+  const { currentCheckIn, updateSleep } = useCheckInStore();
   const { user, updateSleepGoal } = useAuthStore();
-  
-  const isFemale = user?.gender === 'femme' || (user as any)?.profile?.gender === 'femme' || (user as any)?.profile?.gender === 'female';
   
   const sleepGoal = user?.sleepGoal || 8;
 
@@ -181,20 +179,6 @@ export const SleepStep = ({ onNext, onClose }: SleepStepProps) => {
           </View>
         </View>
 
-        {isFemale && (
-          <View style={[styles.menstruationCard, { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border }]}>
-            <View style={styles.menstruationInfo}>
-              <Text style={[styles.menstruationTitle, { color: theme.colors.text }]}>Cycle Menstruel</Text>
-              <Text style={[styles.menstruationSubtitle, { color: theme.colors.textSecondary }]}>Es-tu en période de règles ?</Text>
-            </View>
-            <Switch
-              value={currentCheckIn?.menstruation || false}
-              onValueChange={setMenstruation}
-              trackColor={{ false: theme.colors.border, true: theme.colors.error }}
-              thumbColor={'#FFF'}
-            />
-          </View>
-        )}
       </ScrollView>
 
       <View style={styles.footer}>
@@ -314,14 +298,6 @@ const styles = StyleSheet.create({
   emojiText: { fontSize: 24, opacity: 0.5 },
   emojiTextActive: { opacity: 1 },
 
-  menstruationCard: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: 20, borderRadius: 16, borderWidth: 1, marginBottom: 40,
-  },
-  menstruationInfo: { flex: 1, paddingRight: 16 },
-  menstruationTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
-  menstruationSubtitle: { fontSize: 13 },
-  
   footer: { padding: 24, paddingBottom: 40 },
   button: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
