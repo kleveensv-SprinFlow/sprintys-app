@@ -17,6 +17,14 @@ export const BodyMetricsForm: React.FC = () => {
   const showFeedback = useSprintyStore((state) => state.showFeedback);
   const runAnalysis = useInsightStore((state) => state.runAnalysis);
 
+  const formatDecimal = (text: string) => {
+    const digits = text.replace(/\D/g, '');
+    if (!digits) return '';
+    const num = parseInt(digits, 10);
+    if (num === 0) return '';
+    return (num / 10).toFixed(1);
+  };
+
   const handleSubmit = async () => {
     if (!user) return;
     const w = parseFloat(weight);
@@ -42,7 +50,7 @@ export const BodyMetricsForm: React.FC = () => {
           label="Poids (kg)"
           placeholder="00.0"
           value={weight}
-          onChangeText={setWeight}
+          onChangeText={(text) => setWeight(formatDecimal(text))}
           keyboardType="numeric"
           containerStyle={styles.inputContainer}
           autoFocus
@@ -51,7 +59,7 @@ export const BodyMetricsForm: React.FC = () => {
           label="Masse Grasse (%)"
           placeholder="00.0"
           value={bodyFat}
-          onChangeText={setBodyFat}
+          onChangeText={(text) => setBodyFat(formatDecimal(text))}
           keyboardType="numeric"
           containerStyle={styles.inputContainer}
         />

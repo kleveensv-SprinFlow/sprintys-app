@@ -7,6 +7,14 @@ import { Input } from '../../../../shared/components/Input';
 export const StepPhysical = ({ data, updateData, onNext, onBack }: any) => {
   const theme = useTheme();
 
+  const formatDecimal = (text: string) => {
+    const digits = text.replace(/\D/g, '');
+    if (!digits) return '';
+    const num = parseInt(digits, 10);
+    if (num === 0) return '';
+    return (num / 10).toFixed(1);
+  };
+
   return (
     <View style={styles.container}>
       <Text style={[styles.title, { color: theme.colors.text }]}>Profil physique</Text>
@@ -22,9 +30,9 @@ export const StepPhysical = ({ data, updateData, onNext, onBack }: any) => {
         />
         <Input
           label="Poids (kg)"
-          placeholder="Ex: 75"
+          placeholder="Ex: 75.0"
           value={data.weight?.toString() || ''}
-          onChangeText={(text) => updateData({ weight: text.replace(/[^0-9]/g, '') })}
+          onChangeText={(text) => updateData({ weight: formatDecimal(text) })}
           keyboardType="numeric"
         />
       </View>
