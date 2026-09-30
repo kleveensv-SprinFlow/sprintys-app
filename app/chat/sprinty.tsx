@@ -1,12 +1,16 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Keyboard, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { theme } from '../../src/core/theme';
-import { buildSystemPrompt } from '../../src/services/aiContextBuilder';
+import { buildSystemPrompt, buildCoachSystemPromptForAthlete } from '../../src/services/aiContextBuilder';
+import { useLocalSearchParams } from 'expo-router';
+import { useCoachStore } from '../../src/store/coach/coachStore';
 import { fetchOpenAIResponse } from '../../src/services/aiService';
 import AILoadingIndicator from '../../src/components/AILoadingIndicator';
 import * as Haptics from 'expo-haptics';
+import { WorkoutProposalCard, AIWorkoutProposal } from '../../src/components/WorkoutProposalCard';
+import { useAuthStore } from '../../src/store/authStore';
 
 import { create } from 'zustand';
 
@@ -23,10 +27,75 @@ const useSprintyChatStore = create<SprintyChatStore>((set) => ({
 }));
 
 export default function MessageScreen() {
+  const { athleteId } = useLocalSearchParams<{ athleteId: string }>();
+  const { teamMembers } = useCoachStore();
+  const athlete = teamMembers.find(m => m.user_id === athleteId);
   const { messages, setMessages } = useSprintyChatStore();
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const { updateCoachPhilosophy } = useAuthStore();
+
+  const renderMessageContent = (msg: { role: string; content: string }) => {
+    if (msg.role !== 'assistant') {
+      return <Text style={[styles.messageText, { color: '#FFF' }]}>{msg.content}</Text>;
+    }
+
+    const proposalRegex = /```workout_proposal([\s\S]*?)```/i;
+    const philosophyRegex = /```save_philosophy([\s\S]*?)```/i;
+    
+    let textOnly = msg.content;
+    let proposalObj: AIWorkoutProposal | null = null;
+    let philosophySaved = false;
+    
+    const philosophyMatch = msg.content.match(philosophyRegex);
+    if (philosophyMatch && philosophyMatch[1]) {
+      textOnly = textOnly.replace(philosophyRegex, '').trim();
+      try {
+        const phObj = JSON.parse(philosophyMatch[1].trim());
+        if (phObj.philosophy) {
+          updateCoachPhilosophy(phObj.philosophy);
+          philosophySaved = true;
+        }
+      } catch (e) {
+        console.error('Failed to parse philosophy', e);
+      }
+    }
+
+    const match = textOnly.match(proposalRegex);
+    if (match && match[1]) {
+      textOnly = textOnly.replace(proposalRegex, '').trim();
+      try {
+        proposalObj = JSON.parse(match[1].trim());
+      } catch (e) {
+        console.error('Failed to parse AI workout proposal', e);
+      }
+    }
+
+    return (
+      <View style={{ width: '100%' }}>
+        {textOnly ? <Text style={styles.messageText}>{textOnly}</Text> : null}
+        {philosophySaved && (
+          <View style={{ marginTop: 12, backgroundColor: theme.colors.success + '20', padding: 12, borderRadius: 8 }}>
+            <Text style={{ color: theme.colors.success, fontWeight: 'bold' }}>🎯 Profil de Coach enregistré ! Mes propositions seront désormais adaptées à tes préférences.</Text>
+          </View>
+        )}
+        {proposalObj && (
+          <View style={{ marginTop: 12, minWidth: 280 }}>
+            <WorkoutProposalCard 
+              proposal={proposalObj} 
+              onValidate={() => {
+                setMessages([...messages, { role: 'assistant', content: '✅ Séance ajoutée au calendrier !' }]);
+              }}
+              onReject={() => {
+                setInputText("Je n'ai pas validé cette séance, voici ce qu'il faut changer : ");
+              }}
+            />
+          </View>
+        )}
+      </View>
+    );
+  };
   
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -63,7 +132,7 @@ export default function MessageScreen() {
     }, 100);
 
     try {
-      const systemPrompt = buildSystemPrompt();
+      const systemPrompt = athleteId ? await buildCoachSystemPromptForAthlete(athleteId, athlete?.profile?.full_name || 'Athlète') : buildSystemPrompt();
       const response = await fetchOpenAIResponse(
         newMessages.map(m => ({ role: m.role, content: m.content })),
         systemPrompt
@@ -89,7 +158,7 @@ export default function MessageScreen() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.avatarContainer}>
-            <Text style={styles.avatarEmoji}>⚡</Text>
+            <Text style={styles.avatarEmoji}>?</Text>
           </View>
           <View>
             <Text style={styles.title}>Sprinty IA</Text>
@@ -116,20 +185,18 @@ export default function MessageScreen() {
             <View key={index} style={msg.role === 'user' ? styles.messageRowRight : styles.messageRowLeft}>
               {msg.role === 'assistant' && (
                 <View style={styles.chatAvatar}>
-                  <Text style={styles.chatAvatarEmoji}>⚡</Text>
+                  <Text style={styles.chatAvatarEmoji}>?</Text>
                 </View>
               )}
               <View style={msg.role === 'user' ? styles.messageBubbleRight : styles.messageBubbleLeft}>
-                <Text style={[styles.messageText, msg.role === 'user' && { color: '#FFF' }]}>
-                  {msg.content}
-                </Text>
+                {renderMessageContent(msg)}
               </View>
             </View>
           ))}
           {isTyping && (
             <View style={styles.messageRowLeft}>
               <View style={styles.chatAvatar}>
-                <Text style={styles.chatAvatarEmoji}>⚡</Text>
+                <Text style={styles.chatAvatarEmoji}>?</Text>
               </View>
               <View style={[styles.messageBubbleLeft, { paddingHorizontal: 16, paddingVertical: 12 }]}>
                 <AILoadingIndicator />

@@ -7,10 +7,14 @@ import { workoutService } from '../../src/services/workoutService';
 import { periodService } from '../../src/services/periodService';
 import { TrainingPeriod } from '../../src/types/period';
 import { useAuthStore } from '../../src/store/authStore';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 
 export default function CalendarScreen() {
+  const params = useLocalSearchParams();
+  const athleteId = params.athleteId as string;
+  const readonly = params.readonly === 'true';
+
   const theme = useTheme();
   const { user } = useAuthStore();
   const router = useRouter();
@@ -21,18 +25,19 @@ export default function CalendarScreen() {
 
   // === Load month overview (workouts & periods in consultation mode) ===
   const loadMonthData = useCallback(async (year: number, month: number) => {
-    if (!user?.id) return;
+    const targetId = athleteId || user?.id;
+    if (!targetId) return;
     try {
       const [workoutsData, periodsData] = await Promise.all([
-        workoutService.fetchWorkoutsForMonth(user.id, year, month, 'athlete'),
-        periodService.fetchPeriodsForMonth(user.id, year, month, 'athlete'),
+        workoutService.fetchWorkoutsForMonth(targetId, year, month, 'athlete'),
+        periodService.fetchPeriodsForMonth(targetId, year, month, 'athlete'),
       ]);
       setMonthWorkouts(workoutsData || []);
       setPeriods(periodsData || []);
     } catch (error) {
       console.error('Error loading athlete calendar month data:', error);
     }
-  }, [user?.id]);
+  }, [user?.id, athleteId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -51,6 +56,7 @@ export default function CalendarScreen() {
 
   // 2nd click on selected date: opens day view
   const handleOpenDate = (date: Date) => {
+    if (readonly) return; // Disable opening day view for edits if coach is in readonly mode
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');

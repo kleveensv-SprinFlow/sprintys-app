@@ -71,6 +71,52 @@ export default function AthleteDetailScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
+        {/* PROFILE INFO */}
+        <View style={styles.profileSection}>
+          {profile.avatar_url ? (
+            <View style={styles.avatarImage} /> // Placeholder if image exists
+          ) : (
+            <View style={styles.avatarPlaceholder}>
+              <Text style={styles.avatarLetter}>{profile.full_name?.charAt(0) || 'A'}</Text>
+            </View>
+          )}
+          <Text style={styles.profileName}>{profile.full_name || 'Athlète'}</Text>
+          <Text style={styles.profileGroup}>{athleteMember?.subgroups?.join(', ') || 'Aucun sous-groupe'}</Text>
+        </View>
+
+        {/* ACTIONS RAPIDES */}
+        <View style={styles.actionGrid}>
+          <TouchableOpacity 
+            style={styles.actionGridItem}
+            onPress={() => router.push(`/(athlete)/nutrition?athleteId=${id}&readonly=true`)}
+          >
+            <View style={[styles.actionIconBg, { backgroundColor: theme.colors.warning + '20' }]}>
+              <Feather name="pie-chart" size={24} color={theme.colors.warning} />
+            </View>
+            <Text style={styles.actionGridText}>Nutrition</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.actionGridItem}
+            onPress={() => router.push(`/(athlete)/calendar?athleteId=${id}&readonly=true`)}
+          >
+            <View style={[styles.actionIconBg, { backgroundColor: theme.colors.success + '20' }]}>
+              <Feather name="calendar" size={24} color={theme.colors.success} />
+            </View>
+            <Text style={styles.actionGridText}>Séances</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.actionGridItem}
+            onPress={() => router.push(`/chat/sprinty?athleteId=${id}`)}
+          >
+            <View style={[styles.actionIconBg, { backgroundColor: theme.colors.accent + '20' }]}>
+              <Text style={{ fontSize: 22 }}>⚡</Text>
+            </View>
+            <Text style={styles.actionGridText}>Sprinty IA</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* CHECK-IN SECTION */}
         <Text style={styles.sectionTitle}>CHECK-IN DU JOUR</Text>
         
@@ -129,20 +175,13 @@ export default function AthleteDetailScreen() {
         )}
 
         {/* ACTIONS */}
-        <Text style={styles.sectionTitle}>ACTIONS</Text>
+        <Text style={styles.sectionTitle}>MESSAGERIE</Text>
         <TouchableOpacity 
           style={styles.actionBtn}
           onPress={() => router.push(`/chat/direct/${id}`)}
         >
           <Feather name="message-circle" size={20} color={theme.colors.accent} />
           <Text style={styles.actionBtnText}>Envoyer un message</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.actionBtn}
-          onPress={() => router.push(`/(coach)/assign/${id}`)}
-        >
-          <Feather name="calendar" size={20} color={theme.colors.accent} />
-          <Text style={styles.actionBtnText}>Assigner une séance</Text>
         </TouchableOpacity>
 
       </ScrollView>
@@ -176,6 +215,18 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted, fontSize: 12, fontWeight: 'bold',
     letterSpacing: 1.5, marginBottom: 16, marginTop: 8
   },
+
+  profileSection: { alignItems: 'center', marginBottom: 24 },
+  avatarPlaceholder: { width: 80, height: 80, borderRadius: 40, backgroundColor: theme.colors.surfaceLight, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  avatarImage: { width: 80, height: 80, borderRadius: 40, backgroundColor: theme.colors.surfaceLight, marginBottom: 12 },
+  avatarLetter: { fontSize: 32, fontWeight: 'bold', color: theme.colors.textSecondary },
+  profileName: { fontSize: 24, fontWeight: 'bold', color: theme.colors.text },
+  profileGroup: { fontSize: 14, color: theme.colors.textSecondary, marginTop: 4 },
+
+  actionGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 32, gap: 12 },
+  actionGridItem: { flex: 1, backgroundColor: theme.colors.surface, borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: theme.colors.border },
+  actionIconBg: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  actionGridText: { fontSize: 13, fontWeight: '600', color: theme.colors.text, textAlign: 'center' },
 
   emptyCard: {
     backgroundColor: theme.colors.surface, padding: 30, borderRadius: 16,

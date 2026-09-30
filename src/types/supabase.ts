@@ -572,6 +572,7 @@ export type Database = {
         Row: {
           activity_level: string | null
           created_at: string | null
+          coach_philosophy: string | null
           current_flow_streak: number | null
           disciplines: string[] | null
           first_name: string | null

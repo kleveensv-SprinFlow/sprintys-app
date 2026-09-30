@@ -21,7 +21,7 @@ interface NutritionState {
 
   // Actions
   setCurrentDate: (date: string) => void;
-  fetchMealLogs: (date: string) => Promise<void>;
+  fetchMealLogs: (date: string, athleteId?: string) => Promise<void>;
   fetchHistory: () => Promise<void>;
   addMealLog: (log: Omit<MealLog, 'id' | 'created_at' | 'user_id'>) => Promise<void>;
   updateNutritionProfile: (data: Partial<{
@@ -60,7 +60,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
     get().fetchMealLogs(date);
   },
 
-  fetchMealLogs: async (date: string) => {
+  fetchMealLogs: async (date: string, athleteId?: string) => {
     set({ isLoading: true, error: null });
     const user = useAuthStore.getState().user;
     if (!user) {
@@ -72,7 +72,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
       const { data, error } = await supabase
         .from('meal_logs')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', athleteId || user.id)
         .eq('consumed_at', date);
 
       if (error) throw error;
@@ -92,7 +92,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
       const { data: recentData } = await supabase
         .from('meal_logs')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', athleteId || user.id)
         .order('created_at', { ascending: false })
         .limit(50);
 
@@ -105,7 +105,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
             food_id, custom_food_name, quantity_g, calories, proteines, glucides, lipides
           )
         `)
-        .eq('user_id', user.id)
+        .eq('user_id', athleteId || user.id)
         .order('created_at', { ascending: false });
 
       if (recentData) {

@@ -64,6 +64,7 @@ interface AuthState {
   clearError: () => void;
   setPendingEmail: (email: string | null) => void;
   updateSleepGoal: (goal: number) => Promise<void>;
+  updateCoachPhilosophy: (philosophy: string) => Promise<boolean>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<boolean>;
   reloadProfile: () => Promise<void>;
 }

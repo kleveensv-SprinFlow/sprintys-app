@@ -11,8 +11,13 @@ import { NutritionSettingsModal } from '../../src/features/nutrition/components/
 import { StreakCelebrationModal } from '../../src/features/nutrition/components/StreakCelebrationModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../src/store/authStore';
+import { useLocalSearchParams } from 'expo-router';
 
 export default function NutritionScreen() {
+  const params = useLocalSearchParams();
+  const athleteId = params.athleteId as string;
+  const readonly = params.readonly === 'true';
+
   const theme = useTheme();
   const [settingsVisible, setSettingsVisible] = useState(false);
   const { currentDate, fetchMealLogs } = useNutritionStore();
@@ -20,18 +25,18 @@ export default function NutritionScreen() {
 
   useEffect(() => {
     if (user) {
-      fetchMealLogs(currentDate);
+      fetchMealLogs(currentDate, athleteId);
     }
-  }, [currentDate, user]);
+  }, [currentDate, user, athleteId]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <NutritionHeader onSettingsPress={() => setSettingsVisible(true)} />
+      <NutritionHeader onSettingsPress={readonly ? undefined : () => setSettingsVisible(true)} />
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <DateSelector />
-        <NutritionSummary />
-        <MealSection />
+        <NutritionSummary readonly={readonly} />
+        <MealSection readonly={readonly} />
       </ScrollView>
 
       <FoodSearchModal />

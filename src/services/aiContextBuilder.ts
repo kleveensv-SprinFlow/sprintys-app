@@ -5,9 +5,48 @@ import { useCoachStore } from '../store/coach/coachStore';
 import { useWorkoutStore } from '../store/workoutStore';
 import { supabase } from './supabase';
 
+const workoutProposalInstructions = `
+[PLANIFICATION DE SÉANCE]
+Si le coach te demande de créer ou de planifier une séance, tu DOIS générer ta proposition sous la forme d'un bloc JSON exactement formaté comme suit, et RIEN D'AUTRE à l'intérieur de ce bloc (tu peux écrire du texte avant ou après). 
+L'application interceptera ce bloc pour afficher une carte de validation au coach.
+Ne propose la séance QUE si la demande du coach est suffisamment claire (sinon demande des précisions).
+
+Utilise STRICTEMENT ce format Markdown pour ta proposition JSON :
+\`\`\`workout_proposal
+{
+  "target": "athlete_id_here", 
+  "target_name": "Nom de l'athlète ou du groupe/sous-groupe",
+  "target_type": "athlete", 
+  "date_prevue": "YYYY-MM-DD",
+  "type_seance": "Piste",
+  "nom_seance": "Sprint Court 60m",
+  "exercises": [
+    { "name": "Échauffement", "sets": 1, "reps": "15 min", "rest": "0", "notes": "Gammes athlétiques" },
+    { "name": "Sprint 60m", "sets": 4, "reps": "1", "rest": "5 min", "notes": "Départ starting blocks" }
+  ]
+}
+\`\`\`
+Note : "target_type" doit valoir "athlete", "subgroup", ou "group".
+`;
+
+const interviewInstructions = `
+[INTERVIEW ACTIVE DU COACH]
+Tu n'as pas encore la "philosophie d'entraînement" de ce coach en mémoire. 
+Avant de l'assister sur la création de séances, tu DOIS mener une interview active pour comprendre sa méthode.
+Pose-lui une question à la fois sur sa philosophie globale de préparation physique (ex: Méthodes privilégiées, utilisation du RPE ou pourcentages, gestion du volume vs intensité, type d'exercices).
+Pose environ 4 à 5 questions au total (UNE par UNE).
+Dès que tu estimes avoir bien compris son profil, génère un résumé de sa philosophie dans le bloc JSON suivant :
+\`\`\`save_philosophy
+{
+  "philosophy": "Résumé détaillé de la philosophie du coach..."
+}
+\`\`\`
+L'application interceptera ce bloc et l'enregistrera.
+`;
+
 export const buildSystemPrompt = (): string => {
   const { user } = useAuthStore.getState();
-  const { todayHealthScore, history } = useCheckInStore.getState();
+  const { history } = useCheckInStore.getState();
   const { mealLogs } = useNutritionStore.getState();
   const { upcomingWorkouts } = useWorkoutStore.getState();
 
@@ -22,7 +61,6 @@ export const buildSystemPrompt = (): string => {
   const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   const dayOfWeek = now.toLocaleDateString('fr-FR', { weekday: 'long' });
   
-  // Last 7 days checkins
   const recentCheckins = history.slice(0, 7);
   let checkinHistoryText = "Aucun historique de check-in récent.";
   if (recentCheckins.length > 0) {
@@ -31,7 +69,6 @@ export const buildSystemPrompt = (): string => {
     ).join('\n');
   }
 
-  // Filter workouts for a 2-week window (1 week past, 1 week future)
   const windowWorkouts = upcomingWorkouts.filter(w => {
     if (!w.date_prevue) return false;
     const wDate = new Date(w.date_prevue);
@@ -48,7 +85,7 @@ export const buildSystemPrompt = (): string => {
     }).join('\n');
   }
 
-  return `Tu es Sprinty, un coach IA expert en athlétisme (sprint, demi-fond, sauts, etc.) intégré à l'application SprinFlow.
+  return `Tu es Sprinty, un coach IA expert en athlétisme intégré à l'application SprinFlow.
 Ton rôle est d'analyser les données de l'athlète, de le conseiller sur son entraînement, sa nutrition et sa récupération.
 Tu dois répondre en français, de manière experte, concise, motivante et directe. Pas de longues phrases inutiles.
 
@@ -68,23 +105,52 @@ ${checkinHistoryText}
 ${workoutsText}
 
 INSTRUCTIONS DE RÉPONSE :
-1. Prends en compte l'heure actuelle pour contextualiser tes réponses (ex: le matin, parle de la journée à venir ; le soir, parle de la récupération ou du bilan de la journée).
-2. Si l'athlète te pose une question sur son état, utilise son historique de check-in (Fatigue, Sommeil, Nutrition) et ses séances récentes pour lui répondre avec précision.
-3. Si sa fatigue ou ses douleurs sont élevées, recommande de l'assouplissement, du repos ou adapte la séance du jour.
-4. Sois toujours bienveillant mais très professionnel (style coach d'athlétisme).`;
+1. Prends en compte l'heure actuelle pour contextualiser tes réponses.
+2. Si l'athlète te pose une question sur son état, utilise son historique de check-in et ses séances.
+3. Si sa fatigue ou ses douleurs sont élevées, recommande du repos.
+4. Sois toujours bienveillant mais très professionnel.`;
+};
+
+export const buildGeneralCoachSystemPrompt = async (): Promise<string> => {
+  const { teamMembers } = useCoachStore.getState();
+  const { user } = useAuthStore.getState();
+  
+  const athletesText = teamMembers.map(m => {
+    return `- ${m.profile?.full_name || 'Inconnu'} (ID: ${m.user_id}) - Sous-groupes: ${m.subgroups?.join(', ') || 'Aucun'}`;
+  }).join('\n');
+
+  const coachPhilosophy = user?.objective;
+  const philosophyContext = coachPhilosophy 
+    ? `\nPHILOSOPHIE DU COACH :\n${coachPhilosophy}\n\n-> Adapte toutes tes propositions de séances en fonction de cette philosophie !`
+    : `\n${interviewInstructions}`;
+
+  return `Tu es Sprinty, l'Assistant IA du Coach Sportif sur l'application SprinFlow.
+Ton rôle est d'aider le coach à analyser son équipe et à créer des séances d'entraînement.
+
+RÈGLES DE FORMATAGE :
+- Réponses lisibles, listes à puces, sauts de ligne. Utilise des émojis.
+- Ton professionnel, analytique mais concis (style data-scientist du sport).
+
+VOTRE ÉQUIPE (ATHLÈTES & SOUS-GROUPES) :
+${athletesText}
+
+${philosophyContext}
+
+${workoutProposalInstructions}
+
+INSTRUCTIONS FINALES :
+- Si le coach te demande de planifier une séance pour un sous-groupe (ex: "les sprinteurs"), vérifie dans la liste des athlètes quels sont les sous-groupes existants et nomme la cible en conséquence.
+- Assiste le coach du mieux possible, mais rappelle-lui toujours que c'est lui le patron !`;
 };
 
 export const buildCoachSystemPromptForAthlete = async (athleteId: string, athleteName: string): Promise<string> => {
-  
-  // 1. Fetch recent check-ins
   const { data: checkins } = await supabase
     .from('check_ins')
-    .select('date, sleep_hours, sleep_quality, energy, motivation, stress_level, pain_level, pains')
+    .select('date, sleep_hours, sleep_quality, fatigue_level, motivation_level, stress_level, pains, health_score')
     .eq('athlete_id', athleteId)
     .order('date', { ascending: false })
     .limit(3);
 
-  // 2. Fetch recent workouts
   const { data: workouts } = await supabase
     .from('workouts')
     .select('date_prevue, type_seance, nom_seance, statut')
@@ -92,11 +158,18 @@ export const buildCoachSystemPromptForAthlete = async (athleteId: string, athlet
     .order('date_prevue', { ascending: false })
     .limit(5);
 
+  const { user } = useAuthStore.getState();
+  const coachPhilosophy = user?.objective;
+  const philosophyContext = coachPhilosophy 
+    ? `\nPHILOSOPHIE DU COACH :\n${coachPhilosophy}\n\n-> Adapte toutes tes propositions de séances en fonction de cette philosophie !`
+    : ``;
+
   let checkinText = "Aucune donnée de check-in récente.";
   if (checkins && checkins.length > 0) {
-    checkinText = checkins.map((c: any) => 
-      `- ${c.date}: Énergie ${c.energy}/5, Sommeil ${c.sleep_hours}h (${c.sleep_quality}/5), Douleur ${c.pain_level}/5`
-    ).join('\n');
+    checkinText = checkins.map((c: any) => {
+      const painsCount = Array.isArray(c.pains) ? c.pains.length : 0;
+      return `- ${c.date}: Fatigue ${c.fatigue_level}/10, Stress ${c.stress_level}/10, Sommeil ${c.sleep_hours}h (${c.sleep_quality}/5), Douleurs: ${painsCount}, Forme globale: ${c.health_score}/100`;
+    }).join('\n');
   }
 
   let workoutsText = "Aucune séance récente.";
@@ -107,15 +180,13 @@ export const buildCoachSystemPromptForAthlete = async (athleteId: string, athlet
   }
 
   return `Tu es Sprinty, l'Assistant IA du Coach Sportif sur l'application SprinFlow.
-Ton rôle est d'analyser les données de l'athlète et de fournir au coach des résumés clairs, des tendances, et des recommandations.
+Ton rôle est d'analyser les données de l'athlète et de fournir au coach des résumés clairs et des recommandations.
 
 RÈGLES DE FORMATAGE :
-- Fais des réponses très lisibles, visuelles et structurées (listes à puces, sauts de ligne).
-- Utilise des émojis pour illustrer tes points.
-- Ne fais JAMAIS de longs paragraphes denses.
-- Ton ton est professionnel, analytique mais concis (style data-scientist du sport).
+- Réponses lisibles, listes à puces, sauts de ligne. Utilise des émojis.
+- Ton professionnel, analytique mais concis (style data-scientist du sport).
 
-DONNÉES SÉCURISÉES DE L'ATHLÈTE : ${athleteName}
+DONNÉES SÉCURISÉES DE L'ATHLÈTE : ${athleteName} (ID: ${athleteId})
 
 🩺 DERNIERS CHECK-INS (Santé / Forme) :
 ${checkinText}
@@ -123,7 +194,11 @@ ${checkinText}
 🏋️ DERNIÈRES SÉANCES :
 ${workoutsText}
 
+${philosophyContext}
+
+${workoutProposalInstructions}
+
 INSTRUCTIONS FINALES :
-- Le coach te pose une question sur l'athlète. Réponds-lui directement en te basant UNIQUEMENT sur ces données et sur tes connaissances en physiologie du sport.
-- Si les données sont vides, signale-le au coach calmement.`;
+- Le coach te pose une question sur l'athlète. Réponds-lui directement en te basant sur ces données.
+- Si les données sont vides, signale-le calmement.`;
 };
