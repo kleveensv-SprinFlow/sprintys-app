@@ -391,7 +391,7 @@ export const useCoachStore = create<CoachState>((set, get) => ({
             team_id: item.team_id,
             subgroup_id: item.subgroup_id,
             status: 'pending' as const,
-            profile: item.profiles
+            profile: Array.isArray(item.profiles) ? item.profiles[0] : item.profiles
           }));
         set({ pendingMembers: pending });
       }
