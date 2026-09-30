@@ -77,3 +77,12 @@ jobs:
           name: sprintflow-playstore-bundle
           path: android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 30
+
+      - name: Upload to Google Play Console (Internal Testing)
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_CONFIG_JSON }}
+          packageName: com.sprintflow.inc
+          releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed
