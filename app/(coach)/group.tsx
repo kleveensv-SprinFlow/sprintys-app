@@ -280,10 +280,14 @@ export default function CoachGroupsScreen() {
                 pendingMembers.map(member => (
                   <View key={member.user_id} style={styles.rowCard}>
                     <View style={styles.avatar}>
-                      <Text style={styles.avatarText}>{member.profile?.first_name?.charAt(0) || ''}</Text>
+                      <Text style={styles.avatarText}>
+                        {(member.profile?.first_name?.charAt(0) || member.profile?.full_name?.charAt(0) || 'A').toUpperCase()}
+                      </Text>
                     </View>
                     <View style={styles.rowInfo}>
-                      <Text style={styles.rowTitle}>{member.profile?.full_name}</Text>
+                      <Text style={styles.rowTitle}>
+                        {member.profile?.full_name || `${member.profile?.first_name || ''} ${member.profile?.last_name || ''}`.trim() || 'Athlète'}
+                      </Text>
                       <Text style={styles.rowSubtitle}>Demande d'accès</Text>
                     </View>
                     <TouchableOpacity onPress={() => approveAthlete(member.user_id, activeTeam.id)} style={[styles.actionBtnIcon, { backgroundColor: theme.colors.success + '20' }]}>
