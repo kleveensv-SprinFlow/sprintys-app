@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, Animated, Image } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useTheme, theme } from '../../src/core/theme';
@@ -199,11 +199,15 @@ export default function CoachGroupsScreen() {
                       }}
                       activeOpacity={0.7}
                     >
-                      <View style={styles.avatar}>
-                        <Text style={styles.avatarText}>
-                          {(member.profile?.first_name?.charAt(0) || member.profile?.full_name?.charAt(0) || 'A').toUpperCase()}
-                        </Text>
-                      </View>
+                      {member.profile?.avatar_url ? (
+                        <Image source={{ uri: member.profile.avatar_url }} style={styles.avatar} />
+                      ) : (
+                        <View style={styles.avatar}>
+                          <Text style={styles.avatarText}>
+                            {(member.profile?.first_name?.charAt(0) || member.profile?.full_name?.charAt(0) || 'A').toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
                       <View style={styles.rowInfo}>
                         <Text style={styles.rowTitle}>
                           {member.profile?.full_name || `${member.profile?.first_name || ''} ${member.profile?.last_name || ''}`.trim() || 'Athlète'}
@@ -279,11 +283,15 @@ export default function CoachGroupsScreen() {
               ) : (
                 pendingMembers.map(member => (
                   <View key={member.user_id} style={styles.rowCard}>
-                    <View style={styles.avatar}>
-                      <Text style={styles.avatarText}>
-                        {(member.profile?.first_name?.charAt(0) || member.profile?.full_name?.charAt(0) || 'A').toUpperCase()}
-                      </Text>
-                    </View>
+                      {member.profile?.avatar_url ? (
+                        <Image source={{ uri: member.profile.avatar_url }} style={styles.avatar} />
+                      ) : (
+                        <View style={styles.avatar}>
+                          <Text style={styles.avatarText}>
+                            {(member.profile?.first_name?.charAt(0) || member.profile?.full_name?.charAt(0) || 'A').toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
                     <View style={styles.rowInfo}>
                       <Text style={styles.rowTitle}>
                         {member.profile?.full_name || `${member.profile?.first_name || ''} ${member.profile?.last_name || ''}`.trim() || 'Athlète'}
@@ -382,12 +390,18 @@ export default function CoachGroupsScreen() {
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
             
             <View style={{ alignItems: 'center', marginBottom: 24 }}>
-              <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: theme.colors.surfaceLight, justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
-                <Text style={{ fontSize: 32, fontWeight: 'bold', color: theme.colors.textSecondary }}>
-                  {selectedAthlete?.profile?.first_name?.charAt(0) || ''}
-                </Text>
-              </View>
-              <Text style={{ fontSize: 24, fontWeight: 'bold', color: theme.colors.text }}>{selectedAthlete?.profile?.full_name}</Text>
+              {selectedAthlete?.profile?.avatar_url ? (
+                <Image source={{ uri: selectedAthlete.profile.avatar_url }} style={{ width: 80, height: 80, borderRadius: 40, marginBottom: 12, borderWidth: 2, borderColor: theme.colors.accent }} />
+              ) : (
+                <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: theme.colors.surfaceLight, justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
+                  <Text style={{ fontSize: 32, fontWeight: 'bold', color: theme.colors.textSecondary }}>
+                    {(selectedAthlete?.profile?.first_name?.charAt(0) || selectedAthlete?.profile?.full_name?.charAt(0) || 'A').toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              <Text style={{ fontSize: 24, fontWeight: 'bold', color: theme.colors.text }}>
+                {selectedAthlete?.profile?.full_name || `${selectedAthlete?.profile?.first_name || ''} ${selectedAthlete?.profile?.last_name || ''}`.trim() || 'Athlète'}
+              </Text>
               <Text style={{ fontSize: 14, color: theme.colors.textMuted, marginTop: 4 }}>Athlète de l'équipe</Text>
             </View>
 

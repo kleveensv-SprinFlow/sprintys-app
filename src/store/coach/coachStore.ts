@@ -210,7 +210,7 @@ export const useCoachStore = create<CoachState>((set, get) => ({
           team_id,
           subgroup_id,
           status,
-          profiles:user_id (id, full_name, first_name, last_name)
+          profiles:user_id (id, full_name, first_name, last_name, avatar_url)
         `)
         .eq('team_id', teamId);
 
@@ -380,7 +380,7 @@ export const useCoachStore = create<CoachState>((set, get) => ({
           team_id,
           subgroup_id,
           status,
-          profiles:user_id (id, full_name, first_name, last_name)
+          profiles:user_id (id, full_name, first_name, last_name, avatar_url)
         `)
         .in('team_id', teamIds)
         .eq('status', 'pending');
