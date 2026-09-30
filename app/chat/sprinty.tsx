@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Keyboard, Animated } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { theme } from '../../src/core/theme';
 import { buildSystemPrompt, buildCoachSystemPromptForAthlete } from '../../src/services/aiContextBuilder';
@@ -33,7 +33,7 @@ export default function MessageScreen() {
   const { messages, setMessages } = useSprintyChatStore();
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const insets = useSafeAreaInsets();
   const { updateCoachPhilosophy } = useAuthStore();
 
   const renderMessageContent = (msg: { role: string; content: string }) => {
@@ -169,7 +169,7 @@ export default function MessageScreen() {
 
       <KeyboardAvoidingView 
         style={styles.keyboardAvoid} 
-        behavior="padding"
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <ScrollView 
@@ -205,7 +205,7 @@ export default function MessageScreen() {
           )}
         </ScrollView>
 
-        <View style={[styles.inputContainer, { paddingBottom: Math.max(16, keyboardHeight ? 16 : 30) }]}>
+        <View style={[styles.inputContainer, { paddingBottom: Platform.OS === 'ios' ? Math.max(16, insets.bottom) : 16 }]}>
           <View style={styles.inputWrapper}>
             <TextInput
               style={styles.input}
@@ -214,7 +214,7 @@ export default function MessageScreen() {
               multiline
               value={inputText}
               onChangeText={setInputText}
-              editable={!isTyping}
+              
             />
             <TouchableOpacity 
               style={[styles.sendBtn, (!inputText.trim()) && { opacity: 0.5, backgroundColor: theme.colors.surface }]} 
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
     paddingTop: 12, 
     paddingBottom: 12,
     paddingHorizontal: 8,
-    maxHeight: 120, 
+    maxHeight: 200, 
     minHeight: 40,
   },
   sendBtn: {
