@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity, ScrollView, Modal, Alert } from 'react-native';
+import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../../../src/core/theme';
 import { Header } from '../../../src/shared/components/Header';
@@ -54,7 +54,6 @@ export default function CoachDayScreen() {
 
   const dateString = date as string;
 
-  // Safe date parsing to prevent NaN
   let parsedDate = new Date();
   let formattedTitle = 'Chargement...';
 
@@ -79,12 +78,22 @@ export default function CoachDayScreen() {
     formattedTitle = 'Date invalide';
   }
 
+  const navigateDay = useCallback((direction: number) => {
+    if (isNaN(parsedDate.getTime())) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const newDate = new Date(parsedDate);
+    newDate.setDate(newDate.getDate() + direction);
+    const yyyy = newDate.getFullYear();
+    const mm = String(newDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(newDate.getDate()).padStart(2, '0');
+    router.replace(`/(coach)/day/${yyyy}-${mm}-${dd}`);
+  }, [parsedDate, router]);
+
   const fetchDayWorkouts = useCallback(async () => {
     if (!user?.id) return;
     setIsLoading(true);
     try {
       const data = await workoutService.fetchWorkoutsForDate(user.id, parsedDate, 'coach');
-      // Deduplicate workouts with same group_assignment_id
       const seen = new Set<string>();
       const dedupedWorkouts: any[] = [];
       for (const w of (data || [])) {
@@ -100,7 +109,7 @@ export default function CoachDayScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, date]);
+  }, [user?.id, dateString]);
 
   useEffect(() => {
     fetchDayWorkouts();
@@ -165,17 +174,40 @@ export default function CoachDayScreen() {
     { id: 'repos', title: 'Jour de repos', icon: 'cafe-outline' as any, color: '#6B7280', type: 'repos' as const },
   ];
 
+  const getSummaryText = () => {
+    if (workouts.length === 0) return 'Aucune séance';
+    const countText = `${workouts.length} Séance${workouts.length > 1 ? 's' : ''}`;
+    const types = workouts.map(w => w.type_seance).filter(Boolean);
+    const uniqueTypes = Array.from(new Set(types));
+    if (uniqueTypes.length > 0) {
+      return `${countText} • ${uniqueTypes.join(' + ')}`;
+    }
+    return countText;
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Header with guaranteed return to the calendar page */}
       <Header
-        title={formattedTitle}
+        title="Planning"
         showBackButton
         onBackPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           router.back();
         }}
       />
+
+      {/* Date Navigator */}
+      <View style={[styles.navigatorContainer, { borderBottomColor: theme.colors.border }]}>
+        <TouchableOpacity onPress={() => navigateDay(-1)} style={styles.navButton}>
+          <Feather name="chevron-left" size={24} color={theme.colors.text} />
+        </TouchableOpacity>
+        <Text style={[styles.navigatorDate, { color: theme.colors.text }]}>
+          {formattedTitle}
+        </Text>
+        <TouchableOpacity onPress={() => navigateDay(1)} style={styles.navButton}>
+          <Feather name="chevron-right" size={24} color={theme.colors.text} />
+        </TouchableOpacity>
+      </View>
 
       <ScrollView
         style={styles.scroll}
@@ -219,47 +251,55 @@ export default function CoachDayScreen() {
           </View>
         ) : (
           <View style={styles.workoutsContainer}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-                {workouts.length} séance{workouts.length > 1 ? 's' : ''} programmée{workouts.length > 1 ? 's' : ''}
-              </Text>
+            {/* Summary Header */}
+            <View style={[styles.summaryBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+              <Feather name="activity" size={20} color={theme.colors.accent} style={{ marginRight: 10 }} />
+              <Text style={[styles.summaryText, { color: theme.colors.text }]}>{getSummaryText()}</Text>
             </View>
 
-            {workouts.map((w, i) => {
-              const dateObj = new Date(w.date_prevue);
-              const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-              const typeColor = getWorkoutColor(w.type_seance);
-
-              let summary = w.description ? (w.description.substring(0, 60) + (w.description.length > 60 ? '...' : '')) : '';
-              if (w.exercises && Array.isArray(w.exercises) && w.exercises.length > 0) {
-                summary = `${w.exercises.length} exercice${w.exercises.length > 1 ? 's' : ''}`;
-              } else if (w.type_seance?.toLowerCase().includes('technique')) {
-                if (w.measures?.technical_notes && Array.isArray(w.measures.technical_notes) && w.measures.technical_notes.length > 0) {
-                  const count = w.measures.technical_notes.length;
-                  const targets = Array.from(new Set(w.measures.technical_notes.map((n: any) => n.targetName))).filter(Boolean).join(', ');
-                  summary = `${count} consigne${count > 1 ? 's' : ''}${targets ? ` (${targets})` : ''}`;
-                } else {
-                  summary = 'Consignes techniques';
+            {/* Timeline View */}
+            <View style={styles.timelineWrapper}>
+              {workouts.length > 1 && (
+                <View style={[styles.absoluteTimelineLine, { backgroundColor: theme.colors.border }]} />
+              )}
+              {workouts.map((w, i) => {
+                const typeColor = getWorkoutColor(w.type_seance);
+                let summary = w.description ? (w.description.substring(0, 60) + (w.description.length > 60 ? '...' : '')) : '';
+                if (w.exercises && Array.isArray(w.exercises) && w.exercises.length > 0) {
+                  summary = `${w.exercises.length} exercice${w.exercises.length > 1 ? 's' : ''}`;
+                } else if (w.type_seance?.toLowerCase().includes('technique')) {
+                  if (w.measures?.technical_notes && Array.isArray(w.measures.technical_notes) && w.measures.technical_notes.length > 0) {
+                    const count = w.measures.technical_notes.length;
+                    const targets = Array.from(new Set(w.measures.technical_notes.map((n: any) => n.targetName))).filter(Boolean).join(', ');
+                    summary = `${count} consigne${count > 1 ? 's' : ''}${targets ? ` (${targets})` : ''}`;
+                  } else {
+                    summary = 'Consignes techniques';
+                  }
                 }
-              }
 
-              return (
-                <View key={w.id || i} style={{ flex: 1 }}>
-                  <WorkoutCard
-                    title={w.type_seance}
-                    status={w.status}
-                    summary={summary}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setSelectedWorkout(w);
-                      setIsDetailModalVisible(true);
-                    }}
-                  />
-                </View>
-              );
-            })}
+                return (
+                  <View key={w.id || i} style={styles.timelineRow}>
+                    <View style={styles.timelineDotContainer}>
+                      <View style={[styles.timelineDot, { backgroundColor: typeColor, borderColor: theme.colors.background }]} />
+                    </View>
+                    <View style={styles.timelineContent}>
+                      <WorkoutCard
+                        title={w.type_seance}
+                        status={w.status}
+                        summary={summary}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          setSelectedWorkout(w);
+                          setIsDetailModalVisible(true);
+                        }}
+                      />
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
 
-            {/* Apple-style floating add button OR options list */}
+            {/* Floating add button OR options list */}
             {!showAddOptions ? (
               <TouchableOpacity
                 style={[styles.appleAddBtn, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
@@ -326,7 +366,6 @@ export default function CoachDayScreen() {
         }}
         onSave={handleSaveWorkout}
       />
-
       <StrengthWorkoutBuilder
         visible={builderType === 'strength'}
         date={parsedDate}
@@ -337,7 +376,6 @@ export default function CoachDayScreen() {
         }}
         onSave={handleSaveWorkout}
       />
-
       <StairsWorkoutBuilder
         visible={builderType === 'escalier'}
         date={parsedDate}
@@ -348,7 +386,6 @@ export default function CoachDayScreen() {
         }}
         onSave={handleSaveWorkout}
       />
-
       <RestDayBuilder
         visible={builderType === 'repos'}
         date={parsedDate}
@@ -359,7 +396,6 @@ export default function CoachDayScreen() {
         }}
         onSave={handleSaveWorkout}
       />
-
       <TechnicalWorkoutBuilder
         visible={builderType === 'technique'}
         date={parsedDate}
@@ -389,6 +425,21 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  navigatorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  navButton: {
+    padding: 8,
+  },
+  navigatorDate: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
   scroll: {
     flex: 1,
   },
@@ -414,6 +465,55 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 4,
     fontWeight: '500',
+  },
+
+  // Summary
+  summaryBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  summaryText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+
+  // Timeline
+  timelineWrapper: {
+    position: 'relative',
+    marginBottom: 8,
+  },
+  absoluteTimelineLine: {
+    position: 'absolute',
+    left: 11,
+    top: 24,
+    bottom: 24,
+    width: 2,
+    borderRadius: 1,
+  },
+  timelineRow: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  timelineDotContainer: {
+    width: 24,
+    alignItems: 'center',
+    paddingTop: 45, // roughly center of standard WorkoutCard
+  },
+  timelineDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 3,
+    zIndex: 2,
+  },
+  timelineContent: {
+    flex: 1,
+    paddingLeft: 12,
   },
 
   // Empty State - Apple Grouped List
@@ -453,18 +553,7 @@ const styles = StyleSheet.create({
 
   // Workouts List
   workoutsContainer: {
-    gap: 14,
-  },
-  workoutRow: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-  },
-  colorBar: {
-    width: 4,
-    borderRadius: 2,
-    marginRight: 0,
-    marginTop: 8,
-    marginBottom: 8,
+    gap: 0,
   },
 
   // Apple Add Button
@@ -475,7 +564,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 18,
     borderWidth: 1,
-    marginTop: 10,
+    marginTop: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.02,

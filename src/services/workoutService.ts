@@ -402,5 +402,135 @@ export const workoutService = {
 
   fetchUpcomingCompetitionsContext: async (athleteId: string, days: number = 7) => {
     return "Aucune compétition prévue dans les 7 prochains jours.";
-  }
+  },
+
+  /**
+   * Duplicate a workout to a specific target date.
+   * Creates independent copies (not linked to original).
+   * If the workout has a group_assignment_id, all athlete copies are duplicated too.
+   */
+  duplicateWorkout: async (workout: any, targetDate: Date): Promise<void> => {
+    // Build the target date ISO string preserving the time
+    const originalDate = new Date(workout.date_prevue);
+    const target = new Date(targetDate);
+    target.setHours(originalDate.getHours(), originalDate.getMinutes(), originalDate.getSeconds());
+
+    if (workout.group_assignment_id) {
+      // Fetch all workouts belonging to this group assignment
+      const allGroupWorkouts = await workoutService.fetchWorkoutsByGroupAssignment(workout.group_assignment_id);
+      
+      // Generate a new group_assignment_id for the copies
+      const newGroupId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      const copies = allGroupWorkouts.map((w: any) => {
+        const { id, created_at, updated_at, athlete_efforts, ...rest } = w;
+        return {
+          ...rest,
+          date_prevue: target.toISOString(),
+          status: 'pending',
+          group_assignment_id: newGroupId,
+        };
+      });
+
+      if (copies.length > 0) {
+        const { error } = await supabase.from('workouts').insert(copies);
+        if (error) throw error;
+      }
+    } else {
+      // Single workout copy
+      const { id, created_at, updated_at, athlete_efforts, ...rest } = workout;
+      const copy = {
+        ...rest,
+        date_prevue: target.toISOString(),
+        status: 'pending',
+        group_assignment_id: null,
+      };
+
+      const { error } = await supabase.from('workouts').insert([copy]);
+      if (error) throw error;
+    }
+  },
+
+  /**
+   * Repeat a workout across multiple weeks on specific days of the week.
+   * Creates independent copies starting from the week AFTER the workout's current date.
+   * @param workout - The workout to repeat
+   * @param daysOfWeek - Array of day indices (0=Sunday, 1=Monday, ..., 6=Saturday)
+   * @param numberOfWeeks - Number of weeks to repeat over
+   * @returns Number of copies created
+   */
+  repeatWorkout: async (workout: any, daysOfWeek: number[], numberOfWeeks: number): Promise<number> => {
+    const workoutDate = new Date(workout.date_prevue);
+    const dates: Date[] = [];
+
+    // Calculate all target dates
+    for (let week = 1; week <= numberOfWeeks; week++) {
+      for (const dayOfWeek of daysOfWeek) {
+        // Start from the Monday of the workout's week, then add weeks
+        const baseDate = new Date(workoutDate);
+        // Move to the start of the current week (Monday)
+        const currentDay = baseDate.getDay();
+        const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay;
+        baseDate.setDate(baseDate.getDate() + mondayOffset);
+        // Add the target week offset
+        baseDate.setDate(baseDate.getDate() + (week * 7));
+        // Move to the target day of week
+        const targetDayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Convert to Monday-based
+        baseDate.setDate(baseDate.getDate() + targetDayOffset);
+        // Preserve original time
+        baseDate.setHours(workoutDate.getHours(), workoutDate.getMinutes(), workoutDate.getSeconds());
+        
+        dates.push(new Date(baseDate));
+      }
+    }
+
+    if (dates.length === 0) return 0;
+
+    if (workout.group_assignment_id) {
+      // Group workout: duplicate all athletes for each date
+      const allGroupWorkouts = await workoutService.fetchWorkoutsByGroupAssignment(workout.group_assignment_id);
+      
+      const allCopies: any[] = [];
+      for (const targetDate of dates) {
+        const newGroupId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        for (const w of allGroupWorkouts) {
+          const { id, created_at, updated_at, athlete_efforts, ...rest } = w;
+          allCopies.push({
+            ...rest,
+            date_prevue: targetDate.toISOString(),
+            status: 'pending',
+            group_assignment_id: newGroupId,
+          });
+        }
+      }
+
+      // Insert in batches of 50 to avoid hitting limits
+      for (let i = 0; i < allCopies.length; i += 50) {
+        const batch = allCopies.slice(i, i + 50);
+        const { error } = await supabase.from('workouts').insert(batch);
+        if (error) throw error;
+      }
+
+      return dates.length;
+    } else {
+      // Single workout: one copy per date
+      const copies = dates.map(targetDate => {
+        const { id, created_at, updated_at, athlete_efforts, ...rest } = workout;
+        return {
+          ...rest,
+          date_prevue: targetDate.toISOString(),
+          status: 'pending',
+          group_assignment_id: null,
+        };
+      });
+
+      for (let i = 0; i < copies.length; i += 50) {
+        const batch = copies.slice(i, i + 50);
+        const { error } = await supabase.from('workouts').insert(batch);
+        if (error) throw error;
+      }
+
+      return dates.length;
+    }
+  },
 };

@@ -9,6 +9,8 @@ import { useAuthStore } from '../../../store/authStore';
 import { workoutService } from '../../../services/workoutService';
 import { supabase } from '../../../services/supabase';
 import { AthleteValueKeypadModal } from './AthleteValueKeypadModal';
+import { CopyWorkoutModal } from './CopyWorkoutModal';
+import { RepeatWorkoutModal } from './RepeatWorkoutModal';
 
 interface WorkoutDetailModalProps {
   visible: boolean;
@@ -49,6 +51,10 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
   const [isValidated, setIsValidated] = React.useState(false);
   const [justSaved, setJustSaved] = React.useState(false);
   const [isLoadingData, setIsLoadingData] = React.useState(false);
+
+  // Copy/Repeat modal state (coach only)
+  const [showCopyModal, setShowCopyModal] = React.useState(false);
+  const [showRepeatModal, setShowRepeatModal] = React.useState(false);
 
   // Active Keypad State for intelligent athlete data entry
   const [activeKeypad, setActiveKeypad] = React.useState<{
@@ -441,6 +447,24 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                 </TouchableOpacity>
 
                 <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowCopyModal(true); }}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="copy" size={15} color={theme.colors.accent} style={{ marginRight: 6 }} />
+                  <Text style={[styles.actionBtnText, { color: theme.colors.accent }]}>Copier</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: '#EDE9FE', borderColor: '#DDD6FE' }]}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowRepeatModal(true); }}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="repeat" size={15} color="#7C3AED" style={{ marginRight: 6 }} />
+                  <Text style={[styles.actionBtnText, { color: '#7C3AED' }]}>Répéter</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: '#FEE2E2', borderColor: '#FECACA' }]}
                   onPress={handleDelete}
                   activeOpacity={0.7}
@@ -822,6 +846,32 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
             title={activeKeypad.title}
             subtitle={activeKeypad.subtitle}
           />
+        )}
+
+        {/* Copy/Repeat Modals (Coach only) */}
+        {isCoach && (
+          <>
+            <CopyWorkoutModal
+              visible={showCopyModal}
+              onClose={() => setShowCopyModal(false)}
+              workout={workout}
+              onCopied={() => {
+                setShowCopyModal(false);
+                onClose();
+                onUpdated?.();
+              }}
+            />
+            <RepeatWorkoutModal
+              visible={showRepeatModal}
+              onClose={() => setShowRepeatModal(false)}
+              workout={workout}
+              onRepeated={() => {
+                setShowRepeatModal(false);
+                onClose();
+                onUpdated?.();
+              }}
+            />
+          </>
         )}
       </View>
     </Modal>
