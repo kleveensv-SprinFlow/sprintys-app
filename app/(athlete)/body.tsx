@@ -11,7 +11,7 @@ import { useSprintyStore } from '../../src/store/sprintyStore';
 
 const screenWidth = Dimensions.get('window').width;
 
-type ScaleType = 'none' | '4_electrodes' | '8_electrodes' | 'dexa';
+type ScaleType = 'none' | '4_electrodes' | '8_electrodes';
 
 export default function BodyCompositionScreen() {
   const theme = useTheme();
@@ -26,7 +26,6 @@ export default function BodyCompositionScreen() {
   const [muscleMass, setMuscleMass] = useState('');
   const [water, setWater] = useState('');
 
-  const [timeFilter, setTimeFilter] = useState<'week' | 'month' | 'year' | 'all'>('month');
   const [chartMetric, setChartMetric] = useState<'weight' | 'fat' | 'muscle'>('weight');
 
   useEffect(() => {
@@ -34,6 +33,14 @@ export default function BodyCompositionScreen() {
       loadMetrics(user.id);
     }
   }, [user]);
+
+  const formatSmartDecimal = (text: string) => {
+    const digits = text.replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits.length <= 2) return digits;
+    if (digits.length === 3) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+    return `${digits.slice(0, digits.length - 1)}.${digits.slice(digits.length - 1)}`;
+  };
 
   const handleSave = async () => {
     if (!user?.id) return;
@@ -98,6 +105,8 @@ export default function BodyCompositionScreen() {
     };
   };
 
+  const isFirstWeighIn = metrics.length === 0;
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
       <View style={styles.header}>
@@ -110,44 +119,62 @@ export default function BodyCompositionScreen() {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         
+        {isFirstWeighIn && (
+          <View style={[styles.welcomeCard, { backgroundColor: theme.colors.accent + '10' }]}>
+            <Feather name="activity" size={32} color={theme.colors.accent} style={{ marginBottom: 12 }} />
+            <Text style={[styles.welcomeTitle, { color: theme.colors.text }]}>Bienvenue dans votre espace composition !</Text>
+            <Text style={[styles.welcomeText, { color: theme.colors.textSecondary }]}>
+              Renseignez votre première pesée ci-dessous pour commencer à suivre votre évolution physique de manière détaillée.
+            </Text>
+          </View>
+        )}
+
         <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Nouvelle pesée</Text>
           
           <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Poids (kg) *</Text>
           <TextInput
             style={[styles.input, { backgroundColor: theme.colors.background, color: theme.colors.text, borderColor: theme.colors.border }]}
-            keyboardType="decimal-pad"
+            keyboardType="numeric"
             placeholder="Ex: 75.5"
             placeholderTextColor={theme.colors.textMuted}
             value={weight}
-            onChangeText={setWeight}
+            onChangeText={(text) => setWeight(formatSmartDecimal(text))}
           />
 
           <Text style={[styles.label, { color: theme.colors.textSecondary, marginTop: 16 }]}>Moyen de pesée</Text>
           <View style={styles.scaleSelector}>
-            {(['none', '4_electrodes', '8_electrodes', 'dexa'] as ScaleType[]).map((type) => (
-              <TouchableOpacity
-                key={type}
-                style={[
-                  styles.scalePill, 
-                  { borderColor: theme.colors.border },
-                  scaleType === type && { backgroundColor: theme.colors.accentMuted, borderColor: theme.colors.accent }
-                ]}
-                onPress={() => setScaleType(type)}
-              >
-                <Text style={[
-                  styles.scaleText, 
-                  { color: scaleType === type ? theme.colors.accent : theme.colors.textSecondary }
-                ]}>
-                  {type === 'none' ? 'Classique' : type === '4_electrodes' ? '4 Électrodes' : type === '8_electrodes' ? '8 Électrodes' : 'DEXA'}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {(['none', '4_electrodes', '8_electrodes'] as ScaleType[]).map((type) => {
+              const isSelected = scaleType === type;
+              return (
+                <TouchableOpacity
+                  key={type}
+                  style={[
+                    styles.scaleTile, 
+                    { borderColor: theme.colors.border },
+                    isSelected && { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent }
+                  ]}
+                  onPress={() => setScaleType(type)}
+                >
+                  <Feather 
+                    name={type === 'none' ? 'target' : type === '4_electrodes' ? 'smartphone' : 'monitor'} 
+                    size={20} 
+                    color={isSelected ? theme.colors.accent : theme.colors.textSecondary} 
+                    style={{ marginBottom: 8 }}
+                  />
+                  <Text style={[
+                    styles.scaleText, 
+                    { color: isSelected ? theme.colors.accent : theme.colors.textSecondary }
+                  ]}>
+                    {type === 'none' ? 'Classique' : type === '4_electrodes' ? '4 Électrodes' : '8 Électrodes'}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
           <Text style={[styles.helperText, { color: theme.colors.textMuted }]}>
             {scaleType === '4_electrodes' && "Balance classique avec capteurs aux pieds. Mesure surtout le bas du corps."}
             {scaleType === '8_electrodes' && "Balance avec poignée. Mesure complète (bras, tronc, jambes) plus précise."}
-            {scaleType === 'dexa' && "Scan médical DEXA. La référence la plus précise."}
           </Text>
 
           {scaleType !== 'none' && (
@@ -156,30 +183,30 @@ export default function BodyCompositionScreen() {
                 <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Masse Grasse (%)</Text>
                 <TextInput
                   style={[styles.input, { backgroundColor: theme.colors.background, color: theme.colors.text, borderColor: theme.colors.border }]}
-                  keyboardType="decimal-pad"
+                  keyboardType="numeric"
                   placeholder="%"
                   value={bodyFat}
-                  onChangeText={setBodyFat}
+                  onChangeText={(text) => setBodyFat(formatSmartDecimal(text))}
                 />
               </View>
               <View style={styles.gridItem}>
                 <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Masse Muscu (kg)</Text>
                 <TextInput
                   style={[styles.input, { backgroundColor: theme.colors.background, color: theme.colors.text, borderColor: theme.colors.border }]}
-                  keyboardType="decimal-pad"
+                  keyboardType="numeric"
                   placeholder="kg"
                   value={muscleMass}
-                  onChangeText={setMuscleMass}
+                  onChangeText={(text) => setMuscleMass(formatSmartDecimal(text))}
                 />
               </View>
               <View style={styles.gridItem}>
                 <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Eau (%)</Text>
                 <TextInput
                   style={[styles.input, { backgroundColor: theme.colors.background, color: theme.colors.text, borderColor: theme.colors.border }]}
-                  keyboardType="decimal-pad"
+                  keyboardType="numeric"
                   placeholder="%"
                   value={water}
-                  onChangeText={setWater}
+                  onChangeText={(text) => setWater(formatSmartDecimal(text))}
                 />
               </View>
             </View>
@@ -188,45 +215,52 @@ export default function BodyCompositionScreen() {
           <TouchableOpacity 
             style={[styles.saveBtn, { backgroundColor: theme.colors.accent, opacity: isLoading ? 0.7 : 1 }]} 
             onPress={handleSave}
-            disabled={isLoading}
+            disabled={isLoading || !weight}
           >
             <Text style={styles.saveBtnText}>{isLoading ? 'Enregistrement...' : 'Enregistrer'}</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, marginTop: 16 }]}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Évolution</Text>
-          
-          <View style={styles.chartFilters}>
-            <TouchableOpacity onPress={() => setChartMetric('weight')} style={[styles.metricFilter, chartMetric === 'weight' && { borderBottomColor: theme.colors.accent, borderBottomWidth: 2 }]}>
-              <Text style={{ color: chartMetric === 'weight' ? theme.colors.accent : theme.colors.textSecondary, fontWeight: 'bold' }}>Poids</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setChartMetric('fat')} style={[styles.metricFilter, chartMetric === 'fat' && { borderBottomColor: theme.colors.warning, borderBottomWidth: 2 }]}>
-              <Text style={{ color: chartMetric === 'fat' ? theme.colors.warning : theme.colors.textSecondary, fontWeight: 'bold' }}>Gras</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setChartMetric('muscle')} style={[styles.metricFilter, chartMetric === 'muscle' && { borderBottomColor: theme.colors.success, borderBottomWidth: 2 }]}>
-              <Text style={{ color: chartMetric === 'muscle' ? theme.colors.success : theme.colors.textSecondary, fontWeight: 'bold' }}>Muscle</Text>
-            </TouchableOpacity>
-          </View>
+        {!isFirstWeighIn && (
+          <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, marginTop: 16 }]}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Évolution</Text>
+            
+            <View style={styles.chartFilters}>
+              <TouchableOpacity onPress={() => setChartMetric('weight')} style={[styles.metricFilter, chartMetric === 'weight' && { backgroundColor: theme.colors.accent + '20' }]}>
+                <Text style={{ color: chartMetric === 'weight' ? theme.colors.accent : theme.colors.textSecondary, fontWeight: 'bold' }}>Poids</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setChartMetric('fat')} style={[styles.metricFilter, chartMetric === 'fat' && { backgroundColor: theme.colors.warning + '20' }]}>
+                <Text style={{ color: chartMetric === 'fat' ? theme.colors.warning : theme.colors.textSecondary, fontWeight: 'bold' }}>Gras</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setChartMetric('muscle')} style={[styles.metricFilter, chartMetric === 'muscle' && { backgroundColor: theme.colors.success + '20' }]}>
+                <Text style={{ color: chartMetric === 'muscle' ? theme.colors.success : theme.colors.textSecondary, fontWeight: 'bold' }}>Muscle</Text>
+              </TouchableOpacity>
+            </View>
 
-          <LineChart
-            data={getChartData()}
-            width={screenWidth - 64}
-            height={220}
-            chartConfig={{
-              backgroundColor: theme.colors.surface,
-              backgroundGradientFrom: theme.colors.surface,
-              backgroundGradientTo: theme.colors.surface,
-              decimalPlaces: 1,
-              color: (opacity = 1) => theme.colors.textSecondary,
-              labelColor: (opacity = 1) => theme.colors.textSecondary,
-              style: { borderRadius: 16 },
-              propsForDots: { r: "4" }
-            }}
-            bezier
-            style={{ marginVertical: 8, borderRadius: 16 }}
-          />
-        </View>
+            <LineChart
+              data={getChartData()}
+              width={screenWidth - 64}
+              height={220}
+              chartConfig={{
+                backgroundColor: theme.colors.surface,
+                backgroundGradientFrom: theme.colors.surface,
+                backgroundGradientTo: theme.colors.surface,
+                decimalPlaces: 1,
+                color: (opacity = 1) => chartMetric === 'weight' ? theme.colors.accent : chartMetric === 'fat' ? theme.colors.warning : theme.colors.success,
+                labelColor: (opacity = 1) => theme.colors.textSecondary,
+                style: { borderRadius: 16 },
+                propsForDots: { r: "4", strokeWidth: "2", stroke: theme.colors.surface },
+                fillShadowGradientFrom: chartMetric === 'weight' ? theme.colors.accent : chartMetric === 'fat' ? theme.colors.warning : theme.colors.success,
+                fillShadowGradientFromOpacity: 0.3,
+                fillShadowGradientToOpacity: 0.0,
+              }}
+              bezier
+              style={{ marginVertical: 8, borderRadius: 16 }}
+              withInnerLines={false}
+              withOuterLines={true}
+            />
+          </View>
+        )}
 
       </ScrollView>
     </SafeAreaView>
@@ -253,6 +287,25 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 40,
   },
+  welcomeCard: {
+    alignItems: 'center',
+    padding: 24,
+    marginBottom: 24,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  welcomeTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  welcomeText: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
   card: {
     borderRadius: 24,
     borderWidth: 1,
@@ -276,18 +329,21 @@ const styles = StyleSheet.create({
   },
   scaleSelector: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    gap: 12,
   },
-  scalePill: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
+  scaleTile: {
+    flex: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    borderRadius: 16,
     borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scaleText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   helperText: {
     fontSize: 12,
@@ -316,10 +372,12 @@ const styles = StyleSheet.create({
   },
   chartFilters: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 12,
     marginBottom: 16,
   },
   metricFilter: {
-    paddingBottom: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 12,
   }
 });

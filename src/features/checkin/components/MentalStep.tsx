@@ -84,7 +84,7 @@ export const MentalStep = ({ onNext, onBack }: MentalStepProps) => {
 
       <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {renderEmojiSelector('Énergie', energy, setEnergy, 'Épuisé', 'En pleine forme', 'zap')}
-        {renderEmojiSelector('Sérénité (Stress)', serenity, setSerenity, 'Très stressé', 'Détendu', 'wind')}
+        {renderEmojiSelector('Stress', serenity, setSerenity, 'Très stressé', 'Détendu', 'wind')}
         {renderEmojiSelector('Motivation', motivation, setMotivation, 'Aucune', 'À bloc', 'target')}
       </ScrollView>
 
