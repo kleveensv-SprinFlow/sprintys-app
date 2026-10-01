@@ -49,7 +49,7 @@ export const useBodyStore = create<BodyState>((set, get) => ({
       set({ metrics: data || [], isLoading: false });
     } catch (error: any) {
       console.error('Error adding body metric:', error);
-      useSprintyStore.getState().showFeedback('error', "Échec de l'enregistrement. Vérifiez votre connexion.");
+      useSprintyStore.getState().showFeedback('error', `Échec: ${error?.message || 'Erreur inconnue'}`);
       set({ isLoading: false });
       throw error;
     }
