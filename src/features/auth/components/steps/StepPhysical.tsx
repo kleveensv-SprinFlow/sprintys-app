@@ -7,15 +7,12 @@ import { Input } from '../../../../shared/components/Input';
 export const StepPhysical = ({ data, updateData, onNext, onBack }: any) => {
   const theme = useTheme();
 
-  const handleDecimalInput = (text: string) => {
-    let formatted = text.replace(',', '.');
-    const parts = formatted.split('.');
-    if (parts.length > 2) {
-      formatted = parts[0] + '.' + parts.slice(1).join('');
-    }
-    if (/^\d*\.?\d{0,1}$/.test(formatted)) {
-      updateData({ weight: formatted });
-    }
+  const formatSmartDecimal = (text: string) => {
+    const digits = text.replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits.length <= 2) return digits;
+    if (digits.length === 3) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+    return `${digits.slice(0, digits.length - 1)}.${digits.slice(digits.length - 1)}`;
   };
 
   return (
@@ -33,10 +30,10 @@ export const StepPhysical = ({ data, updateData, onNext, onBack }: any) => {
         />
         <Input
           label="Poids (kg)"
-          placeholder="Ex: 75.5 ou 105"
+          placeholder="Ex: 75.5 ou 105.2"
           value={data.weight?.toString() || ''}
-          onChangeText={handleDecimalInput}
-          keyboardType="decimal-pad"
+          onChangeText={(text) => updateData({ weight: formatSmartDecimal(text) })}
+          keyboardType="numeric"
         />
       </View>
 

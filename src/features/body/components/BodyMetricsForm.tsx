@@ -17,18 +17,23 @@ export const BodyMetricsForm: React.FC = () => {
   const showFeedback = useSprintyStore((state) => state.showFeedback);
   const runAnalysis = useInsightStore((state) => state.runAnalysis);
 
-  const handleDecimalInput = (text: string, setter: (val: string) => void) => {
-    // Remplacer virgule par point pour harmoniser
-    let formatted = text.replace(',', '.');
-    // Ne garder que les chiffres et un seul point
-    const parts = formatted.split('.');
-    if (parts.length > 2) {
-      formatted = parts[0] + '.' + parts.slice(1).join('');
+  const formatSmartDecimal = (text: string) => {
+    // Supprimer tout ce qui n'est pas un chiffre
+    const digits = text.replace(/\D/g, '');
+    if (!digits) return '';
+
+    // Si 1 ou 2 chiffres : ex "7" -> "7", "79" -> "79"
+    if (digits.length <= 2) {
+      return digits;
     }
-    // Si la valeur est un nombre valide avec max 1 décimale ou vide/en cours de saisie
-    if (/^\d*\.?\d{0,1}$/.test(formatted)) {
-      setter(formatted);
+
+    // Si 3 chiffres : ex "794" -> "79.4"
+    if (digits.length === 3) {
+      return `${digits.slice(0, 2)}.${digits.slice(2)}`;
     }
+
+    // Si 4 chiffres ou plus : ex "1052" -> "105.2" (support des > 100 kg)
+    return `${digits.slice(0, digits.length - 1)}.${digits.slice(digits.length - 1)}`;
   };
 
   const handleSubmit = async () => {
@@ -56,8 +61,8 @@ export const BodyMetricsForm: React.FC = () => {
           label="Poids (kg)"
           placeholder="Ex: 75.5 ou 105"
           value={weight}
-          onChangeText={(text) => handleDecimalInput(text, setWeight)}
-          keyboardType="decimal-pad"
+          onChangeText={(text) => setWeight(formatSmartDecimal(text))}
+          keyboardType="numeric"
           containerStyle={styles.inputContainer}
           autoFocus
         />
@@ -65,8 +70,8 @@ export const BodyMetricsForm: React.FC = () => {
           label="Masse Grasse (%)"
           placeholder="Ex: 12.5"
           value={bodyFat}
-          onChangeText={(text) => handleDecimalInput(text, setBodyFat)}
-          keyboardType="decimal-pad"
+          onChangeText={(text) => setBodyFat(formatSmartDecimal(text))}
+          keyboardType="numeric"
           containerStyle={styles.inputContainer}
         />
       </View>
