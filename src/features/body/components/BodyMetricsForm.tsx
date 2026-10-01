@@ -17,26 +17,27 @@ export const BodyMetricsForm: React.FC = () => {
   const showFeedback = useSprintyStore((state) => state.showFeedback);
   const runAnalysis = useInsightStore((state) => state.runAnalysis);
 
-  const formatDecimal = (text: string) => {
-    // Replace comma with dot and remove any non-numeric/non-dot characters
-    let formatted = text.replace(/,/g, '.').replace(/[^0-9.]/g, '');
-    
-    // Ensure only one dot exists
+  const handleDecimalInput = (text: string, setter: (val: string) => void) => {
+    // Remplacer virgule par point pour harmoniser
+    let formatted = text.replace(',', '.');
+    // Ne garder que les chiffres et un seul point
     const parts = formatted.split('.');
     if (parts.length > 2) {
       formatted = parts[0] + '.' + parts.slice(1).join('');
     }
-    
-    return formatted;
+    // Si la valeur est un nombre valide avec max 1 décimale ou vide/en cours de saisie
+    if (/^\d*\.?\d{0,1}$/.test(formatted)) {
+      setter(formatted);
+    }
   };
 
   const handleSubmit = async () => {
     if (!user) return;
-    const w = parseFloat(weight);
+    const w = parseFloat(weight.replace(',', '.'));
     if (isNaN(w)) return;
 
     try {
-      await addMetric(user.id, w, bodyFat ? parseFloat(bodyFat) : undefined);
+      await addMetric(user.id, w, bodyFat ? parseFloat(bodyFat.replace(',', '.')) : undefined);
       setWeight('');
       setBodyFat('');
       showFeedback('success', 'Données enregistrées.');
@@ -53,18 +54,18 @@ export const BodyMetricsForm: React.FC = () => {
       <View style={styles.row}>
         <Input
           label="Poids (kg)"
-          placeholder="00.0"
+          placeholder="Ex: 75.5 ou 105"
           value={weight}
-          onChangeText={(text) => setWeight(formatDecimal(text))}
+          onChangeText={(text) => handleDecimalInput(text, setWeight)}
           keyboardType="decimal-pad"
           containerStyle={styles.inputContainer}
           autoFocus
         />
         <Input
           label="Masse Grasse (%)"
-          placeholder="00.0"
+          placeholder="Ex: 12.5"
           value={bodyFat}
-          onChangeText={(text) => setBodyFat(formatDecimal(text))}
+          onChangeText={(text) => handleDecimalInput(text, setBodyFat)}
           keyboardType="decimal-pad"
           containerStyle={styles.inputContainer}
         />
