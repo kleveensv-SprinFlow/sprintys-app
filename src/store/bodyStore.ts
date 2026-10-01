@@ -26,15 +26,29 @@ export const useBodyStore = create<BodyState>((set, get) => ({
     }
   },
 
-  addMetric: async (metric) => {
+  addMetric: async (metricOrAthleteId: string | Omit<BodyMetric, 'id' | 'created_at'>, weight?: number, bodyFat?: number, extraFields?: Partial<BodyMetric>) => {
     set({ isLoading: true });
     try {
-      await bodyService.addMetric(metric);
+      let payload: Omit<BodyMetric, 'id' | 'created_at'>;
+      
+      if (typeof metricOrAthleteId === 'string') {
+        payload = {
+          athlete_id: metricOrAthleteId,
+          weight: weight!,
+          body_fat: bodyFat,
+          ...extraFields,
+        };
+      } else {
+        payload = metricOrAthleteId;
+      }
+
+      await bodyService.addMetric(payload);
       
       // Reload metrics to keep sync
-      const data = await bodyService.fetchMetrics(metric.athlete_id);
+      const data = await bodyService.fetchMetrics(payload.athlete_id);
       set({ metrics: data || [], isLoading: false });
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error adding body metric:', error);
       useSprintyStore.getState().showFeedback('error', "Échec de l'enregistrement. Vérifiez votre connexion.");
       set({ isLoading: false });
       throw error;
