@@ -8,11 +8,16 @@ export const StepPhysical = ({ data, updateData, onNext, onBack }: any) => {
   const theme = useTheme();
 
   const formatDecimal = (text: string) => {
-    const digits = text.replace(/\D/g, '');
-    if (!digits) return '';
-    const num = parseInt(digits, 10);
-    if (num === 0) return '';
-    return (num / 10).toFixed(1);
+    // Replace comma with dot and remove any non-numeric/non-dot characters
+    let formatted = text.replace(/,/g, '.').replace(/[^0-9.]/g, '');
+    
+    // Ensure only one dot exists
+    const parts = formatted.split('.');
+    if (parts.length > 2) {
+      formatted = parts[0] + '.' + parts.slice(1).join('');
+    }
+    
+    return formatted;
   };
 
   return (
@@ -33,7 +38,7 @@ export const StepPhysical = ({ data, updateData, onNext, onBack }: any) => {
           placeholder="Ex: 75.0"
           value={data.weight?.toString() || ''}
           onChangeText={(text) => updateData({ weight: formatDecimal(text) })}
-          keyboardType="numeric"
+          keyboardType="decimal-pad"
         />
       </View>
 

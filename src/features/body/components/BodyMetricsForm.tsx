@@ -18,11 +18,16 @@ export const BodyMetricsForm: React.FC = () => {
   const runAnalysis = useInsightStore((state) => state.runAnalysis);
 
   const formatDecimal = (text: string) => {
-    const digits = text.replace(/\D/g, '');
-    if (!digits) return '';
-    const num = parseInt(digits, 10);
-    if (num === 0) return '';
-    return (num / 10).toFixed(1);
+    // Replace comma with dot and remove any non-numeric/non-dot characters
+    let formatted = text.replace(/,/g, '.').replace(/[^0-9.]/g, '');
+    
+    // Ensure only one dot exists
+    const parts = formatted.split('.');
+    if (parts.length > 2) {
+      formatted = parts[0] + '.' + parts.slice(1).join('');
+    }
+    
+    return formatted;
   };
 
   const handleSubmit = async () => {
@@ -51,7 +56,7 @@ export const BodyMetricsForm: React.FC = () => {
           placeholder="00.0"
           value={weight}
           onChangeText={(text) => setWeight(formatDecimal(text))}
-          keyboardType="numeric"
+          keyboardType="decimal-pad"
           containerStyle={styles.inputContainer}
           autoFocus
         />
@@ -60,7 +65,7 @@ export const BodyMetricsForm: React.FC = () => {
           placeholder="00.0"
           value={bodyFat}
           onChangeText={(text) => setBodyFat(formatDecimal(text))}
-          keyboardType="numeric"
+          keyboardType="decimal-pad"
           containerStyle={styles.inputContainer}
         />
       </View>
