@@ -16,7 +16,8 @@ export default function CoachGroupsScreen() {
     teams, fetchTeams, createTeam, updateTeam, deleteTeam,
     subgroups, fetchSubgroups, createSubgroup, updateSubgroup, deleteSubgroup,
     teamMembers, pendingMembers, fetchTeamMembers, approveAthlete, rejectAthlete, removeAthlete, assignSubgroup,
-    subscribeToTeam, unsubscribe 
+    subscribeToTeam, unsubscribe,
+    hasFetchedTeams
   } = useCoachStore();
 
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
@@ -36,9 +37,9 @@ export default function CoachGroupsScreen() {
     fetchTeams();
   }, []);
 
-  // Auto-create from signup if no teams exist
+  // Auto-create from signup ONLY if fetch is done and truly no teams exist
   useEffect(() => {
-    if (teams.length === 0 && user?.groupName && !isCreatingTeam) {
+    if (hasFetchedTeams && teams.length === 0 && user?.groupName && !isCreatingTeam) {
       setIsCreatingTeam(true);
       createTeam(user.groupName).then((newTeam) => {
         if (newTeam && user.subgroups && user.subgroups.length > 0) {
@@ -46,7 +47,7 @@ export default function CoachGroupsScreen() {
         }
       }).finally(() => setIsCreatingTeam(false));
     }
-  }, [teams.length, user?.groupName]);
+  }, [hasFetchedTeams, teams.length, user?.groupName]);
 
   // Handle entering a team
   useEffect(() => {

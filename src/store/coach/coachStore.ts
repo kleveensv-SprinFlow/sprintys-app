@@ -32,6 +32,7 @@ interface CoachState {
   teamCheckIns: Database['public']['Tables']['check_ins']['Row'][];
   workoutTemplates: Database['public']['Tables']['workout_templates']['Row'][];
   isLoading: boolean;
+  hasFetchedTeams: boolean;
   error: string | null;
 
   fetchTeams: () => Promise<void>;
@@ -72,12 +73,13 @@ export const useCoachStore = create<CoachState>((set, get) => ({
   teamCheckIns: [],
   workoutTemplates: [],
   isLoading: false,
+  hasFetchedTeams: false,
   error: null,
 
   fetchTeams: async () => {
     set({ isLoading: true, error: null });
     const user = useAuthStore.getState().user;
-    if (!user) return set({ isLoading: false });
+    if (!user) return set({ isLoading: false, hasFetchedTeams: true });
 
     try {
       const { data, error } = await supabase
@@ -86,9 +88,9 @@ export const useCoachStore = create<CoachState>((set, get) => ({
         .eq('coach_id', user.id);
 
       if (error) throw error;
-      set({ teams: data as Team[], isLoading: false });
+      set({ teams: data as Team[], isLoading: false, hasFetchedTeams: true });
     } catch (err: any) {
-      set({ error: err.message, isLoading: false });
+      set({ error: err.message, isLoading: false, hasFetchedTeams: true });
     }
   },
 
