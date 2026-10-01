@@ -59,11 +59,8 @@ export default function BodyCompositionScreen() {
       const payload: any = {
         athlete_id: user.id,
         weight: parseNum(weight)!,
+        scale_type: scaleType,
       };
-
-      if (scaleType !== 'none') {
-        payload.scale_type = scaleType;
-      }
 
       const bf = parseNum(bodyFat);
       if (bf !== null) payload.body_fat = bf;
