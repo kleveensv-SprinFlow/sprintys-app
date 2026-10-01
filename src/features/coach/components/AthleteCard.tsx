@@ -9,9 +9,10 @@ import { useRouter } from 'expo-router';
 
 interface Props {
   athlete: ManagedAthlete;
+  onOpenPerformance?: (athlete: ManagedAthlete) => void;
 }
 
-export const AthleteCard: React.FC<Props> = React.memo(({ athlete }) => {
+export const AthleteCard: React.FC<Props> = React.memo(({ athlete, onOpenPerformance }) => {
   const router = useRouter();
   const getStatusColor = () => {
     switch (athlete.lastWorkoutStatus) {
@@ -53,16 +54,22 @@ export const AthleteCard: React.FC<Props> = React.memo(({ athlete }) => {
 
         <View style={styles.buttonRow}>
           <Button
+            title="PERFS ⏱️"
+            onPress={() => onOpenPerformance ? onOpenPerformance(athlete) : router.push(`/(coach)/athlete/${athlete.id}`)}
+            variant="primary"
+            style={[styles.actionBtn, { flex: 1.2, marginRight: 6 }] as any}
+          />
+          <Button
             title="DÉTAILS"
             onPress={() => router.push(`/(coach)/athlete/${athlete.id}`)}
             variant="ghost"
-            style={[styles.actionBtn, { flex: 1, marginRight: 8 }] as any}
+            style={[styles.actionBtn, { flex: 1, marginRight: 6 }] as any}
           />
           <Button
             title="ASSIGNER"
             onPress={() => router.push(`/(coach)/assign/${athlete.id}`)}
             variant="outline"
-            style={[styles.actionBtn, { flex: 1.5 }] as any}
+            style={[styles.actionBtn, { flex: 1.2 }] as any}
           />
         </View>
       </Card>

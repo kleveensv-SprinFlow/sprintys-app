@@ -338,7 +338,7 @@ export const workoutService = {
 
     const { data, error } = await supabase
       .from('workouts')
-      .select('type_seance, status, created_at')
+      .select('type_seance, status, created_at, athlete_efforts(*)')
       .eq('athlete_id', athleteId)
       .gte('created_at', dateLimit.toISOString())
       .order('created_at', { ascending: false });
@@ -347,9 +347,57 @@ export const workoutService = {
 
     if (!data || data.length === 0) return "Aucun entraînement récent.";
 
-    return data.map(w =>
-      `- ${new Date(w.created_at).toLocaleDateString()}: ${w.type_seance} (${w.status})`
-    ).join('\n');
+    return data.map(w => {
+      const efforts = (w.athlete_efforts || []).map((e: any) => {
+        const details = [
+          e.actual_time_ms ? `${(e.actual_time_ms / 1000).toFixed(2)}s` : null,
+          e.actual_weight_kg ? `${e.actual_weight_kg}kg` : null,
+          e.actual_reps ? `${e.actual_reps} reps` : null,
+          e.actual_distance_m ? `${e.actual_distance_m}m` : null,
+        ].filter(Boolean).join(' / ');
+        return `   * Série ${e.set_order || 1}: ${details || 'Réalisé'}`;
+      }).join('\n');
+
+      return `- ${new Date(w.created_at).toLocaleDateString('fr-FR')}: ${w.type_seance} (${w.status})\n${efforts}`;
+    }).join('\n');
+  },
+
+  fetchAthletePerformanceHistory: async (athleteId: string) => {
+    const { data, error } = await supabase
+      .from('workouts')
+      .select(`
+        id,
+        type_seance,
+        description,
+        date_prevue,
+        status,
+        created_at,
+        athlete_efforts (
+          id,
+          set_order,
+          block_order,
+          exercise_category,
+          planned_reps,
+          actual_reps,
+          planned_weight_kg,
+          actual_weight_kg,
+          planned_distance_m,
+          actual_distance_m,
+          planned_time_ms,
+          actual_time_ms,
+          planned_intensity,
+          actual_intensity,
+          created_at
+        )
+      `)
+      .eq('athlete_id', athleteId)
+      .order('date_prevue', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching athlete performance history:', error);
+      throw error;
+    }
+    return data || [];
   },
 
   fetchUpcomingCompetitionsContext: async (athleteId: string, days: number = 7) => {

@@ -1,16 +1,25 @@
-﻿import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, ActivityIndicator, View, Text } from 'react-native';
 import { useCoachStore } from '../../../store/coach/coachStore';
 import { AthleteCard } from './AthleteCard';
+import { AthletePerformanceModal } from './AthletePerformanceModal';
 import { theme } from '../../../core/theme';
 import { EmptyState } from '../../../shared/components/EmptyState';
+import { ManagedAthlete } from '../types';
 
 export const AthleteList: React.FC = React.memo(() => {
   const { athletes, isLoading, fetchAthletes } = useCoachStore();
+  const [selectedAthlete, setSelectedAthlete] = useState<ManagedAthlete | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
     fetchAthletes();
   }, []);
+
+  const handleOpenPerformance = (athlete: ManagedAthlete) => {
+    setSelectedAthlete(athlete);
+    setModalVisible(true);
+  };
 
   if (isLoading) {
     return (
@@ -30,15 +39,26 @@ export const AthleteList: React.FC = React.memo(() => {
   }
 
   return (
-    <FlatList
-      data={athletes}
-      keyExtractor={(item) => item.id}
-      renderItem={({ item }) => <AthleteCard athlete={item} />}
-      contentContainerStyle={styles.list}
-      ListHeaderComponent={() => (
-        <Text style={styles.listHeader}>{athletes.length} ATHLÈTES ACTIFS</Text>
-      )}
-    />
+    <>
+      <FlatList
+        data={athletes}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <AthleteCard athlete={item} onOpenPerformance={handleOpenPerformance} />
+        )}
+        contentContainerStyle={styles.list}
+        ListHeaderComponent={() => (
+          <Text style={styles.listHeader}>{athletes.length} ATHLÈTES ACTIFS</Text>
+        )}
+      />
+
+      <AthletePerformanceModal
+        visible={modalVisible}
+        athleteId={selectedAthlete?.id || null}
+        athleteName={selectedAthlete?.name || null}
+        onClose={() => setModalVisible(false)}
+      />
+    </>
   );
 });
 
