@@ -56,14 +56,22 @@ export default function BodyCompositionScreen() {
         return isNaN(parsed) ? null : parsed;
       };
 
-      await addMetric({
+      const payload: any = {
         athlete_id: user.id,
         weight: parseNum(weight)!,
         scale_type: scaleType,
-        body_fat: parseNum(bodyFat) ?? undefined,
-        muscle_mass_kg: parseNum(muscleMass) ?? undefined,
-        water_percentage: parseNum(water) ?? undefined,
-      });
+      };
+
+      const bf = parseNum(bodyFat);
+      if (bf !== null) payload.body_fat = bf;
+
+      const mm = parseNum(muscleMass);
+      if (mm !== null) payload.muscle_mass_kg = mm;
+
+      const wp = parseNum(water);
+      if (wp !== null) payload.water_percentage = wp;
+
+      await addMetric(payload);
       showFeedback('success', 'Données enregistrées !');
       router.back();
     } catch (err) {
