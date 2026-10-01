@@ -148,8 +148,19 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
         setTargetType('team');
       }
 
-      if (initialWorkout.exercises && Array.isArray(initialWorkout.exercises)) {
-        const loaded: StairExerciseItem[] = initialWorkout.exercises.map((ex: any) => ({
+      let exList: any[] = [];
+      if (initialWorkout.blocks && Array.isArray(initialWorkout.blocks)) {
+        initialWorkout.blocks.forEach((b: any) => {
+          if (b.exercises && Array.isArray(b.exercises)) {
+            exList.push(...b.exercises);
+          }
+        });
+      } else if (initialWorkout.exercises && Array.isArray(initialWorkout.exercises)) {
+        exList = initialWorkout.exercises;
+      }
+
+      if (exList.length > 0) {
+        const loaded: StairExerciseItem[] = exList.map((ex: any) => ({
           id: ex.id || String(uuid.v4()),
           name: ex.name,
           stairs: ex.stairs_count !== undefined ? ex.stairs_count : (ex.sets?.[0]?.steps ?? null),

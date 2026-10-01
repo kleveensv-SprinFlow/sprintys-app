@@ -168,17 +168,28 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
         setTargetType('team');
       }
 
-      if (initialWorkout.exercises && Array.isArray(initialWorkout.exercises)) {
-        const loaded: StrengthExerciseItem[] = initialWorkout.exercises.map((ex: any) => ({
+      let exList: any[] = [];
+      if (initialWorkout.blocks && Array.isArray(initialWorkout.blocks)) {
+        initialWorkout.blocks.forEach((b: any) => {
+          if (b.exercises && Array.isArray(b.exercises)) {
+            exList.push(...b.exercises);
+          }
+        });
+      } else if (initialWorkout.exercises && Array.isArray(initialWorkout.exercises)) {
+        exList = initialWorkout.exercises;
+      }
+
+      if (exList.length > 0) {
+        const loaded: StrengthExerciseItem[] = exList.map((ex: any) => ({
           id: ex.id || String(uuid.v4()),
           catalog_id: ex.catalog_id,
           name: ex.name,
           name_en: ex.name_en,
-          setsCount: ex.sets?.length || 4,
-          repsCount: ex.sets?.[0]?.reps || 10,
-          weight: ex.sets?.[0]?.weight || 0,
-          weightType: ex.sets?.[0]?.weight_type || ex.sets?.[0]?.weightType || 'kg',
-          restSets: ex.sets?.[0]?.restSeconds || 90,
+          setsCount: ex.sets?.length || ex.sets_count || 4,
+          repsCount: ex.sets?.[0]?.reps || ex.reps_count || 10,
+          weight: ex.sets?.[0]?.weight || ex.weight || 0,
+          weightType: ex.sets?.[0]?.weight_type || ex.sets?.[0]?.weightType || ex.weight_type || 'kg',
+          restSets: ex.sets?.[0]?.restSeconds || ex.rest_between_sets_s || 90,
           target: ex.target || { type: 'all', id: null, name: 'Tout le groupe' },
         }));
         setSessionExercises(loaded);
