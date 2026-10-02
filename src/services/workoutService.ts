@@ -295,6 +295,20 @@ export const workoutService = {
 
     const { data, error } = await query;
     if (error) throw error;
+
+    if (role === 'coach') {
+      const seen = new Set<string>();
+      const deduped: any[] = [];
+      for (const w of (data || [])) {
+        const key = w.group_assignment_id || w.id;
+        if (!seen.has(key)) {
+          seen.add(key);
+          deduped.push(w);
+        }
+      }
+      return deduped;
+    }
+
     return data;
   },
 
@@ -420,7 +434,7 @@ export const workoutService = {
       const allGroupWorkouts = await workoutService.fetchWorkoutsByGroupAssignment(workout.group_assignment_id);
       
       // Generate a new group_assignment_id for the copies
-      const newGroupId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const newGroupId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       
       const copies = allGroupWorkouts.map((w: any) => {
         const { id, created_at, updated_at, athlete_efforts, ...rest } = w;
@@ -452,36 +466,36 @@ export const workoutService = {
   },
 
   /**
-   * Repeat a workout across multiple weeks on specific days of the week.
-   * Creates independent copies starting from the week AFTER the workout's current date.
+   * Repeat a workout based on frequency and number of occurrences.
    * @param workout - The workout to repeat
-   * @param daysOfWeek - Array of day indices (0=Sunday, 1=Monday, ..., 6=Saturday)
-   * @param numberOfWeeks - Number of weeks to repeat over
+   * @param mode - 'daily', 'weekly', 'monthly', 'yearly'
+   * @param count - Number of occurrences
    * @returns Number of copies created
    */
-  repeatWorkout: async (workout: any, daysOfWeek: number[], numberOfWeeks: number): Promise<number> => {
+  repeatWorkout: async (workout: any, mode: 'daily' | 'weekly' | 'monthly' | 'yearly', count: number): Promise<number> => {
     const workoutDate = new Date(workout.date_prevue);
     const dates: Date[] = [];
 
-    // Calculate all target dates
-    for (let week = 1; week <= numberOfWeeks; week++) {
-      for (const dayOfWeek of daysOfWeek) {
-        // Start from the Monday of the workout's week, then add weeks
-        const baseDate = new Date(workoutDate);
-        // Move to the start of the current week (Monday)
-        const currentDay = baseDate.getDay();
-        const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay;
-        baseDate.setDate(baseDate.getDate() + mondayOffset);
-        // Add the target week offset
-        baseDate.setDate(baseDate.getDate() + (week * 7));
-        // Move to the target day of week
-        const targetDayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Convert to Monday-based
-        baseDate.setDate(baseDate.getDate() + targetDayOffset);
-        // Preserve original time
-        baseDate.setHours(workoutDate.getHours(), workoutDate.getMinutes(), workoutDate.getSeconds());
-        
-        dates.push(new Date(baseDate));
+    // Calculate all target dates starting from the next occurrence
+    for (let i = 1; i <= count; i++) {
+      const targetDate = new Date(workoutDate);
+      
+      switch (mode) {
+        case 'daily':
+          targetDate.setDate(targetDate.getDate() + i);
+          break;
+        case 'weekly':
+          targetDate.setDate(targetDate.getDate() + (i * 7));
+          break;
+        case 'monthly':
+          targetDate.setMonth(targetDate.getMonth() + i);
+          break;
+        case 'yearly':
+          targetDate.setFullYear(targetDate.getFullYear() + i);
+          break;
       }
+      
+      dates.push(targetDate);
     }
 
     if (dates.length === 0) return 0;
