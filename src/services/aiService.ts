@@ -13,7 +13,16 @@ export async function fetchOpenAIResponse(
   }));
 
   try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const { data, error } = await supabase.functions.invoke('chat', {
+      headers,
       body: {
         messages: formattedMessages,
         systemPrompt,
@@ -23,7 +32,8 @@ export async function fetchOpenAIResponse(
 
     if (error) {
       console.error('Supabase Edge Function Error:', error);
-      throw new Error("Erreur de communication avec l'Edge Function Supabase");
+      const errorMsg = (error as any)?.context?.message || error.message || "Erreur de communication avec l'Edge Function Supabase";
+      throw new Error(errorMsg);
     }
 
     if (data && data.error) {

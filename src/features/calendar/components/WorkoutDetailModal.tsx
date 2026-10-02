@@ -273,9 +273,9 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
       onUpdated?.();
 
       Alert.alert(
-        'Données enregistrées ! âœ“',
+        'Données enregistrées ! ✓',
         isValidated
-          ? 'Tes modifications ont été mises Ã  jour avec succès.'
+          ? 'Tes modifications ont été mises à jour avec succès.'
           : 'Ta séance a été validée avec succès !'
       );
     } catch (e: any) {
@@ -331,7 +331,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
 
     const distText = item.distance ? `${item.distance}m` : '';
     const setLabel = `Série ${item.setIndex + 1}/${(item.exercise.sets || []).length}`;
-    const title = `${setLabel}${distText ? ` Â· ${distText}` : ''}`;
+    const title = `${setLabel}${distText ? ` · ${distText}` : ''}`;
     const subtitle = item.exercise.name;
 
     setActiveKeypad({
@@ -406,7 +406,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                     fontSize: 12, fontWeight: '700',
                     color: isValidated ? '#047857' : '#B45309',
                   }}>
-                    {isValidated ? 'âœ“ Validée' : 'â—‹ À compléter'}
+                    {isValidated ? '✓ Validée' : '○ À compléter'}
                   </Text>
                 </View>
               )}
@@ -417,14 +417,14 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                 {!!surfaceMeta && (
                   <View style={[styles.metaPill, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
                     <Text style={[styles.metaPillText, { color: theme.colors.accent }]}>
-                      {surfaceMeta === 'cote' ? 'â›°ï¸ Côte' : 'ðŸŸï¸ Piste'}
+                      {surfaceMeta === 'cote' ? '⛰️ Côte' : '🏟️ Piste'}
                     </Text>
                   </View>
                 )}
                 {!!equipmentMeta && (
                   <View style={[styles.metaPill, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
                     <Text style={[styles.metaPillText, { color: theme.colors.accent }]}>
-                      {equipmentMeta === 'pointes' ? 'ðŸ‘Ÿ Pointes' : 'ðŸ‘Ÿ Baskets'}
+                      {equipmentMeta === 'pointes' ? '👟 Pointes' : '👟 Baskets'}
                     </Text>
                   </View>
                 )}
@@ -492,7 +492,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
               </View>
               <Text style={[styles.restDayTitle, { color: theme.colors.text }]}>Jour de repos</Text>
               <Text style={[styles.restDaySubtitle, { color: theme.colors.textSecondary }]}>
-                Aucun entraînement programmé. Priorité Ã  la récupération et au repos.
+                Aucun entraînement programmé. Priorité à la récupération et au repos.
               </Text>
             </View>
           ) : isCompetition ? (
@@ -690,7 +690,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                               
                               {/* Objective */}
                               <Text style={{ flex: 1, fontSize: 13, color: theme.colors.textSecondary, fontWeight: '500' }} numberOfLines={1}>
-                                {setDetails.join(' Â· ')}
+                                {setDetails.join(' · ')}
                               </Text>
 
                               {sessionCategory === 'muscu' && (
@@ -752,7 +752,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                             <View key={set.id || setIndex} style={styles.setRow}>
                               <Text style={[styles.setNumber, { color: theme.colors.textMuted }]}>{setIndex + 1}</Text>
                               <Text style={[styles.setDetails, { color: theme.colors.text }]}>
-                                {setDetails.join('  â€¢  ')}
+                                {setDetails.join(' · ')}
                               </Text>
                             </View>
                           );
@@ -853,11 +853,11 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
               )}
               <Text style={styles.submitBtnText}>
                 {isSubmitting
-                  ? 'Mise Ã  jour en cours...'
+                  ? 'Mise à jour en cours...'
                   : justSaved
-                    ? 'Données Ã  jour âœ“'
+                    ? 'Données à jour ✓'
                     : isValidated
-                      ? 'Mettre Ã  jour mes chronos & données'
+                      ? 'Mettre à jour mes chronos & données'
                       : 'Valider la séance'}
               </Text>
             </TouchableOpacity>
@@ -866,7 +866,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingBottom: 8 }}>
                 <Feather name="check-circle" size={14} color={theme.colors.success} />
                 <Text style={{ fontSize: 13, color: theme.colors.success, fontWeight: '600' }}>
-                  Séance validée â€” tu peux modifier tes données Ã  tout moment
+                  Séance validée — tu peux modifier tes données à tout moment
                 </Text>
               </View>
             )}
