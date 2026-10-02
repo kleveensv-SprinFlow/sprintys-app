@@ -20,7 +20,7 @@ export default function CoachAthleteCalendarScreen() {
   // Get athlete details for header title
   const { teamMembers } = useCoachStore();
   const athleteMember = teamMembers.find(m => m.user_id === id);
-  const athleteName = athleteMember?.profile?.full_name || 'AthlÃ¨te';
+  const athleteName = athleteMember?.profile?.full_name || 'Athlète';
 
   const loadMonthData = useCallback(async (year: number, month: number) => {
     if (!id) return;
@@ -59,7 +59,7 @@ export default function CoachAthleteCalendarScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header
-        title={`EntraÃ®nement de ${athleteName.split(' ')[0]}`}
+        title={`Entraînement de ${athleteName.split(' ')[0]}`}
         showBackButton
         onBackPress={() => router.back()}
       />

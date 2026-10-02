@@ -9,8 +9,8 @@ import { WorkoutCard } from '../../../../../src/shared/components/WorkoutCard';
 import { WorkoutDetailModal } from '../../../../../src/features/calendar/components/WorkoutDetailModal';
 
 const MONTH_NAMES_FULL = [
-  'janvier', 'fÃ©vrier', 'mars', 'avril', 'mai', 'juin',
-  'juillet', 'aoÃ»t', 'septembre', 'octobre', 'novembre', 'dÃ©cembre'
+  'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'
 ];
 const DAY_NAMES = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 
@@ -67,14 +67,14 @@ export default function CoachAthleteDayScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <Text style={[styles.sectionTitle, { color: theme.colors.textMuted }]}>
-          SÃ‰ANCES PRÃ‰VUES
+          SÉANCES PRÉVUES
         </Text>
 
         {isLoading ? (
           <ActivityIndicator size="large" color={theme.colors.accent} style={{ marginTop: 40 }} />
         ) : workouts.length === 0 ? (
           <View style={[styles.emptyCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-            <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>Aucune sÃ©ance enregistrÃ©e ce jour.</Text>
+            <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>Aucune séance enregistrée ce jour.</Text>
           </View>
         ) : (
           workouts.map((w) => (

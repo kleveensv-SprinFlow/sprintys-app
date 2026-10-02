@@ -26,7 +26,7 @@ interface WorkoutDetailModalProps {
 const getSessionCategory = (typeSeance: string): 'muscu' | 'course' | 'other' => {
   const t = (typeSeance || '').toLowerCase();
   if (t.includes('musculation')) return 'muscu';
-  if (t.includes('course') || t.includes('sprint') || t.includes('piste') || t.includes('cÃ´te') || t.includes('cote')) return 'course';
+  if (t.includes('course') || t.includes('sprint') || t.includes('piste') || t.includes('côte') || t.includes('cote')) return 'course';
   return 'other';
 };
 
@@ -182,8 +182,8 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
   const handleDelete = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
-      'Supprimer la sÃ©ance',
-      'Voulez-vous vraiment supprimer cette sÃ©ance ?',
+      'Supprimer la séance',
+      'Voulez-vous vraiment supprimer cette séance ?',
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -222,7 +222,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
             const effort: any = {
               workout_id: workout.id,
               exercise_catalog_id: exercise.catalog_id ? String(exercise.catalog_id).trim() : null,
-              exercise_category: workout.type_seance || 'GÃ©nÃ©ral',
+              exercise_category: workout.type_seance || 'Général',
               block_order: bIdx,
               set_order: setOrderGlobal,
               planned_reps: set?.reps ? parseInt(String(set.reps), 10) : null,
@@ -273,14 +273,14 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
       onUpdated?.();
 
       Alert.alert(
-        'DonnÃ©es enregistrÃ©es ! âœ“',
+        'Données enregistrées ! âœ“',
         isValidated
-          ? 'Tes modifications ont Ã©tÃ© mises Ã  jour avec succÃ¨s.'
-          : 'Ta sÃ©ance a Ã©tÃ© validÃ©e avec succÃ¨s !'
+          ? 'Tes modifications ont été mises Ã  jour avec succès.'
+          : 'Ta séance a été validée avec succès !'
       );
     } catch (e: any) {
       console.error('Error submitting athlete workout:', e);
-      Alert.alert('Erreur', e?.message || 'Impossible de valider la sÃ©ance.');
+      Alert.alert('Erreur', e?.message || 'Impossible de valider la séance.');
     } finally {
       setIsSubmitting(false);
     }
@@ -290,19 +290,19 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
   const blocks: WorkoutBlock[] = workout.blocks || [
     {
       id: 'main',
-      name: 'EntraÃ®nement Principal',
+      name: 'Entraînement Principal',
       exercises: workout.exercises || [],
     }
   ];
 
-  const sessionTitle = workout.type_seance || workout.name || 'SÃ©ance';
+  const sessionTitle = workout.type_seance || workout.name || 'Séance';
   const isRestDay = sessionTitle.toLowerCase().includes('repos');
   const isTechnical = sessionTitle.toLowerCase().includes('technique');
-  const isCompetition = sessionTitle.toLowerCase().includes('compÃ©tition') || sessionTitle.toLowerCase().includes('competition');
+  const isCompetition = sessionTitle.toLowerCase().includes('compétition') || sessionTitle.toLowerCase().includes('competition');
   const technicalNotes = workout.measures?.technical_notes;
 
   const surfaceMeta = workout.measures?.surface || 
-    (workout.description?.includes('CÃ´te') ? 'cote' : workout.description?.includes('Piste') ? 'piste' : null);
+    (workout.description?.includes('Côte') ? 'cote' : workout.description?.includes('Piste') ? 'piste' : null);
   const equipmentMeta = workout.measures?.equipment ||
     (workout.description?.includes('Pointes') ? 'pointes' : workout.description?.includes('Baskets') ? 'baskets' : null);
 
@@ -330,7 +330,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
     const currentRepsOk = curData.repsOk !== undefined ? curData.repsOk : true;
 
     const distText = item.distance ? `${item.distance}m` : '';
-    const setLabel = `SÃ©rie ${item.setIndex + 1}/${(item.exercise.sets || []).length}`;
+    const setLabel = `Série ${item.setIndex + 1}/${(item.exercise.sets || []).length}`;
     const title = `${setLabel}${distText ? ` Â· ${distText}` : ''}`;
     const subtitle = item.exercise.name;
 
@@ -379,7 +379,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
           <TouchableOpacity onPress={onClose} style={[styles.closeButton, { backgroundColor: theme.colors.surfaceLight }]}>
             <Feather name="x" size={24} color={theme.colors.text} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>DÃ©tails de la SÃ©ance</Text>
+          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Détails de la Séance</Text>
           {isCoach ? (
             <TouchableOpacity
               onPress={handleDelete}
@@ -406,7 +406,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                     fontSize: 12, fontWeight: '700',
                     color: isValidated ? '#047857' : '#B45309',
                   }}>
-                    {isValidated ? 'âœ“ ValidÃ©e' : 'â—‹ Ã€ complÃ©ter'}
+                    {isValidated ? 'âœ“ Validée' : 'â—‹ À compléter'}
                   </Text>
                 </View>
               )}
@@ -417,7 +417,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                 {!!surfaceMeta && (
                   <View style={[styles.metaPill, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
                     <Text style={[styles.metaPillText, { color: theme.colors.accent }]}>
-                      {surfaceMeta === 'cote' ? 'â›°ï¸ CÃ´te' : 'ðŸŸï¸ Piste'}
+                      {surfaceMeta === 'cote' ? 'â›°ï¸ Côte' : 'ðŸŸï¸ Piste'}
                     </Text>
                   </View>
                 )}
@@ -457,7 +457,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                   activeOpacity={0.7}
                 >
                   <Feather name="repeat" size={15} color="#7C3AED" style={{ marginRight: 6 }} />
-                  <Text style={[styles.actionBtnText, { color: '#7C3AED' }]}>RÃ©pÃ©ter</Text>
+                  <Text style={[styles.actionBtnText, { color: '#7C3AED' }]}>Répéter</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -478,7 +478,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
               <View style={styles.consignesHeader}>
                 <Feather name="file-text" size={14} color={theme.colors.accent} />
                 <Text style={[styles.consignesCaption, { color: theme.colors.accent }]}>
-                  {isRestDay ? 'NOTE DE RÃ‰CUPÃ‰RATION' : 'CONSIGNES DE SÃ‰ANCE'}
+                  {isRestDay ? 'NOTE DE RÉCUPÉRATION' : 'CONSIGNES DE SÉANCE'}
                 </Text>
               </View>
               <Text style={[styles.consignesBody, { color: theme.colors.text }]}>{cleanDescription}</Text>
@@ -492,7 +492,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
               </View>
               <Text style={[styles.restDayTitle, { color: theme.colors.text }]}>Jour de repos</Text>
               <Text style={[styles.restDaySubtitle, { color: theme.colors.textSecondary }]}>
-                Aucun entraÃ®nement programmÃ©. PrioritÃ© Ã  la rÃ©cupÃ©ration et au repos.
+                Aucun entraînement programmé. Priorité Ã  la récupération et au repos.
               </Text>
             </View>
           ) : isCompetition ? (
@@ -502,13 +502,13 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                   <Ionicons name="trophy-outline" size={16} color="#D97706" />
                 </View>
                 <Text style={[styles.technicalSectionTitle, { color: theme.colors.text }]}>
-                  INFORMATIONS DE LA COMPÃ‰TITION
+                  INFORMATIONS DE LA COMPÉTITION
                 </Text>
               </View>
 
               <View style={[styles.technicalCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                 <Text style={[styles.technicalNoteContent, { color: theme.colors.text, fontSize: 16, fontWeight: '700', marginBottom: 12 }]}>
-                  {workout.description?.split('\n')[0] || 'CompÃ©tition'}
+                  {workout.description?.split('\n')[0] || 'Compétition'}
                 </Text>
 
                 {workout.measures?.location ? (
@@ -536,7 +536,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
 
                 {(!workout.measures?.location && !workout.measures?.attachmentUrl) && (
                   <Text style={{ color: theme.colors.textSecondary, fontStyle: 'italic', fontSize: 14 }}>
-                    Aucune information supplÃ©mentaire.
+                    Aucune information supplémentaire.
                   </Text>
                 )}
               </View>
@@ -559,7 +559,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                   const badgeBg = isTeam ? '#E0E7FF' : isSubgroup ? '#D1FAE5' : '#FEF3C7';
                   const badgeText = isTeam ? '#4338CA' : isSubgroup ? '#047857' : '#B45309';
                   const badgeIcon = isTeam ? 'people' : isSubgroup ? 'git-branch' : 'person';
-                  const targetLabel = note.targetName || (isTeam ? 'Tout le groupe' : isSubgroup ? 'Sous-groupe' : 'AthlÃ¨te');
+                  const targetLabel = note.targetName || (isTeam ? 'Tout le groupe' : isSubgroup ? 'Sous-groupe' : 'Athlète');
 
                   return (
                     <View
@@ -593,7 +593,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
               ) : (
                 <View style={[styles.technicalCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                   <Text style={[styles.technicalNoteContent, { color: theme.colors.text }]}>
-                    {cleanDescription || 'Aucune consigne technique renseignÃ©e.'}
+                    {cleanDescription || 'Aucune consigne technique renseignée.'}
                   </Text>
                 </View>
               )}
@@ -623,7 +623,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                       <View style={styles.targetBadge}>
                         <Feather name="user" size={11} color={theme.colors.accent} />
                         <Text style={[styles.targetBadgeText, { color: theme.colors.accent }]}>
-                          {(exercise as any).target.name || 'Cible spÃ©cifique'}
+                          {(exercise as any).target.name || 'Cible spécifique'}
                         </Text>
                       </View>
                     )}
@@ -638,7 +638,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                       {/* Column headers for athlete mode */}
                       {needsDataEntry && (exercise.sets || []).length > 0 && (
                         <View style={[styles.athleteSetHeader, { borderBottomColor: theme.colors.border }]}>
-                          <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, width: 32 }]}>SÃ©rie</Text>
+                          <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, width: 32 }]}>Série</Text>
                           <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, flex: 1 }]}>Objectif</Text>
                           {sessionCategory === 'muscu' && (
                             <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, width: 90 }]}>Charge</Text>
@@ -673,7 +673,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                         }
                         if (set.restSeconds) {
                           const r = set.restSeconds >= 60 ? `${Math.floor(set.restSeconds / 60)}m${set.restSeconds % 60 ? (set.restSeconds % 60) : ''}` : `${set.restSeconds}s`;
-                          setDetails.push(`RÃ©c: ${r}`);
+                          setDetails.push(`Réc: ${r}`);
                         }
 
                         const resultKey = `${exercise.id}_${setIndex}`;
@@ -796,8 +796,8 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                 }}
                 placeholder={
                   sessionCategory === 'other'
-                    ? "Comment s'est passÃ©e la sÃ©ance ? Notes, ressentis..."
-                    : "Comment s'est passÃ©e la sÃ©ance ?"
+                    ? "Comment s'est passée la séance ? Notes, ressentis..."
+                    : "Comment s'est passée la séance ?"
                 }
                 placeholderTextColor={theme.colors.textMuted}
                 multiline
@@ -822,7 +822,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
               }}>
                 <Feather name="check-circle" size={18} color="#047857" />
                 <Text style={{ fontSize: 14, fontWeight: '700', color: '#047857' }}>
-                  DonnÃ©es enregistrÃ©es avec succÃ¨s !
+                  Données enregistrées avec succès !
                 </Text>
               </View>
             )}
@@ -855,10 +855,10 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                 {isSubmitting
                   ? 'Mise Ã  jour en cours...'
                   : justSaved
-                    ? 'DonnÃ©es Ã  jour âœ“'
+                    ? 'Données Ã  jour âœ“'
                     : isValidated
-                      ? 'Mettre Ã  jour mes chronos & donnÃ©es'
-                      : 'Valider la sÃ©ance'}
+                      ? 'Mettre Ã  jour mes chronos & données'
+                      : 'Valider la séance'}
               </Text>
             </TouchableOpacity>
 
@@ -866,7 +866,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingBottom: 8 }}>
                 <Feather name="check-circle" size={14} color={theme.colors.success} />
                 <Text style={{ fontSize: 13, color: theme.colors.success, fontWeight: '600' }}>
-                  SÃ©ance validÃ©e â€” tu peux modifier tes donnÃ©es Ã  tout moment
+                  Séance validée â€” tu peux modifier tes données Ã  tout moment
                 </Text>
               </View>
             )}

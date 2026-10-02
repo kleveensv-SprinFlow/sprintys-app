@@ -38,7 +38,7 @@ export default function AthleteDetailScreen() {
     }
   };
 
-  if (!profile) return <View style={styles.center}><Text style={styles.errorText}>AthlÃ¨te non trouvÃ©</Text></View>;
+  if (!profile) return <View style={styles.center}><Text style={styles.errorText}>Athlète non trouvé</Text></View>;
 
   const renderScoreBar = (label: string, score: number | undefined, icon: string, color: string) => {
     const validScore = score || 0;
@@ -64,8 +64,8 @@ export default function AthleteDetailScreen() {
           <Feather name="arrow-left" size={24} color={theme.colors.text} />
         </TouchableOpacity>
         <View style={styles.headerText}>
-          <Text style={styles.title}>{profile.full_name || 'AthlÃ¨te'}</Text>
-          <Text style={styles.subtitle}>DÃ©tail et Forme du jour</Text>
+          <Text style={styles.title}>{profile.full_name || 'Athlète'}</Text>
+          <Text style={styles.subtitle}>Détail et Forme du jour</Text>
         </View>
       </View>
 
@@ -74,7 +74,7 @@ export default function AthleteDetailScreen() {
         {/* PROFILE INFO */}
         <View style={styles.profileSection}>
           <View style={styles.avatarPlaceholder}>\n              <Text style={styles.avatarLetter}>{profile.full_name?.charAt(0) || 'A'}</Text>\n            </View>
-          <Text style={styles.profileName}>{profile.full_name || 'AthlÃ¨te'}</Text>
+          <Text style={styles.profileName}>{profile.full_name || 'Athlète'}</Text>
           <Text style={styles.profileGroup}>{profile.subgroups?.join(', ') || 'Aucun sous-groupe'}</Text>
         </View>
 
@@ -107,7 +107,7 @@ export default function AthleteDetailScreen() {
             <View style={[styles.actionIconBg, { backgroundColor: theme.colors.success + '20' }]}>
               <Feather name="calendar" size={24} color={theme.colors.success} />
             </View>
-            <Text style={styles.actionGridText}>SÃ©ances</Text>
+            <Text style={styles.actionGridText}>Séances</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -153,7 +153,7 @@ export default function AthleteDetailScreen() {
             {/* Pains details */}
             {latestCheckIn.pains && latestCheckIn.pains.length > 0 && (
               <View style={styles.painsContainer}>
-                <Text style={styles.painsTitle}>Douleurs signalÃ©es :</Text>
+                <Text style={styles.painsTitle}>Douleurs signalées :</Text>
                 {latestCheckIn.pains.map((pain, idx) => (
                   <View key={idx} style={styles.painItem}>
                     <View style={styles.painItemHeader}>
@@ -172,7 +172,7 @@ export default function AthleteDetailScreen() {
             {latestCheckIn.menstruation && (
               <View style={styles.menstruationAlert}>
                 <Feather name="droplet" size={16} color={theme.colors.error} />
-                <Text style={styles.menstruationText}>En pÃ©riode de rÃ¨gles</Text>
+                <Text style={styles.menstruationText}>En période de règles</Text>
               </View>
             )}
           </View>

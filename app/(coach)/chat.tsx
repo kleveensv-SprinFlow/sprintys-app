@@ -74,10 +74,10 @@ export default function CoachMessageScreen() {
             <WorkoutProposalCard 
               proposal={proposalObj} 
               onValidate={() => {
-                addMessage({ role: 'assistant', content: 'ðŸ’ª SÃ©ance ajoutÃ©e au calendrier !' });
+                addMessage({ role: 'assistant', content: 'ðŸ’ª Séance ajoutée au calendrier !' });
               }}
               onReject={() => {
-                setInputText("Je n'ai pas validÃ© cette sÃ©ance, voici ce qu'il faut changer : ");
+                setInputText("Je n'ai pas validé cette séance, voici ce qu'il faut changer : ");
               }}
             />
           </View>
@@ -102,7 +102,7 @@ export default function CoachMessageScreen() {
     }, 100);
 
     try {
-      const systemPrompt = athleteId ? await buildCoachSystemPromptForAthlete(athleteId, athlete?.profile?.full_name || 'AthlÃ¨te') : buildSystemPrompt();
+      const systemPrompt = athleteId ? await buildCoachSystemPromptForAthlete(athleteId, athlete?.profile?.full_name || 'Athlète') : buildSystemPrompt();
       const currentMsgs = getCurrentMessages();
       
       const response = await fetchOpenAIResponse(
@@ -114,7 +114,7 @@ export default function CoachMessageScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
       console.error(err);
-      addMessage({ role: 'assistant', content: "DÃ©solÃ©, j'ai rencontrÃ© un problÃ¨me de connexion avec le serveur." });
+      addMessage({ role: 'assistant', content: "Désolé, j'ai rencontré un problème de connexion avec le serveur." });
     } finally {
       setIsTyping(false);
       setTimeout(() => {
@@ -124,9 +124,9 @@ export default function CoachMessageScreen() {
   };
 
   const coachCapabilities = [
-    { id: 1, title: 'Planifier une sÃ©ance', icon: 'zap', prompt: 'CrÃ©e-moi une sÃ©ance de sprint' },
-    { id: 2, title: 'Planifier une compÃ©tition', icon: 'award', prompt: 'Je veux planifier une compÃ©tition' },
-    { id: 3, title: 'Analyser un athlÃ¨te', icon: 'activity', prompt: 'Donne-moi une analyse sur un athlÃ¨te' },
+    { id: 1, title: 'Planifier une séance', icon: 'zap', prompt: 'Crée-moi une séance de sprint' },
+    { id: 2, title: 'Planifier une compétition', icon: 'award', prompt: 'Je veux planifier une compétition' },
+    { id: 3, title: 'Analyser un athlète', icon: 'activity', prompt: 'Donne-moi une analyse sur un athlète' },
   ];
 
   return (
@@ -153,7 +153,7 @@ export default function CoachMessageScreen() {
             </View>
             <View>
               <Text style={styles.title}>Sprinty IA</Text>
-              <Text style={styles.subtitle}>{isTyping ? 'ENTRAIN DE RÃ‰FLÃ‰CHIR...' : 'NEURAL ASSISTANT ACTIF'}</Text>
+              <Text style={styles.subtitle}>{isTyping ? 'ENTRAIN DE RÉFLÉCHIR...' : 'NEURAL ASSISTANT ACTIF'}</Text>
             </View>
           </View>
           <TouchableOpacity style={styles.menuBtn} onPress={() => setHistoryVisible(true)}>
@@ -178,7 +178,7 @@ export default function CoachMessageScreen() {
             {/* Hero Quick Actions if empty */}
             {messages.length <= 1 && (
               <View style={styles.heroContainer}>
-                <Text style={styles.heroTitle}>CapacitÃ©s Sprinty</Text>
+                <Text style={styles.heroTitle}>Capacités Sprinty</Text>
                 <Text style={styles.heroSub}>Explore tout le potentiel de ton assistant IA personnel.</Text>
                 <View style={styles.capabilitiesGrid}>
                   {coachCapabilities.map(cap => (

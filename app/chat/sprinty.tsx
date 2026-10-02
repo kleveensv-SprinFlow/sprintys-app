@@ -70,10 +70,10 @@ export default function AthleteMessageScreen() {
             <WorkoutProposalCard 
               proposal={proposalObj} 
               onValidate={() => {
-                addMessage({ role: 'assistant', content: 'ðŸ’ª SÃ©ance ajoutÃ©e au calendrier !' });
+                addMessage({ role: 'assistant', content: 'ðŸ’ª Séance ajoutée au calendrier !' });
               }}
               onReject={() => {
-                setInputText("Je n'ai pas validÃ© cette sÃ©ance, voici ce qu'il faut changer : ");
+                setInputText("Je n'ai pas validé cette séance, voici ce qu'il faut changer : ");
               }}
             />
           </View>
@@ -110,7 +110,7 @@ export default function AthleteMessageScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
       console.error(err);
-      addMessage({ role: 'assistant', content: "DÃ©solÃ©, j'ai rencontrÃ© un problÃ¨me de connexion avec le serveur." });
+      addMessage({ role: 'assistant', content: "Désolé, j'ai rencontré un problème de connexion avec le serveur." });
     } finally {
       setIsTyping(false);
       setTimeout(() => {
@@ -121,7 +121,7 @@ export default function AthleteMessageScreen() {
 
   const athleteCapabilities = [
     { id: 1, title: 'Analyser ma nutrition', icon: 'coffee', prompt: "J'aimerais une analyse sur ma nutrition et mes repas." },
-    { id: 2, title: 'Analyser ma forme', icon: 'activity', prompt: "J'aimerais une analyse de mon Ã©tat de forme actuel." },
+    { id: 2, title: 'Analyser ma forme', icon: 'activity', prompt: "J'aimerais une analyse de mon état de forme actuel." },
   ];
 
   return (
@@ -148,7 +148,7 @@ export default function AthleteMessageScreen() {
             </View>
             <View>
               <Text style={styles.title}>Sprinty IA</Text>
-              <Text style={styles.subtitle}>{isTyping ? 'ENTRAIN DE RÃ‰FLÃ‰CHIR...' : 'NEURAL ASSISTANT ACTIF'}</Text>
+              <Text style={styles.subtitle}>{isTyping ? 'ENTRAIN DE RÉFLÉCHIR...' : 'NEURAL ASSISTANT ACTIF'}</Text>
             </View>
           </View>
           <TouchableOpacity style={styles.menuBtn} onPress={() => setHistoryVisible(true)}>
@@ -173,7 +173,7 @@ export default function AthleteMessageScreen() {
             {/* Hero Quick Actions if empty */}
             {messages.length <= 1 && (
               <View style={styles.heroContainer}>
-                <Text style={styles.heroTitle}>CapacitÃ©s Sprinty</Text>
+                <Text style={styles.heroTitle}>Capacités Sprinty</Text>
                 <Text style={styles.heroSub}>Explore tout le potentiel de ton assistant IA personnel.</Text>
                 <View style={styles.capabilitiesGrid}>
                   {athleteCapabilities.map(cap => (

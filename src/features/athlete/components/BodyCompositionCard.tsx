@@ -66,7 +66,7 @@ export const BodyCompositionCard = () => {
 
         {!bodyFat && !muscleMass && (
           <Text style={[styles.hintText, { color: theme.colors.textSecondary }]}>
-            Clique pour ajouter plus de dÃ©tails (balance impÃ©dancemÃ¨tre)
+            Clique pour ajouter plus de détails (balance impédancemètre)
           </Text>
         )}
       </TouchableOpacity>
