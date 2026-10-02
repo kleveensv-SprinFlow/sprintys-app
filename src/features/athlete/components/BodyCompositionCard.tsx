@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+﻿import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTheme } from '../../../core/theme';
 import { Feather } from '@expo/vector-icons';
@@ -66,7 +66,7 @@ export const BodyCompositionCard = () => {
 
         {!bodyFat && !muscleMass && (
           <Text style={[styles.hintText, { color: theme.colors.textSecondary }]}>
-            Clique pour ajouter plus de détails (balance impédancemètre)
+            Clique pour ajouter plus de dÃ©tails (balance impÃ©dancemÃ¨tre)
           </Text>
         )}
       </TouchableOpacity>

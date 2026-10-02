@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { theme } from '../core/theme';
 import { Feather } from '@expo/vector-icons';
@@ -68,7 +68,7 @@ export function WorkoutProposalCard({ proposal, onValidate, onReject }: { propos
       onValidate();
     } catch (e) {
       console.error(e);
-      alert('Erreur lors de la sauvegarde de la séance.');
+      alert('Erreur lors de la sauvegarde de la sÃ©ance.');
     } finally {
       setIsSaving(false);
     }
@@ -78,7 +78,7 @@ export function WorkoutProposalCard({ proposal, onValidate, onReject }: { propos
     return (
       <View style={[styles.card, { borderColor: theme.colors.success }]}>
         <Feather name="check-circle" size={32} color={theme.colors.success} style={{ alignSelf: 'center', marginBottom: 12 }} />
-        <Text style={[styles.title, { textAlign: 'center', color: theme.colors.success }]}>Séance validée et ajoutée pour {proposal.target_name} !</Text>
+        <Text style={[styles.title, { textAlign: 'center', color: theme.colors.success }]}>SÃ©ance validÃ©e et ajoutÃ©e pour {proposal.target_name} !</Text>
       </View>
     );
   }
@@ -87,7 +87,7 @@ export function WorkoutProposalCard({ proposal, onValidate, onReject }: { propos
     <View style={styles.card}>
       <View style={styles.header}>
         <Feather name="calendar" size={20} color={theme.colors.accent} />
-        <Text style={styles.title}>Proposition de Séance</Text>
+        <Text style={styles.title}>Proposition de SÃ©ance</Text>
       </View>
       
       <View style={styles.infoRow}>
@@ -108,7 +108,7 @@ export function WorkoutProposalCard({ proposal, onValidate, onReject }: { propos
       {proposal.exercises.map((ex, idx) => (
         <View key={idx} style={styles.exerciseRow}>
           <Text style={styles.exerciseName}>{idx + 1}. {ex.name}</Text>
-          <Text style={styles.exerciseDetails}>{ex.sets} séries x {ex.reps} (Repos: {ex.rest})</Text>
+          <Text style={styles.exerciseDetails}>{ex.sets} sÃ©ries x {ex.reps} (Repos: {ex.rest})</Text>
           {ex.notes ? <Text style={styles.exerciseNotes}>{ex.notes}</Text> : null}
         </View>
       ))}
@@ -134,7 +134,7 @@ export function WorkoutProposalCard({ proposal, onValidate, onReject }: { propos
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: theme.colors.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: theme.colors.border, marginVertical: 8, width: '100%' },
+  card: { backgroundColor: theme.colors.surface, borderRadius: 16, padding: 16, ...theme.shadows.soft, marginVertical: 8, width: '100%' },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 8 },
   title: { fontSize: 16, fontWeight: 'bold', color: theme.colors.text },
   infoRow: { flexDirection: 'row', marginBottom: 6 },

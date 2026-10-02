@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import { theme } from '../../core/theme';
 
@@ -39,17 +39,17 @@ const styles = StyleSheet.create({
   },
   default: {
     backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    
+    ...theme.shadows.soft,
   },
   elevated: {
     backgroundColor: theme.colors.surfaceLight,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    
+    ...theme.shadows.soft,
   },
   glass: {
     backgroundColor: theme.glass.backgroundColor,
-    borderWidth: 1,
+    
     borderColor: theme.glass.borderColor,
   },
 });
