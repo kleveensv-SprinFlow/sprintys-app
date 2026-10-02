@@ -258,7 +258,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
   const totalWeeks = weeks.length;
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]} {...panResponder.panHandlers}>
+    <View style={[styles.container, { backgroundColor: '#FFFFFF' }]} {...panResponder.panHandlers}>
       {/* === Header (< Septembre 2026 >) === */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -419,7 +419,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                   <View style={styles.dateHeaderRow}>
                     {isTodayCell ? (
                       <View style={[styles.todayNumberBadge, { backgroundColor: theme.colors.text }]}>
-                        <Text style={[styles.todayNumberText, { color: theme.colors.background }]}>
+                        <Text style={[styles.todayNumberText, { color: '#FFFFFF' }]}>
                           {item.date.getDate()}
                         </Text>
                       </View>
@@ -658,4 +658,6 @@ const styles = StyleSheet.create({
     marginTop: 0.5,
   },
 });
+
+
 
