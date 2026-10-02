@@ -55,7 +55,7 @@ export default function RootLayout() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#1E293B', '#0F172A', '#000000']}
+        colors={['#F8FAFC', '#F1F5F9', '#E2E8F0']}
         style={StyleSheet.absoluteFillObject}
       />
       <StatusBar style={isDark ? 'light' : 'dark'} />
@@ -74,5 +74,6 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#09090D' }
 });
+
 
 

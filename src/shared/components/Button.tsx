@@ -86,7 +86,7 @@ export const Button: React.FC<ButtonProps> = ({
     >
       <Animated.View style={[styles.content, { transform: [{ scale: scaleAnim }] }]}>
         {loading ? (
-          <ActivityIndicator color={(variant === 'primary' ? '#000000' : theme.colors.accent)} />
+          <ActivityIndicator color={(variant === 'primary' ? '#FFFFFF' : theme.colors.accent)} />
         ) : (
           <Text style={[styles.baseText, getTextStyle(), textStyle]}>
             {title}
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.accent,
   },
   primaryText: {
-    color: '#000000', // Black text on white accent
+    color: '#FFFFFF', // White text on dark slate accent
   },
   secondary: {
     backgroundColor: theme.colors.surfaceLight,
@@ -144,4 +144,5 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
 });
+
 
