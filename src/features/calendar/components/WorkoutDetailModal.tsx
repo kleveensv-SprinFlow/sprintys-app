@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Platform, StatusBar, Alert, TextInput, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -19,28 +19,23 @@ interface WorkoutDetailModalProps {
   onDelete?: (workout: any) => void;
   onEdit?: (workout: any) => void;
   onUpdated?: () => void;
+  readOnlyAthleteId?: string;
 }
 
 // Determine the "category" of the session for athlete data entry
 const getSessionCategory = (typeSeance: string): 'muscu' | 'course' | 'other' => {
   const t = (typeSeance || '').toLowerCase();
   if (t.includes('musculation')) return 'muscu';
-  if (t.includes('course') || t.includes('sprint') || t.includes('piste') || t.includes('côte') || t.includes('cote')) return 'course';
+  if (t.includes('course') || t.includes('sprint') || t.includes('piste') || t.includes('cÃ´te') || t.includes('cote')) return 'course';
   return 'other';
 };
 
-export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
-  visible,
-  onClose,
-  workout,
-  onDelete,
-  onEdit,
-  onUpdated,
-}) => {
+export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible, onClose, workout, onDelete, onEdit, onUpdated, readOnlyAthleteId }) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
-  const isCoach = user?.role === 'coach';
+  const isCoach = user?.role === 'coach' && !readOnlyAthleteId;
+  const isReadOnly = !!readOnlyAthleteId;
 
   // Athlete data entry state
   // For muscu: { "exerciseId_setIndex": { weight: "80", repsOk: true } }
@@ -75,11 +70,11 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
 
   // Computed before hooks that depend on it
   const sessionCategory = getSessionCategory(workout?.type_seance || '');
-  const needsDataEntry = !isCoach && (sessionCategory === 'muscu' || sessionCategory === 'course');
+  const needsDataEntry = (!isCoach || isReadOnly) && (sessionCategory === 'muscu' || sessionCategory === 'course');
 
   // Load existing athlete data when workout changes
   React.useEffect(() => {
-    if (visible && workout && !isCoach && user) {
+    if (visible && workout && (!isCoach || isReadOnly) && user) {
       loadExistingData();
     }
   }, [visible, workout?.id]);
@@ -187,8 +182,8 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
   const handleDelete = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
-      'Supprimer la séance',
-      'Voulez-vous vraiment supprimer cette séance ?',
+      'Supprimer la sÃ©ance',
+      'Voulez-vous vraiment supprimer cette sÃ©ance ?',
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -227,7 +222,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
             const effort: any = {
               workout_id: workout.id,
               exercise_catalog_id: exercise.catalog_id ? String(exercise.catalog_id).trim() : null,
-              exercise_category: workout.type_seance || 'Général',
+              exercise_category: workout.type_seance || 'GÃ©nÃ©ral',
               block_order: bIdx,
               set_order: setOrderGlobal,
               planned_reps: set?.reps ? parseInt(String(set.reps), 10) : null,
@@ -278,14 +273,14 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
       onUpdated?.();
 
       Alert.alert(
-        'Données enregistrées ! ✓',
+        'DonnÃ©es enregistrÃ©es ! âœ“',
         isValidated
-          ? 'Tes modifications ont été mises à jour avec succès.'
-          : 'Ta séance a été validée avec succès !'
+          ? 'Tes modifications ont Ã©tÃ© mises Ã  jour avec succÃ¨s.'
+          : 'Ta sÃ©ance a Ã©tÃ© validÃ©e avec succÃ¨s !'
       );
     } catch (e: any) {
       console.error('Error submitting athlete workout:', e);
-      Alert.alert('Erreur', e?.message || 'Impossible de valider la séance.');
+      Alert.alert('Erreur', e?.message || 'Impossible de valider la sÃ©ance.');
     } finally {
       setIsSubmitting(false);
     }
@@ -295,19 +290,19 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
   const blocks: WorkoutBlock[] = workout.blocks || [
     {
       id: 'main',
-      name: 'Entraînement Principal',
+      name: 'EntraÃ®nement Principal',
       exercises: workout.exercises || [],
     }
   ];
 
-  const sessionTitle = workout.type_seance || workout.name || 'Séance';
+  const sessionTitle = workout.type_seance || workout.name || 'SÃ©ance';
   const isRestDay = sessionTitle.toLowerCase().includes('repos');
   const isTechnical = sessionTitle.toLowerCase().includes('technique');
-  const isCompetition = sessionTitle.toLowerCase().includes('compétition') || sessionTitle.toLowerCase().includes('competition');
+  const isCompetition = sessionTitle.toLowerCase().includes('compÃ©tition') || sessionTitle.toLowerCase().includes('competition');
   const technicalNotes = workout.measures?.technical_notes;
 
   const surfaceMeta = workout.measures?.surface || 
-    (workout.description?.includes('Côte') ? 'cote' : workout.description?.includes('Piste') ? 'piste' : null);
+    (workout.description?.includes('CÃ´te') ? 'cote' : workout.description?.includes('Piste') ? 'piste' : null);
   const equipmentMeta = workout.measures?.equipment ||
     (workout.description?.includes('Pointes') ? 'pointes' : workout.description?.includes('Baskets') ? 'baskets' : null);
 
@@ -335,8 +330,8 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
     const currentRepsOk = curData.repsOk !== undefined ? curData.repsOk : true;
 
     const distText = item.distance ? `${item.distance}m` : '';
-    const setLabel = `Série ${item.setIndex + 1}/${(item.exercise.sets || []).length}`;
-    const title = `${setLabel}${distText ? ` · ${distText}` : ''}`;
+    const setLabel = `SÃ©rie ${item.setIndex + 1}/${(item.exercise.sets || []).length}`;
+    const title = `${setLabel}${distText ? ` Â· ${distText}` : ''}`;
     const subtitle = item.exercise.name;
 
     setActiveKeypad({
@@ -384,7 +379,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
           <TouchableOpacity onPress={onClose} style={[styles.closeButton, { backgroundColor: theme.colors.surfaceLight }]}>
             <Feather name="x" size={24} color={theme.colors.text} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Détails de la Séance</Text>
+          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>DÃ©tails de la SÃ©ance</Text>
           {isCoach ? (
             <TouchableOpacity
               onPress={handleDelete}
@@ -411,7 +406,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                     fontSize: 12, fontWeight: '700',
                     color: isValidated ? '#047857' : '#B45309',
                   }}>
-                    {isValidated ? '✓ Validée' : '○ À compléter'}
+                    {isValidated ? 'âœ“ ValidÃ©e' : 'â—‹ Ã€ complÃ©ter'}
                   </Text>
                 </View>
               )}
@@ -422,14 +417,14 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                 {!!surfaceMeta && (
                   <View style={[styles.metaPill, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
                     <Text style={[styles.metaPillText, { color: theme.colors.accent }]}>
-                      {surfaceMeta === 'cote' ? '⛰️ Côte' : '🏟️ Piste'}
+                      {surfaceMeta === 'cote' ? 'â›°ï¸ CÃ´te' : 'ðŸŸï¸ Piste'}
                     </Text>
                   </View>
                 )}
                 {!!equipmentMeta && (
                   <View style={[styles.metaPill, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
                     <Text style={[styles.metaPillText, { color: theme.colors.accent }]}>
-                      {equipmentMeta === 'pointes' ? '👟 Pointes' : '👟 Baskets'}
+                      {equipmentMeta === 'pointes' ? 'ðŸ‘Ÿ Pointes' : 'ðŸ‘Ÿ Baskets'}
                     </Text>
                   </View>
                 )}
@@ -462,7 +457,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                   activeOpacity={0.7}
                 >
                   <Feather name="repeat" size={15} color="#7C3AED" style={{ marginRight: 6 }} />
-                  <Text style={[styles.actionBtnText, { color: '#7C3AED' }]}>Répéter</Text>
+                  <Text style={[styles.actionBtnText, { color: '#7C3AED' }]}>RÃ©pÃ©ter</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -483,7 +478,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
               <View style={styles.consignesHeader}>
                 <Feather name="file-text" size={14} color={theme.colors.accent} />
                 <Text style={[styles.consignesCaption, { color: theme.colors.accent }]}>
-                  {isRestDay ? 'NOTE DE RÉCUPÉRATION' : 'CONSIGNES DE SÉANCE'}
+                  {isRestDay ? 'NOTE DE RÃ‰CUPÃ‰RATION' : 'CONSIGNES DE SÃ‰ANCE'}
                 </Text>
               </View>
               <Text style={[styles.consignesBody, { color: theme.colors.text }]}>{cleanDescription}</Text>
@@ -497,7 +492,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
               </View>
               <Text style={[styles.restDayTitle, { color: theme.colors.text }]}>Jour de repos</Text>
               <Text style={[styles.restDaySubtitle, { color: theme.colors.textSecondary }]}>
-                Aucun entraînement programmé. Priorité à la récupération et au repos.
+                Aucun entraÃ®nement programmÃ©. PrioritÃ© Ã  la rÃ©cupÃ©ration et au repos.
               </Text>
             </View>
           ) : isCompetition ? (
@@ -507,13 +502,13 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                   <Ionicons name="trophy-outline" size={16} color="#D97706" />
                 </View>
                 <Text style={[styles.technicalSectionTitle, { color: theme.colors.text }]}>
-                  INFORMATIONS DE LA COMPÉTITION
+                  INFORMATIONS DE LA COMPÃ‰TITION
                 </Text>
               </View>
 
               <View style={[styles.technicalCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                 <Text style={[styles.technicalNoteContent, { color: theme.colors.text, fontSize: 16, fontWeight: '700', marginBottom: 12 }]}>
-                  {workout.description?.split('\n')[0] || 'Compétition'}
+                  {workout.description?.split('\n')[0] || 'CompÃ©tition'}
                 </Text>
 
                 {workout.measures?.location ? (
@@ -541,7 +536,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
 
                 {(!workout.measures?.location && !workout.measures?.attachmentUrl) && (
                   <Text style={{ color: theme.colors.textSecondary, fontStyle: 'italic', fontSize: 14 }}>
-                    Aucune information supplémentaire.
+                    Aucune information supplÃ©mentaire.
                   </Text>
                 )}
               </View>
@@ -564,7 +559,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                   const badgeBg = isTeam ? '#E0E7FF' : isSubgroup ? '#D1FAE5' : '#FEF3C7';
                   const badgeText = isTeam ? '#4338CA' : isSubgroup ? '#047857' : '#B45309';
                   const badgeIcon = isTeam ? 'people' : isSubgroup ? 'git-branch' : 'person';
-                  const targetLabel = note.targetName || (isTeam ? 'Tout le groupe' : isSubgroup ? 'Sous-groupe' : 'Athlète');
+                  const targetLabel = note.targetName || (isTeam ? 'Tout le groupe' : isSubgroup ? 'Sous-groupe' : 'AthlÃ¨te');
 
                   return (
                     <View
@@ -598,7 +593,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
               ) : (
                 <View style={[styles.technicalCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                   <Text style={[styles.technicalNoteContent, { color: theme.colors.text }]}>
-                    {cleanDescription || 'Aucune consigne technique renseignée.'}
+                    {cleanDescription || 'Aucune consigne technique renseignÃ©e.'}
                   </Text>
                 </View>
               )}
@@ -628,7 +623,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                       <View style={styles.targetBadge}>
                         <Feather name="user" size={11} color={theme.colors.accent} />
                         <Text style={[styles.targetBadgeText, { color: theme.colors.accent }]}>
-                          {(exercise as any).target.name || 'Cible spécifique'}
+                          {(exercise as any).target.name || 'Cible spÃ©cifique'}
                         </Text>
                       </View>
                     )}
@@ -643,7 +638,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                       {/* Column headers for athlete mode */}
                       {needsDataEntry && (exercise.sets || []).length > 0 && (
                         <View style={[styles.athleteSetHeader, { borderBottomColor: theme.colors.border }]}>
-                          <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, width: 32 }]}>Série</Text>
+                          <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, width: 32 }]}>SÃ©rie</Text>
                           <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, flex: 1 }]}>Objectif</Text>
                           {sessionCategory === 'muscu' && (
                             <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, width: 90 }]}>Charge</Text>
@@ -678,7 +673,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                         }
                         if (set.restSeconds) {
                           const r = set.restSeconds >= 60 ? `${Math.floor(set.restSeconds / 60)}m${set.restSeconds % 60 ? (set.restSeconds % 60) : ''}` : `${set.restSeconds}s`;
-                          setDetails.push(`Réc: ${r}`);
+                          setDetails.push(`RÃ©c: ${r}`);
                         }
 
                         const resultKey = `${exercise.id}_${setIndex}`;
@@ -695,7 +690,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                               
                               {/* Objective */}
                               <Text style={{ flex: 1, fontSize: 13, color: theme.colors.textSecondary, fontWeight: '500' }} numberOfLines={1}>
-                                {setDetails.join(' · ')}
+                                {setDetails.join(' Â· ')}
                               </Text>
 
                               {sessionCategory === 'muscu' && (
@@ -757,7 +752,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                             <View key={set.id || setIndex} style={styles.setRow}>
                               <Text style={[styles.setNumber, { color: theme.colors.textMuted }]}>{setIndex + 1}</Text>
                               <Text style={[styles.setDetails, { color: theme.colors.text }]}>
-                                {setDetails.join('  •  ')}
+                                {setDetails.join('  â€¢  ')}
                               </Text>
                             </View>
                           );
@@ -801,8 +796,8 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
                 }}
                 placeholder={
                   sessionCategory === 'other'
-                    ? "Comment s'est passée la séance ? Notes, ressentis..."
-                    : "Comment s'est passée la séance ?"
+                    ? "Comment s'est passÃ©e la sÃ©ance ? Notes, ressentis..."
+                    : "Comment s'est passÃ©e la sÃ©ance ?"
                 }
                 placeholderTextColor={theme.colors.textMuted}
                 multiline
@@ -827,7 +822,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
               }}>
                 <Feather name="check-circle" size={18} color="#047857" />
                 <Text style={{ fontSize: 14, fontWeight: '700', color: '#047857' }}>
-                  Données enregistrées avec succès !
+                  DonnÃ©es enregistrÃ©es avec succÃ¨s !
                 </Text>
               </View>
             )}
@@ -858,12 +853,12 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
               )}
               <Text style={styles.submitBtnText}>
                 {isSubmitting
-                  ? 'Mise à jour en cours...'
+                  ? 'Mise Ã  jour en cours...'
                   : justSaved
-                    ? 'Données à jour ✓'
+                    ? 'DonnÃ©es Ã  jour âœ“'
                     : isValidated
-                      ? 'Mettre à jour mes chronos & données'
-                      : 'Valider la séance'}
+                      ? 'Mettre Ã  jour mes chronos & donnÃ©es'
+                      : 'Valider la sÃ©ance'}
               </Text>
             </TouchableOpacity>
 
@@ -871,7 +866,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingBottom: 8 }}>
                 <Feather name="check-circle" size={14} color={theme.colors.success} />
                 <Text style={{ fontSize: 13, color: theme.colors.success, fontWeight: '600' }}>
-                  Séance validée — tu peux modifier tes données à tout moment
+                  SÃ©ance validÃ©e â€” tu peux modifier tes donnÃ©es Ã  tout moment
                 </Text>
               </View>
             )}
