@@ -4,6 +4,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useAuthStore } from '../src/store/authStore';
 import { useTheme } from '../src/core/theme';
 import { SprintyFeedback } from '../src/features/sprinty/SprintyFeedback';
+import { View, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function RootLayout() {
   const theme = useTheme();
@@ -51,9 +53,13 @@ export default function RootLayout() {
   }, [user, pendingEmail, segments, isLoading, isInitialized]);
 
   return (
-    <>
+    <View style={styles.container}>
+      <LinearGradient
+        colors={['#1F0E38', '#140A26', '#09090D']}
+        style={StyleSheet.absoluteFillObject}
+      />
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(athlete)" />
         <Stack.Screen name="(coach)" />
@@ -61,6 +67,12 @@ export default function RootLayout() {
         <Stack.Screen name="index" />
       </Stack>
       <SprintyFeedback />
-    </>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#09090D' }
+});
+
+

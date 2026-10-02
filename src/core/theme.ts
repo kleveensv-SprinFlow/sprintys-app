@@ -41,36 +41,18 @@ const glass = {
   borderColor: 'rgba(255, 255, 255, 0.1)',
 };
 
-// Lighter, colorful theme matching the Sprinty logo (Blue/Cyan gradient)
-export const lightColors = {
-  background: '#F7F9FC', // Very soft cool grey/blue background
-  surface: '#FFFFFF',    // Pure white for cards
-  surfaceLight: '#F0F4F8', // Slightly darker for secondary areas
-  accent: '#0069E8',     // Main Sprintflow Blue from the logo
-  accentSecondary: '#00DCFD', // Cyan from the logo
-  accentMuted: 'rgba(0, 105, 232, 0.1)', // Very transparent blue
-  text: '#111827',       // Very dark blue/grey
-  textSecondary: '#64748B', 
-  textMuted: '#94A3B8',
-  border: '#E2E8F0',     // Light elegant borders
-  error: '#EF4444',
-  success: '#10B981',
-  warning: '#F59E0B',
-  glow: 'rgba(0, 220, 253, 0.4)', // Cyan glow
-};
-
-// Dark mode version in case the user switches their system to dark mode
-export const darkColors = {
-  background: '#0F172A', // Dark slate blue matching the logo vibe
-  surface: '#1E293B',    // Lighter slate
-  surfaceLight: '#334155', 
-  accent: '#00DCFD',     // Cyan stands out better on dark
-  accentSecondary: '#0069E8',
+// GLOBAL GLASSMORPHISM NEON THEME
+export const universalColors = {
+  background: 'transparent', // Let the global LinearGradient shine through
+  surface: 'rgba(255, 255, 255, 0.07)', // Glass cards
+  surfaceLight: 'rgba(255, 255, 255, 0.12)', 
+  accent: '#00DCFD', // Cyan
+  accentSecondary: '#0069E8', // Blue
   accentMuted: 'rgba(0, 220, 253, 0.15)',
-  text: '#F8FAFC',
-  textSecondary: '#94A3B8',
-  textMuted: '#64748B',
-  border: '#334155',
+  text: '#FFFFFF', // Pure white text for readability
+  textSecondary: '#94A3B8', // Slate 400
+  textMuted: '#64748B', // Slate 500
+  border: 'rgba(255, 255, 255, 0.12)', // Subtle glass borders
   error: '#F87171',
   success: '#34D399',
   warning: '#FBBF24',
@@ -78,24 +60,18 @@ export const darkColors = {
 };
 
 export const useTheme = () => {
-  // Dark mode désactivé pour l'instant — sera activé quand les 40 fichiers
-  // utilisant l'import statique `theme` auront été migrés vers useTheme().
-  // Sans cette migration, activer le dark mode crée des écrans coupés en deux
-  // (fond sombre + composants en blanc).
-  const colors = lightColors;
-  
   return {
-    colors,
+    colors: universalColors,
     spacing,
     radius,
     typography,
     glass,
-    isDark: false
+    isDark: true // Always true now
   };
 };
 
 export const theme = {
-  colors: lightColors, // Fallback for static imports
+  colors: universalColors,
   spacing,
   radius,
   typography,

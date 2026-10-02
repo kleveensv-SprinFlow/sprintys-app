@@ -7,6 +7,7 @@ export default function TabsLayout() {
       tabBar={(props) => <AthleteTabBar {...props} />}
       screenOptions={{
         headerShown: false,
+        sceneStyle: { backgroundColor: 'transparent' },
       }}
     >
       <Tabs.Screen name="index" />
@@ -24,4 +25,5 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
+
 
