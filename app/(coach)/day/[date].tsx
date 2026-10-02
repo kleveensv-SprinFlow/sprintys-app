@@ -159,7 +159,7 @@ export default function CoachDayScreen() {
     }
   }, []);
 
-  const openBuilder = useCallback((type: 'hybrid' | 'strength' | 'escalier' | 'repos' | 'technique', defaultTitle: string = '') => {
+  const openBuilder = useCallback((type: 'hybrid' | 'strength' | 'escalier' | 'repos' | 'technique' | 'competition', defaultTitle: string = '') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setEditingWorkout(null);
     setBuilderTitle(defaultTitle);

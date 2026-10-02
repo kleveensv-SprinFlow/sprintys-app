@@ -23,6 +23,7 @@ import { useAuthStore } from '../../../store/authStore';
 import { useCoachStore } from '../../../store/coach/coachStore';
 import { workoutService } from '../../../services/workoutService';
 import { RestTimePickerModal } from './RestTimePickerModal';
+import { MultiTargetSelectorModal, MultiTarget } from '../../../shared/components/MultiTargetSelectorModal';
 
 export interface RunWorkoutBuilderProps {
   visible: boolean;
@@ -324,9 +325,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
     setEditingBlockId(null);
     setBlockMode('identical');
     setBlockName(`Bloc ${blocks.length + 1}`);
-    setBlockTargetScope('inherit');
-    setBlockTargetSubgroupId(subgroups[0]?.id || null);
-    setBlockTargetAthleteId(approvedMembers[0]?.user_id || null);
+    setBlockTargets({ subgroups: [], athletes: [] });
     setVariedRuns([
       { id: String(uuid.v4()), distance: 120, intensity: 95 },
       { id: String(uuid.v4()), distance: 150, intensity: 95 },
@@ -354,15 +353,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
     setRestReps(block.restReps);
     setRestBlock(block.restBlock);
 
-    if (block.target.type === 'subgroup') {
-      setBlockTargetScope('subgroup');
-      setBlockTargetSubgroupId(block.target.id || null);
-    } else if (block.target.type === 'athlete') {
-      setBlockTargetScope('athlete');
-      setBlockTargetAthleteId(block.target.id || null);
-    } else {
-      setBlockTargetScope('inherit');
-    }
+    setBlockTargets(block.targets || { subgroups: [], athletes: [] });
 
     setIsBlockSheetVisible(true);
   };
@@ -401,17 +392,6 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
 
   // Submit Block Sheet
   const handleSaveBlockSheet = () => {
-    let target: ExerciseTarget = { type: 'all', id: null, name: 'Tout le groupe' };
-    if (blockTargetScope === 'subgroup' && blockTargetSubgroupId) {
-      const sg = subgroups.find((s) => s.id === blockTargetSubgroupId);
-      target = { type: 'subgroup', id: blockTargetSubgroupId, name: sg ? sg.name : 'Sous-groupe' };
-    } else if (blockTargetScope === 'athlete' && blockTargetAthleteId) {
-      const m = approvedMembers.find((mem) => mem.user_id === blockTargetAthleteId);
-      const prof = (Array.isArray(m?.profile) ? m?.profile[0] : m?.profile) as any;
-      const athleteName = prof?.full_name?.trim() || 'Athlète';
-      target = { type: 'athlete', id: blockTargetAthleteId, name: athleteName };
-    }
-
     if (blockMode === 'identical') {
       const distNum = parseInt(manualDistanceText, 10);
       if (isNaN(distNum) || distNum <= 0) {
@@ -436,7 +416,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                   runs: [],
                   restReps,
                   restBlock,
-                  target,
+                  targets: blockTargets,
                 }
               : b
           )
@@ -452,7 +432,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
           runs: [],
           restReps,
           restBlock,
-          target,
+          targets: blockTargets,
         };
         setBlocks((prev) => [...prev, newBlock]);
       }
@@ -487,7 +467,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                   runs: variedRuns,
                   restReps,
                   restBlock,
-                  target,
+                  targets: blockTargets,
                 }
               : b
           )
@@ -503,7 +483,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
           runs: variedRuns,
           restReps,
           restBlock,
-          target,
+          targets: blockTargets,
         };
         setBlocks((prev) => [...prev, newBlock]);
       }
@@ -1385,8 +1365,8 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                 </View>
 
                 {/* 5. CIBLE DU BLOC */}
-                  <View style={styles.sheetSectionHeader}>
-                    <Text style={[styles.sheetSectionTitle, { color: theme.colors.textSecondary }]}>CIBLE SPÉCIFIQUE (OPTIONNEL)</Text>
+                  <View style={styles.sectionHeader}>
+                    <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>CIBLE SPÉCIFIQUE (OPTIONNEL)</Text>
                   </View>
 
                   <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
@@ -1695,16 +1675,15 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
           onClose={() => setIsRestBlockPickerVisible(false)}
           onConfirm={(secs: number) => setRestBlock(secs)}
         />
-      </View>
-    
-        <MultiTargetSelectorModal
+      <MultiTargetSelectorModal
           visible={isMultiTargetModalVisible}
           onClose={() => setIsMultiTargetModalVisible(false)}
           onSave={setBlockTargets}
           initialTarget={blockTargets}
           title="Cibler le bloc"
         />
-      </Modal>
+      </View>
+    </Modal>
   );
 };
 
@@ -2301,9 +2280,14 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
   },
-  alertConfirmBtnText: {
+  settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1 }, settingLabel: { fontSize: 16 }, sectionTitle: { fontSize: 12, fontWeight: '700', letterSpacing: 1, marginBottom: 8 }, alertConfirmBtnText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
   },
 });
+
+
+
+
+
