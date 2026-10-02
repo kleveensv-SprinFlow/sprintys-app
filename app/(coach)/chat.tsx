@@ -1,233 +1,534 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Animated } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { theme } from '../../src/core/theme';
+import { buildSystemPrompt, buildCoachSystemPromptForAthlete } from '../../src/services/aiContextBuilder';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCoachStore } from '../../src/store/coach/coachStore';
 import { fetchOpenAIResponse } from '../../src/services/aiService';
-import { buildCoachSystemPromptForAthlete } from '../../src/services/aiContextBuilder';
+import AILoadingIndicator from '../../src/components/AILoadingIndicator';
+import * as Haptics from 'expo-haptics';
+import { WorkoutProposalCard, AIWorkoutProposal } from '../../src/components/WorkoutProposalCard';
+import { useAuthStore } from '../../src/store/authStore';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import LottieView from 'lottie-react-native';
+import { create } from 'zustand';
 
-interface Message {
-  id: string;
-  text: string;
-  sender: 'user' | 'sprinty';
-  timestamp: Date;
+interface SprintyChatStore {
+  messages: { role: string; content: string }[];
+  setMessages: (msgs: { role: string; content: string }[]) => void;
 }
 
-export default function CoachChatScreen() {
+const useSprintyChatStore = create<SprintyChatStore>((set) => ({
+  messages: [
+    { role: 'assistant', content: "Salut ! Je suis Sprinty, ton assistant neural actif. Que puis-je t'aider à créer aujourd'hui ?" }
+  ],
+  setMessages: (msgs) => set({ messages: msgs }),
+}));
+
+export default function MessageScreen() {
+  const { athleteId } = useLocalSearchParams<{ athleteId: string }>();
   const router = useRouter();
-  const { athleteId, athleteName } = useLocalSearchParams();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { teamMembers } = useCoachStore();
+  const athlete = teamMembers.find(m => m.user_id === athleteId);
+  const { messages, setMessages } = useSprintyChatStore();
   const [inputText, setInputText] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [systemPrompt, setSystemPrompt] = useState('');
-  const flatListRef = useRef<FlatList>(null);
+  const [isTyping, setIsTyping] = useState(false);
+  const insets = useSafeAreaInsets();
+  const { updateCoachPhilosophy } = useAuthStore();
+  const scrollViewRef = useRef<ScrollView>(null);
+  
+  const lottieRef = useRef<LottieView>(null);
 
+  // Play animation on mount
   useEffect(() => {
-    const initializeChat = async () => {
-      let prompt = "Tu es Sprinty, l'assistant du coach.";
-      let greeting = "Bonjour Coach ! 👋\nJe suis Sprinty. Comment puis-je vous aider à gérer votre équipe aujourd'hui ?";
+    lottieRef.current?.play();
+  }, []);
 
-      if (athleteId && athleteName) {
-        greeting = `Bonjour Coach ! 👋\n\nJ'ai bien récupéré le dossier de **${athleteName}**. Que voulez-vous examiner ?\n\n⚡ **Nutrition & Poids**\n📋 **Derniers Check-ins**\n🏋️ **Progression Musculation**`;
-        prompt = await buildCoachSystemPromptForAthlete(athleteId as string, athleteName as string);
-      }
-      
-      setSystemPrompt(prompt);
-      setMessages([
-        { id: Date.now().toString(), text: greeting, sender: 'sprinty', timestamp: new Date() }
-      ]);
-    };
-
-    initializeChat();
-  }, [athleteId, athleteName]);
-
-  const sendMessage = async () => {
-    if (!inputText.trim() || isLoading) return;
-    
-    const userText = inputText.trim();
-    const userMsg: Message = { id: Date.now().toString(), text: userText, sender: 'user', timestamp: new Date() };
-    
-    setMessages(prev => [...prev, userMsg]);
-    setInputText('');
-    setIsLoading(true);
-
-    try {
-      // Build conversation history for API (last 6 messages to keep context without exploding tokens)
-      const chatHistory = [...messages, userMsg].slice(-6).map(m => ({
-        role: m.sender === 'user' ? 'user' : 'assistant',
-        content: m.text
-      }));
-
-      const reply = await fetchOpenAIResponse(chatHistory, systemPrompt);
-      
-      const replyMsg: Message = { id: (Date.now() + 1).toString(), text: reply, sender: 'sprinty', timestamp: new Date() };
-      setMessages(prev => [...prev, replyMsg]);
-    } catch (error) {
-      const errorMsg: Message = { id: (Date.now() + 1).toString(), text: "Désolé Coach, je n'ai pas pu me connecter à l'analyseur. Vérifiez votre connexion.", sender: 'sprinty', timestamp: new Date() };
-      setMessages(prev => [...prev, errorMsg]);
-    } finally {
-      setIsLoading(false);
+  const renderMessageContent = (msg: { role: string; content: string }) => {
+    if (msg.role !== 'assistant') {
+      return <Text style={[styles.messageText, { color: '#FFF' }]}>{msg.content}</Text>;
     }
-  };
 
-  const renderMessage = ({ item }: { item: Message }) => {
-    const isSprinty = item.sender === 'sprinty';
+    const proposalRegex = /```workout_proposal([\s\S]*?)```/i;
+    const philosophyRegex = /```save_philosophy([\s\S]*?)```/i;
+    
+    let textOnly = msg.content;
+    let proposalObj: AIWorkoutProposal | null = null;
+    let philosophySaved = false;
+    
+    const philosophyMatch = msg.content.match(philosophyRegex);
+    if (philosophyMatch && philosophyMatch[1]) {
+      textOnly = textOnly.replace(philosophyRegex, '').trim();
+      try {
+        const phObj = JSON.parse(philosophyMatch[1].trim());
+        if (phObj.philosophy) {
+          updateCoachPhilosophy(phObj.philosophy);
+          philosophySaved = true;
+        }
+      } catch (e) {
+        console.error('Failed to parse philosophy', e);
+      }
+    }
+
+    const match = textOnly.match(proposalRegex);
+    if (match && match[1]) {
+      textOnly = textOnly.replace(proposalRegex, '').trim();
+      try {
+        proposalObj = JSON.parse(match[1].trim());
+      } catch (e) {
+        console.error('Failed to parse AI workout proposal', e);
+      }
+    }
+
     return (
-      <View style={[styles.messageBubble, isSprinty ? styles.messageSprinty : styles.messageUser]}>
-        {isSprinty && (
-          <View style={styles.sprintyAvatar}>
-            <Feather name="cpu" size={16} color="#FFF" />
+      <View style={{ width: '100%' }}>
+        {textOnly ? <Text style={[styles.messageText, { color: '#E2E8F0' }]}>{textOnly}</Text> : null}
+        {philosophySaved && (
+          <View style={{ marginTop: 12, backgroundColor: 'rgba(56, 219, 114, 0.15)', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(56, 219, 114, 0.3)' }}>
+            <Text style={{ color: theme.colors.success, fontWeight: 'bold' }}>✅ Profil de Coach enregistré !</Text>
           </View>
         )}
-        <View style={[styles.messageContent, isSprinty ? styles.contentSprinty : styles.contentUser]}>
-          <Text style={[styles.messageText, isSprinty ? styles.textSprinty : styles.textUser]}>{item.text}</Text>
-        </View>
+        {proposalObj && (
+          <View style={{ marginTop: 12, minWidth: 280 }}>
+            <WorkoutProposalCard 
+              proposal={proposalObj} 
+              onValidate={() => {
+                setMessages([...messages, { role: 'assistant', content: '💪 Séance ajoutée au calendrier !' }]);
+              }}
+              onReject={() => {
+                setInputText("Je n'ai pas validé cette séance, voici ce qu'il faut changer : ");
+              }}
+            />
+          </View>
+        )}
       </View>
     );
   };
+  
+  const sendMessage = async (text?: string) => {
+    const messageToSend = text || inputText;
+    if (!messageToSend.trim() || isTyping) return;
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    setInputText('');
+    const newMessages = [...messages, { role: 'user', content: messageToSend.trim() }];
+    setMessages(newMessages);
+    setIsTyping(true);
+
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+
+    try {
+      const systemPrompt = athleteId ? await buildCoachSystemPromptForAthlete(athleteId, athlete?.profile?.full_name || 'Athlète') : buildSystemPrompt();
+      const response = await fetchOpenAIResponse(
+        newMessages.map(m => ({ role: m.role, content: m.content })),
+        systemPrompt
+      );
+      
+      const finalMessages = [...newMessages, { role: 'assistant', content: response.trim() }];
+      setMessages(finalMessages);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err) {
+      console.error(err);
+      const errMessages = [...newMessages, { role: 'assistant', content: "Désolé, j'ai rencontré un problème de connexion avec le serveur." }];
+      setMessages(errMessages);
+    } finally {
+      setIsTyping(false);
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  };
+
+  const capabilities = [
+    { id: 1, title: 'Planifier une séance', icon: 'zap', prompt: 'Crée-moi une séance de sprint' },
+    { id: 2, title: 'Planifier une compétition', icon: 'award', prompt: 'Je veux planifier une compétition à venir' },
+    { id: 3, title: 'Analyser un athlète', icon: 'activity', prompt: 'Donne-moi une analyse sur un de mes athlètes' },
+  ];
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Feather name="chevron-left" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>SPRINTY IA (COACH)</Text>
-      </View>
+    <View style={styles.container}>
+      <LinearGradient
+        colors={['#1F0E38', '#09090D', '#09090D']}
+        style={StyleSheet.absoluteFillObject}
+      />
+      {/* Decorative blurred blob */}
+      <View style={styles.blurBlobTop} />
+      <View style={styles.blurBlobBottom} />
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          keyExtractor={item => item.id}
-          renderItem={renderMessage}
-          contentContainerStyle={styles.chatList}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-        />
-
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Posez une question sur un athlète..."
-            placeholderTextColor={theme.colors.textMuted}
-            value={inputText}
-            onChangeText={setInputText}
-            multiline
-            editable={!isLoading}
-          />
-          <TouchableOpacity style={[styles.sendBtn, isLoading && { opacity: 0.7 }]} onPress={sendMessage} disabled={isLoading}>
-            {isLoading ? (
-              <ActivityIndicator size="small" color="#FFF" />
-            ) : (
-              <Feather name="send" size={20} color="#FFF" />
-            )}
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => { router.back(); }}>
+            <Feather name="chevron-left" size={24} color="#FFF" />
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <View style={styles.avatarWrapper}>
+              <LottieView
+                ref={lottieRef}
+                source={isTyping ? require('../../src/assets/animations/active.json') : require('../../src/assets/animations/idle.json')}
+                autoPlay
+                loop
+                style={styles.lottieAvatar}
+              />
+              <View style={styles.onlineDot} />
+            </View>
+            <View>
+              <Text style={styles.title}>Sprinty IA</Text>
+              <Text style={styles.subtitle}>{isTyping ? 'ENTRAIN DE RÉFLÉCHIR...' : 'NEURAL ASSISTANT ACTIF'}</Text>
+            </View>
+          </View>
+          <TouchableOpacity style={styles.menuBtn}>
+            <Feather name="more-horizontal" size={20} color="#FFF" />
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+
+        <KeyboardAvoidingView 
+          style={styles.keyboardAvoid} 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        >
+          <ScrollView 
+            style={styles.chatArea} 
+            contentContainerStyle={[styles.chatContent, { paddingBottom: 100 }]}
+            ref={scrollViewRef}
+            onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+            showsVerticalScrollIndicator={false}
+            keyboardDismissMode="interactive"
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Quick Actions (Hero) if chat is empty */}
+            {messages.length <= 1 && (
+              <View style={styles.heroContainer}>
+                <Text style={styles.heroTitle}>Capacités Sprinty</Text>
+                <Text style={styles.heroSub}>Explorez tout le potentiel de l'intelligence de Sprintflow.</Text>
+                <View style={styles.capabilitiesGrid}>
+                  {capabilities.map(cap => (
+                    <TouchableOpacity 
+                      key={cap.id} 
+                      style={styles.capabilityCard}
+                      activeOpacity={0.7}
+                      onPress={() => sendMessage(cap.prompt)}
+                    >
+                      <View style={styles.capabilityIconWrap}>
+                        <Feather name={cap.icon as any} size={20} color="#00FFFF" />
+                      </View>
+                      <Text style={styles.capabilityTitle}>{cap.title}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Chat Messages */}
+            {messages.map((msg, index) => {
+              if (msg.role === 'system') return null;
+              const isAssistant = msg.role === 'assistant';
+              return (
+                <View key={index} style={!isAssistant ? styles.messageRowRight : styles.messageRowLeft}>
+                  {isAssistant && (
+                    <View style={styles.chatAvatarSmall}>
+                      <LottieView
+                        source={require('../../src/assets/animations/idle.json')}
+                        autoPlay
+                        loop
+                        style={{ width: 20, height: 20 }}
+                      />
+                    </View>
+                  )}
+                  <View style={!isAssistant ? styles.messageBubbleRight : styles.messageBubbleLeft}>
+                    {renderMessageContent(msg)}
+                  </View>
+                </View>
+              )
+            })}
+            
+            {isTyping && (
+              <View style={styles.messageRowLeft}>
+                <View style={styles.chatAvatarSmall}>
+                  <LottieView
+                    source={require('../../src/assets/animations/active.json')}
+                    autoPlay
+                    loop
+                    style={{ width: 20, height: 20 }}
+                  />
+                </View>
+                <View style={[styles.messageBubbleLeft, { paddingHorizontal: 16, paddingVertical: 12 }]}>
+                  <AILoadingIndicator />
+                </View>
+              </View>
+            )}
+          </ScrollView>
+
+          {/* Floating Input Bar */}
+          <View style={styles.floatingInputWrapper}>
+            <BlurView intensity={30} tint="dark" style={styles.floatingBlur}>
+              <View style={[styles.inputContainer, { paddingBottom: Platform.OS === 'ios' ? Math.max(16, insets.bottom) : 16 }]}>
+                <View style={styles.inputBox}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Tapez un message..."
+                    placeholderTextColor="rgba(255, 255, 255, 0.4)"
+                    multiline
+                    value={inputText}
+                    onChangeText={setInputText}
+                  />
+                  <TouchableOpacity 
+                    style={[styles.sendBtn, (!inputText.trim()) && { opacity: 0.5, backgroundColor: 'rgba(0, 255, 255, 0.1)' }]} 
+                    onPress={() => sendMessage()} 
+                    disabled={isTyping || !inputText.trim()}
+                  >
+                    <Ionicons name="arrow-up" size={18} color={inputText.trim() ? "#09090D" : "rgba(255, 255, 255, 0.4)"} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </BlurView>
+          </View>
+
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
+  container: { flex: 1, backgroundColor: '#09090D' },
+  blurBlobTop: {
+    position: 'absolute',
+    top: -100,
+    right: -100,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: 'rgba(102, 51, 153, 0.3)',
+    transform: [{ scale: 1.5 }],
   },
-  header: {
+  blurBlobBottom: {
+    position: 'absolute',
+    bottom: 100,
+    left: -100,
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    backgroundColor: 'rgba(0, 255, 255, 0.1)',
+    transform: [{ scale: 1.5 }],
+  },
+  header: { 
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    paddingHorizontal: 20, 
+    paddingTop: 10, 
+    paddingBottom: 16, 
+    zIndex: 10
   },
   backBtn: {
-    marginRight: 16,
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    letterSpacing: 2,
-    color: '#8B5CF6', // Purple for AI
-  },
-  chatList: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  messageBubble: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginBottom: 20,
-    maxWidth: '85%',
-  },
-  messageSprinty: {
-    alignSelf: 'flex-start',
-  },
-  messageUser: {
-    alignSelf: 'flex-end',
-  },
-  sprintyAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#8B5CF6',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.05)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
-  messageContent: {
-    padding: 16,
+  menuBtn: {
+    width: 40,
+    height: 40,
     borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
-  contentSprinty: {
-    backgroundColor: theme.colors.surfaceLight,
-    borderBottomLeftRadius: 4,
-  },
-  contentUser: {
-    backgroundColor: '#8B5CF6',
-    borderBottomRightRadius: 4,
-  },
-  messageText: {
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  textSprinty: {
-    color: theme.colors.text,
-  },
-  textUser: {
-    color: '#FFF',
-  },
-  inputContainer: {
+  headerCenter: {
     flexDirection: 'row',
-    padding: 16,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 16,
-    backgroundColor: theme.colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-    alignItems: 'flex-end',
+    alignItems: 'center',
   },
-  input: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-    borderRadius: 20,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 12,
-    minHeight: 44,
-    maxHeight: 120,
-    color: theme.colors.text,
-    fontSize: 15,
-  },
-  sendBtn: {
+  avatarWrapper: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#8B5CF6',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 12,
-  }
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  lottieAvatar: {
+    width: 40,
+    height: 40,
+  },
+  onlineDot: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#00FF88',
+    borderWidth: 2,
+    borderColor: '#1F0E38',
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  subtitle: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#00FFFF',
+    marginTop: 2,
+    letterSpacing: 1,
+  },
+  keyboardAvoid: { flex: 1 },
+  chatArea: { flex: 1 },
+  chatContent: { paddingHorizontal: 16, paddingTop: 20 },
+  
+  heroContainer: {
+    marginTop: 20,
+    marginBottom: 40,
+    paddingHorizontal: 8,
+  },
+  heroTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#FFF',
+    marginBottom: 8,
+  },
+  heroSub: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  capabilitiesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  capabilityCard: {
+    width: '48%',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  capabilityIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  capabilityTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFF',
+    lineHeight: 20,
+  },
+
+  messageRowLeft: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 16, justifyContent: 'flex-start' },
+  messageRowRight: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 16, justifyContent: 'flex-end' },
+  
+  chatAvatarSmall: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    overflow: 'hidden',
+  },
+  
+  messageBubbleLeft: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 20,
+    borderBottomLeftRadius: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    maxWidth: '80%',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  messageBubbleRight: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderBottomRightRadius: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    maxWidth: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  messageText: { fontSize: 15, lineHeight: 22, color: '#09090D' },
+  
+  floatingInputWrapper: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  floatingBlur: {
+    paddingTop: 16,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: 'hidden',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  inputContainer: {
+    paddingHorizontal: 16,
+  },
+  inputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 30,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  input: {
+    flex: 1,
+    minHeight: 40,
+    maxHeight: 100,
+    color: '#FFF',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
+    fontSize: 15,
+  },
+  sendBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#00FFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#00FFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+  },
 });

@@ -4,7 +4,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { theme } from '../../src/core/theme';
 import { buildSystemPrompt, buildCoachSystemPromptForAthlete } from '../../src/services/aiContextBuilder';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCoachStore } from '../../src/store/coach/coachStore';
 import { fetchOpenAIResponse } from '../../src/services/aiService';
 import AILoadingIndicator from '../../src/components/AILoadingIndicator';
@@ -30,6 +30,7 @@ const useSprintyChatStore = create<SprintyChatStore>((set) => ({
 
 export default function MessageScreen() {
   const { athleteId } = useLocalSearchParams<{ athleteId: string }>();
+  const router = useRouter();
   const { teamMembers } = useCoachStore();
   const athlete = teamMembers.find(m => m.user_id === athleteId);
   const { messages, setMessages } = useSprintyChatStore();
@@ -163,7 +164,7 @@ export default function MessageScreen() {
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => { /* Router back */ }}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => { router.back(); }}>
             <Feather name="chevron-left" size={24} color="#FFF" />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
