@@ -700,10 +700,9 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
                     {item.targets && (item.targets.subgroups.length > 0 || item.targets.athletes.length > 0) && (
                       <View style={[styles.targetBadge, { backgroundColor: theme.colors.accent + '15' }]}>
                         <Text style={[styles.targetBadgeText, { color: theme.colors.accent }]}>
-                          ${item.targets.subgroups.length + item.targets.athletes.length} cible(s)
+                          {item.targets.subgroups.length + item.targets.athletes.length} cible(s)
                         </Text>
                       </View>
-                    )}
                     )}
                   </View>
 

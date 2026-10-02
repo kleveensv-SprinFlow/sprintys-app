@@ -159,6 +159,13 @@ export const CoachTabBar: React.FC<BottomTabBarProps> = ({
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
+  const focusedRoute = state.routes[state.index];
+  const focusedDescriptor = descriptors[focusedRoute.key];
+  const tabBarStyle = focusedDescriptor.options.tabBarStyle as any;
+  if (tabBarStyle && tabBarStyle.display === 'none') {
+    return null;
+  }
+
   return (
     <View
       style={[

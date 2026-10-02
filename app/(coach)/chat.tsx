@@ -141,7 +141,7 @@ export default function CoachMessageScreen() {
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.replace('/(coach)')}>
             <Feather name="chevron-left" size={24} color="#FFF" />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
