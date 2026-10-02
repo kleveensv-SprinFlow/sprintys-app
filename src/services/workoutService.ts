@@ -10,6 +10,13 @@ export interface WorkoutAssignment {
   date_prevue?: string;
 }
 
+function generateUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 export const workoutService = {
   assignWorkoutToAthlete: async (assignment: WorkoutAssignment) => {
     const { data, error } = await supabase
@@ -434,7 +441,7 @@ export const workoutService = {
       const allGroupWorkouts = await workoutService.fetchWorkoutsByGroupAssignment(workout.group_assignment_id);
       
       // Generate a new group_assignment_id for the copies
-      const newGroupId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const newGroupId = generateUUID();
       
       const copies = allGroupWorkouts.map((w: any) => {
         const { id, created_at, updated_at, athlete_efforts, ...rest } = w;
@@ -506,7 +513,7 @@ export const workoutService = {
       
       const allCopies: any[] = [];
       for (const targetDate of dates) {
-        const newGroupId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const newGroupId = generateUUID();
         for (const w of allGroupWorkouts) {
           const { id, created_at, updated_at, athlete_efforts, ...rest } = w;
           allCopies.push({

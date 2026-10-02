@@ -303,6 +303,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
   const sessionTitle = workout.type_seance || workout.name || 'Séance';
   const isRestDay = sessionTitle.toLowerCase().includes('repos');
   const isTechnical = sessionTitle.toLowerCase().includes('technique');
+  const isCompetition = sessionTitle.toLowerCase().includes('compétition') || sessionTitle.toLowerCase().includes('competition');
   const technicalNotes = workout.measures?.technical_notes;
 
   const surfaceMeta = workout.measures?.surface || 
@@ -416,7 +417,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
               )}
             </View>
             
-            {!isRestDay && (!!surfaceMeta || !!equipmentMeta) && (
+            {!isRestDay && !isCompetition && (!!surfaceMeta || !!equipmentMeta) && (
               <View style={styles.metaRow}>
                 {!!surfaceMeta && (
                   <View style={[styles.metaPill, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
@@ -436,7 +437,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
             )}
 
             {isCoach && (
-              <View style={styles.actionsRow}>
+              <View style={styles.actionsContainer}>
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
                   onPress={handleEdit}
@@ -498,6 +499,52 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({
               <Text style={[styles.restDaySubtitle, { color: theme.colors.textSecondary }]}>
                 Aucun entraînement programmé. Priorité à la récupération et au repos.
               </Text>
+            </View>
+          ) : isCompetition ? (
+            <View style={styles.technicalContainer}>
+              <View style={styles.technicalSectionHeader}>
+                <View style={[styles.technicalIconBox, { backgroundColor: '#FEF3C7' }]}>
+                  <Ionicons name="trophy-outline" size={16} color="#D97706" />
+                </View>
+                <Text style={[styles.technicalSectionTitle, { color: theme.colors.text }]}>
+                  INFORMATIONS DE LA COMPÉTITION
+                </Text>
+              </View>
+
+              <View style={[styles.technicalCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                <Text style={[styles.technicalNoteContent, { color: theme.colors.text, fontSize: 16, fontWeight: '700', marginBottom: 12 }]}>
+                  {workout.description?.split('\n')[0] || 'Compétition'}
+                </Text>
+
+                {workout.measures?.location ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
+                    <Ionicons name="location-outline" size={18} color={theme.colors.textSecondary} style={{ marginRight: 6, marginTop: 1 }} />
+                    <Text style={{ color: theme.colors.textSecondary, flex: 1, fontSize: 14 }}>
+                      {workout.measures.location}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {workout.measures?.attachmentUrl ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="link-outline" size={18} color="#3B82F6" style={{ marginRight: 6 }} />
+                    <Text 
+                      style={{ color: '#3B82F6', flex: 1, fontSize: 14, textDecorationLine: 'underline' }}
+                      onPress={() => {
+                         // A real app might open the URL here using Linking.openURL
+                      }}
+                    >
+                      {workout.measures.attachmentUrl}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {(!workout.measures?.location && !workout.measures?.attachmentUrl) && (
+                  <Text style={{ color: theme.colors.textSecondary, fontStyle: 'italic', fontSize: 14 }}>
+                    Aucune information supplémentaire.
+                  </Text>
+                )}
+              </View>
             </View>
           ) : isTechnical ? (
             <View style={styles.technicalContainer}>
@@ -936,13 +983,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-  actionsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  actionsContainer: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
     gap: 12,
   },
   actionBtn: {
-    width: '48%',
+    width: 160,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

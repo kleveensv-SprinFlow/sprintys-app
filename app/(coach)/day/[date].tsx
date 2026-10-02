@@ -14,6 +14,7 @@ import { StrengthWorkoutBuilder } from '../../../src/features/calendar/component
 import { StairsWorkoutBuilder } from '../../../src/features/calendar/components/StairsWorkoutBuilder';
 import { RestDayBuilder } from '../../../src/features/calendar/components/RestDayBuilder';
 import { TechnicalWorkoutBuilder } from '../../../src/features/calendar/components/TechnicalWorkoutBuilder';
+import { CompetitionBuilder } from '../../../src/features/calendar/components/CompetitionBuilder';
 import { getWorkoutColor } from '../../../src/shared/components/MonthlyCalendar';
 import { useCoachStore } from '../../../src/store/coach/coachStore';
 
@@ -31,7 +32,7 @@ export default function CoachDayScreen() {
 
   const [workouts, setWorkouts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [builderType, setBuilderType] = useState<'none' | 'hybrid' | 'strength' | 'escalier' | 'repos' | 'technique'>('none');
+  const [builderType, setBuilderType] = useState<'none' | 'hybrid' | 'strength' | 'escalier' | 'repos' | 'technique' | 'competition'>('none');
   const [builderTitle, setBuilderTitle] = useState('');
   const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
   const [editingWorkout, setEditingWorkout] = useState<any>(null);
@@ -172,6 +173,7 @@ export default function CoachDayScreen() {
     { id: 'technique', title: 'Séance Technique', icon: 'git-merge-outline' as any, color: '#10B981', type: 'technique' as const },
     { id: 'escalier', title: 'Escalier', icon: 'stats-chart-outline' as any, color: '#8B5CF6', type: 'escalier' as const },
     { id: 'repos', title: 'Jour de repos', icon: 'cafe-outline' as any, color: '#6B7280', type: 'repos' as const },
+    { id: 'competition', title: 'Compétition', icon: 'trophy-outline' as any, color: '#F59E0B', type: 'competition' as const },
   ];
 
   const getSummaryText = () => {
@@ -301,19 +303,35 @@ export default function CoachDayScreen() {
 
             {/* Floating add button OR options list */}
             {!showAddOptions ? (
-              <TouchableOpacity
-                style={[styles.appleAddBtn, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setShowAddOptions(true);
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.appleAddIcon, { backgroundColor: theme.colors.accent + '15' }]}>
-                  <Feather name="plus" size={18} color={theme.colors.accent} />
-                </View>
-                <Text style={[styles.appleAddText, { color: theme.colors.text }]}>Ajouter une autre séance</Text>
-              </TouchableOpacity>
+              <View style={{ gap: 12 }}>
+                <TouchableOpacity
+                  style={[styles.appleAddBtn, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setShowAddOptions(true);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.appleAddIcon, { backgroundColor: theme.colors.accent + '15' }]}>
+                    <Feather name="plus" size={18} color={theme.colors.accent} />
+                  </View>
+                  <Text style={[styles.appleAddText, { color: theme.colors.text }]}>Ajouter une autre séance</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.appleAddBtn, { backgroundColor: '#FFFBEB', borderColor: '#FCD34D', borderWidth: 1 }]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setBuilderType('competition');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.appleAddIcon, { backgroundColor: '#FEF3C7' }]}>
+                    <Feather name="award" size={18} color="#D97706" />
+                  </View>
+                  <Text style={[styles.appleAddText, { color: '#D97706', fontWeight: 'bold' }]}>Ajouter une compétition</Text>
+                </TouchableOpacity>
+              </View>
             ) : (
               <View style={[styles.emptyWrapper, { marginTop: 10 }]}>
                 <View style={styles.sectionHeader}>
@@ -398,6 +416,16 @@ export default function CoachDayScreen() {
       />
       <TechnicalWorkoutBuilder
         visible={builderType === 'technique'}
+        date={parsedDate}
+        initialWorkout={editingWorkout}
+        onClose={() => {
+          setBuilderType('none');
+          setEditingWorkout(null);
+        }}
+        onSave={handleSaveWorkout}
+      />
+      <CompetitionBuilder
+        visible={builderType === 'competition'}
         date={parsedDate}
         initialWorkout={editingWorkout}
         onClose={() => {
