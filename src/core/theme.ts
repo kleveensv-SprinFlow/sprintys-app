@@ -46,9 +46,9 @@ export const universalColors = {
   background: 'transparent', // Let the global LinearGradient shine through
   surface: 'rgba(255, 255, 255, 0.07)', // Glass cards
   surfaceLight: 'rgba(255, 255, 255, 0.12)', 
-  accent: '#00DCFD', // Cyan
-  accentSecondary: '#0069E8', // Blue
-  accentMuted: 'rgba(0, 220, 253, 0.15)',
+  accent: '#FFFFFF', // Pure White for premium look
+  accentSecondary: '#94A3B8', // Slate
+  accentMuted: 'rgba(255, 255, 255, 0.1)',
   text: '#FFFFFF', // Pure white text for readability
   textSecondary: '#94A3B8', // Slate 400
   textMuted: '#64748B', // Slate 500
@@ -56,7 +56,7 @@ export const universalColors = {
   error: '#F87171',
   success: '#34D399',
   warning: '#FBBF24',
-  glow: 'rgba(0, 220, 253, 0.3)',
+  glow: 'rgba(255, 255, 255, 0.15)',
 };
 
 export const useTheme = () => {

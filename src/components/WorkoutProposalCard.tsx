@@ -134,7 +134,7 @@ export function WorkoutProposalCard({ proposal, onValidate, onReject }: { propos
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: theme.colors.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: theme.colors.accent, marginVertical: 8, width: '100%' },
+  card: { backgroundColor: theme.colors.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: theme.colors.border, marginVertical: 8, width: '100%' },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 8 },
   title: { fontSize: 16, fontWeight: 'bold', color: theme.colors.text },
   infoRow: { flexDirection: 'row', marginBottom: 6 },
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
   value: { flex: 1, color: theme.colors.text, fontSize: 13, fontWeight: 'bold' },
   divider: { height: 1, backgroundColor: theme.colors.border, marginVertical: 12 },
   subtitle: { fontSize: 14, fontWeight: 'bold', color: theme.colors.text, marginBottom: 8 },
-  exerciseRow: { backgroundColor: theme.colors.background, padding: 10, borderRadius: 8, marginBottom: 8 },
+  exerciseRow: { backgroundColor: theme.colors.surfaceLight, padding: 10, borderRadius: 8, marginBottom: 8 },
   exerciseName: { color: theme.colors.text, fontWeight: 'bold', fontSize: 14 },
   exerciseDetails: { color: theme.colors.textSecondary, fontSize: 12, marginTop: 4 },
   exerciseNotes: { color: theme.colors.warning, fontSize: 12, marginTop: 4, fontStyle: 'italic' },
@@ -152,3 +152,4 @@ const styles = StyleSheet.create({
   btnValidate: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 12, backgroundColor: theme.colors.success, gap: 6 },
   btnValidateText: { color: '#FFF', fontWeight: 'bold' },
 });
+
