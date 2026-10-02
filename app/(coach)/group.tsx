@@ -37,17 +37,7 @@ export default function CoachGroupsScreen() {
     fetchTeams();
   }, []);
 
-  // Auto-create from signup ONLY if fetch is done and truly no teams exist
-  useEffect(() => {
-    if (hasFetchedTeams && teams.length === 0 && user?.groupName && !isCreatingTeam) {
-      setIsCreatingTeam(true);
-      createTeam(user.groupName).then((newTeam) => {
-        if (newTeam && user.subgroups && user.subgroups.length > 0) {
-          Promise.all(user.subgroups.map(sg => createSubgroup(newTeam.id, sg)));
-        }
-      }).finally(() => setIsCreatingTeam(false));
-    }
-  }, [hasFetchedTeams, teams.length, user?.groupName]);
+  
 
   // Handle entering a team
   useEffect(() => {
@@ -187,7 +177,7 @@ export default function CoachGroupsScreen() {
               {teamMembers.length === 0 ? (
                 <Text style={styles.emptyText}>Aucun athlète dans ce groupe.</Text>
               ) : (
-                React.useMemo(() => teamMembers.map(member => {
+                teamMembers.map(member => {
                   const sg = subgroups.find(s => s.id === member.subgroup_id);
                   return (
                     <TouchableOpacity 
@@ -226,7 +216,7 @@ export default function CoachGroupsScreen() {
                       </View>
                     </TouchableOpacity>
                   );
-                }), [teamMembers, subgroups, theme.colors])
+                })
               )}
             </>
           )}
@@ -778,3 +768,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   }
 });
+
+

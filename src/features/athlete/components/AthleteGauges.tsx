@@ -113,7 +113,7 @@ export const AthleteGauges = () => {
               <View style={styles.mainPillText}>
                 <Text style={[styles.mainTitle, { color: theme.colors.text }]}>Forme du jour</Text>
                 <Text style={[styles.mainSubtitle, { color: theme.colors.textSecondary }]}>
-                  {scoreValue >= 70 ? 'Prêt Ã  performer âš¡' : scoreValue >= 40 ? 'À surveiller ðŸ‘€' : 'Repos conseillé ðŸ§˜'}
+                  {scoreValue >= 70 ? 'Prêt à performer \uD83D\uDCAA' : scoreValue >= 40 ? 'À surveiller \uD83D\uDC40' : 'Repos conseillé \uD83D\uDE34'}
                 </Text>
               </View>
               <View style={[styles.chevronCircle, { backgroundColor: theme.colors.surfaceLight }]}>
@@ -291,4 +291,5 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
 });
+
 

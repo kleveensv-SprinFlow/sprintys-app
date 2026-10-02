@@ -60,7 +60,7 @@ export const WeatherCard = () => {
       try {
         let { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
-          setLocationName('AccÃ¨s refusÃ©');
+          setLocationName('Accès refusé');
           setIsLoading(false);
           return;
         }
@@ -79,7 +79,7 @@ export const WeatherCard = () => {
         }
       } catch (error) {
         console.error('Error fetching weather:', error);
-        setLocationName('Erreur mÃ©tÃ©o');
+        setLocationName('Erreur météo');
       } finally {
         setIsLoading(false);
       }
@@ -140,12 +140,12 @@ export const WeatherCard = () => {
         activeOpacity={0.8}
         onPress={() => setIsModalVisible(true)}
       >
-        <Text style={styles.cardHeaderTitle}>CONDITIONS D'ENTRAÃŽNEMENT</Text>
+        <Text style={styles.cardHeaderTitle}>CONDITIONS D'ENTRAÎNEMENT</Text>
 
         <View style={styles.topRow}>
           <View style={styles.leftContent}>
             <Text style={[styles.temperature, { color: theme.colors.text }]}>
-              {weather ? `${weather.temperature}Â°` : '--Â°'}
+              {weather ? `${weather.temperature}°` : '--°'}
             </Text>
             <View style={styles.details}>
               <Text style={[styles.location, { color: theme.colors.textSecondary }]}>{locationName}</Text>
@@ -163,13 +163,13 @@ export const WeatherCard = () => {
         </View>
       </TouchableOpacity>
 
-      {/* Modal MÃ©tÃ©o dÃ©taillÃ©e */}
+      {/* Modal Météo Détaillée */}
       <Modal visible={isModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
 
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>MÃ©tÃ©o DÃ©taillÃ©e</Text>
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Météo Détaillée</Text>
               <TouchableOpacity onPress={() => setIsModalVisible(false)} style={styles.closeBtn}>
                 <Feather name="x" size={24} color={theme.colors.textMuted} />
               </TouchableOpacity>
@@ -178,7 +178,7 @@ export const WeatherCard = () => {
             <ScrollView contentContainerStyle={{ paddingVertical: 20 }}>
               <View style={styles.modalHero}>
                 <Feather name={getWeatherIcon(weather?.condition) as any} size={64} color={theme.colors.warning} />
-                <Text style={[styles.modalTemp, { color: theme.colors.text }]}>{weather ? `${weather.temperature}Â°C` : '--'}</Text>
+                <Text style={[styles.modalTemp, { color: theme.colors.text }]}>{weather ? `${weather.temperature}°C` : '--'}</Text>
                 <Text style={[styles.modalLoc, { color: theme.colors.textSecondary }]}>{locationName}</Text>
                 <Text style={[styles.modalCondition, { color: theme.colors.textMuted }]}>{weather?.condition || 'Inconnu'}</Text>
               </View>
@@ -193,10 +193,10 @@ export const WeatherCard = () => {
 
               <View style={styles.aiSection}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <Text style={styles.aiSectionTitle}>PRÃ‰VISIONS HORAIRES</Text>
+                  <Text style={styles.aiSectionTitle}>PRÉVISIONS HORAIRES</Text>
                   {selectedDate && (
                     <TouchableOpacity onPress={() => setSelectedDate(null)}>
-                      <Text style={{ fontSize: 12, color: theme.colors.accent, fontWeight: 'bold' }}>RÃ©initialiser (24h)</Text>
+                      <Text style={{ fontSize: 12, color: theme.colors.accent, fontWeight: 'bold' }}>Réinitialiser (24h)</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -206,10 +206,10 @@ export const WeatherCard = () => {
                     <View key={i} style={[styles.hourlyCard, { backgroundColor: getThermalBackgroundColor(h.temperature) }]}>
                       <Text style={[styles.hourlyTime, { color: theme.colors.textSecondary }]}>{h.time}</Text>
                       <Feather name={getWeatherIcon(h.condition) as any} size={24} color={getWeatherIconColor(h.condition)} style={{ marginVertical: 8 }} />
-                      <Text style={[styles.hourlyTemp, { color: theme.colors.text }]}>{h.temperature}Â°</Text>
+                      <Text style={[styles.hourlyTemp, { color: theme.colors.text }]}>{h.temperature}°</Text>
                     </View>
                   )) : (
-                    <Text style={{ color: theme.colors.textMuted }}>Aucune donnÃ©e horaire disponible.</Text>
+                    <Text style={{ color: theme.colors.textMuted }}>Aucune donnée horaire disponible.</Text>
                   )}
                 </ScrollView>
               </View>
@@ -227,9 +227,9 @@ export const WeatherCard = () => {
                       <Text style={[styles.dailyDay, { color: theme.colors.text }]}>{d.displayDay}</Text>
                       <Feather name={getWeatherIcon(d.condition) as any} size={20} color={getWeatherIconColor(d.condition)} style={{ width: 40, textAlign: 'center' }} />
                       <View style={styles.dailyTemps}>
-                        <Text style={[styles.dailyMin, { color: theme.colors.textSecondary }]}>{d.tempMin}Â°</Text>
+                        <Text style={[styles.dailyMin, { color: theme.colors.textSecondary }]}>{d.tempMin}°</Text>
                         <View style={styles.dailyBar} />
-                        <Text style={[styles.dailyMax, { color: theme.colors.text }]}>{d.tempMax}Â°</Text>
+                        <Text style={[styles.dailyMax, { color: theme.colors.text }]}>{d.tempMax}°</Text>
                       </View>
                     </TouchableOpacity>
                   ))}
@@ -418,4 +418,5 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   }
 });
+
 
