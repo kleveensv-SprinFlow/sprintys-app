@@ -54,7 +54,7 @@ export interface RunBlockItem {
   runs: RunItem[]; // Used in varied mode
   restReps: number; // in seconds
   restBlock: number; // in seconds
-  target: ExerciseTarget;
+  targets: { subgroups: string[]; athletes: string[] };
 }
 
 export interface WorkoutTemplateItem {
@@ -126,9 +126,8 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
   const [restBlock, setRestBlock] = useState<number>(360);
 
   // Target override per block
-  const [blockTargetScope, setBlockTargetScope] = useState<'inherit' | 'subgroup' | 'athlete'>('inherit');
-  const [blockTargetSubgroupId, setBlockTargetSubgroupId] = useState<string | null>(null);
-  const [blockTargetAthleteId, setBlockTargetAthleteId] = useState<string | null>(null);
+  const [blockTargets, setBlockTargets] = useState<{ subgroups: string[], athletes: string[] }>({ subgroups: [], athletes: [] });
+  const [isMultiTargetModalVisible, setIsMultiTargetModalVisible] = useState(false);
 
   // Rest Picker Modals
   const [isRestRepsPickerVisible, setIsRestRepsPickerVisible] = useState(false);
@@ -205,7 +204,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
         runs,
         restReps: sets[0]?.restSeconds || 180,
         restBlock: blk.restAfterBlock || 360,
-        target: firstEx.target || { type: 'all', id: null, name: 'Tout le groupe' },
+        targets: firstEx.targets || { subgroups: [], athletes: [] },
       };
     } else {
       const firstSet = sets[0] || {};
@@ -222,7 +221,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
         runs: [],
         restReps: firstSet.restSeconds || 180,
         restBlock: blk.restAfterBlock || 360,
-        target: firstEx.target || { type: 'all', id: null, name: 'Tout le groupe' },
+        targets: firstEx.targets || { subgroups: [], athletes: [] },
       };
     }
   };
@@ -697,7 +696,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
           {
             id: exerciseId,
             name: summaryName,
-            target: blk.target,
+            targets: blk.targets,
             sets,
           },
         ],
@@ -723,26 +722,24 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
 
       // We NO LONGER delete it here to preserve IDs and efforts!
       const oldGroupAssignmentId = initialWorkout?.group_assignment_id || undefined;
-      const payloadsToUpdate: any[] = [];
+        const payloadsToUpdate: any[] = [];
 
-      const surfaceLabel = surface === 'cote' ? 'Côte' : 'Piste';
-      const equipmentLabel = equipment === 'pointes' ? 'Pointes' : 'Baskets';
-      const sessionTypeSeance = surface === 'cote' ? 'Côte' : 'Piste';
+        const surfaceLabel = surface === 'cote' ? 'Côte' : 'Piste';
+        const equipmentLabel = equipment === 'pointes' ? 'Pointes' : 'Baskets';
+        const finalDescription = sessionNotes.trim() || `Séance ${surfaceLabel} en ${equipmentLabel}`;
+        const sessionTypeSeance = surface === 'cote' ? 'Côte' : 'Piste';
 
-      const headerMeta = `[${surfaceLabel} • ${equipmentLabel}]`;
-      const finalDescription = sessionNotes.trim()
-        ? `${headerMeta} ${sessionNotes.trim()}`
-        : `${headerMeta} ${blocks.length} bloc${blocks.length > 1 ? 's' : ''} de ${surfaceLabel.toLowerCase()}`;
-
-      if (targetType === 'team') {
         if (!activeTeamId) {
-          Alert.alert('Erreur', 'Aucune équipe active trouvée.');
+          Alert.alert('Erreur', 'Aucune équipe trouvée.');
           setIsSubmitting(false);
           return;
         }
 
         if (approvedMembers.length === 0) {
-          Alert.alert('Aucun athlète', "Aucun athlète validé n'a été trouvé dans votre équipe.");
+          Alert.alert(
+            'Aucun athlète',
+            "Aucun athlète validé n'a été trouvé dans votre équipe pour recevoir cette séance."
+          );
           setIsSubmitting(false);
           return;
         }
@@ -751,9 +748,10 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
 
         for (const member of approvedMembers) {
           const athleteFilteredBlocks = blocks.filter((blk) => {
-            if (!blk.target || blk.target.type === 'all') return true;
-            if (blk.target.type === 'subgroup') return blk.target.id === member.subgroup_id;
-            if (blk.target.type === 'athlete') return blk.target.id === member.user_id;
+            const t = blk.targets;
+            if (!t || (t.subgroups.length === 0 && t.athletes.length === 0)) return true;
+            if (t.subgroups.includes(member.subgroup_id || '')) return true;
+            if (t.athletes.includes(member.user_id)) return true;
             return false;
           });
 
@@ -787,68 +785,6 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
         }
 
         await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
-      } else if (targetType === 'subgroup') {
-        const subMembers = approvedMembers.filter((m) => m.subgroup_id === selectedSubgroupId);
-        if (subMembers.length === 0) {
-          Alert.alert('Sous-groupe vide', "Aucun athlète validé n'est présent dans ce sous-groupe.");
-          setIsSubmitting(false);
-          return;
-        }
-
-        const sharedAssignmentId = uuid.v4() as string;
-        for (const member of subMembers) {
-          const athleteFilteredBlocks = blocks.filter((blk) => {
-            if (!blk.target || blk.target.type === 'all' || blk.target.type === 'subgroup') return true;
-            if (blk.target.type === 'athlete') return blk.target.id === member.user_id;
-            return false;
-          });
-
-          if (athleteFilteredBlocks.length > 0) {
-            const mappedBlocks = mapBlocksToPayload(athleteFilteredBlocks);
-            const flatExercises = mappedBlocks.flatMap((b) => b.exercises);
-
-            payloadsToUpdate.push({
-              type_seance: sessionTypeSeance,
-              coach_id: user.id,
-              team_id: activeTeamId,
-              subgroup_id: selectedSubgroupId,
-              athlete_id: member.user_id,
-              group_assignment_id: sharedAssignmentId,
-              date_prevue: targetDateIso,
-              description: finalDescription,
-              exercises: flatExercises,
-              blocks: mappedBlocks,
-              measures: {
-                surface,
-                equipment,
-              },
-              status: 'pending',
-            });
-          }
-        }
-        await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
-      } else {
-        const mappedBlocks = mapBlocksToPayload(blocks);
-        const flatExercises = mappedBlocks.flatMap((b) => b.exercises);
-
-        payloadsToUpdate.push({
-          type_seance: sessionTypeSeance,
-          coach_id: user.id,
-          team_id: activeTeamId,
-          athlete_id: selectedAthleteId!,
-          date_prevue: targetDateIso,
-          description: finalDescription,
-          exercises: flatExercises,
-          blocks: mappedBlocks,
-          measures: {
-            surface,
-            equipment,
-          },
-          status: 'pending',
-        });
-        await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
-      }
-
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onSave();
       onClose();
@@ -899,105 +835,6 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          {/* Section: CIBLE */}
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>CIBLE DE LA SÉANCE</Text>
-          </View>
-
-          <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-            <View style={styles.segmentedRow}>
-              <TouchableOpacity
-                style={[styles.segmentBtn, targetType === 'team' && { backgroundColor: theme.colors.accent }]}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setTargetType('team');
-                }}
-              >
-                <Text style={[styles.segmentBtnText, { color: targetType === 'team' ? '#FFFFFF' : theme.colors.text }]}>
-                  Équipe entière
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.segmentBtn, targetType === 'subgroup' && { backgroundColor: theme.colors.accent }]}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setTargetType('subgroup');
-                  if (subgroups.length > 0 && !selectedSubgroupId) setSelectedSubgroupId(subgroups[0].id);
-                }}
-              >
-                <Text style={[styles.segmentBtnText, { color: targetType === 'subgroup' ? '#FFFFFF' : theme.colors.text }]}>
-                  Sous-groupe
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.segmentBtn, targetType === 'athlete' && { backgroundColor: theme.colors.accent }]}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setTargetType('athlete');
-                  if (approvedMembers.length > 0 && !selectedAthleteId) setSelectedAthleteId(approvedMembers[0].user_id);
-                }}
-              >
-                <Text style={[styles.segmentBtnText, { color: targetType === 'athlete' ? '#FFFFFF' : theme.colors.text }]}>
-                  Athlète
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {targetType === 'subgroup' && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subScroll}>
-                {subgroups.map((sg) => {
-                  const isSelected = selectedSubgroupId === sg.id;
-                  return (
-                    <TouchableOpacity
-                      key={sg.id}
-                      style={[
-                        styles.chip,
-                        {
-                          backgroundColor: isSelected ? theme.colors.accent + '20' : theme.colors.background,
-                          borderColor: isSelected ? theme.colors.accent : theme.colors.border,
-                        },
-                      ]}
-                      onPress={() => setSelectedSubgroupId(sg.id)}
-                    >
-                      <Text style={[styles.chipText, { color: isSelected ? theme.colors.accent : theme.colors.text }]}>
-                        {sg.name}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            )}
-
-            {targetType === 'athlete' && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subScroll}>
-                {approvedMembers.map((m) => {
-                  const isSelected = selectedAthleteId === m.user_id;
-                  const prof = (Array.isArray(m.profile) ? m.profile[0] : m.profile) as any;
-                  const name = prof?.full_name?.trim() || 'Athlète';
-                  return (
-                    <TouchableOpacity
-                      key={m.user_id}
-                      style={[
-                        styles.chip,
-                        {
-                          backgroundColor: isSelected ? theme.colors.accent + '20' : theme.colors.background,
-                          borderColor: isSelected ? theme.colors.accent : theme.colors.border,
-                        },
-                      ]}
-                      onPress={() => setSelectedAthleteId(m.user_id)}
-                    >
-                      <Text style={[styles.chipText, { color: isSelected ? theme.colors.accent : theme.colors.text }]}>
-                        {name}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            )}
-          </View>
-
           {/* Section: CONTEXTE & ÉQUIPEMENT */}
           <View style={styles.sectionHeaderBetween}>
             <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>LIEU & ÉQUIPEMENT</Text>
@@ -1180,13 +1017,13 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                         <Text style={[styles.blockRowName, { color: theme.colors.text }]} numberOfLines={1}>
                           {item.name}
                         </Text>
-                        {item.target?.type !== 'all' && (
-                          <View style={[styles.targetMiniBadge, { backgroundColor: theme.colors.accent + '20' }]}>
-                            <Text style={[styles.targetMiniBadgeText, { color: theme.colors.accent }]}>
-                              {item.target?.name}
-                            </Text>
-                          </View>
-                        )}
+                        {item.targets && (item.targets.subgroups.length > 0 || item.targets.athletes.length > 0) && (
+  <View style={[styles.targetMiniBadge, { backgroundColor: theme.colors.accent + '20' }]}>
+    <Text style={[styles.targetMiniBadgeText, { color: theme.colors.accent }]}>
+      ${item.targets.subgroups.length + item.targets.athletes.length} cible(s)
+    </Text>
+  </View>
+)}
                       </View>
                       <Text style={[styles.blockRowSubtitle, { color: theme.colors.textSecondary }]}>
                         {getBlockSummary(item)}
@@ -1548,104 +1385,29 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                 </View>
 
                 {/* 5. CIBLE DU BLOC */}
-                <View style={styles.sectionHeaderBetween}>
-                  <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>
-                    CIBLE SPÉCIFIQUE POUR CE BLOC
-                  </Text>
-                </View>
-                <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                  <View style={styles.segmentedRow}>
-                    <TouchableOpacity
-                      style={[styles.segmentBtn, blockTargetScope === 'inherit' && { backgroundColor: theme.colors.accent }]}
-                      onPress={() => {
-                        Haptics.selectionAsync();
-                        setBlockTargetScope('inherit');
-                      }}
-                    >
-                      <Text style={[styles.segmentBtnText, { color: blockTargetScope === 'inherit' ? '#FFFFFF' : theme.colors.text }]}>
-                        Toute la séance
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.segmentBtn, blockTargetScope === 'subgroup' && { backgroundColor: theme.colors.accent }]}
-                      onPress={() => {
-                        Haptics.selectionAsync();
-                        setBlockTargetScope('subgroup');
-                      }}
-                    >
-                      <Text style={[styles.segmentBtnText, { color: blockTargetScope === 'subgroup' ? '#FFFFFF' : theme.colors.text }]}>
-                        Sous-groupe
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.segmentBtn, blockTargetScope === 'athlete' && { backgroundColor: theme.colors.accent }]}
-                      onPress={() => {
-                        Haptics.selectionAsync();
-                        setBlockTargetScope('athlete');
-                      }}
-                    >
-                      <Text style={[styles.segmentBtnText, { color: blockTargetScope === 'athlete' ? '#FFFFFF' : theme.colors.text }]}>
-                        Athlète
-                      </Text>
-                    </TouchableOpacity>
+                  <View style={styles.sheetSectionHeader}>
+                    <Text style={[styles.sheetSectionTitle, { color: theme.colors.textSecondary }]}>CIBLE SPÉCIFIQUE (OPTIONNEL)</Text>
                   </View>
 
-                  {blockTargetScope === 'subgroup' && (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subScroll}>
-                      {subgroups.map((sg) => {
-                        const isSelected = blockTargetSubgroupId === sg.id;
-                        return (
-                          <TouchableOpacity
-                            key={sg.id}
-                            style={[
-                              styles.chip,
-                              {
-                                backgroundColor: isSelected ? theme.colors.accent + '20' : theme.colors.background,
-                                borderColor: isSelected ? theme.colors.accent : theme.colors.border,
-                              },
-                            ]}
-                            onPress={() => setBlockTargetSubgroupId(sg.id)}
-                          >
-                            <Text style={[styles.chipText, { color: isSelected ? theme.colors.accent : theme.colors.text }]}>
-                              {sg.name}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </ScrollView>
-                  )}
-
-                  {blockTargetScope === 'athlete' && (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subScroll}>
-                      {approvedMembers.map((m) => {
-                        const isSelected = blockTargetAthleteId === m.user_id;
-                        const prof = (Array.isArray(m.profile) ? m.profile[0] : m.profile) as any;
-                        const name = prof?.full_name?.trim() || 'Athlète';
-                        return (
-                          <TouchableOpacity
-                            key={m.user_id}
-                            style={[
-                              styles.chip,
-                              {
-                                backgroundColor: isSelected ? theme.colors.accent + '20' : theme.colors.background,
-                                borderColor: isSelected ? theme.colors.accent : theme.colors.border,
-                              },
-                            ]}
-                            onPress={() => setBlockTargetAthleteId(m.user_id)}
-                          >
-                            <Text style={[styles.chipText, { color: isSelected ? theme.colors.accent : theme.colors.text }]}>
-                              {name}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </ScrollView>
-                  )}
-                </View>
-
-                <View style={{ height: 40 }} />
+                  <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                    <TouchableOpacity
+                      style={[styles.settingRow, { borderBottomWidth: 0 }]}
+                      onPress={() => setIsMultiTargetModalVisible(true)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Cibler ce bloc</Text>
+                        <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 4 }}>
+                          {(blockTargets.subgroups.length === 0 && blockTargets.athletes.length === 0) 
+                            ? 'Tout le groupe' 
+                            : `${blockTargets.subgroups.length} sous-groupe(s), ${blockTargets.athletes.length} athlète(s)`}
+                        </Text>
+                      </View>
+                      <Feather name="chevron-right" size={20} color={theme.colors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
+                  
+                  <View style={{ height: 40 }} />
               </ScrollView>
             </View>
           </KeyboardAvoidingView>
@@ -1934,7 +1696,15 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
           onConfirm={(secs: number) => setRestBlock(secs)}
         />
       </View>
-    </Modal>
+    
+        <MultiTargetSelectorModal
+          visible={isMultiTargetModalVisible}
+          onClose={() => setIsMultiTargetModalVisible(false)}
+          onSave={setBlockTargets}
+          initialTarget={blockTargets}
+          title="Cibler le bloc"
+        />
+      </Modal>
   );
 };
 

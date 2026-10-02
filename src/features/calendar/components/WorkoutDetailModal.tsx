@@ -984,12 +984,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   actionsContainer: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: 12,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
   },
   actionBtn: {
-    width: 160,
+    width: '48%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

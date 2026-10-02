@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Keyboard, Animated } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Animated } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { theme } from '../../src/core/theme';
@@ -11,7 +11,9 @@ import AILoadingIndicator from '../../src/components/AILoadingIndicator';
 import * as Haptics from 'expo-haptics';
 import { WorkoutProposalCard, AIWorkoutProposal } from '../../src/components/WorkoutProposalCard';
 import { useAuthStore } from '../../src/store/authStore';
-
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import LottieView from 'lottie-react-native';
 import { create } from 'zustand';
 
 interface SprintyChatStore {
@@ -21,7 +23,7 @@ interface SprintyChatStore {
 
 const useSprintyChatStore = create<SprintyChatStore>((set) => ({
   messages: [
-    { role: 'assistant', content: "Salut ! Je suis Sprinty, ton coach IA personnel. Je suis prêt à t'accompagner. Que veux-tu faire aujourd'hui ?" }
+    { role: 'assistant', content: "Salut ! Je suis Sprinty, ton assistant neural actif. Que puis-je t'aider à créer aujourd'hui ?" }
   ],
   setMessages: (msgs) => set({ messages: msgs }),
 }));
@@ -35,6 +37,14 @@ export default function MessageScreen() {
   const [isTyping, setIsTyping] = useState(false);
   const insets = useSafeAreaInsets();
   const { updateCoachPhilosophy } = useAuthStore();
+  const scrollViewRef = useRef<ScrollView>(null);
+  
+  const lottieRef = useRef<LottieView>(null);
+
+  // Play animation on mount
+  useEffect(() => {
+    lottieRef.current?.play();
+  }, []);
 
   const renderMessageContent = (msg: { role: string; content: string }) => {
     if (msg.role !== 'assistant') {
@@ -74,10 +84,10 @@ export default function MessageScreen() {
 
     return (
       <View style={{ width: '100%' }}>
-        {textOnly ? <Text style={styles.messageText}>{textOnly}</Text> : null}
+        {textOnly ? <Text style={[styles.messageText, { color: '#E2E8F0' }]}>{textOnly}</Text> : null}
         {philosophySaved && (
-          <View style={{ marginTop: 12, backgroundColor: theme.colors.success + '20', padding: 12, borderRadius: 8 }}>
-            <Text style={{ color: theme.colors.success, fontWeight: 'bold' }}>🎯 Profil de Coach enregistré ! Mes propositions seront désormais adaptées à tes préférences.</Text>
+          <View style={{ marginTop: 12, backgroundColor: 'rgba(56, 219, 114, 0.15)', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(56, 219, 114, 0.3)' }}>
+            <Text style={{ color: theme.colors.success, fontWeight: 'bold' }}>✅ Profil de Coach enregistré !</Text>
           </View>
         )}
         {proposalObj && (
@@ -85,7 +95,7 @@ export default function MessageScreen() {
             <WorkoutProposalCard 
               proposal={proposalObj} 
               onValidate={() => {
-                setMessages([...messages, { role: 'assistant', content: '✅ Séance ajoutée au calendrier !' }]);
+                setMessages([...messages, { role: 'assistant', content: '💪 Séance ajoutée au calendrier !' }]);
               }}
               onReject={() => {
                 setInputText("Je n'ai pas validé cette séance, voici ce qu'il faut changer : ");
@@ -97,22 +107,17 @@ export default function MessageScreen() {
     );
   };
   
-  const scrollViewRef = useRef<ScrollView>(null);
-
-  // Keyboard listener removed as setKeyboardHeight was undefined and caused crash
-
-    const sendMessage = async () => {
-    if (!inputText.trim() || isTyping) return;
+  const sendMessage = async (text?: string) => {
+    const messageToSend = text || inputText;
+    if (!messageToSend.trim() || isTyping) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    const userText = inputText.trim();
     setInputText('');
-    const newMessages = [...messages, { role: 'user', content: userText }];
+    const newMessages = [...messages, { role: 'user', content: messageToSend.trim() }];
     setMessages(newMessages);
     setIsTyping(true);
 
-    // Scroll to bottom immediately when user sends
     setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 100);
@@ -139,85 +144,179 @@ export default function MessageScreen() {
     }
   };
 
+  const capabilities = [
+    { id: 1, title: 'Planifier une séance', icon: 'zap', prompt: 'Crée-moi une séance de sprint' },
+    { id: 2, title: 'Planifier une compétition', icon: 'award', prompt: 'Je veux planifier une compétition à venir' },
+    { id: 3, title: 'Analyser un athlète', icon: 'activity', prompt: 'Donne-moi une analyse sur un de mes athlètes' },
+  ];
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.avatarContainer}>
-            <Text style={styles.avatarEmoji}>?</Text>
-          </View>
-          <View>
-            <Text style={styles.title}>Sprinty IA</Text>
-            <Text style={styles.subtitle}>En ligne</Text>
-          </View>
-        </View>
-      </View>
+    <View style={styles.container}>
+      <LinearGradient
+        colors={['#1F0E38', '#09090D', '#09090D']}
+        style={StyleSheet.absoluteFillObject}
+      />
+      {/* Decorative blurred blob */}
+      <View style={styles.blurBlobTop} />
+      <View style={styles.blurBlobBottom} />
 
-      <KeyboardAvoidingView 
-        style={styles.keyboardAvoid} 
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-      >
-        <ScrollView 
-          style={styles.chatArea} 
-          contentContainerStyle={styles.chatContent}
-          ref={scrollViewRef}
-          onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
-          showsVerticalScrollIndicator={false}
-          keyboardDismissMode="interactive"
-          keyboardShouldPersistTaps="handled"
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => { /* Router back */ }}>
+            <Feather name="chevron-left" size={24} color="#FFF" />
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <View style={styles.avatarWrapper}>
+              <LottieView
+                ref={lottieRef}
+                source={isTyping ? require('../../src/assets/animations/active.json') : require('../../src/assets/animations/idle.json')}
+                autoPlay
+                loop
+                style={styles.lottieAvatar}
+              />
+              <View style={styles.onlineDot} />
+            </View>
+            <View>
+              <Text style={styles.title}>Sprinty IA</Text>
+              <Text style={styles.subtitle}>{isTyping ? 'ENTRAIN DE RÉFLÉCHIR...' : 'NEURAL ASSISTANT ACTIF'}</Text>
+            </View>
+          </View>
+          <TouchableOpacity style={styles.menuBtn}>
+            <Feather name="more-horizontal" size={20} color="#FFF" />
+          </TouchableOpacity>
+        </View>
+
+        <KeyboardAvoidingView 
+          style={styles.keyboardAvoid} 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         >
-          {messages.filter(m => m.role !== 'system').map((msg, index) => (
-            <View key={index} style={msg.role === 'user' ? styles.messageRowRight : styles.messageRowLeft}>
-              {msg.role === 'assistant' && (
-                <View style={styles.chatAvatar}>
-                  <Text style={styles.chatAvatarEmoji}>?</Text>
+          <ScrollView 
+            style={styles.chatArea} 
+            contentContainerStyle={[styles.chatContent, { paddingBottom: 100 }]}
+            ref={scrollViewRef}
+            onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+            showsVerticalScrollIndicator={false}
+            keyboardDismissMode="interactive"
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Quick Actions (Hero) if chat is empty */}
+            {messages.length <= 1 && (
+              <View style={styles.heroContainer}>
+                <Text style={styles.heroTitle}>Capacités Sprinty</Text>
+                <Text style={styles.heroSub}>Explorez tout le potentiel de l'intelligence de Sprintflow.</Text>
+                <View style={styles.capabilitiesGrid}>
+                  {capabilities.map(cap => (
+                    <TouchableOpacity 
+                      key={cap.id} 
+                      style={styles.capabilityCard}
+                      activeOpacity={0.7}
+                      onPress={() => sendMessage(cap.prompt)}
+                    >
+                      <View style={styles.capabilityIconWrap}>
+                        <Feather name={cap.icon as any} size={20} color="#00FFFF" />
+                      </View>
+                      <Text style={styles.capabilityTitle}>{cap.title}</Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
-              )}
-              <View style={msg.role === 'user' ? styles.messageBubbleRight : styles.messageBubbleLeft}>
-                {renderMessageContent(msg)}
               </View>
-            </View>
-          ))}
-          {isTyping && (
-            <View style={styles.messageRowLeft}>
-              <View style={styles.chatAvatar}>
-                <Text style={styles.chatAvatarEmoji}>?</Text>
-              </View>
-              <View style={[styles.messageBubbleLeft, { paddingHorizontal: 16, paddingVertical: 12 }]}>
-                <AILoadingIndicator />
-              </View>
-            </View>
-          )}
-        </ScrollView>
+            )}
 
-        <View style={[styles.inputContainer, { paddingBottom: Platform.OS === 'ios' ? Math.max(16, insets.bottom) : 16 }]}>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.input}
-              placeholder="Message à Sprinty..."
-              placeholderTextColor={theme.colors.textMuted}
-              multiline
-              value={inputText}
-              onChangeText={setInputText}
-              
-            />
-            <TouchableOpacity 
-              style={[styles.sendBtn, (!inputText.trim()) && { opacity: 0.5, backgroundColor: theme.colors.surface }]} 
-              onPress={sendMessage} 
-              disabled={isTyping || !inputText.trim()}
-            >
-              <Ionicons name="send" size={18} color={inputText.trim() ? "#FFF" : theme.colors.textMuted} />
-            </TouchableOpacity>
+            {/* Chat Messages */}
+            {messages.map((msg, index) => {
+              if (msg.role === 'system') return null;
+              const isAssistant = msg.role === 'assistant';
+              return (
+                <View key={index} style={!isAssistant ? styles.messageRowRight : styles.messageRowLeft}>
+                  {isAssistant && (
+                    <View style={styles.chatAvatarSmall}>
+                      <LottieView
+                        source={require('../../src/assets/animations/idle.json')}
+                        autoPlay
+                        loop
+                        style={{ width: 20, height: 20 }}
+                      />
+                    </View>
+                  )}
+                  <View style={!isAssistant ? styles.messageBubbleRight : styles.messageBubbleLeft}>
+                    {renderMessageContent(msg)}
+                  </View>
+                </View>
+              )
+            })}
+            
+            {isTyping && (
+              <View style={styles.messageRowLeft}>
+                <View style={styles.chatAvatarSmall}>
+                  <LottieView
+                    source={require('../../src/assets/animations/active.json')}
+                    autoPlay
+                    loop
+                    style={{ width: 20, height: 20 }}
+                  />
+                </View>
+                <View style={[styles.messageBubbleLeft, { paddingHorizontal: 16, paddingVertical: 12 }]}>
+                  <AILoadingIndicator />
+                </View>
+              </View>
+            )}
+          </ScrollView>
+
+          {/* Floating Input Bar */}
+          <View style={styles.floatingInputWrapper}>
+            <BlurView intensity={30} tint="dark" style={styles.floatingBlur}>
+              <View style={[styles.inputContainer, { paddingBottom: Platform.OS === 'ios' ? Math.max(16, insets.bottom) : 16 }]}>
+                <View style={styles.inputBox}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Tapez un message..."
+                    placeholderTextColor="rgba(255, 255, 255, 0.4)"
+                    multiline
+                    value={inputText}
+                    onChangeText={setInputText}
+                  />
+                  <TouchableOpacity 
+                    style={[styles.sendBtn, (!inputText.trim()) && { opacity: 0.5, backgroundColor: 'rgba(0, 255, 255, 0.1)' }]} 
+                    onPress={() => sendMessage()} 
+                    disabled={isTyping || !inputText.trim()}
+                  >
+                    <Ionicons name="arrow-up" size={18} color={inputText.trim() ? "#09090D" : "rgba(255, 255, 255, 0.4)"} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </BlurView>
           </View>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background },
+  container: { flex: 1, backgroundColor: '#09090D' },
+  blurBlobTop: {
+    position: 'absolute',
+    top: -100,
+    right: -100,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: 'rgba(102, 51, 153, 0.3)',
+    transform: [{ scale: 1.5 }],
+  },
+  blurBlobBottom: {
+    position: 'absolute',
+    bottom: 100,
+    left: -100,
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    backgroundColor: 'rgba(0, 255, 255, 0.1)',
+    transform: [{ scale: 1.5 }],
+  },
   header: { 
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -225,123 +324,210 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, 
     paddingTop: 10, 
     paddingBottom: 16, 
-    borderBottomWidth: 1, 
-    borderBottomColor: theme.colors.border,
-    backgroundColor: theme.colors.background,
     zIndex: 10
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatarContainer: {
+  backBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  menuBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  headerCenter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatarWrapper: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    position: 'relative',
+    overflow: 'hidden',
   },
-  avatarEmoji: {
-    fontSize: 20,
+  lottieAvatar: {
+    width: 40,
+    height: 40,
   },
-  title: { fontSize: 18, fontWeight: 'bold', color: theme.colors.text },
-  subtitle: { fontSize: 12, color: theme.colors.success, marginTop: 2, fontWeight: '500' },
-  headerBtn: {
-    padding: 8,
+  onlineDot: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#00FF88',
+    borderWidth: 2,
+    borderColor: '#1F0E38',
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  subtitle: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#00FFFF',
+    marginTop: 2,
+    letterSpacing: 1,
   },
   keyboardAvoid: { flex: 1 },
   chatArea: { flex: 1 },
-  chatContent: { padding: 20, paddingBottom: 10 },
-  messageRowLeft: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginBottom: 16,
-    maxWidth: '90%',
+  chatContent: { paddingHorizontal: 16, paddingTop: 20 },
+  
+  heroContainer: {
+    marginTop: 20,
+    marginBottom: 40,
+    paddingHorizontal: 8,
   },
-  messageRowRight: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginBottom: 16,
-    width: '100%',
+  heroTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#FFF',
+    marginBottom: 8,
   },
-  chatAvatar: {
+  heroSub: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  capabilitiesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  capabilityCard: {
+    width: '48%',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  capabilityIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  capabilityTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFF',
+    lineHeight: 20,
+  },
+
+  messageRowLeft: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 16, justifyContent: 'flex-start' },
+  messageRowRight: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 16, justifyContent: 'flex-end' },
+  
+  chatAvatarSmall: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    overflow: 'hidden',
   },
-  chatAvatarEmoji: {
-    fontSize: 14,
-  },
+  
   messageBubbleLeft: {
-    backgroundColor: theme.colors.surface, 
-    padding: 14, 
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 20,
-    borderBottomLeftRadius: 4, 
-    borderWidth: 1, 
-    borderColor: theme.colors.border,
+    borderBottomLeftRadius: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    maxWidth: '80%',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   messageBubbleRight: {
-    backgroundColor: theme.colors.accent, 
-    padding: 14, 
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    borderBottomRightRadius: 4, 
-    maxWidth: '85%',
-  },
-  messageText: { color: theme.colors.text, fontSize: 16, lineHeight: 24 },
-  inputContainer: {
-    backgroundColor: theme.colors.background,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
+    borderBottomRightRadius: 4,
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingVertical: 12,
+    maxWidth: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
-  inputWrapper: {
+  messageText: { fontSize: 15, lineHeight: 22, color: '#09090D' },
+  
+  floatingInputWrapper: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  floatingBlur: {
+    paddingTop: 16,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: 'hidden',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  inputContainer: {
+    paddingHorizontal: 16,
+  },
+  inputBox: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    backgroundColor: theme.colors.surface,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    paddingHorizontal: 4,
-    paddingVertical: 4,
-  },
-  attachBtn: { 
-    padding: 12, 
-    justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 30,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   input: {
-    flex: 1, 
-    color: theme.colors.text,
-    fontSize: 16,
-    paddingTop: 12, 
-    paddingBottom: 12,
-    paddingHorizontal: 8,
-    maxHeight: 200, 
+    flex: 1,
     minHeight: 40,
+    maxHeight: 100,
+    color: '#FFF',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
+    fontSize: 15,
   },
   sendBtn: {
-    backgroundColor: theme.colors.accent, 
-    width: 38, 
-    height: 38,
-    borderRadius: 19, 
-    alignItems: 'center', 
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#00FFFF',
     justifyContent: 'center',
-    marginRight: 4,
-    marginBottom: 4,
-  }
+    alignItems: 'center',
+    shadowColor: '#00FFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+  },
 });
-
-
-
-

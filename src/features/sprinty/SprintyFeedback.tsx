@@ -6,6 +6,7 @@ import {
   View, 
   Dimensions 
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSprintyStore, SprintyStatus } from '../../store/sprintyStore';
 import { theme } from '../../core/theme';
 import { GlassView } from '../../shared/components/GlassView';
@@ -15,6 +16,7 @@ const { width } = Dimensions.get('window');
 
 export const SprintyFeedback: React.FC = () => {
   const { status, message, isVisible } = useSprintyStore();
+  const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(-100)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -24,7 +26,7 @@ export const SprintyFeedback: React.FC = () => {
       Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
-            toValue: 0.6,
+            toValue: 0.9,
             duration: 1000,
             useNativeDriver: true,
           }),
@@ -44,7 +46,7 @@ export const SprintyFeedback: React.FC = () => {
     if (isVisible || status === 'active') {
       Animated.parallel([
         Animated.spring(slideAnim, {
-          toValue: 20,
+          toValue: Math.max(insets.top, 20) + 10,
           useNativeDriver: true,
           tension: 40,
           friction: 8,
@@ -69,18 +71,40 @@ export const SprintyFeedback: React.FC = () => {
         }),
       ]).start();
     }
-  }, [isVisible, status]);
+  }, [isVisible, status, insets.top]);
 
   if (!isVisible && status === 'idle') return null;
 
   const getStatusColor = (s: SprintyStatus) => {
     switch (s) {
-      case 'success': return theme.colors.accent;
+      case 'success': return '#10B981'; // Emerald 500 for better visibility
       case 'error': return theme.colors.error;
       case 'warning': return theme.colors.warning;
       case 'active': return theme.colors.text;
-      case 'info': return '#3498db'; // Soft blue for info/weather
+      case 'info': return '#3B82F6'; // Blue 500
       default: return theme.colors.textSecondary;
+    }
+  };
+
+  const getBgColor = (s: SprintyStatus) => {
+    switch (s) {
+      case 'success': return '#D1FAE5'; // Emerald 100
+      case 'error': return '#FEE2E2'; // Red 100
+      case 'warning': return '#FEF3C7'; // Amber 100
+      case 'info': return '#DBEAFE'; // Blue 100
+      case 'active': return theme.colors.surface;
+      default: return theme.colors.surface;
+    }
+  };
+
+  const getTextColor = (s: SprintyStatus) => {
+    switch (s) {
+      case 'success': return '#065F46'; // Emerald 900
+      case 'error': return '#991B1B'; // Red 900
+      case 'warning': return '#92400E'; // Amber 900
+      case 'info': return '#1E3A8A'; // Blue 900
+      case 'active': return theme.colors.text;
+      default: return theme.colors.text;
     }
   };
 
@@ -97,24 +121,22 @@ export const SprintyFeedback: React.FC = () => {
         }
       ]}
     >
-      <GlowView variant={status === 'success' ? 'gold' : status === 'info' ? 'surface' : 'surface'}>
-        <GlassView style={styles.glassContainer}>
-          <View style={styles.content}>
-            <View style={[styles.indicator, { backgroundColor: getStatusColor(status) }]} />
-            <View style={styles.textContainer}>
-              <Text style={styles.statusLabel}>
-                {status === 'active' ? 'ANALYSE EN COURS...' : 
-                 status === 'info' ? 'COACHING MÉTÉO' : 
-                 status.toUpperCase()}
-              </Text>
-              {message && <Text style={styles.messageText}>{message}</Text>}
-              {status === 'active' && !message && (
-                <Text style={styles.messageText}>Calcul de vos insights de performance...</Text>
-              )}
-            </View>
+      <View style={[styles.solidContainer, { backgroundColor: getBgColor(status), borderColor: getStatusColor(status) + '40' }]}>
+        <View style={styles.content}>
+          <View style={[styles.indicator, { backgroundColor: getStatusColor(status) }]} />
+          <View style={styles.textContainer}>
+            <Text style={[styles.statusLabel, { color: getStatusColor(status) }]}>
+              {status === 'active' ? 'ANALYSE EN COURS...' : 
+               status === 'info' ? 'INFORMATION' : 
+               status.toUpperCase()}
+            </Text>
+            {message && <Text style={[styles.messageText, { color: getTextColor(status) }]}>{message}</Text>}
+            {status === 'active' && !message && (
+              <Text style={[styles.messageText, { color: getTextColor(status) }]}>Calcul de vos insights de performance...</Text>
+            )}
           </View>
-        </GlassView>
-      </GlowView>
+        </View>
+      </View>
     </Animated.View>
   );
 };
@@ -122,16 +144,21 @@ export const SprintyFeedback: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 50, // Below potential status bar
-    right: 20,
-    width: width * 0.7,
-    maxWidth: 300,
-    zIndex: 1000,
+    alignSelf: 'center',
+    width: width * 0.9,
+    maxWidth: 400,
+    zIndex: 9999,
+    elevation: 10,
   },
-  glassContainer: {
+  solidContainer: {
     padding: theme.spacing.md,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
   },
   content: {
     flexDirection: 'row',

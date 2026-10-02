@@ -28,12 +28,10 @@ import {
   StrengthExerciseSearchModal,
   SelectedStrengthExercise,
 } from './StrengthExerciseSearchModal';
-
-interface ExerciseTarget {
-  type: 'all' | 'subgroup' | 'athlete';
-  id: string | null;
-  name: string;
-}
+import {
+  MultiTargetSelectorModal,
+  MultiTarget,
+} from '../../../shared/components/MultiTargetSelectorModal';
 
 export interface StrengthExerciseItem {
   id: string;
@@ -45,7 +43,7 @@ export interface StrengthExerciseItem {
   weight: number; // in kg or %
   weightType: 'kg' | 'percent_1rm';
   restSets: number; // in seconds
-  target: ExerciseTarget;
+  targets: MultiTarget;
 }
 
 interface StrengthWorkoutBuilderProps {
@@ -93,9 +91,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
   } = useCoachStore();
 
   // Session-level Target
-  const [targetType, setTargetType] = useState<'team' | 'subgroup' | 'athlete'>('team');
-  const [selectedSubgroupId, setSelectedSubgroupId] = useState<string | null>(null);
-  const [selectedAthleteId, setSelectedAthleteId] = useState<string | null>(null);
+  const [targetType, setTargetType] = useState<'team'>('team');
 
   // Session metadata
   const [sessionTitle, setSessionTitle] = useState(defaultTitle);
@@ -117,10 +113,9 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
   const [weightType, setWeightType] = useState<'kg' | 'percent_1rm'>('kg');
   const [restSets, setRestSets] = useState<number>(90); // 90s default for strength
 
-  // Exercise Target inside session (when session target is 'team')
-  const [exTargetType, setExTargetType] = useState<'all' | 'subgroup' | 'athlete'>('all');
-  const [exTargetSubgroupId, setExTargetSubgroupId] = useState<string | null>(null);
-  const [exTargetAthleteId, setExTargetAthleteId] = useState<string | null>(null);
+  // Exercise Targets
+  const [exTargets, setExTargets] = useState<MultiTarget>({ subgroups: [], athletes: [] });
+  const [isMultiTargetModalVisible, setIsMultiTargetModalVisible] = useState(false);
 
   // Exercise Search Modal
   const [isSearchModalVisible, setIsSearchModalVisible] = useState(false);
@@ -158,15 +153,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
         setSessionTitle(initialWorkout.type_seance);
       }
       setSessionNotes(initialWorkout.description || '');
-      if (initialWorkout.subgroup_id) {
-        setTargetType('subgroup');
-        setSelectedSubgroupId(initialWorkout.subgroup_id);
-      } else if (initialWorkout.athlete_id && !initialWorkout.group_assignment_id) {
-        setTargetType('athlete');
-        setSelectedAthleteId(initialWorkout.athlete_id);
-      } else {
-        setTargetType('team');
-      }
+      setTargetType('team');
 
       let exList: any[] = [];
       if (initialWorkout.blocks && Array.isArray(initialWorkout.blocks)) {
@@ -190,7 +177,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
           weight: ex.sets?.[0]?.weight || ex.weight || 0,
           weightType: ex.sets?.[0]?.weight_type || ex.sets?.[0]?.weightType || ex.weight_type || 'kg',
           restSets: ex.sets?.[0]?.restSeconds || ex.rest_between_sets_s || 90,
-          target: ex.target || { type: 'all', id: null, name: 'Tout le groupe' },
+          targets: ex.targets || { subgroups: [], athletes: [] },
         }));
         setSessionExercises(loaded);
       }
@@ -198,8 +185,6 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
       setSessionNotes('');
       setSessionExercises([]);
       setTargetType('team');
-      setSelectedSubgroupId(null);
-      setSelectedAthleteId(null);
     }
   }, [visible, initialWorkout]);
 
@@ -216,14 +201,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
   }, [visible, teams, teamMembers.length, subgroups.length]);
 
   useEffect(() => {
-    if (subgroups.length > 0 && !selectedSubgroupId) {
-      setSelectedSubgroupId(subgroups[0].id);
-      setExTargetSubgroupId(subgroups[0].id);
-    }
-    if (approvedMembers.length > 0 && !selectedAthleteId) {
-      setSelectedAthleteId(approvedMembers[0].user_id);
-      setExTargetAthleteId(approvedMembers[0].user_id);
-    }
+    // Keep this effect empty if needed or remove entirely
   }, [subgroups, approvedMembers]);
 
   const loadLibrary = async () => {
@@ -314,7 +292,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
     setExerciseName('');
     setExerciseNameEn(undefined);
     setCatalogId(undefined);
-    setExTargetType('all');
+    setExTargets({ subgroups: [], athletes: [] });
     // We intentionally keep setsCount, repsCount, weightValueText, weightType, restSets from memory!
     setIsExerciseSheetVisible(true);
   };
@@ -331,9 +309,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
     setWeightValueText(String(item.weight || 0));
     setWeightType(item.weightType);
     setRestSets(item.restSets);
-    setExTargetType(item.target?.type || 'all');
-    if (item.target?.type === 'subgroup') setExTargetSubgroupId(item.target.id || null);
-    if (item.target?.type === 'athlete') setExTargetAthleteId(item.target.id || null);
+    setExTargets(item.targets || { subgroups: [], athletes: [] });
     setIsExerciseSheetVisible(true);
   };
 
@@ -366,7 +342,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
     setWeightValueText(targetWeight);
     setWeightType(targetWeightType);
     setRestSets(targetRest);
-    setExTargetType('all');
+    setExTargets({ subgroups: [], athletes: [] });
     setIsExerciseSheetVisible(true);
   };
 
@@ -388,25 +364,6 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
     // Persist all values in AsyncStorage for instant pre-fill on next exercise
     saveStrengthMemory(setsCount, repsCount, weightValueText, weightType, restSets);
 
-    let finalTarget: ExerciseTarget = { type: 'all', id: null, name: 'Tout le groupe' };
-    if (exTargetType === 'subgroup') {
-      const sg = subgroups.find((s) => s.id === exTargetSubgroupId);
-      finalTarget = {
-        type: 'subgroup',
-        id: exTargetSubgroupId,
-        name: sg ? sg.name : 'Sous-groupe',
-      };
-    } else if (exTargetType === 'athlete') {
-      const ath = approvedMembers.find((m) => m.user_id === exTargetAthleteId);
-      const athProf = (Array.isArray(ath?.profile) ? ath?.profile[0] : ath?.profile) as any;
-      const athName = athProf?.full_name || athProf?.first_name || 'Athlète';
-      finalTarget = {
-        type: 'athlete',
-        id: exTargetAthleteId,
-        name: athName,
-      };
-    }
-
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     if (editingId) {
@@ -424,7 +381,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
                 weight: parsedWeight,
                 weightType,
                 restSets,
-                target: finalTarget,
+                targets: exTargets,
               }
             : item
         )
@@ -441,7 +398,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
         weight: parsedWeight,
         weightType,
         restSets,
-        target: finalTarget,
+        targets: exTargets,
       };
       setSessionExercises((prev) => [...prev, newEx]);
     }
@@ -546,7 +503,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
           weight_type: ex.weightType,
           weightType: ex.weightType,
           rest_between_sets_s: ex.restSets,
-          target: ex.target,
+          targets: ex.targets,
           sets: Array.from({ length: ex.setsCount }, (_, idx) => ({
             id: uuid.v4() as string,
             set_index: idx + 1,
@@ -564,77 +521,35 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
       const oldGroupAssignmentId = initialWorkout?.group_assignment_id || undefined;
       const payloadsToUpdate: any[] = [];
 
-      if (targetType === 'team') {
-        if (!activeTeamId) {
-          Alert.alert('Erreur', 'Aucune équipe trouvée.');
-          setIsSubmitting(false);
-          return;
-        }
+      if (!activeTeamId) {
+        Alert.alert('Erreur', 'Aucune équipe trouvée.');
+        setIsSubmitting(false);
+        return;
+      }
 
-        if (approvedMembers.length === 0) {
-          Alert.alert(
-            'Aucun athlète',
-            "Aucun athlète validé n'a été trouvé dans votre équipe pour recevoir cette séance."
-          );
-          setIsSubmitting(false);
-          return;
-        }
-
-        const sharedAssignmentId = uuid.v4() as string;
-
-        // Filter per athlete so they only receive the exercises assigned to them
-        for (const member of approvedMembers) {
-          const athleteFiltered = sessionExercises.filter((ex) => {
-            if (!ex.target || ex.target.type === 'all') return true;
-            if (ex.target.type === 'subgroup') return ex.target.id === member.subgroup_id;
-            if (ex.target.type === 'athlete') return ex.target.id === member.user_id;
-            return false;
-          });
-
-          if (athleteFiltered.length > 0) {
-            const mappedExercises = mapExercisesToPayload(athleteFiltered);
-            payloadsToUpdate.push({
-              type_seance: sessionTitle.trim() || 'Musculation',
-              coach_id: user.id,
-              team_id: activeTeamId,
-              athlete_id: member.user_id,
-              group_assignment_id: sharedAssignmentId,
-              date_prevue: targetDateIso,
-              description: sessionNotes.trim() ? sessionNotes.trim() : `${athleteFiltered.length} exercice${athleteFiltered.length > 1 ? 's' : ''} de musculation`,
-              intensity: 7,
-              blocks: [
-                {
-                  id: uuid.v4(),
-                  name: 'Musculation',
-                  exercises: mappedExercises,
-                },
-              ],
-              status: 'pending',
-            });
-          }
-        }
-
-        await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (approvedMembers.length === 0) {
         Alert.alert(
-          'Séance enregistrée !',
-          `La séance de musculation a été programmée pour ${payloadsToUpdate.length} athlète(s) de votre équipe.`
+          'Aucun athlète',
+          "Aucun athlète validé n'a été trouvé dans votre équipe pour recevoir cette séance."
         );
-      } else if (targetType === 'subgroup') {
-        const subgroupMembers = approvedMembers.filter(
-          (m) => m.subgroup_id === selectedSubgroupId
-        );
+        setIsSubmitting(false);
+        return;
+      }
 
-        if (subgroupMembers.length === 0) {
-          Alert.alert('Aucun athlète', "Aucun athlète dans ce sous-groupe.");
-          setIsSubmitting(false);
-          return;
-        }
+      const sharedAssignmentId = uuid.v4() as string;
 
-        const sharedAssignmentId = uuid.v4() as string;
-        const mappedExercises = mapExercisesToPayload(sessionExercises);
+      // Filter per athlete so they only receive the exercises assigned to them
+      for (const member of approvedMembers) {
+        const athleteFiltered = sessionExercises.filter((ex) => {
+          const t = ex.targets;
+          if (!t || (t.subgroups.length === 0 && t.athletes.length === 0)) return true; // all
+          if (t.subgroups.includes(member.subgroup_id || '')) return true;
+          if (t.athletes.includes(member.user_id)) return true;
+          return false;
+        });
 
-        for (const member of subgroupMembers) {
+        if (athleteFiltered.length > 0) {
+          const mappedExercises = mapExercisesToPayload(athleteFiltered);
           payloadsToUpdate.push({
             type_seance: sessionTitle.trim() || 'Musculation',
             coach_id: user.id,
@@ -642,7 +557,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
             athlete_id: member.user_id,
             group_assignment_id: sharedAssignmentId,
             date_prevue: targetDateIso,
-            description: sessionNotes.trim() ? sessionNotes.trim() : `${sessionExercises.length} exercice${sessionExercises.length > 1 ? 's' : ''} de musculation`,
+            description: sessionNotes.trim() ? sessionNotes.trim() : `${athleteFiltered.length} exercice${athleteFiltered.length > 1 ? 's' : ''} de musculation`,
             intensity: 7,
             blocks: [
               {
@@ -654,37 +569,20 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
             status: 'pending',
           });
         }
-
-        await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert(
-          'Séance enregistrée !',
-          `La séance a été assignée aux ${subgroupMembers.length} athlète(s) du sous-groupe.`
-        );
-      } else if (targetType === 'athlete') {
-        const mappedExercises = mapExercisesToPayload(sessionExercises);
-        payloadsToUpdate.push({
-          type_seance: sessionTitle.trim() || 'Musculation',
-          coach_id: user.id,
-          team_id: activeTeamId,
-          athlete_id: selectedAthleteId,
-          date_prevue: targetDateIso,
-          description: sessionNotes.trim() ? sessionNotes.trim() : `${sessionExercises.length} exercice${sessionExercises.length > 1 ? 's' : ''} de musculation`,
-          intensity: 7,
-          blocks: [
-            {
-              id: uuid.v4(),
-              name: 'Musculation',
-              exercises: mappedExercises,
-            },
-          ],
-          status: 'pending',
-        });
-
-        await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert('Séance enregistrée !', "La séance a été planifiée pour l'athlète.");
       }
+
+      if (payloadsToUpdate.length === 0) {
+        Alert.alert('Attention', 'Aucun athlète ne correspond aux ciblages sélectionnés.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        'Séance enregistrée !',
+        `La séance a été programmée pour ${payloadsToUpdate.length} athlète(s) de votre équipe.`
+      );
 
       onSave();
       onClose();
@@ -745,114 +643,6 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
           contentContainerStyle={[styles.scrollContent, { paddingBottom: safeBottom + 40 }]}
           showsVerticalScrollIndicator={false}
         >
-          {/* SECTION: ASSIGNATION / CIBLAGE GLOBAL */}
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>ASSIGNATION DE LA SÉANCE</Text>
-          </View>
-          <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-            <View style={[styles.segmentContainer, { backgroundColor: theme.colors.background }]}>
-              {[
-                { id: 'team', label: 'Tout le groupe' },
-                { id: 'subgroup', label: 'Sous-groupe' },
-                { id: 'athlete', label: 'Un athlète' },
-              ].map((t) => {
-                const isSelected = targetType === t.id;
-                return (
-                  <TouchableOpacity
-                    key={t.id}
-                    style={[
-                      styles.segmentBtn,
-                      isSelected && [styles.segmentBtnActive, { backgroundColor: theme.colors.surface }],
-                    ]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setTargetType(t.id as any);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.segmentBtnText,
-                        { color: isSelected ? theme.colors.text : theme.colors.textSecondary, fontWeight: isSelected ? '700' : '500' },
-                      ]}
-                    >
-                      {t.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* Subgroup Selector */}
-            {targetType === 'subgroup' && (
-              <View style={{ paddingTop: 12 }}>
-                {subgroups.length === 0 ? (
-                  <Text style={[styles.emptyHint, { color: theme.colors.textMuted }]}>
-                    Aucun sous-groupe configuré dans cette équipe.
-                  </Text>
-                ) : (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subScroll}>
-                    {subgroups.map((sg) => {
-                      const isSelected = selectedSubgroupId === sg.id;
-                      return (
-                        <TouchableOpacity
-                          key={sg.id}
-                          style={[
-                            styles.chip,
-                            {
-                              backgroundColor: isSelected ? theme.colors.accent + '20' : theme.colors.background,
-                              borderColor: isSelected ? theme.colors.accent : theme.colors.border,
-                            },
-                          ]}
-                          onPress={() => setSelectedSubgroupId(sg.id)}
-                        >
-                          <Text style={[styles.chipText, { color: isSelected ? theme.colors.accent : theme.colors.text }]}>
-                            {sg.name}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                )}
-              </View>
-            )}
-
-            {/* Athlete Selector */}
-            {targetType === 'athlete' && (
-              <View style={{ paddingTop: 12 }}>
-                {approvedMembers.length === 0 ? (
-                  <Text style={[styles.emptyHint, { color: theme.colors.textMuted }]}>
-                    Aucun athlète approuvé dans votre équipe.
-                  </Text>
-                ) : (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subScroll}>
-                    {approvedMembers.map((m) => {
-                      const prof = (Array.isArray(m.profile) ? m.profile[0] : m.profile) as any;
-                      const name = prof?.full_name || prof?.first_name || 'Athlète';
-                      const isSelected = selectedAthleteId === m.user_id;
-                      return (
-                        <TouchableOpacity
-                          key={m.user_id}
-                          style={[
-                            styles.chip,
-                            {
-                              backgroundColor: isSelected ? theme.colors.accent + '20' : theme.colors.background,
-                              borderColor: isSelected ? theme.colors.accent : theme.colors.border,
-                            },
-                          ]}
-                          onPress={() => setSelectedAthleteId(m.user_id)}
-                        >
-                          <Text style={[styles.chipText, { color: isSelected ? theme.colors.accent : theme.colors.text }]}>
-                            {name}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                )}
-              </View>
-            )}
-          </View>
-
           {/* SECTION: CONSIGNES DE SÉANCE */}
           <View style={[styles.sectionHeader, { marginTop: 16 }]}>
             <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>CONSIGNES DE SÉANCE</Text>
@@ -907,12 +697,13 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
                     </View>
 
                     {/* Target tag if specific */}
-                    {targetType === 'team' && item.target && item.target.type !== 'all' && (
+                    {item.targets && (item.targets.subgroups.length > 0 || item.targets.athletes.length > 0) && (
                       <View style={[styles.targetBadge, { backgroundColor: theme.colors.accent + '15' }]}>
                         <Text style={[styles.targetBadgeText, { color: theme.colors.accent }]}>
-                          {item.target.name}
+                          ${item.targets.subgroups.length + item.targets.athletes.length} cible(s)
                         </Text>
                       </View>
+                    )}
                     )}
                   </View>
 
@@ -1073,99 +864,27 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
                   </TouchableOpacity>
                 </View>
 
-                {/* Field 2: Target (Only if session is general team) */}
-                {targetType === 'team' && (
-                  <>
-                    <View style={styles.sectionHeader}>
-                      <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>POUR QUI DANS LE GROUPE ?</Text>
+                {/* Field 2: Cible (Optionnel) */}
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>CIBLE (OPTIONNEL)</Text>
+                </View>
+                <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                  <TouchableOpacity
+                    style={[styles.settingRow, { borderBottomWidth: 0 }]}
+                    onPress={() => setIsMultiTargetModalVisible(true)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Cibler cet exercice</Text>
+                      <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 4 }}>
+                        {(exTargets.subgroups.length === 0 && exTargets.athletes.length === 0) 
+                          ? 'Tout le groupe' 
+                          : `${exTargets.subgroups.length} sous-groupe(s), ${exTargets.athletes.length} athlète(s)`}
+                      </Text>
                     </View>
-                    <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                      <View style={[styles.segmentContainer, { backgroundColor: theme.colors.background }]}>
-                        {[
-                          { id: 'all', label: 'Tout le groupe' },
-                          { id: 'subgroup', label: 'Sous-groupe' },
-                          { id: 'athlete', label: 'Un athlète' },
-                        ].map((t) => {
-                          const isSelected = exTargetType === t.id;
-                          return (
-                            <TouchableOpacity
-                              key={t.id}
-                              style={[
-                                styles.segmentBtn,
-                                isSelected && [styles.segmentBtnActive, { backgroundColor: theme.colors.surface }],
-                              ]}
-                              onPress={() => {
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                setExTargetType(t.id as any);
-                              }}
-                            >
-                              <Text
-                                style={[
-                                  styles.segmentBtnText,
-                                  { color: isSelected ? theme.colors.text : theme.colors.textSecondary, fontWeight: isSelected ? '700' : '500' },
-                                ]}
-                              >
-                                {t.label}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-
-                      {exTargetType === 'subgroup' && (
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subScroll}>
-                          {subgroups.map((sg) => {
-                            const isSelected = exTargetSubgroupId === sg.id;
-                            return (
-                              <TouchableOpacity
-                                key={sg.id}
-                                style={[
-                                  styles.chip,
-                                  {
-                                    backgroundColor: isSelected ? theme.colors.accent + '20' : theme.colors.background,
-                                    borderColor: isSelected ? theme.colors.accent : theme.colors.border,
-                                  },
-                                ]}
-                                onPress={() => setExTargetSubgroupId(sg.id)}
-                              >
-                                <Text style={[styles.chipText, { color: isSelected ? theme.colors.accent : theme.colors.text }]}>
-                                  {sg.name}
-                                </Text>
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </ScrollView>
-                      )}
-
-                      {exTargetType === 'athlete' && (
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subScroll}>
-                          {approvedMembers.map((m) => {
-                            const prof = (Array.isArray(m.profile) ? m.profile[0] : m.profile) as any;
-                            const name = prof?.full_name || prof?.first_name || 'Athlète';
-                            const isSelected = exTargetAthleteId === m.user_id;
-                            return (
-                              <TouchableOpacity
-                                key={m.user_id}
-                                style={[
-                                  styles.chip,
-                                  {
-                                    backgroundColor: isSelected ? theme.colors.accent + '20' : theme.colors.background,
-                                    borderColor: isSelected ? theme.colors.accent : theme.colors.border,
-                                  },
-                                ]}
-                                onPress={() => setExTargetAthleteId(m.user_id)}
-                              >
-                                <Text style={[styles.chipText, { color: isSelected ? theme.colors.accent : theme.colors.text }]}>
-                                  {name}
-                                </Text>
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </ScrollView>
-                      )}
-                    </View>
-                  </>
-                )}
+                    <Feather name="chevron-right" size={20} color={theme.colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
 
                 {/* Field 3: Séries & Répétitions */}
                 <View style={styles.sectionHeader}>
@@ -1515,7 +1234,15 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
           </View>
         </Modal>
       </View>
-    </Modal>
+    
+        <MultiTargetSelectorModal
+          visible={isMultiTargetModalVisible}
+          onClose={() => setIsMultiTargetModalVisible(false)}
+          onSave={setExTargets}
+          initialTarget={exTargets}
+          title="Cibler l'exercice"
+        />
+      </Modal>
   );
 };
 
