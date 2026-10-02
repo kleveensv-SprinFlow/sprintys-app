@@ -1,4 +1,4 @@
-import { useColorScheme as useDeviceColorScheme } from 'react-native';
+﻿import { useColorScheme as useDeviceColorScheme } from 'react-native';
 
 const spacing = {
   xs: 4,
@@ -45,14 +45,14 @@ const glass = {
 export const universalColors = {
   background: 'transparent',
   surface: '#FFFFFF', // Pure white cards
-  surfaceLight: '#F1F5F9', // Light slate for inputs/rows
-  accent: '#0F172A', // Dark Slate/Black for premium active elements
-  accentSecondary: '#475569',
-  accentMuted: 'rgba(15, 23, 42, 0.05)',
-  text: '#0F172A',
-  textSecondary: '#64748B',
-  textMuted: '#94A3B8',
-  border: '#E2E8F0', // Subtle light border
+  surfaceLight: '#F5F2EB', // Light slate for inputs/rows
+  accent: '#1C1917', // Dark Slate/Black for premium active elements
+  accentSecondary: '#57534E',
+  accentMuted: 'rgba(28, 25, 23, 0.05)',
+  text: '#1C1917',
+  textSecondary: '#78716C',
+  textMuted: '#A8A29E',
+  border: '#E0DCD3', // Subtle light border
   error: '#EF4444',
   success: '#10B981',
   warning: '#F59E0B',
