@@ -138,7 +138,7 @@ export default function CoachMessageScreen() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.replace('/(coach)')}>
-            <Feather name="chevron-left" size={24} color="#FFF" />
+            <Feather name="chevron-left" size={24} color={theme.colors.text} />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
             <View style={styles.avatarWrapper}>
@@ -157,7 +157,7 @@ export default function CoachMessageScreen() {
             </View>
           </View>
           <TouchableOpacity style={styles.menuBtn} onPress={() => setHistoryVisible(true)}>
-            <Feather name="more-horizontal" size={20} color="#FFF" />
+            <Feather name="more-horizontal" size={20} color={theme.colors.text} />
           </TouchableOpacity>
         </View>
 
@@ -189,7 +189,7 @@ export default function CoachMessageScreen() {
                       onPress={() => sendMessage(cap.prompt)}
                     >
                       <View style={styles.capabilityIconWrap}>
-                        <Feather name={cap.icon as any} size={20} color="#00FFFF" />
+                        <Feather name={cap.icon as any} size={20} color={theme.colors.accent} />
                       </View>
                       <Text style={styles.capabilityTitle}>{cap.title}</Text>
                     </TouchableOpacity>
@@ -240,13 +240,13 @@ export default function CoachMessageScreen() {
 
           {/* Floating Input Bar */}
           <View style={styles.floatingInputWrapper}>
-            <BlurView intensity={30} tint="dark" style={styles.floatingBlur}>
+            <BlurView intensity={30} tint="default" style={styles.floatingBlur}>
               <View style={[styles.inputContainer, { paddingBottom: Platform.OS === 'ios' ? Math.max(16, insets.bottom) : 16 }]}>
                 <View style={styles.inputBox}>
                   <TextInput
                     style={styles.input}
                     placeholder="Tapez un message..."
-                    placeholderTextColor="rgba(255, 255, 255, 0.4)"
+                    placeholderTextColor={theme.colors.textMuted}
                     multiline
                     value={inputText}
                     onChangeText={setInputText}
@@ -389,4 +389,5 @@ const styles = StyleSheet.create({
     shadowColor: theme.colors.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.4, shadowRadius: 10,
   },
 });
+
 
