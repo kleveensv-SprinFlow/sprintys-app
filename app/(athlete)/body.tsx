@@ -8,6 +8,7 @@ import { useBodyStore } from '../../src/store/bodyStore';
 import { useAuthStore } from '../../src/store/authStore';
 import { LineChart } from 'react-native-chart-kit';
 import { useSprintyStore } from '../../src/store/sprintyStore';
+import { Input } from '../../src/shared/components/Input';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -90,7 +91,7 @@ export default function BodyCompositionScreen() {
       return `${d.getDate()}/${d.getMonth()+1}`;
     });
 
-    let dataPoints = [];
+    let dataPoints: number[] = [];
     if (chartMetric === 'weight') dataPoints = recentMetrics.map(m => m.weight);
     else if (chartMetric === 'fat') dataPoints = recentMetrics.map(m => m.body_fat || 0);
     else if (chartMetric === 'muscle') dataPoints = recentMetrics.map(m => m.muscle_mass_kg || 0);
@@ -140,12 +141,10 @@ export default function BodyCompositionScreen() {
         <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Nouvelle pesée</Text>
           
-          <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Poids (kg) *</Text>
-          <TextInput
-            style={[styles.input, { backgroundColor: theme.colors.background, color: theme.colors.text, borderColor: theme.colors.border }]}
+          <Input
+            label="Poids (kg) *"
             keyboardType="numeric"
             placeholder="Ex: 75.5"
-            placeholderTextColor={theme.colors.textMuted}
             value={weight}
             onChangeText={(text) => setWeight(formatSmartDecimal(text))}
           />
@@ -188,9 +187,8 @@ export default function BodyCompositionScreen() {
           {scaleType !== 'none' && (
             <View style={styles.advancedGrid}>
               <View style={styles.gridItem}>
-                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Masse Grasse (%)</Text>
-                <TextInput
-                  style={[styles.input, { backgroundColor: theme.colors.background, color: theme.colors.text, borderColor: theme.colors.border }]}
+                <Input
+                  label="Masse Grasse (%)"
                   keyboardType="numeric"
                   placeholder="%"
                   value={bodyFat}
@@ -198,9 +196,8 @@ export default function BodyCompositionScreen() {
                 />
               </View>
               <View style={styles.gridItem}>
-                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Masse Muscu (kg)</Text>
-                <TextInput
-                  style={[styles.input, { backgroundColor: theme.colors.background, color: theme.colors.text, borderColor: theme.colors.border }]}
+                <Input
+                  label="Masse Muscu (kg)"
                   keyboardType="numeric"
                   placeholder="kg"
                   value={muscleMass}
@@ -208,9 +205,8 @@ export default function BodyCompositionScreen() {
                 />
               </View>
               <View style={styles.gridItem}>
-                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Eau (%)</Text>
-                <TextInput
-                  style={[styles.input, { backgroundColor: theme.colors.background, color: theme.colors.text, borderColor: theme.colors.border }]}
+                <Input
+                  label="Eau (%)"
                   keyboardType="numeric"
                   placeholder="%"
                   value={water}

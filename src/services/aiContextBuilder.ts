@@ -116,7 +116,7 @@ export const buildGeneralCoachSystemPrompt = async (): Promise<string> => {
   const { user } = useAuthStore.getState();
   
   const athletesText = teamMembers.map(m => {
-    return `- ${m.profile?.full_name || 'Inconnu'} (ID: ${m.user_id}) - Sous-groupes: ${m.subgroups?.join(', ') || 'Aucun'}`;
+    return `- ${m.profile?.full_name || 'Inconnu'} (ID: ${m.user_id}) - Sous-groupes: ${m.subgroup_id || 'Aucun'}`;
   }).join('\n');
 
   const coachPhilosophy = user?.objective;
@@ -202,3 +202,4 @@ INSTRUCTIONS FINALES :
 - Le coach te pose une question sur l'athlète. Réponds-lui directement en te basant sur ces données.
 - Si les données sont vides, signale-le calmement.`;
 };
+

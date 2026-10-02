@@ -135,6 +135,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setPendingEmail: (email) => set({ pendingEmail: email }),
 
+  updateCoachPhilosophy: async (philosophy: string) => { return get().updateProfile({ objective: philosophy }); },
+
   initializeAuth: async () => {
     try {
       // 1. Fast local restore from AsyncStorage
@@ -524,4 +526,5 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 }));
+
 

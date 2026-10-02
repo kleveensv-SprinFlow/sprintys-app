@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { theme } from '../core/theme';
 import { Feather } from '@expo/vector-icons';
@@ -32,18 +32,22 @@ export function WorkoutProposalCard({ proposal, onValidate, onReject }: { propos
            type_seance: proposal.type_seance,
            nom_seance: proposal.nom_seance || proposal.type_seance,
            date_prevue: proposal.date_prevue,
-           exercises: proposal.exercises.map(e => ({
+           exercises: proposal.exercises.map((e, idx) => ({
+             id: `temp-${idx}`,
              exercise_id: 'custom',
              name: e.name,
-             sets: e.sets,
-             reps: e.reps,
-             rest_time: parseInt(e.rest) || 0,
+             sets: Array.from({length: e.sets || 1}).map((_, i) => ({
+               id: `temp-set-${i}`,
+               reps: parseInt(e.reps) || 0,
+               weight: 0,
+               rest_time: parseInt(e.rest) || 0
+             })),
              notes: e.notes || ''
            }))
          });
       } else if (proposal.target_type === 'group' || proposal.target_type === 'subgroup') {
          const athletes = proposal.target_type === 'subgroup' 
-           ? teamMembers.filter(m => m.subgroups?.includes(proposal.target))
+           ? teamMembers.filter(m => m.subgroup_id === proposal.target)
            : teamMembers;
 
          for (const athlete of athletes) {
@@ -53,12 +57,16 @@ export function WorkoutProposalCard({ proposal, onValidate, onReject }: { propos
              type_seance: proposal.type_seance,
              nom_seance: proposal.nom_seance || proposal.type_seance,
              date_prevue: proposal.date_prevue,
-             exercises: proposal.exercises.map(e => ({
+             exercises: proposal.exercises.map((e, idx) => ({
+               id: `temp-${idx}`,
                exercise_id: 'custom',
                name: e.name,
-               sets: e.sets,
-               reps: e.reps,
-               rest_time: parseInt(e.rest) || 0,
+               sets: Array.from({length: e.sets || 1}).map((_, i) => ({
+                 id: `temp-set-${i}`,
+                 reps: parseInt(e.reps) || 0,
+                 weight: 0,
+                 rest_time: parseInt(e.rest) || 0
+               })),
                notes: e.notes || ''
              }))
            });

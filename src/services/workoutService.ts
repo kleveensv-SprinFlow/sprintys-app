@@ -3,6 +3,7 @@ import { Database } from '../types/supabase';
 import { BuilderExercise } from '../store/workoutBuilderStore';
 
 export interface WorkoutAssignment {
+  nom_seance?: string;
   coach_id: string;
   athlete_id: string;
   type_seance: string;
@@ -555,3 +556,4 @@ export const workoutService = {
     }
   },
 };
+

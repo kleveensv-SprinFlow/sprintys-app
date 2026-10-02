@@ -169,18 +169,18 @@ export const MultiTargetSelectorModal: React.FC<MultiTargetSelectorModalProps> =
           <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary, marginTop: 24 }]}>ATHLÈTES</Text>
           <View style={styles.sectionContainer}>
             {approvedMembers.map((member, index) => {
-              const isSelected = selectedAthletes.has(member.id);
+              const isSelected = selectedAthletes.has(member.user_id);
               const isLast = index === approvedMembers.length - 1;
-              const name = `${member.first_name || ''} ${member.last_name || ''}`.trim() || 'Athlète';
+              const name = `${member.profile?.first_name || ''} ${member.profile?.last_name || ''}`.trim() || 'Athlète';
               
               return (
                 <TouchableOpacity
-                  key={member.id}
+                  key={member.user_id}
                   style={[
                     styles.itemRow,
                     !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.border }
                   ]}
-                  onPress={() => handleToggleAthlete(member.id)}
+                  onPress={() => handleToggleAthlete(member.user_id)}
                   activeOpacity={0.7}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -303,3 +303,4 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
 });
+

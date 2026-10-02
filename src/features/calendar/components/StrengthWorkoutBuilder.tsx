@@ -467,16 +467,6 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
       return;
     }
 
-    if (targetType === 'subgroup' && !selectedSubgroupId) {
-      Alert.alert('Sous-groupe requis', 'Veuillez sélectionner un sous-groupe cible.');
-      return;
-    }
-
-    if (targetType === 'athlete' && !selectedAthleteId) {
-      Alert.alert('Athlète requis', 'Veuillez sélectionner un athlète cible.');
-      return;
-    }
-
     if (!user?.id) return;
 
     setIsSubmitting(true);

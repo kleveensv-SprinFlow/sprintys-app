@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, ActivityInd
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../core/theme';
 import { useAuthStore } from '../../store/authStore';
+import { Input } from './Input';
 
 interface Props {
   visible: boolean;
@@ -61,39 +62,27 @@ export const EditProfileModal = ({ visible, onClose }: Props) => {
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
               
-              <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Prénom</Text>
-                <TextInput
-                  style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.background }]}
-                  value={firstName}
-                  onChangeText={setFirstName}
-                  placeholder="Jean"
-                  placeholderTextColor={theme.colors.textMuted}
-                />
-              </View>
+              <Input
+                label="Prénom"
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholder="Jean"
+              />
 
-              <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Nom</Text>
-                <TextInput
-                  style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.background }]}
-                  value={lastName}
-                  onChangeText={setLastName}
-                  placeholder="Dupont"
-                  placeholderTextColor={theme.colors.textMuted}
-                />
-              </View>
+              <Input
+                label="Nom"
+                value={lastName}
+                onChangeText={setLastName}
+                placeholder="Dupont"
+              />
 
-              <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Taille (cm)</Text>
-                <TextInput
-                  style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.border, backgroundColor: theme.colors.background }]}
-                  value={height}
-                  onChangeText={setHeight}
-                  placeholder="Ex: 180"
-                  placeholderTextColor={theme.colors.textMuted}
-                  keyboardType="numeric"
-                />
-              </View>
+              <Input
+                label="Taille (cm)"
+                value={height}
+                onChangeText={setHeight}
+                placeholder="Ex: 180"
+                keyboardType="numeric"
+              />
 
               <TouchableOpacity 
                 style={[styles.saveBtn, { backgroundColor: theme.colors.accent }]} 

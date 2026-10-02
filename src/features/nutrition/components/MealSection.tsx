@@ -7,7 +7,11 @@ import { MealType } from '../types';
 import { useAuthStore } from '../../../store/authStore';
 import { useRouter } from 'expo-router';
 
-export const MealSection: React.FC = () => {
+interface MealSectionProps {
+  readonly?: boolean;
+}
+
+export const MealSection: React.FC<MealSectionProps> = ({ readonly = false }) => {
   const theme = useTheme();
   const router = useRouter();
   const { mealLogs, openSearchModal } = useNutritionStore();
@@ -76,16 +80,18 @@ export const MealSection: React.FC = () => {
             ) : null}
 
             {/* Stop propagation on the add button so it doesn't navigate to detail page */}
-            <Pressable
-              style={[styles.addButton, { backgroundColor: theme.colors.background }]}
-              onPress={(e) => {
-                e.stopPropagation(); // Empêche le clic de se propager à la carte
-                handleAddFood(meal.type);
-              }}
-            >
-              <Feather name="plus" size={16} color={theme.colors.accent} />
-              <Text style={[styles.addButtonText, { color: theme.colors.accent }]}>Ajouter un aliment</Text>
-            </Pressable>
+            {!readonly && (
+              <Pressable
+                style={[styles.addButton, { backgroundColor: theme.colors.background }]}
+                onPress={(e) => {
+                  e.stopPropagation(); // Empêche le clic de se propager à la carte
+                  handleAddFood(meal.type);
+                }}
+              >
+                <Feather name="plus" size={16} color={theme.colors.accent} />
+                <Text style={[styles.addButtonText, { color: theme.colors.accent }]}>Ajouter un aliment</Text>
+              </Pressable>
+            )}
           </Pressable>
         );
       })}

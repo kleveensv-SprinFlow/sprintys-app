@@ -22,7 +22,7 @@ interface NutritionState {
   // Actions
   setCurrentDate: (date: string) => void;
   fetchMealLogs: (date: string, athleteId?: string) => Promise<void>;
-  fetchHistory: () => Promise<void>;
+  fetchHistory: (athleteId?: string) => Promise<void>;
   addMealLog: (log: Omit<MealLog, 'id' | 'created_at' | 'user_id'>) => Promise<void>;
   updateNutritionProfile: (data: Partial<{
     activity_level: string;
@@ -83,7 +83,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
     }
   },
 
-  fetchHistory: async () => {
+  fetchHistory: async (athleteId?: string) => {
     const user = useAuthStore.getState().user;
     if (!user) return;
 

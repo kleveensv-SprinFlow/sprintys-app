@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, SafeAreaView, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../../../src/core/theme';
@@ -152,6 +152,19 @@ export default function ChatScreen() {
               {type === 'team' ? 'Discussion de groupe' : 'Message direct'}
             </Text>
           </View>
+          <TouchableOpacity onPress={() => {
+            Alert.alert(
+              "Options",
+              "Sélectionnez une action :",
+              [
+                { text: "Signaler", onPress: () => Alert.alert("Signalé", "Le contenu a été signalé aux administrateurs.") },
+                { text: "Bloquer", style: "destructive", onPress: () => Alert.alert("Bloqué", "Vous avez bloqué cet utilisateur/groupe.") },
+                { text: "Annuler", style: "cancel" }
+              ]
+            );
+          }} style={styles.backBtn}>
+            <Feather name="more-vertical" size={24} color={theme.colors.text} />
+          </TouchableOpacity>
         </View>
 
         {/* Messages */}

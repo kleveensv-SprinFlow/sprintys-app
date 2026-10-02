@@ -8,16 +8,14 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    // --- 1. Vérification de l'authentification (Sécurité) ---
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Non autorisé: Header manquant' }), {
+      return new Response(JSON.stringify({ error: 'Non autorise: Header manquant' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -31,16 +29,14 @@ serve(async (req) => {
 
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Non autorisé: Token invalide' }), {
+      return new Response(JSON.stringify({ error: 'Non autorise: Token invalide' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // --- 2. Traitement de la requête ---
     const { messages, systemPrompt, model = 'gpt-4o-mini' } = await req.json();
     
-    // --- 3. Restriction des modèles OpenAI (Sécurité) ---
     const allowedModels = ['gpt-4o-mini', 'gpt-3.5-turbo'];
     const safeModel = allowedModels.includes(model) ? model : 'gpt-4o-mini';
 
@@ -49,9 +45,24 @@ serve(async (req) => {
       throw new Error('OPENAI_API_KEY is not set in Edge Function secrets');
     }
 
+    // RGPD: Data Minimization
+    const anonymizeContent = (text: string): string => {
+      if (!text) return text;
+      let safeText = text.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[EMAIL MASQUE]');
+      const healthKeywords = ['blessure', 'douleur', 'menstruation', 'règles', 'malade', 'sang', 'médecin', 'hôpital', 'entorse', 'fracture'];
+      const regex = new RegExp(`\\b(${healthKeywords.join('|')})\\b`, 'gi');
+      safeText = safeText.replace(regex, '[DONNEE SANTE MASQUEE]');
+      return safeText;
+    };
+
+    const sanitizedMessages = messages.map((msg: any) => ({
+      role: msg.role,
+      content: anonymizeContent(msg.content)
+    }));
+
     const formattedMessages = [
       { role: 'system', content: systemPrompt },
-      ...messages
+      ...sanitizedMessages
     ];
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {

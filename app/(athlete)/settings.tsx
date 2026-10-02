@@ -63,6 +63,18 @@ export default function SettingsScreen() {
     }, [])
   );
 
+  const handleExportData = async () => {
+    try {
+      Alert.alert('Export', 'Génération des données en cours...');
+      const { data, error } = await supabase.functions.invoke('export_data');
+      if (error) throw error;
+      Alert.alert('Succès', 'Tes données ont été exportées avec succès.');
+      console.log('EXPORT DATA:', data);
+    } catch(err) {
+      Alert.alert('Erreur', "Impossible d'exporter les données.");
+    }
+  };
+
   const handleLogout = async () => {
     Alert.alert('Déconnexion', 'Es-tu sûr de vouloir te déconnecter ?', [
       { text: 'Annuler', style: 'cancel' },
@@ -88,7 +100,7 @@ export default function SettingsScreen() {
           style: 'destructive', 
           onPress: async () => {
             try {
-              const { error } = await supabase.rpc('delete_user');
+              const { error } = await supabase.functions.invoke('delete_account_and_assets');
               if (error) throw error;
               await logout();
               router.replace('/(auth)/login');
@@ -339,6 +351,7 @@ export default function SettingsScreen() {
         <Text style={styles.sectionTitle}>Application</Text>
         <View style={styles.card}>
           <SettingsItem icon="help-circle" title="FAQ & Aide" onPress={() => Linking.openURL('mailto:support@sprintflow.app?subject=FAQ%20%26%20Aide')} />
+          <SettingsItem icon="download" title="Exporter mes données" onPress={handleExportData} />
           <SettingsItem icon="mail" title="Nous contacter" onPress={() => Linking.openURL('mailto:support@sprintflow.app?subject=Contact')} />
         </View>
 

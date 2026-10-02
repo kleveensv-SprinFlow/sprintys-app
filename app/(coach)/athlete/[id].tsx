@@ -73,15 +73,9 @@ export default function AthleteDetailScreen() {
         
         {/* PROFILE INFO */}
         <View style={styles.profileSection}>
-          {profile.avatar_url ? (
-            <View style={styles.avatarImage} /> // Placeholder if image exists
-          ) : (
-            <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarLetter}>{profile.full_name?.charAt(0) || 'A'}</Text>
-            </View>
-          )}
+          <View style={styles.avatarPlaceholder}>\n              <Text style={styles.avatarLetter}>{profile.full_name?.charAt(0) || 'A'}</Text>\n            </View>
           <Text style={styles.profileName}>{profile.full_name || 'AthlÃ¨te'}</Text>
-          <Text style={styles.profileGroup}>{athleteMember?.subgroups?.join(', ') || 'Aucun sous-groupe'}</Text>
+          <Text style={styles.profileGroup}>{profile.subgroups?.join(', ') || 'Aucun sous-groupe'}</Text>
         </View>
 
         {/* ACTIONS RAPIDES */}

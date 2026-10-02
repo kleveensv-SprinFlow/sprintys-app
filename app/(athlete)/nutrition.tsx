@@ -31,11 +31,11 @@ export default function NutritionScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <NutritionHeader onSettingsPress={readonly ? undefined : () => setSettingsVisible(true)} />
+      <NutritionHeader onSettingsPress={() => { if (!readonly) setSettingsVisible(true); }} />
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <DateSelector />
-        <NutritionSummary readonly={readonly} />
+        <NutritionSummary />
         <MealSection readonly={readonly} />
       </ScrollView>
 

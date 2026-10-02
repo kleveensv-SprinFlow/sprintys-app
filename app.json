@@ -41,19 +41,22 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Sprintflow a besoin de l'appareil photo pour scanner les codes-barres des aliments."
+          "cameraPermission": "Sprintflow a besoin de l'appareil photo pour scanner les codes-barres des aliments.",
+          "microphonePermission": "Sprintflow a besoin du microphone pour enregistrer des vidéos d'entraînement."
         }
       ],
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Sprintflow a besoin de votre localisation pour vous fournir la météo de votre lieu d'entraînement."
+          "locationAlwaysAndWhenInUsePermission": "Sprintflow a besoin de votre localisation pour vous fournir la météo de votre lieu d'entraînement.",
+          "locationWhenInUsePermission": "Sprintflow a besoin de votre localisation lorsque l'application est active pour afficher la météo locale."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Sprintflow a besoin d'accéder à vos photos pour modifier votre photo de profil."
+          "photosPermission": "Sprintflow a besoin d'accéder à vos photos pour modifier votre photo de profil.",
+          "cameraPermission": "Sprintflow a besoin de l'appareil photo pour prendre une nouvelle photo de profil."
         }
       ]
     ]

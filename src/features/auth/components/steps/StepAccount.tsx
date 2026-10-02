@@ -1,13 +1,31 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Platform } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '../../../../core/theme';
 import { Button } from '../../../../shared/components/Button';
 import { Input } from '../../../../shared/components/Input';
 
 export const StepAccount = ({ data, updateData, onSubmit, onBack, isLoading }: any) => {
   const theme = useTheme();
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const isValid = data.email?.includes('@') && data.pass?.length >= 6;
+  const calculateAge = (dob: Date | null) => {
+    if (!dob) return 0;
+    const diffMs = Date.now() - dob.getTime();
+    const ageDt = new Date(diffMs);
+    return Math.abs(ageDt.getUTCFullYear() - 1970);
+  };
+
+  const age = calculateAge(data.dob);
+  const isValidAge = data.dob && age >= 14;
+  const isValid = data.email?.includes('@') && data.pass?.length >= 6 && isValidAge;
+
+  const onDateChange = (_event: any, selectedDate?: Date) => {
+    setShowDatePicker(Platform.OS === 'ios');
+    if (selectedDate) {
+      updateData({ dob: selectedDate });
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -18,7 +36,7 @@ export const StepAccount = ({ data, updateData, onSubmit, onBack, isLoading }: a
           label="Email"
           placeholder="Entrez votre email"
           value={data.email || ''}
-          onChangeText={(text) => updateData({ email: text.toLowerCase() })}
+          onChangeText={(text: string) => updateData({ email: text.toLowerCase() })}
           keyboardType="email-address"
           autoCapitalize="none"
         />
@@ -26,9 +44,31 @@ export const StepAccount = ({ data, updateData, onSubmit, onBack, isLoading }: a
           label="Mot de passe"
           placeholder="6 caractères minimum"
           value={data.pass || ''}
-          onChangeText={(text) => updateData({ pass: text })}
+          onChangeText={(text: string) => updateData({ pass: text })}
           secureTextEntry
         />
+        <View style={{ marginTop: 8 }}>
+          <Text style={{ color: theme.colors.textSecondary, marginBottom: 8 }}>Date de naissance</Text>
+          <Button
+            title={data.dob ? data.dob.toLocaleDateString() : 'Sélectionner une date'}
+            variant="outline"
+            onPress={() => setShowDatePicker(true)}
+          />
+          {showDatePicker && (
+            <DateTimePicker
+              value={data.dob || new Date()}
+              mode="date"
+              display="default"
+              onChange={onDateChange}
+              maximumDate={new Date()}
+            />
+          )}
+          {data.dob && !isValidAge && (
+            <Text style={{ color: theme.colors.error, marginTop: 4, fontSize: 12 }}>
+              Vous devez avoir au moins 14 ans pour utiliser Sprintflow.
+            </Text>
+          )}
+        </View>
       </View>
 
       <View style={styles.footer}>

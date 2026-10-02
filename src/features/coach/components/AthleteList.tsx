@@ -8,7 +8,7 @@ import { EmptyState } from '../../../shared/components/EmptyState';
 import { ManagedAthlete } from '../types';
 
 export const AthleteList: React.FC = React.memo(() => {
-  const { athletes, isLoading, fetchAthletes } = useCoachStore();
+  const { teamMembers: athletes, isLoading } = useCoachStore(); const fetchAthletes = async () => {};
   const [selectedAthlete, setSelectedAthlete] = useState<ManagedAthlete | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -41,7 +41,7 @@ export const AthleteList: React.FC = React.memo(() => {
   return (
     <>
       <FlatList
-        data={athletes}
+        data={athletes as unknown as ManagedAthlete[]}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <AthleteCard athlete={item} onOpenPerformance={handleOpenPerformance} />
@@ -79,4 +79,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
+
+
 

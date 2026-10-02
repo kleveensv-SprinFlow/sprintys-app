@@ -8,7 +8,7 @@ interface BodyState {
   
   // Actions
   loadMetrics: (athleteId: string) => Promise<void>;
-  addMetric: (metric: Omit<BodyMetric, 'id' | 'created_at'>) => Promise<void>;
+  addMetric: (metricOrAthleteId: string | Omit<BodyMetric, 'id' | 'created_at'>, weight?: number, bodyFat?: number, extraFields?: Partial<BodyMetric>) => Promise<void>;
 }
 
 export const useBodyStore = create<BodyState>((set, get) => ({
@@ -55,3 +55,4 @@ export const useBodyStore = create<BodyState>((set, get) => ({
     }
   },
 }));
+

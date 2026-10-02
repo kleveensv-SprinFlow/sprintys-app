@@ -187,7 +187,7 @@ export default function CoachGroupsScreen() {
               {teamMembers.length === 0 ? (
                 <Text style={styles.emptyText}>Aucun athlète dans ce groupe.</Text>
               ) : (
-                teamMembers.map(member => {
+                React.useMemo(() => teamMembers.map(member => {
                   const sg = subgroups.find(s => s.id === member.subgroup_id);
                   return (
                     <TouchableOpacity 
@@ -199,16 +199,11 @@ export default function CoachGroupsScreen() {
                         setModalType('athlete_profile');
                       }}
                       activeOpacity={0.7}
-                    >
-                      {member.profile?.avatar_url ? (
-                        <Image source={{ uri: member.profile.avatar_url }} style={styles.avatar} />
-                      ) : (
-                        <View style={styles.avatar}>
+                    >                        <View style={styles.avatar}>
                           <Text style={styles.avatarText}>
                             {(member.profile?.first_name?.charAt(0) || member.profile?.full_name?.charAt(0) || 'A').toUpperCase()}
                           </Text>
                         </View>
-                      )}
                       <View style={styles.rowInfo}>
                         <Text style={styles.rowTitle}>
                           {member.profile?.full_name || `${member.profile?.first_name || ''} ${member.profile?.last_name || ''}`.trim() || 'Athlète'}
@@ -231,7 +226,7 @@ export default function CoachGroupsScreen() {
                       </View>
                     </TouchableOpacity>
                   );
-                })
+                }), [teamMembers, subgroups, theme.colors])
               )}
             </>
           )}
@@ -284,15 +279,11 @@ export default function CoachGroupsScreen() {
               ) : (
                 pendingMembers.map(member => (
                   <View key={member.user_id} style={styles.rowCard}>
-                      {member.profile?.avatar_url ? (
-                        <Image source={{ uri: member.profile.avatar_url }} style={styles.avatar} />
-                      ) : (
-                        <View style={styles.avatar}>
-                          <Text style={styles.avatarText}>
-                            {(member.profile?.first_name?.charAt(0) || member.profile?.full_name?.charAt(0) || 'A').toUpperCase()}
-                          </Text>
-                        </View>
-                      )}
+                    <View style={styles.avatar}>
+                      <Text style={styles.avatarText}>
+                        {(member.profile?.first_name?.charAt(0) || member.profile?.full_name?.charAt(0) || 'A').toUpperCase()}
+                      </Text>
+                    </View>
                     <View style={styles.rowInfo}>
                       <Text style={styles.rowTitle}>
                         {member.profile?.full_name || `${member.profile?.first_name || ''} ${member.profile?.last_name || ''}`.trim() || 'Athlète'}
@@ -390,16 +381,11 @@ export default function CoachGroupsScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
             
-            <View style={{ alignItems: 'center', marginBottom: 24 }}>
-              {selectedAthlete?.profile?.avatar_url ? (
-                <Image source={{ uri: selectedAthlete.profile.avatar_url }} style={{ width: 80, height: 80, borderRadius: 40, marginBottom: 12, borderWidth: 2, borderColor: theme.colors.accent }} />
-              ) : (
-                <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: theme.colors.surfaceLight, justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
+            <View style={{ alignItems: 'center', marginBottom: 24 }}>                <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: theme.colors.surfaceLight, justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
                   <Text style={{ fontSize: 32, fontWeight: 'bold', color: theme.colors.textSecondary }}>
                     {(selectedAthlete?.profile?.first_name?.charAt(0) || selectedAthlete?.profile?.full_name?.charAt(0) || 'A').toUpperCase()}
                   </Text>
                 </View>
-              )}
               <Text style={{ fontSize: 24, fontWeight: 'bold', color: theme.colors.text }}>
                 {selectedAthlete?.profile?.full_name || `${selectedAthlete?.profile?.first_name || ''} ${selectedAthlete?.profile?.last_name || ''}`.trim() || 'Athlète'}
               </Text>

@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, Animated }
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../../../core/theme';
 import { useCoachStore } from '../../../store/coach/coachStore';
+import { EmptyState } from '../../../shared/components/EmptyState';
 
 interface Props {
   visible: boolean;
@@ -54,7 +55,7 @@ export const TeamHealthModal = ({ visible, onClose }: Props) => {
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             
             {teamMembers.length === 0 ? (
-              <Text style={styles.emptyText}>Aucun athlète dans l'équipe.</Text>
+              <EmptyState title="Pas d'athlètes" message="Aucun athlète dans l'équipe pour le moment." />
             ) : (
               teamMembers.map(athlete => {
                 const checkIn = teamCheckIns.find(ci => ci.athlete_id === athlete.user_id);
