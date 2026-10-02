@@ -17,7 +17,7 @@ CREATE INDEX IF NOT EXISTS idx_team_members_user_id ON public.team_members(user_
 CREATE INDEX IF NOT EXISTS idx_competitions_team_date ON public.competitions(team_id, comp_date);
 
 -- 6. Table body_metrics (si elle existe avec ces colonnes)
-CREATE INDEX IF NOT EXISTS idx_body_metrics_athlete_date ON public.body_metrics(athlete_id, date);
+CREATE INDEX IF NOT EXISTS idx_body_metrics_athlete_date ON public.body_metrics(athlete_id, created_at);
 
 -- 7. Table profiles
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(role);
