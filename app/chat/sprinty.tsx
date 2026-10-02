@@ -127,11 +127,7 @@ export default function AthleteMessageScreen() {
   return (
     <View style={styles.container}>
       {/* Rich Complex Gradient for nebulous look (Android Safe) */}
-      <LinearGradient
-        colors={['#1F0E38', '#140A26', '#09090D']}
-        locations={[0, 0.4, 1]}
-        style={StyleSheet.absoluteFillObject}
-      />
+      
 
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         {/* Header */}
@@ -274,7 +270,7 @@ export default function AthleteMessageScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#09090D' },
+  container: { flex: 1, backgroundColor: 'transparent' },
   header: { 
     flexDirection: 'row',
     justifyContent: 'space-between',

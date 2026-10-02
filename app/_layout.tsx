@@ -55,7 +55,7 @@ export default function RootLayout() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#1F0E38', '#140A26', '#09090D']}
+        colors={['#1E293B', '#0F172A', '#000000']}
         style={StyleSheet.absoluteFillObject}
       />
       <StatusBar style={isDark ? 'light' : 'dark'} />
