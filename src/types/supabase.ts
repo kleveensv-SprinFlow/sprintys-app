@@ -594,6 +594,7 @@ export type Database = {
           updated_at: string | null
           weekly_weight_goal: number | null
           weight: number | null
+          avatar_url: string | null
         }
         Insert: {
           activity_level?: string | null
@@ -619,6 +620,7 @@ export type Database = {
           updated_at?: string | null
           weekly_weight_goal?: number | null
           weight?: number | null
+          avatar_url?: string | null
         }
         Update: {
           activity_level?: string | null

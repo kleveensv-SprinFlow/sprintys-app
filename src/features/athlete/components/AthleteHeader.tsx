@@ -5,9 +5,13 @@ import { useTheme } from '../../../core/theme';
 import { useRouter } from 'expo-router';
 import { SprintyLogo } from '../../../shared/components/SprintyLogo';
 
+import { useAuthStore } from '../../../store/authStore';
+import { HeaderProfileAvatar } from '../../../shared/components/HeaderProfileAvatar';
+
 export const AthleteHeader = () => {
   const theme = useTheme();
   const router = useRouter();
+  const { user } = useAuthStore();
 
   return (
     <View style={styles.container}>
@@ -24,13 +28,12 @@ export const AthleteHeader = () => {
         <SprintyLogo width={120} height={38} />
       </View>
 
-      {/* Right: Profile Logo */}
-      <TouchableOpacity 
-        onPress={() => router.push('/(athlete)/settings')} 
-        style={[styles.iconButton, { backgroundColor: theme.colors.surface }]}
-      >
-        <Feather name="user" size={22} color={theme.colors.accent} />
-      </TouchableOpacity>
+      {/* Right: Profile Avatar (Photo if set, Instagram-style placeholder otherwise) */}
+      <HeaderProfileAvatar
+        avatarUrl={user?.avatarUrl}
+        onPress={() => router.push('/(athlete)/settings')}
+        size={44}
+      />
     </View>
   );
 };

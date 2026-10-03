@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -12,6 +12,7 @@ import { WeatherCard } from '../../src/shared/components/WeatherCard';
 import { BroadcastModal } from '../../src/features/coach/components/BroadcastModal';
 import { SprintyLogo } from '../../src/shared/components/SprintyLogo';
 import { TeamHealthModal } from '../../src/features/coach/components/TeamHealthModal';
+import { HeaderProfileAvatar } from '../../src/shared/components/HeaderProfileAvatar';
 
 export default function CoachDashboardScreen() {
   const todayStr = (() => {
@@ -76,10 +77,12 @@ export default function CoachDashboardScreen() {
         {/* Center: Logo */}
         <SprintyLogo width={120} height={40} />
 
-        {/* Right: Profil */}
-        <TouchableOpacity onPress={() => router.push('/(coach)/profile')} style={[styles.iconButton, { backgroundColor: theme.colors.surfaceLight }]}>
-          <Feather name="user" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
+        {/* Right: Profil Avatar (Photo or Instagram-style placeholder) */}
+        <HeaderProfileAvatar
+          avatarUrl={user?.avatarUrl}
+          onPress={() => router.push('/(coach)/profile')}
+          size={44}
+        />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
