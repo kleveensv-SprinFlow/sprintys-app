@@ -195,4 +195,26 @@ export const periodService = {
       return DEFAULT_PERIOD_SUGGESTIONS;
     }
   },
+
+  /**
+   * Fetch all periods created by the coach across the entire season
+   */
+  fetchAllCoachPeriods: async (coachId: string): Promise<TrainingPeriod[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('training_periods')
+        .select('*')
+        .eq('coach_id', coachId)
+        .order('start_date', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching coach periods:', error);
+        return [];
+      }
+      return (data as TrainingPeriod[]) || [];
+    } catch (err) {
+      console.error('Unexpected error fetching all coach periods:', err);
+      return [];
+    }
+  },
 };

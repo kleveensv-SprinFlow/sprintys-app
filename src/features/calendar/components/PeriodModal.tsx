@@ -66,6 +66,14 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [existingPeriods, setExistingPeriods] = useState<TrainingPeriod[]>([]);
+
+  // Fetch coach's existing periods when modal opens
+  useEffect(() => {
+    if (visible && user?.id) {
+      periodService.fetchAllCoachPeriods(user.id).then(setExistingPeriods);
+    }
+  }, [visible, user?.id]);
 
   // Initialize or reset modal data
   useEffect(() => {
@@ -105,6 +113,77 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
   const startDateObj = startDateStr ? new Date(startDateStr) : new Date(selectedDate);
   const endDateObj = endDateStr ? new Date(endDateStr) : addDays(new Date(selectedDate), 13);
 
+  // Détection en temps réel du chevauchement avec une phase existante
+  const conflictInfo = useMemo(() => {
+    if (!startDateStr || !endDateStr || startDateStr > endDateStr) return null;
+
+    const activeTeamId = teams.length > 0 ? teams[0].id : null;
+
+    for (const p of existingPeriods) {
+      // Exclure la période en cours d'édition pour ne pas la croiser avec elle-même
+      if (periodToEdit && p.id === periodToEdit.id) continue;
+
+      // 1. Vérifier si les cibles se recoupent
+      let targetsOverlap = false;
+
+      if (targetType === 'team') {
+        // Une phase générale d'équipe entre en conflit avec toute autre phase de cette équipe
+        targetsOverlap = !p.team_id || p.team_id === activeTeamId;
+      } else if (targetType === 'subgroup') {
+        // Une phase de sous-groupe entre en conflit avec une phase générale OU une phase du même sous-groupe
+        if (!p.subgroup_id && !p.athlete_id) {
+          targetsOverlap = true;
+        } else if (p.subgroup_id && p.subgroup_id === selectedSubgroupId) {
+          targetsOverlap = true;
+        }
+      } else if (targetType === 'athlete') {
+        // Une phase individuelle entre en conflit avec une phase d'équipe, de son sous-groupe ou de lui-même
+        if (!p.subgroup_id && !p.athlete_id) {
+          targetsOverlap = true;
+        } else if (p.athlete_id && p.athlete_id === selectedAthleteId) {
+          targetsOverlap = true;
+        } else if (p.subgroup_id) {
+          const athleteMember = teamMembers.find((m) => m.user_id === selectedAthleteId);
+          if (athleteMember && athleteMember.subgroup_id === p.subgroup_id) {
+            targetsOverlap = true;
+          }
+        }
+      }
+
+      if (!targetsOverlap) continue;
+
+      // 2. Vérifier si les dates se croisent : start_A <= end_B ET end_A >= start_B
+      const hasDateOverlap = startDateStr <= p.end_date && endDateStr >= p.start_date;
+
+      if (hasDateOverlap) {
+        // Intervalle exact de croisement : max(startA, startB) à min(endA, endB)
+        const overlapStart = startDateStr > p.start_date ? startDateStr : p.start_date;
+        const overlapEnd = endDateStr < p.end_date ? endDateStr : p.end_date;
+
+        const formatFr = (iso: string) => {
+          try {
+            const parts = iso.split('-');
+            if (parts.length === 3) {
+              return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            }
+            return iso;
+          } catch {
+            return iso;
+          }
+        };
+
+        return {
+          conflictingPeriod: p,
+          overlapStartStr: overlapStart,
+          overlapEndStr: overlapEnd,
+          formattedOverlap: `du ${formatFr(overlapStart)} au ${formatFr(overlapEnd)}`,
+        };
+      }
+    }
+
+    return null;
+  }, [startDateStr, endDateStr, targetType, selectedSubgroupId, selectedAthleteId, existingPeriods, periodToEdit, teams, teamMembers]);
+
   const handleSave = async () => {
     if (!name.trim()) {
       Alert.alert('Nom requis', 'Veuillez saisir un intitulé pour la période.');
@@ -118,6 +197,14 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
 
     if (startDateStr > endDateStr) {
       Alert.alert('Dates invalides', 'La date de fin doit être postérieure à la date de début.');
+      return;
+    }
+
+    if (conflictInfo) {
+      Alert.alert(
+        'Chevauchement interdit',
+        `Cette phase chevauche la phase "${conflictInfo.conflictingPeriod.name}" ${conflictInfo.formattedOverlap}.\n\nVeuillez ajuster les dates pour que les phases ne se croisent pas.`
+      );
       return;
     }
 
@@ -278,6 +365,24 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
             {/* Field: Dates & Quick Duration Presets */}
             <View style={styles.section}>
               <Text style={[styles.sectionLabel, { color: theme.colors.text }]}>Plage de dates</Text>
+
+              {/* Message d'avertissement et blocage strict si chevauchement */}
+              {conflictInfo && (
+                <View style={[styles.conflictBanner, { backgroundColor: 'rgba(239, 68, 68, 0.12)', borderColor: '#EF4444' }]}>
+                  <View style={styles.conflictHeaderRow}>
+                    <Ionicons name="warning" size={18} color="#EF4444" style={{ marginRight: 6 }} />
+                    <Text style={styles.conflictTitle}>Chevauchement de phase interdit</Text>
+                  </View>
+                  <Text style={[styles.conflictMessage, { color: theme.colors.text }]}>
+                    Cette phase chevauche la phase{' '}
+                    <Text style={{ fontWeight: '700', color: '#EF4444' }}>« {conflictInfo.conflictingPeriod.name} »</Text>{' '}
+                    {conflictInfo.formattedOverlap}.
+                  </Text>
+                  <Text style={[styles.conflictHint, { color: theme.colors.textMuted }]}>
+                    Veuillez ajuster les dates pour que les phases ne se croisent pas.
+                  </Text>
+                </View>
+              )}
 
               <View style={styles.dateInputsRow}>
                 <View style={styles.dateInputCol}>
@@ -507,9 +612,13 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
             {/* Action Buttons */}
             <View style={styles.actionsContainer}>
               <TouchableOpacity
-                style={[styles.saveBtn, { backgroundColor: color }]}
+                style={[
+                  styles.saveBtn,
+                  { backgroundColor: conflictInfo ? theme.colors.border : color },
+                  conflictInfo && { opacity: 0.55 },
+                ]}
                 onPress={handleSave}
-                disabled={isSubmitting || isDeleting}
+                disabled={isSubmitting || isDeleting || !!conflictInfo}
                 activeOpacity={0.8}
               >
                 {isSubmitting ? (
@@ -754,5 +863,32 @@ const styles = StyleSheet.create({
   deleteBtnText: {
     fontSize: 14,
     fontWeight: '700',
+  },
+  conflictBanner: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 12,
+  },
+  conflictHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  conflictTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#EF4444',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  conflictMessage: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 4,
+  },
+  conflictHint: {
+    fontSize: 11,
+    fontStyle: 'italic',
   },
 });
