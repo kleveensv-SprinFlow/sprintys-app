@@ -36,10 +36,11 @@ platform :ios do
       UI.message("Attempting to clean up old certificates...")
       require 'spaceship'
       certs = Spaceship::ConnectAPI::Certificate.all
-      dist_cert = certs.find { |c| c.certificate_type.include?("DISTRIBUTION") }
-      if dist_cert
-        dist_cert.delete!
-        UI.message("Deleted distribution certificate #{dist_cert.id}")
+      certs.each do |cert|
+        if cert.certificate_type.include?("DISTRIBUTION")
+          cert.delete!
+          UI.message("Deleted distribution certificate #{cert.id}")
+        end
       end
       get_certificates(
         api_key: api_key,
