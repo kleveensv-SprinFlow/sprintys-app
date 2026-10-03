@@ -409,7 +409,7 @@ export const workoutService = {
           actual_time_ms,
           planned_intensity,
           actual_intensity,
-          created_at
+          actual_extra, is_pr
         )
       `)
       .eq('athlete_id', athleteId)

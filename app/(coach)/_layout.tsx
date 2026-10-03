@@ -14,6 +14,7 @@ export default function CoachTabsLayout() {
       <Tabs.Screen name="group" />
       <Tabs.Screen name="calendar" />
       <Tabs.Screen name="chat" options={{ tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="analyze" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       
       {/* Cacher les écrans qui ne sont pas des onglets principaux */}
       <Tabs.Screen name="profile" options={{ href: null }} />

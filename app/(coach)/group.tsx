@@ -396,9 +396,15 @@ export default function CoachGroupsScreen() {
                 style={styles.actionSquareBtn} 
                 onPress={() => {
                   setModalType('none');
-                  router.push({ 
+                  router.navigate({ 
                     pathname: '/(coach)/chat', 
-                    params: { athleteId: selectedAthlete?.user_id, athleteName: selectedAthlete?.profile?.full_name } 
+                    params: {
+                      athleteId: selectedAthlete?.user_id,
+                      athleteName: selectedAthlete?.profile?.full_name || `${selectedAthlete?.profile?.first_name || ''} ${selectedAthlete?.profile?.last_name || ''}`.trim() || 'Athlète',
+                      avatarUrl: selectedAthlete?.profile?.avatar_url || '',
+                      domains: 'training,nutrition,wellness,body',
+                      ts: String(Date.now()),
+                    } 
                   });
                 }}
               >

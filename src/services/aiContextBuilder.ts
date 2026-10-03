@@ -1,7 +1,7 @@
 import { useAuthStore } from '../store/authStore';
 import { useCheckInStore } from '../store/checkInStore';
 import { useNutritionStore } from '../store/nutrition/nutritionStore';
-import { useCoachStore } from '../store/coach/coachStore';
+import { buildAthleteAnalysisPrompt, AnalysisDomain } from './athleteAnalysisContext';
 import { useWorkoutStore } from '../store/workoutStore';
 import { supabase } from './supabase';
 
@@ -112,26 +112,52 @@ INSTRUCTIONS DE RÉPONSE :
 };
 
 export const buildGeneralCoachSystemPrompt = async (): Promise<string> => {
-  const { teamMembers } = useCoachStore.getState();
   const { user } = useAuthStore.getState();
-  
-  const athletesText = teamMembers.map(m => {
-    return `- ${m.profile?.full_name || 'Inconnu'} (ID: ${m.user_id}) - Sous-groupes: ${m.subgroup_id || 'Aucun'}`;
-  }).join('\n');
+
+  // Charge les athlètes de TOUTES les équipes du coach (pas seulement l'équipe active)
+  let athletesText = 'Aucun athlète dans vos équipes pour le moment.';
+  if (user?.id) {
+    const { data: teams } = await supabase.from('teams').select('id, name').eq('coach_id', user.id);
+    const teamIds = (teams || []).map(t => t.id);
+    if (teamIds.length > 0) {
+      const [{ data: members }, { data: subgroups }] = await Promise.all([
+        supabase
+          .from('team_members')
+          .select('user_id, team_id, subgroup_id, profiles:user_id (first_name, last_name, full_name)')
+          .in('team_id', teamIds)
+          .eq('status', 'approved'),
+        supabase.from('subgroups').select('id, name').in('team_id', teamIds),
+      ]);
+      const teamName = new Map((teams || []).map(t => [t.id, t.name]));
+      const sgName = new Map((subgroups || []).map(s => [s.id, s.name]));
+      if (members && members.length > 0) {
+        athletesText = members.map((m: any) => {
+          const prof = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
+          const name = prof?.full_name || `${prof?.first_name || ''} ${prof?.last_name || ''}`.trim() || 'Athlète';
+          return `- ${name} (ID: ${m.user_id}) · Équipe : ${teamName.get(m.team_id) || '-'} · Sous-groupe : ${m.subgroup_id ? sgName.get(m.subgroup_id) || '-' : 'Aucun'}`;
+        }).join('\n');
+      }
+    }
+  }
 
   const coachPhilosophy = user?.objective;
   const philosophyContext = coachPhilosophy 
     ? `\nPHILOSOPHIE DU COACH :\n${coachPhilosophy}\n\n-> Adapte toutes tes propositions de séances en fonction de cette philosophie !`
     : `\n${interviewInstructions}`;
 
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
   return `Tu es Sprinty, l'Assistant IA du Coach Sportif sur l'application SprinFlow.
 Ton rôle est d'aider le coach à analyser son équipe et à créer des séances d'entraînement.
+
+CONTEXTE TEMPOREL : nous sommes le ${now.toLocaleDateString('fr-FR', { weekday: 'long' })} ${today}.
 
 RÈGLES DE FORMATAGE :
 - Réponses lisibles, listes à puces, sauts de ligne. Utilise des émojis.
 - Ton professionnel, analytique mais concis (style data-scientist du sport).
 
-VOTRE ÉQUIPE (ATHLÈTES & SOUS-GROUPES) :
+VOS ATHLÈTES :
 ${athletesText}
 
 ${philosophyContext}
@@ -140,66 +166,19 @@ ${workoutProposalInstructions}
 
 INSTRUCTIONS FINALES :
 - Si le coach te demande de planifier une séance pour un sous-groupe (ex: "les sprinteurs"), vérifie dans la liste des athlètes quels sont les sous-groupes existants et nomme la cible en conséquence.
+- Dans ce mode général, tu n'as PAS les données détaillées des athlètes (séances, nutrition, forme, poids). Si le coach veut analyser un athlète précis, invite-le à utiliser le bouton « Analyser un athlète » de l'accueil Sprinty.
 - Assiste le coach du mieux possible, mais rappelle-lui toujours que c'est lui le patron !`;
 };
 
-export const buildCoachSystemPromptForAthlete = async (athleteId: string, athleteName: string): Promise<string> => {
-  const { data: checkins } = await supabase
-    .from('check_ins')
-    .select('date, sleep_hours, sleep_quality, fatigue_level, motivation_level, stress_level, pains, health_score')
-    .eq('athlete_id', athleteId)
-    .order('date', { ascending: false })
-    .limit(3);
-
-  const { data: workouts } = await supabase
-    .from('workouts')
-    .select('date_prevue, type_seance, nom_seance, statut')
-    .eq('athlete_id', athleteId)
-    .order('date_prevue', { ascending: false })
-    .limit(5);
-
+export const buildCoachSystemPromptForAthlete = async (
+  athleteId: string,
+  _athleteName?: string,
+  domains?: AnalysisDomain[]
+): Promise<string> => {
   const { user } = useAuthStore.getState();
-  const coachPhilosophy = user?.objective;
-  const philosophyContext = coachPhilosophy 
-    ? `\nPHILOSOPHIE DU COACH :\n${coachPhilosophy}\n\n-> Adapte toutes tes propositions de séances en fonction de cette philosophie !`
-    : ``;
-
-  let checkinText = "Aucune donnée de check-in récente.";
-  if (checkins && checkins.length > 0) {
-    checkinText = checkins.map((c: any) => {
-      const painsCount = Array.isArray(c.pains) ? c.pains.length : 0;
-      return `- ${c.date}: Fatigue ${c.fatigue_level}/10, Stress ${c.stress_level}/10, Sommeil ${c.sleep_hours}h (${c.sleep_quality}/5), Douleurs: ${painsCount}, Forme globale: ${c.health_score}/100`;
-    }).join('\n');
-  }
-
-  let workoutsText = "Aucune séance récente.";
-  if (workouts && workouts.length > 0) {
-    workoutsText = workouts.map((w: any) => 
-      `- ${w.date_prevue}: ${w.nom_seance || w.type_seance} - Statut: ${w.statut}`
-    ).join('\n');
-  }
-
-  return `Tu es Sprinty, l'Assistant IA du Coach Sportif sur l'application SprinFlow.
-Ton rôle est d'analyser les données de l'athlète et de fournir au coach des résumés clairs et des recommandations.
-
-RÈGLES DE FORMATAGE :
-- Réponses lisibles, listes à puces, sauts de ligne. Utilise des émojis.
-- Ton professionnel, analytique mais concis (style data-scientist du sport).
-
-DONNÉES SÉCURISÉES DE L'ATHLÈTE : ${athleteName} (ID: ${athleteId})
-
-🩺 DERNIERS CHECK-INS (Santé / Forme) :
-${checkinText}
-
-🏋️ DERNIÈRES SÉANCES :
-${workoutsText}
-
-${philosophyContext}
-
-${workoutProposalInstructions}
-
-INSTRUCTIONS FINALES :
-- Le coach te pose une question sur l'athlète. Réponds-lui directement en te basant sur ces données.
-- Si les données sont vides, signale-le calmement.`;
+  return buildAthleteAnalysisPrompt(athleteId, {
+    domains,
+    coachPhilosophy: user?.objective,
+    extraInstructions: `\n${workoutProposalInstructions}`,
+  });
 };
-

@@ -6,6 +6,16 @@ import uuid from 'react-native-uuid';
 export interface ChatMessage {
   role: string;
   content: string;
+  /** Message envoyé automatiquement par l'app (ex : demande d'analyse) — affiché de façon discrète. */
+  auto?: boolean;
+}
+
+/** Contexte d'une conversation « verrouillée » sur un athlète (mode analyse coach). */
+export interface AthleteChatContext {
+  athleteId: string;
+  name: string;
+  avatarUrl?: string | null;
+  domains: string[];
 }
 
 export interface Conversation {
@@ -15,24 +25,37 @@ export interface Conversation {
   isPinned: boolean;
   createdAt: number;
   updatedAt: number;
+  athleteContext?: AthleteChatContext | null;
 }
 
 interface SprintyChatState {
   conversations: Conversation[];
   currentConversationId: string | null;
   // Actions
-  startNewConversation: () => string;
+  startNewConversation: (athleteContext?: AthleteChatContext | null) => string;
   loadConversation: (id: string) => void;
   addMessage: (message: ChatMessage) => void;
   renameConversation: (id: string, newTitle: string) => void;
   togglePinConversation: (id: string) => void;
   deleteConversation: (id: string) => void;
   getCurrentMessages: () => ChatMessage[];
+  getCurrentConversation: () => Conversation | null;
 }
 
 const defaultIntro: ChatMessage = {
   role: 'assistant',
   content: "Salut ! Je suis Sprinty, ton assistant neural actif. Que puis-je t'aider à créer aujourd'hui ?"
+};
+
+const athleteIntro = (name: string): ChatMessage => ({
+  role: 'assistant',
+  content: `📊 J'ai chargé tout l'historique de ${name} (séances, résultats, nutrition, forme, poids). Je prépare l'analyse…`,
+});
+
+const shortName = (name: string) => {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length < 2) return name;
+  return `${parts[0]} ${parts[parts.length - 1].charAt(0).toUpperCase()}.`;
 };
 
 export const useSprintyChatStore = create<SprintyChatState>()(
@@ -41,15 +64,16 @@ export const useSprintyChatStore = create<SprintyChatState>()(
       conversations: [],
       currentConversationId: null,
 
-      startNewConversation: () => {
+      startNewConversation: (athleteContext?: AthleteChatContext | null) => {
         const id = String(uuid.v4());
         const newConv: Conversation = {
           id,
-          title: 'Nouvelle conversation',
-          messages: [defaultIntro],
+          title: athleteContext ? `Analyse · ${shortName(athleteContext.name)}` : 'Nouvelle conversation',
+          messages: [athleteContext ? athleteIntro(athleteContext.name.split(' ')[0]) : defaultIntro],
           isPinned: false,
           createdAt: Date.now(),
           updatedAt: Date.now(),
+          athleteContext: athleteContext || null,
         };
 
         set((state) => ({
@@ -73,7 +97,7 @@ export const useSprintyChatStore = create<SprintyChatState>()(
             
             // Auto-rename on first user message
             let newTitle = conv.title;
-            if (message.role === 'user' && conv.messages.length === 1 && conv.title === 'Nouvelle conversation') {
+            if (message.role === 'user' && !message.auto && conv.messages.length === 1 && conv.title === 'Nouvelle conversation') {
               newTitle = message.content.substring(0, 30) + (message.content.length > 30 ? '...' : '');
             }
 
@@ -133,7 +157,13 @@ export const useSprintyChatStore = create<SprintyChatState>()(
         if (!currentConversationId) return [];
         const conv = conversations.find(c => c.id === currentConversationId);
         return conv ? conv.messages : [];
-      }
+      },
+
+      getCurrentConversation: () => {
+        const { currentConversationId, conversations } = get();
+        if (!currentConversationId) return null;
+        return conversations.find(c => c.id === currentConversationId) || null;
+      },
     }),
     {
       name: 'sprinty-chat-storage',
