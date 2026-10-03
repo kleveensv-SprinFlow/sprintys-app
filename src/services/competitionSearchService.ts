@@ -1,3 +1,5 @@
+import { supabase } from './supabase';
+
 export interface CompetitionSearchParams {
   startDate: string; // YYYY-MM-DD
   endDate: string; // YYYY-MM-DD
@@ -18,9 +20,6 @@ export interface FoundCompetition {
   timetableUrl?: string; // URL vers la page des horaires ou PDF
   sourceUrl?: string;
 }
-
-// Clé Tavily directe par défaut pour garantir un fonctionnement immédiat sans cache d'environnement
-const TAVILY_DEFAULT_API_KEY = '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';
 
 // Liste des régions de France
 export const FRENCH_REGIONS = [
@@ -162,105 +161,25 @@ const FALLBACK_COMPETITIONS: FoundCompetition[] = [
 ];
 
 export const searchCompetitionsOnWeb = async (
-  params: CompetitionSearchParams,
-  tavilyApiKey?: string
+  params: CompetitionSearchParams
 ): Promise<FoundCompetition[]> => {
-  const apiKey =
-    tavilyApiKey ||
-    process.env.EXPO_PUBLIC_TAVILY_API_KEY ||
-    TAVILY_DEFAULT_API_KEY;
+  try {
+    const { data, error } = await supabase.functions.invoke('search-competitions', {
+      body: params,
+    });
 
-  if (apiKey) {
-    try {
-      const regionKeywords: Record<string, string> = {
-        'Provence-Alpes-Côte d\'Azur': 'PACA Miramas Nice Marseille',
-        'Auvergne-Rhône-Alpes': 'Lyon Diagana AURA',
-        'Île-de-France': 'Eaubonne Paris CDFAS LIFA',
-        'Nouvelle-Aquitaine': 'Bordeaux Stadium Lac Aquitaine',
-        'Hauts-de-France': 'Liévin Lille Pas de Calais',
-        'Occitanie': 'Montpellier Toulouse Occitanie',
-        'Pays de la Loire': 'Nantes Pierre Quinon',
-        'Grand Est': 'Reims Metz Strasbourg',
-        'Bretagne': 'Rennes Brest Bretagne',
-        'Normandie': 'Rouen Caen Normandie',
-      };
-
-      const regionQuery = regionKeywords[params.region] || (params.region !== 'Toute la France' ? params.region : 'France');
-      const year = params.startDate ? params.startDate.split('-')[0] : '2026';
-      const query = `meeting competition athletisme salle ${regionQuery} ${year}`;
-
-      const response = await fetch('https://api.tavily.com/search', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          api_key: apiKey,
-          query,
-          search_depth: 'advanced',
-          max_results: 5,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const validResults = (data.results || []).filter((r: any) => {
-          const t = (r.title || '').toLowerCase();
-          const c = (r.content || '').toLowerCase();
-          return (
-            t.includes('meeting') ||
-            t.includes('athlet') ||
-            t.includes('indoor') ||
-            c.includes('meeting') ||
-            c.includes('athletisme')
-          );
-        });
-
-        if (validResults.length > 0) {
-          const webItems = validResults.slice(0, 4).map((r: any, idx: number) => {
-            const rawTitle = r.title || 'Meeting d\'Athlétisme';
-            const cleanTitle = rawTitle
-              .replace(/\s*-\s*(TrackAthletes|World Athletics|FFA|Facebook|YouTube).*/i, '')
-              .replace(/\|\s*.*/i, '')
-              .trim();
-
-            let stadium = 'Stadium Régional';
-            const textContent = `${r.title} ${r.content}`.toLowerCase();
-            if (textContent.includes('miramas')) stadium = 'Stadium Miramas Métropole';
-            else if (textContent.includes('diagana')) stadium = 'Halle Stéphane Diagana';
-            else if (textContent.includes('quinon')) stadium = 'Stadium Pierre-Quinon';
-            else if (textContent.includes('cdfas') || textContent.includes('eaubonne')) stadium = 'CDFAS Eaubonne';
-            else if (textContent.includes('liévin') || textContent.includes('lievin')) stadium = 'Arena Stade Couvert de Liévin';
-            else if (textContent.includes('ehrmann') || textContent.includes('nice')) stadium = 'Halle Charles-Ehrmann (Nice)';
-            else if (textContent.includes('bordeaux')) stadium = 'Stadium Vélodrome de Bordeaux-Lac';
-
-            const locationStr = params.region !== 'Toute la France' ? params.region : 'France';
-
-            return {
-              id: `tavily-${idx}-${Date.now()}`,
-              title: cleanTitle || 'Meeting d\'Athlétisme Officiel',
-              date: params.startDate,
-              location: locationStr,
-              stadiumName: stadium,
-              googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${stadium} ${locationStr}`)}`,
-              level: textContent.includes('world athletics') ? 'World Athletics / International' : (params.level || 'Compétition Officielle'),
-              disciplines: params.disciplines,
-              timetableUrl: r.url,
-              sourceUrl: r.url,
-            };
-          });
-
-          if (webItems.length > 0) {
-            return webItems;
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('Tavily search network warning, using cached official calendar:', err);
+    if (!error && data?.competitions && Array.isArray(data.competitions) && data.competitions.length > 0) {
+      return data.competitions;
     }
+
+    if (error) {
+      console.warn('Supabase search-competitions function notice, fallback local:', error.message);
+    }
+  } catch (err) {
+    console.warn('Network error invoking search-competitions, fallback local:', err);
   }
 
-  // Filtrage intelligent de la base officielle
+  // Filtrage intelligent de la base officielle en fallback (aucun secret nécessaire)
   return filterFallbackCompetitions(params);
 };
 
