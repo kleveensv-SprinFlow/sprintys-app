@@ -65,6 +65,113 @@ const generateInviteCode = (): string => {
   return code;
 };
 
+/**
+ * Synchronise les séances programmées futures d'une équipe pour un athlète
+ * Utilisé lors de l'approbation d'un nouvel athlète ou du changement de son sous-groupe.
+ */
+export const syncAthleteWorkouts = async (
+  athleteId: string,
+  teamId: string,
+  subgroupId: string | null = null
+): Promise<void> => {
+  try {
+    // 1. Tenter d'abord la RPC PostgreSQL si déployée
+    const { error: rpcError } = await (supabase.rpc as any)('sync_athlete_group_workouts', {
+      p_athlete_id: athleteId,
+      p_team_id: teamId,
+      p_subgroup_id: subgroupId,
+    });
+
+    if (!rpcError) {
+      return;
+    }
+
+    // 2. Fallback client sécurisé avec les permissions RLS du coach
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+
+    // Si un sous-groupe est spécifié, retirer les futures séances d'autres sous-groupes encore non réalisées
+    if (subgroupId) {
+      await supabase
+        .from('workouts')
+        .delete()
+        .eq('athlete_id', athleteId)
+        .eq('team_id', teamId)
+        .eq('status', 'pending')
+        .gte('date_prevue', twoHoursAgo)
+        .not('subgroup_id', 'is', null)
+        .neq('subgroup_id', subgroupId);
+    }
+
+    // Récupérer les séances futures de l'équipe
+    const { data: teamWorkouts, error: twErr } = await supabase
+      .from('workouts')
+      .select('coach_id, team_id, subgroup_id, group_assignment_id, date_prevue, type_seance, blocks, exercises, intensity, description, measures, created_at')
+      .eq('team_id', teamId)
+      .gte('date_prevue', twoHoursAgo)
+      .order('created_at', { ascending: false });
+
+    if (twErr || !teamWorkouts || teamWorkouts.length === 0) {
+      return;
+    }
+
+    // Dédoublonner les modèles d'entraînement de l'équipe
+    const templatesMap = new Map<string, any>();
+    teamWorkouts.forEach((w: any) => {
+      const key = w.group_assignment_id || `${w.date_prevue}_${w.type_seance}`;
+      if (!templatesMap.has(key)) {
+        templatesMap.set(key, w);
+      }
+    });
+
+    // Récupérer les séances existantes de l'athlète pour éviter tout doublon
+    const { data: athleteWorkouts } = await supabase
+      .from('workouts')
+      .select('group_assignment_id, date_prevue, type_seance')
+      .eq('athlete_id', athleteId)
+      .eq('team_id', teamId);
+
+    const athleteKeys = new Set<string>();
+    (athleteWorkouts || []).forEach((w: any) => {
+      if (w.group_assignment_id) athleteKeys.add(w.group_assignment_id);
+      athleteKeys.add(`${w.date_prevue}_${w.type_seance}`);
+    });
+
+    const toInsert: any[] = [];
+    for (const t of templatesMap.values()) {
+      // Si l'athlète est dans un sous-groupe précis et que la séance est pour un autre sous-groupe
+      if (subgroupId && t.subgroup_id && t.subgroup_id !== subgroupId) {
+        continue;
+      }
+      const key = t.group_assignment_id || `${t.date_prevue}_${t.type_seance}`;
+      if (athleteKeys.has(key)) {
+        continue;
+      }
+
+      toInsert.push({
+        athlete_id: athleteId,
+        coach_id: t.coach_id,
+        team_id: t.team_id,
+        subgroup_id: t.subgroup_id,
+        group_assignment_id: t.group_assignment_id,
+        date_prevue: t.date_prevue,
+        type_seance: t.type_seance,
+        status: 'pending',
+        blocks: t.blocks,
+        exercises: t.exercises,
+        intensity: t.intensity,
+        description: t.description,
+        measures: t.measures,
+      });
+    }
+
+    if (toInsert.length > 0) {
+      await supabase.from('workouts').insert(toInsert);
+    }
+  } catch (err) {
+    console.warn('Failed to sync athlete group workouts:', err);
+  }
+};
+
 export const useCoachStore = create<CoachState>((set, get) => ({
   teams: [],
   subgroups: [],
@@ -309,6 +416,9 @@ export const useCoachStore = create<CoachState>((set, get) => ({
           m.user_id === userId && m.team_id === teamId ? { ...m, subgroup_id: subgroupId } : m
         )
       }));
+
+      // Synchroniser les séances selon le nouveau sous-groupe
+      await syncAthleteWorkouts(userId, teamId, subgroupId);
     } catch (err: any) {
       set({ error: err.message });
     }
@@ -332,6 +442,9 @@ export const useCoachStore = create<CoachState>((set, get) => ({
           teamMembers: [...state.teamMembers, { ...approvedMember, status: 'approved' as const }]
         };
       });
+
+      // Synchroniser automatiquement toutes les séances futures déjà programmées pour l'équipe
+      await syncAthleteWorkouts(userId, teamId, null);
     } catch (err: any) {
       set({ error: err.message });
     }
