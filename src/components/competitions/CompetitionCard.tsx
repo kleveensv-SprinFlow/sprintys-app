@@ -46,9 +46,9 @@ export const CompetitionCard: React.FC<CompetitionCardProps> = ({
       const d = new Date(competition.date);
       if (isNaN(d.getTime())) return competition.date;
       return d.toLocaleDateString('fr-FR', {
-        weekday: 'long',
+        weekday: 'short',
         day: 'numeric',
-        month: 'long',
+        month: 'short',
         year: 'numeric',
       });
     } catch {
@@ -56,24 +56,30 @@ export const CompetitionCard: React.FC<CompetitionCardProps> = ({
     }
   })();
 
+  const cleanLevel = (lvl?: string) => {
+    if (!lvl) return 'Compétition';
+    const l = lvl.toLowerCase();
+    if (l.includes('world athletics')) return 'World Athletics';
+    if (l.includes('national')) return 'National Élite';
+    if (l.includes('interrégional') || l.includes('interregional')) return 'Interrégional';
+    if (l.includes('régional') || l.includes('regional')) return 'Régional';
+    if (l.includes('départemental') || l.includes('departemental')) return 'Départemental';
+    return lvl.split('/')[0].trim();
+  };
+
   return (
     <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.surfaceLight }]}>
       {/* Header : Niveau / Label & Date */}
       <View style={styles.cardHeader}>
-        {competition.level ? (
-          <View style={[styles.badge, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
-            <Ionicons name="trophy-outline" size={12} color="#3B82F6" style={{ marginRight: 4 }} />
-            <Text style={[styles.badgeText, { color: '#3B82F6' }]}>{competition.level}</Text>
-          </View>
-        ) : (
-          <View style={[styles.badge, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
-            <Ionicons name="ribbon-outline" size={12} color="#10B981" style={{ marginRight: 4 }} />
-            <Text style={[styles.badgeText, { color: '#10B981' }]}>Compétition</Text>
-          </View>
-        )}
+        <View style={[styles.badge, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
+          <Ionicons name="trophy-outline" size={12} color="#3B82F6" style={{ marginRight: 4 }} />
+          <Text style={[styles.badgeText, { color: '#3B82F6' }]} numberOfLines={1}>
+            {cleanLevel(competition.level)}
+          </Text>
+        </View>
 
         <View style={styles.dateRow}>
-          <Feather name="calendar" size={13} color={theme.colors.textMuted} style={{ marginRight: 4 }} />
+          <Feather name="calendar" size={12} color={theme.colors.textMuted} style={{ marginRight: 4 }} />
           <Text style={[styles.dateText, { color: theme.colors.textMuted }]}>{formattedDate}</Text>
         </View>
       </View>
@@ -161,18 +167,21 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 16,
     borderWidth: 1,
-    padding: 16,
-    marginVertical: 8,
+    padding: 14,
+    marginVertical: 6,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 6,
     elevation: 3,
+    overflow: 'hidden',
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
     marginBottom: 8,
   },
   badge: {
@@ -181,6 +190,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
+    flexShrink: 1,
+    maxWidth: '56%',
   },
   badgeText: {
     fontSize: 11,
@@ -190,10 +201,12 @@ const styles = StyleSheet.create({
   dateRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 0,
   },
   dateText: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'capitalize',
   },
   title: {
     fontSize: 16,

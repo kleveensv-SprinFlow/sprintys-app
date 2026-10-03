@@ -62,13 +62,19 @@ export default function CoachMessageScreen() {
     }, 100);
 
     try {
-      const found = await searchCompetitionsOnWeb(searchParams);
+      const searchResult = await searchCompetitionsOnWeb(searchParams);
+      const found = searchResult.competitions;
       const count = found.length;
       let intro = '';
-      if (count > 0) {
-        intro = `🔍 J'ai scanné le web et le calendrier officiel !\nVoici **${count} compétition(s)** trouvée(s) pour la région **${searchParams.region}** :`;
+
+      if (searchResult.exactMatch) {
+        intro = isSingleDay
+          ? `🔍 J'ai trouvé **${count} compétition(s)** officielle(s) le **${searchParams.startDate}** :`
+          : `🔍 J'ai trouvé **${count} compétition(s)** sur ta sélection (${searchParams.startDate} au ${searchParams.endDate}) :`;
       } else {
-        intro = `Je n'ai pas trouvé de meeting spécifique à cette date en **${searchParams.region}**. Voici néanmoins des compétitions de référence :`;
+        intro = isSingleDay
+          ? `⚠️ Aucun meeting officiel n'est programmé le **${searchParams.startDate}** en région **${searchParams.region}**.\nVoici les **${count} compétitions les plus proches** dans le calendrier officiel :`
+          : `⚠️ Aucun meeting officiel n'a été trouvé précisément sur cet intervalle en **${searchParams.region}**.\nVoici les **${count} compétitions les plus proches** :`;
       }
 
       const responseMsg = `${intro}\n\n\`\`\`competition_results\n${JSON.stringify(found, null, 2)}\n\`\`\``;
@@ -413,6 +419,11 @@ export default function CoachMessageScreen() {
             {messages.map((msg, index) => {
               if (msg.role === 'system') return null;
               const isAssistant = msg.role === 'assistant';
+              const hasRichCards = isAssistant && (
+                msg.content.includes('```competition_results') ||
+                msg.content.includes('```analysis_dashboard') ||
+                msg.content.includes('```workout_proposal')
+              );
               return (
                 <View key={index} style={!isAssistant ? styles.messageRowRight : styles.messageRowLeft}>
                   {isAssistant && (
@@ -425,7 +436,7 @@ export default function CoachMessageScreen() {
                       />
                     </View>
                   )}
-                  <View style={!isAssistant ? styles.messageBubbleRight : styles.messageBubbleLeft}>
+                  <View style={!isAssistant ? styles.messageBubbleRight : [styles.messageBubbleLeft, hasRichCards && styles.messageBubbleWide]}>
                     {renderMessageContent(msg)}
                   </View>
                 </View>
@@ -636,6 +647,11 @@ const styles = StyleSheet.create({
   messageBubbleLeft: {
     backgroundColor: theme.colors.surface, borderRadius: 20, borderBottomLeftRadius: 4,
     paddingHorizontal: 16, paddingVertical: 12, maxWidth: '80%', borderWidth: 1, borderColor: theme.colors.border,
+  },
+  messageBubbleWide: {
+    maxWidth: '94%',
+    paddingHorizontal: 10,
+    paddingVertical: 10,
   },
   messageBubbleRight: {
     backgroundColor: theme.colors.text, borderRadius: 20, borderBottomRightRadius: 4,

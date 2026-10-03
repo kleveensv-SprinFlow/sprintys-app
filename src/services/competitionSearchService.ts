@@ -160,44 +160,87 @@ const FALLBACK_COMPETITIONS: FoundCompetition[] = [
   },
 ];
 
+export interface SearchCompetitionResult {
+  exactMatch: boolean;
+  competitions: FoundCompetition[];
+  isFallback: boolean;
+}
+
 export const searchCompetitionsOnWeb = async (
   params: CompetitionSearchParams
-): Promise<FoundCompetition[]> => {
+): Promise<SearchCompetitionResult> => {
+  const startTime = Date.now();
+
   try {
     const { data, error } = await supabase.functions.invoke('search-competitions', {
       body: params,
     });
 
     if (!error && data?.competitions && Array.isArray(data.competitions) && data.competitions.length > 0) {
-      return data.competitions;
+      const exactMatches = data.competitions.filter((c: FoundCompetition) =>
+        c.date >= params.startDate && c.date <= params.endDate
+      );
+
+      return {
+        exactMatch: exactMatches.length > 0,
+        competitions: exactMatches.length > 0 ? exactMatches : data.competitions.slice(0, 3),
+        isFallback: false,
+      };
     }
 
     if (error) {
-      console.warn('Supabase search-competitions function notice, fallback local:', error.message);
+      console.warn('Supabase search-competitions notice, fallback local:', error.message);
     }
   } catch (err) {
     console.warn('Network error invoking search-competitions, fallback local:', err);
   }
 
-  // Filtrage intelligent de la base officielle en fallback (aucun secret nécessaire)
+  // Assurer un temps de scan réaliste (1,2s) si le fallback local s'exécute immédiatement
+  const elapsed = Date.now() - startTime;
+  if (elapsed < 1200) {
+    await new Promise((r) => setTimeout(r, 1200 - elapsed));
+  }
+
+  // Filtrage intelligent avec tri par proximité de date
   return filterFallbackCompetitions(params);
 };
 
-const filterFallbackCompetitions = (params: CompetitionSearchParams): FoundCompetition[] => {
-  // 1. Filtrer d'abord par région
-  let matched = FALLBACK_COMPETITIONS.filter((comp) => {
-    if (params.region && params.region !== 'Toute la France') {
-      const matchRegion = comp.location.toLowerCase().includes(params.region.toLowerCase());
-      if (!matchRegion) return false;
+const filterFallbackCompetitions = (params: CompetitionSearchParams): SearchCompetitionResult => {
+  // 1. Filtrer d'abord par région si spécifiée
+  let regionalPool = FALLBACK_COMPETITIONS;
+  if (params.region && params.region !== 'Toute la France') {
+    const matchedRegion = FALLBACK_COMPETITIONS.filter((comp) =>
+      comp.location.toLowerCase().includes(params.region.toLowerCase())
+    );
+    if (matchedRegion.length > 0) {
+      regionalPool = matchedRegion;
     }
-    return true;
-  });
-
-  // 2. Si aucune compétition spécifique n'est trouvée dans la région exacte demandée,
-  // fournir les grands meetings nationaux majeurs pour ne jamais laisser l'utilisateur sans résultat
-  if (matched.length === 0) {
-    matched = FALLBACK_COMPETITIONS.slice(0, 3);
   }
 
-  return matched;
+  // 2. Filtrer par date exacte ou intervalle
+  const exactMatches = regionalPool.filter(
+    (comp) => comp.date >= params.startDate && comp.date <= params.endDate
+  );
+
+  if (exactMatches.length > 0) {
+    return {
+      exactMatch: true,
+      competitions: exactMatches,
+      isFallback: true,
+    };
+  }
+
+  // 3. Aucun meeting sur cette date précise : trier par proximité avec la date demandée
+  const targetTime = new Date(params.startDate).getTime();
+  const sorted = [...regionalPool].sort((a, b) => {
+    const diffA = Math.abs(new Date(a.date).getTime() - targetTime);
+    const diffB = Math.abs(new Date(b.date).getTime() - targetTime);
+    return diffA - diffB;
+  });
+
+  return {
+    exactMatch: false,
+    competitions: sorted.slice(0, 3),
+    isFallback: true,
+  };
 };
