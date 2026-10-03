@@ -48,7 +48,11 @@ export default function CoachMessageScreen() {
 
   const handleCompetitionSearch = async (searchParams: CompetitionSearchParams) => {
     const discStr = searchParams.disciplines.join(', ');
-    const userMsg = `Recherche de compétitions du ${searchParams.startDate} au ${searchParams.endDate} en région ${searchParams.region} (Niveau: ${searchParams.level}, Épreuves: ${discStr}).`;
+    const isSingleDay = searchParams.startDate === searchParams.endDate;
+    const dateLabel = isSingleDay
+      ? `le ${searchParams.startDate}`
+      : `du ${searchParams.startDate} au ${searchParams.endDate}`;
+    const userMsg = `Recherche de compétitions ${dateLabel} en région ${searchParams.region} (Niveau: ${searchParams.level}, Épreuves: ${discStr}).`;
 
     addMessage({ role: 'user', content: userMsg });
     setIsTyping(true);
@@ -60,9 +64,12 @@ export default function CoachMessageScreen() {
     try {
       const found = await searchCompetitionsOnWeb(searchParams);
       const count = found.length;
-      const intro = count > 0
-        ? `J'ai scanné le calendrier officiel et le web ! Voici ${count} compétition(s) correspondant à ta recherche en ${searchParams.region} :`
-        : `Je n'ai pas trouvé de compétition correspondant exactement à tous ces critères en ${searchParams.region}. Voici les grands meetings de la saison :`;
+      let intro = '';
+      if (count > 0) {
+        intro = `🔍 J'ai scanné le web et le calendrier officiel !\nVoici **${count} compétition(s)** trouvée(s) pour la région **${searchParams.region}** :`;
+      } else {
+        intro = `Je n'ai pas trouvé de meeting spécifique à cette date en **${searchParams.region}**. Voici néanmoins des compétitions de référence :`;
+      }
 
       const responseMsg = `${intro}\n\n\`\`\`competition_results\n${JSON.stringify(found, null, 2)}\n\`\`\``;
       addMessage({ role: 'assistant', content: responseMsg });
