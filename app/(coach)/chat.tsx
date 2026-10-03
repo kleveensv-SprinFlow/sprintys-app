@@ -19,6 +19,10 @@ import { BlurView } from 'expo-blur';
 import LottieView from 'lottie-react-native';
 import { useSprintyChatStore } from '../../src/store/sprintyChatStore';
 import SprintyHistoryModal from '../../src/components/SprintyHistoryModal';
+import { CompetitionSearchModal } from '../../src/components/competitions/CompetitionSearchModal';
+import { CompetitionCard } from '../../src/components/competitions/CompetitionCard';
+import { CompetitionBuilder } from '../../src/features/calendar/components/CompetitionBuilder';
+import { searchCompetitionsOnWeb, FoundCompetition, CompetitionSearchParams } from '../../src/services/competitionSearchService';
 
 export default function CoachMessageScreen() {
   const router = useRouter();
@@ -38,6 +42,41 @@ export default function CoachMessageScreen() {
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [historyVisible, setHistoryVisible] = useState(false);
+  const [searchModalVisible, setSearchModalVisible] = useState(false);
+  const [competitionBuilderVisible, setCompetitionBuilderVisible] = useState(false);
+  const [selectedCompForCalendar, setSelectedCompForCalendar] = useState<FoundCompetition | null>(null);
+
+  const handleCompetitionSearch = async (searchParams: CompetitionSearchParams) => {
+    const discStr = searchParams.disciplines.join(', ');
+    const userMsg = `Recherche de compétitions du ${searchParams.startDate} au ${searchParams.endDate} en région ${searchParams.region} (Niveau: ${searchParams.level}, Épreuves: ${discStr}).`;
+
+    addMessage({ role: 'user', content: userMsg });
+    setIsTyping(true);
+
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+
+    try {
+      const found = await searchCompetitionsOnWeb(searchParams);
+      const count = found.length;
+      const intro = count > 0
+        ? `J'ai scanné le calendrier officiel et le web ! Voici ${count} compétition(s) correspondant à ta recherche en ${searchParams.region} :`
+        : `Je n'ai pas trouvé de compétition correspondant exactement à tous ces critères en ${searchParams.region}. Voici les grands meetings de la saison :`;
+
+      const responseMsg = `${intro}\n\n\`\`\`competition_results\n${JSON.stringify(found, null, 2)}\n\`\`\``;
+      addMessage({ role: 'assistant', content: responseMsg });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err) {
+      console.error(err);
+      addMessage({ role: 'assistant', content: "Désolé, une erreur est survenue lors de la recherche des compétitions." });
+    } finally {
+      setIsTyping(false);
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  };
 
   const insets = useSafeAreaInsets();
   const { updateCoachPhilosophy } = useAuthStore();
@@ -82,11 +121,23 @@ export default function CoachMessageScreen() {
     const proposalRegex = /```workout_proposal([\s\S]*?)```/i;
     const dashboardRegex = /```analysis_dashboard([\s\S]*?)```/i;
     const metricPickerRegex = /```metric_picker([\s\S]*?)```/i;
+    const competitionRegex = /```competition_results([\s\S]*?)```/i;
 
     let textOnly = msg.content;
     let proposalObj: AIWorkoutProposal | null = null;
     let dashboardObj: AnalysisDashboardData | null = null;
     let metricPickerObj: { question?: string; options: MetricOption[] } | null = null;
+    let competitionsList: FoundCompetition[] = [];
+
+    const compMatch = textOnly.match(competitionRegex);
+    if (compMatch && compMatch[1]) {
+      textOnly = textOnly.replace(competitionRegex, '').trim();
+      try {
+        competitionsList = JSON.parse(compMatch[1].trim());
+      } catch (e) {
+        console.error('Failed to parse competitions results', e);
+      }
+    }
 
     const dashMatch = textOnly.match(dashboardRegex);
     if (dashMatch && dashMatch[1]) {
@@ -126,6 +177,20 @@ export default function CoachMessageScreen() {
           </View>
         )}
         {textOnly ? <RichChatMessage content={textOnly} /> : null}
+        {competitionsList.length > 0 && (
+          <View style={{ marginTop: 10, width: '100%' }}>
+            {competitionsList.map((comp) => (
+              <CompetitionCard
+                key={comp.id}
+                competition={comp}
+                onAddToCalendar={(c) => {
+                  setSelectedCompForCalendar(c);
+                  setCompetitionBuilderVisible(true);
+                }}
+              />
+            ))}
+          </View>
+        )}
         {metricPickerObj && (
           <View style={{ marginTop: 10 }}>
             <InteractiveMetricPicker
@@ -316,7 +381,16 @@ export default function CoachMessageScreen() {
                       key={cap.id} 
                       style={styles.capabilityCard}
                       activeOpacity={0.7}
-                      onPress={() => (cap.route ? router.navigate(cap.route as any) : sendMessage(cap.prompt))}
+                      onPress={() => {
+                        if (cap.id === 2) {
+                          Haptics.selectionAsync();
+                          setSearchModalVisible(true);
+                        } else if (cap.route) {
+                          router.navigate(cap.route as any);
+                        } else {
+                          sendMessage(cap.prompt);
+                        }
+                      }}
                     >
                       <View style={styles.capabilityIconWrap}>
                         <Feather name={cap.icon as any} size={20} color={theme.colors.accent} />
@@ -400,6 +474,41 @@ export default function CoachMessageScreen() {
         visible={historyVisible} 
         onClose={() => setHistoryVisible(false)} 
       />
+
+      {/* Competition Search Modal */}
+      <CompetitionSearchModal
+        visible={searchModalVisible}
+        onClose={() => setSearchModalVisible(false)}
+        onSearch={handleCompetitionSearch}
+      />
+
+      {/* Competition Builder Modal (pre-filled with selected competition) */}
+      {selectedCompForCalendar && (
+        <CompetitionBuilder
+          visible={competitionBuilderVisible}
+          date={new Date(selectedCompForCalendar.date)}
+          onClose={() => {
+            setCompetitionBuilderVisible(false);
+            setSelectedCompForCalendar(null);
+          }}
+          onSave={() => {
+            setCompetitionBuilderVisible(false);
+            addMessage({
+              role: 'assistant',
+              content: `🏆 La compétition **"${selectedCompForCalendar.title}"** a été enregistrée avec succès dans le calendrier de l'équipe !`,
+            });
+            setSelectedCompForCalendar(null);
+          }}
+          initialWorkout={{
+            description: selectedCompForCalendar.title,
+            measures: {
+              location: `${selectedCompForCalendar.stadiumName ? selectedCompForCalendar.stadiumName + ' - ' : ''}${selectedCompForCalendar.location}`,
+              attachmentUrl: selectedCompForCalendar.timetableUrl || selectedCompForCalendar.googleMapsUrl || '',
+            },
+            date_prevue: selectedCompForCalendar.date,
+          }}
+        />
+      )}
     </View>
   );
 }
