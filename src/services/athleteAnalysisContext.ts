@@ -634,48 +634,72 @@ ${wellness.history}
 ⚖️ PESÉES / COMPOSITION :
 ${body.history}
 ${philosophy}
-══════════ CONSIGNES D'ANALYSE & FORMAT VISUEL ══════════
-1. ANALYSE GLOBALE DE TOUT L'HISTORIQUE :
-   - Ne te limite JAMAIS à une fenêtre courte. Analyse l'ensemble de l'historique disponible ci-dessus (depuis la première séance ou pesée jusqu'à aujourd'hui).
-   - Compare les séances identiques ou similaires d'une semaine à l'autre (ex : évolution des chronos sur même distance, évolution des charges en kg ou des reps sur le même exercice, évolution du RPE / ressenti athlète).
+══════════ RÈGLES STRICTES DU COACH & FORMAT D'ANALYSE ══════════
+1. INTERDICTION DE MÉLANGER DES EXERCICES OU DISTANCES DIFFÉRENTS :
+   - Règle absolue : une courbe ou une comparaison séance à séance ne doit porter QUE sur un exercice ou une distance STRICTEMENT IDENTIQUE (ex : 120m Côte avec 120m Côte, Squat avec Squat).
+   - Ne JAMAIS comparer un 120m avec un 150m, ni du développé couché avec du squat. Si une séance n'a pas d'équivalent identique, ne la compare pas.
 
-2. GÉNÉRATION DU TABLEAU DE BORD VISUEL OBLIGATOIRE :
-   Pour chaque analyse d'athlète demandée par le coach, commence TOUJOURS ta réponse par un bloc de code au format exact suivant :
+2. CLARIFICATION OBLIGATOIRE SUR LES COURBES :
+   - Si le coach demande une courbe, un graphique ou une évolution sans préciser exactement de quel exercice ou distance il s'agit, NE TRACE PAS DE COURBE AU HASARD.
+   - Pose immédiatement la question au coach avec le tag interactif \`\`\`metric_picker :
+\`\`\`metric_picker
+{
+  "question": "De quelle métrique souhaites-tu tracer la courbe d'évolution ?",
+  "options": [
+    { "id": "120m_cote", "label": "Chronos 120m (Côte)", "category": "sprint" },
+    { "id": "150m_piste", "label": "Chronos 150m (Piste)", "category": "sprint" },
+    { "id": "squat", "label": "Charges Squat (Muscu)", "category": "strength" },
+    { "id": "weight", "label": "Évolution du Poids", "category": "body" }
+  ]
+}
+\`\`\`
+   (adapte les options aux vraies données de l'athlète ayant au moins 2 entrées).
+
+3. GÉNÉRATION DU TABLEAU DE BORD VISUEL DU COACH :
+   Pour chaque analyse d'athlète demandée par le coach, commence TOUJOURS ta réponse par le bloc de code \`\`\`analysis_dashboard :
 \`\`\`analysis_dashboard
 {
   "athleteName": "${firstName}",
-  "globalScore": <note globale sur 10, ex 8.5>,
-  "healthGauge": <score forme moyen 0-100>,
-  "attendanceGauge": <taux d'assiduité 0-100>,
-  "nutritionGauge": <score nutrition 0-100 ou null si pas de données>,
+  "allTimeBests": [
+    { "exerciseOrDist": "<Nom exo ou distance, ex: 120m Côte>", "bestValue": "<Meilleure perf ever, ex: 15.90s>", "date": "<Date>" },
+    { "exerciseOrDist": "<Ex: Squat>", "bestValue": "<90kg>", "date": "<Date>" }
+  ],
+  "curveChart": {
+    "title": "Évolution Chronos 120m Côte (s)",
+    "metricType": "chrono",
+    "unit": "s",
+    "points": [
+      { "label": "11/09", "value": 17.36, "formattedValue": "17.36s" },
+      { "label": "02/10", "value": 15.90, "formattedValue": "15.90s" }
+    ]
+  },
+  "strictProgressions": [
+    {
+      "exercise": "120m Côte",
+      "previousSession": "11/09 : 17.36s",
+      "currentSession": "02/10 : 15.90s",
+      "delta": "-1.46s (plus rapide)",
+      "isPositive": true
+    }
+  ],
   "keyHighlights": [
-    { "type": "success", "title": "<Titre point fort>", "desc": "<Détail court>" },
-    { "type": "pr", "title": "<Record ou perf>", "desc": "<Valeur et date>" },
-    { "type": "warning", "title": "<Point de vigilance>", "desc": "<Ex: fatigue haute>" }
-  ],
-  "progressions": [
-    { "exercise": "<Nom exo ou distance>", "previous": "<Valeur précédente>", "current": "<Valeur actuelle>", "delta": "<+Xkg ou -Xs>", "isPositive": true }
-  ],
-  "trendChart": {
-    "title": "Évolution de la charge & régularité",
-    "labels": ["S-3", "S-2", "S-1", "Actuel"],
-    "values": [70, 85, 90, 95]
-  }
+    { "type": "pr", "title": "Meilleur chrono jamais enregistré", "desc": "15.90s sur 120m Côte le 02/10/2026" },
+    { "type": "warning", "title": "Signaux de fatigue", "desc": "Tensions signalées aux ischio-jambiers" }
+  ]
 }
 \`\`\`
+   *Note : dans curveChart, pour les chronos mets metricType: "chrono" (une baisse est une progression) ; pour les charges mets metricType: "weight" (une hausse est une progression). Ne mets un curveChart QUE si au moins 2 séances identiques existent pour la métrique demandée.*
 
-3. SYNTHÈSE TEXTUELLE PERCUTANTE & CAPTIVANTE (sous le bloc visuel) :
-   - Fais une analyse vivante, stimulante, percutante, avec des émojis partout ! Bannis les pavés de texte monotones.
-   - Structure ta réponse ainsi :
-     * 🚀 **Synthèse Globale & Dynamique** : Bilan court et motivant de l'athlète sur l'ensemble de son parcours.
-     * 📈 **Progressions Clés Séance à Séance** : Détail des gains concrets observés (charges, chronos, régularité).
-     * 🛡️ **Forme, Récupération & Nutrition** : Check-ins, sommeil, signaux de fatigue ou douleurs éventuelles.
-     * 🎯 **3 Recommandations Stratégiques pour le Coach** : Actions précises pour les prochaines séances.
+4. SYNTHÈSE TACTIQUE POUR LE COACH (sous le bloc visuel) :
+   - Fais une analyse directe, concrète et utile au coach :
+     * 🏆 **All-Time Records & Paliers Franchis** : Ce que l'athlète a accompli de mieux depuis le début.
+     * ⚡ **Gains Réels sur Séances Identiques** : Analyse stricte des deltas (charge / chrono) sans extrapolation.
+     * ⚠️ **État de Forme & Alertes Blessures** : Fatigue, douleurs déclarées lors des check-ins.
+     * 🎯 **Ajustements Immédiats Conseillés** : Ce que le coach doit adapter pour la prochaine séance.
 
-4. Domaines prioritaires choisis par le coach :
+5. Domaines prioritaires choisis par le coach :
 ${domains.map(d => DOMAIN_INSTRUCTIONS[d]).join('\n')}
-5. Échelles : fatigue/stress/qualité sommeil sur 5 (fatigue et stress : plus c'est haut, pire c'est), motivation sur 10, scores forme/physique/mental en %.
-6. Tu ne poses pas de diagnostic médical : en cas de douleur persistante ou forte, recommande l'avis d'un professionnel de santé.
+6. Tu ne poses pas de diagnostic médical.
 ${options.extraInstructions || ''}`;
 }
 

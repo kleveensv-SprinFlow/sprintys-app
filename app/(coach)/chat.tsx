@@ -9,6 +9,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { fetchOpenAIResponse } from '../../src/services/aiService';
 import SprintyThinkingBubble from '../../src/components/SprintyThinkingBubble';
 import { AIAnalysisDashboardCard, AnalysisDashboardData } from '../../src/components/AIAnalysisDashboardCard';
+import { InteractiveMetricPicker, MetricOption } from '../../src/components/InteractiveMetricPicker';
 import * as Haptics from 'expo-haptics';
 import { WorkoutProposalCard, AIWorkoutProposal } from '../../src/components/WorkoutProposalCard';
 import { useAuthStore } from '../../src/store/authStore';
@@ -79,10 +80,12 @@ export default function CoachMessageScreen() {
 
     const proposalRegex = /```workout_proposal([\s\S]*?)```/i;
     const dashboardRegex = /```analysis_dashboard([\s\S]*?)```/i;
+    const metricPickerRegex = /```metric_picker([\s\S]*?)```/i;
 
     let textOnly = msg.content;
     let proposalObj: AIWorkoutProposal | null = null;
     let dashboardObj: AnalysisDashboardData | null = null;
+    let metricPickerObj: { question?: string; options: MetricOption[] } | null = null;
 
     const dashMatch = textOnly.match(dashboardRegex);
     if (dashMatch && dashMatch[1]) {
@@ -91,6 +94,16 @@ export default function CoachMessageScreen() {
         dashboardObj = JSON.parse(dashMatch[1].trim());
       } catch (e) {
         console.error('Failed to parse AI analysis dashboard', e);
+      }
+    }
+
+    const pickerMatch = textOnly.match(metricPickerRegex);
+    if (pickerMatch && pickerMatch[1]) {
+      textOnly = textOnly.replace(metricPickerRegex, '').trim();
+      try {
+        metricPickerObj = JSON.parse(pickerMatch[1].trim());
+      } catch (e) {
+        console.error('Failed to parse AI metric picker', e);
       }
     }
 
@@ -112,6 +125,17 @@ export default function CoachMessageScreen() {
           </View>
         )}
         {textOnly ? <Text style={styles.messageTextAssistant}>{textOnly}</Text> : null}
+        {metricPickerObj && (
+          <View style={{ marginTop: 10 }}>
+            <InteractiveMetricPicker
+              question={metricPickerObj.question}
+              options={metricPickerObj.options}
+              onSelectOption={(opt) => {
+                sendMessage(`Trace-moi la courbe d'évolution détaillée pour : ${opt.label}`);
+              }}
+            />
+          </View>
+        )}
         {proposalObj && (
           <View style={{ marginTop: 12, minWidth: 280 }}>
             <WorkoutProposalCard 

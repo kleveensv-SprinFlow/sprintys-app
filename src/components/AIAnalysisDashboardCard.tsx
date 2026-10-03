@@ -1,14 +1,20 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { CircularGauge } from './CircularGauge';
-import { Ionicons, Feather } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BezierCurveChart, CurvePoint } from './BezierCurveChart';
 
-export interface ProgressionItem {
-  exercise: string;
-  previous: string;
-  current: string;
-  delta: string;
+export interface BestRecordEver {
+  exerciseOrDist: string;
+  bestValue: string;
+  date: string;
+}
+
+export interface StrictProgressionItem {
+  exercise: string; // Ex: "Côte 120m" ou "Squat"
+  previousSession: string; // Ex: "11/09 : 17.36s"
+  currentSession: string; // Ex: "02/10 : 15.90s"
+  delta: string; // Ex: "-1.46s" ou "+10kg"
   isPositive?: boolean;
 }
 
@@ -20,142 +26,113 @@ export interface HighlightItem {
 
 export interface AnalysisDashboardData {
   athleteName: string;
-  globalScore: number; // ex: 8.5 / 10
-  healthGauge: number; // 0-100
-  attendanceGauge: number; // 0-100
-  nutritionGauge?: number; // 0-100 (optionnel)
-  keyHighlights?: HighlightItem[];
-  progressions?: ProgressionItem[];
-  trendChart?: {
-    title?: string;
-    labels: string[];
-    values: number[];
+  allTimeBests?: BestRecordEver[];
+  curveChart?: {
+    title: string;
+    metricType: 'chrono' | 'weight' | 'score';
+    unit: string;
+    points: CurvePoint[];
   };
+  strictProgressions?: StrictProgressionItem[];
+  keyHighlights?: HighlightItem[];
 }
 
 export const AIAnalysisDashboardCard: React.FC<{ data: AnalysisDashboardData }> = ({ data }) => {
-  const globalScore = Number(data.globalScore) || 0;
-  const scoreColor =
-    globalScore >= 8 ? '#10B981' : globalScore >= 6 ? '#F59E0B' : '#EF4444';
-
-  const chartValues = data.trendChart?.values || [];
-  const chartLabels = data.trendChart?.labels || [];
-  const maxValue = chartValues.length > 0 ? Math.max(...chartValues, 1) : 100;
+  const allTimeBests = data.allTimeBests || [];
+  const strictProgressions = data.strictProgressions || [];
+  const keyHighlights = data.keyHighlights || [];
+  const curve = data.curveChart;
 
   return (
     <View style={styles.card}>
-      {/* Header avec note globale */}
+      {/* Header épuré : All-Time Records */}
       <LinearGradient
         colors={['#0F172A', '#1E293B']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}
       >
-        <View style={styles.headerLeft}>
+        <View style={styles.headerTop}>
           <View style={styles.badgeRow}>
-            <View style={styles.pulseDot} />
-            <Text style={styles.badgeText}>RAPPORT DE PERFORMANCE IA</Text>
+            <Ionicons name="sparkles" size={12} color="#38BDF8" />
+            <Text style={styles.badgeText}>RAPPORT PERFORMANCE ATHLÈTE</Text>
           </View>
           <Text style={styles.athleteName} numberOfLines={1}>
             {data.athleteName}
           </Text>
         </View>
 
-        <View style={styles.globalScoreWrap}>
-          <Text style={styles.scoreSubtitle}>NOTE GLOBALE</Text>
-          <View style={styles.scoreRow}>
-            <Text style={[styles.scoreNumber, { color: scoreColor }]}>
-              {globalScore.toFixed(1)}
-            </Text>
-            <Text style={styles.scoreMax}>/10</Text>
+        {/* Section All-Time Best PRs (Ever) */}
+        {allTimeBests.length > 0 && (
+          <View style={styles.allTimeSection}>
+            <View style={styles.allTimeHeader}>
+              <Ionicons name="trophy" size={14} color="#F59E0B" />
+              <Text style={styles.allTimeTitle}>RECORDS ABSOLUS ENREGISTRÉS (EVER)</Text>
+            </View>
+            <View style={styles.prGrid}>
+              {allTimeBests.map((pr, idx) => (
+                <View key={idx} style={styles.prChip}>
+                  <Text style={styles.prExercise}>{pr.exerciseOrDist}</Text>
+                  <Text style={styles.prValue}>{pr.bestValue}</Text>
+                  <Text style={styles.prDate}>{pr.date}</Text>
+                </View>
+              ))}
+            </View>
           </View>
-        </View>
+        )}
       </LinearGradient>
 
-      {/* Section Jauges Circulaires */}
-      <View style={styles.gaugesSection}>
-        <CircularGauge
-          score={data.attendanceGauge ?? 100}
-          label="Assiduité"
-          color="#3B82F6"
-        />
-        <CircularGauge
-          score={data.healthGauge ?? 70}
-          label="Forme"
-          color="#10B981"
-        />
-        {data.nutritionGauge !== undefined && data.nutritionGauge !== null && (
-          <CircularGauge
-            score={data.nutritionGauge}
-            label="Nutrition"
-            color="#EC4899"
+      {/* VRAIE COURBE (STYLE MONTAGNE) */}
+      {curve && curve.points && curve.points.length >= 2 && (
+        <View style={styles.chartWrapper}>
+          <BezierCurveChart
+            title={curve.title}
+            points={curve.points}
+            metricType={curve.metricType}
+            unit={curve.unit}
+            height={140}
           />
-        )}
-      </View>
-
-      {/* Mini-Graphique de Tendance (si disponible) */}
-      {chartValues.length > 1 && (
-        <View style={styles.chartSection}>
-          <View style={styles.sectionHeaderRow}>
-            <Feather name="trending-up" size={14} color="#0284C7" />
-            <Text style={styles.sectionTitle}>
-              {data.trendChart?.title || 'Évolution de la charge & régularité'}
-            </Text>
-          </View>
-          <View style={styles.barsContainer}>
-            {chartValues.map((val, idx) => {
-              const heightPercent = Math.max(12, Math.min(100, (val / maxValue) * 100));
-              return (
-                <View key={idx} style={styles.barCol}>
-                  <View style={styles.barTrack}>
-                    <LinearGradient
-                      colors={['#38BDF8', '#0284C7']}
-                      style={[styles.barFill, { height: `${heightPercent}%` }]}
-                    />
-                  </View>
-                  <Text style={styles.barLabel} numberOfLines={1}>
-                    {chartLabels[idx] || `S${idx + 1}`}
-                  </Text>
-                  <Text style={styles.barValue}>{Math.round(val)}</Text>
-                </View>
-              );
-            })}
-          </View>
         </View>
       )}
 
-      {/* Progressions séance à séance / Deltras constatés */}
-      {Array.isArray(data.progressions) && data.progressions.length > 0 && (
+      {/* COMPARISONS SÉANCE À SÉANCE (STRICTEMENT IDENTIQUES) */}
+      {strictProgressions.length > 0 && (
         <View style={styles.progressionsSection}>
           <View style={styles.sectionHeaderRow}>
-            <Ionicons name="flash" size={14} color="#F59E0B" />
-            <Text style={styles.sectionTitle}>Progressions séance à séance</Text>
+            <Ionicons name="git-compare-outline" size={15} color="#0284C7" />
+            <Text style={styles.sectionTitle}>
+              PROGRESSION SÉANCE À SÉANCE (MÊME EXERCICE)
+            </Text>
           </View>
           <View style={styles.progressionsList}>
-            {data.progressions.map((prog, idx) => {
-              const isPositive = prog.isPositive !== false && !prog.delta.startsWith('-');
+            {strictProgressions.map((prog, idx) => {
+              const isPositive =
+                prog.isPositive !== false &&
+                (!prog.delta.startsWith('+') || prog.delta.includes('kg'));
               return (
-                <View key={idx} style={styles.progressionRow}>
-                  <View style={{ flex: 1 }}>
+                <View key={idx} style={styles.progressionCard}>
+                  <View style={styles.progressionHeader}>
                     <Text style={styles.progressionEx}>{prog.exercise}</Text>
-                    <Text style={styles.progressionDetail}>
-                      {prog.previous} ➔ {prog.current}
-                    </Text>
-                  </View>
-                  <View
-                    style={[
-                      styles.deltaBadge,
-                      { backgroundColor: isPositive ? '#ECFDF5' : '#FEF2F2' },
-                    ]}
-                  >
-                    <Text
+                    <View
                       style={[
-                        styles.deltaText,
-                        { color: isPositive ? '#059669' : '#DC2626' },
+                        styles.deltaBadge,
+                        { backgroundColor: isPositive ? '#ECFDF5' : '#FFFBEB' },
                       ]}
                     >
-                      {prog.delta}
-                    </Text>
+                      <Text
+                        style={[
+                          styles.deltaText,
+                          { color: isPositive ? '#059669' : '#D97706' },
+                        ]}
+                      >
+                        {prog.delta}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.sessionsRow}>
+                    <Text style={styles.sessionPrev}>Précédent : {prog.previousSession}</Text>
+                    <Ionicons name="arrow-forward" size={12} color="#94A3B8" />
+                    <Text style={styles.sessionCurr}>Actuel : {prog.currentSession}</Text>
                   </View>
                 </View>
               );
@@ -164,57 +141,43 @@ export const AIAnalysisDashboardCard: React.FC<{ data: AnalysisDashboardData }> 
         </View>
       )}
 
-      {/* Points saillants / Badges clés */}
-      {Array.isArray(data.keyHighlights) && data.keyHighlights.length > 0 && (
+      {/* Points de vigilance & constats clés pour le coach */}
+      {keyHighlights.length > 0 && (
         <View style={styles.highlightsSection}>
-          {data.keyHighlights.map((hl, idx) => {
-            const isPr = hl.type === 'pr';
-            const isSuccess = hl.type === 'success';
+          {keyHighlights.map((hl, idx) => {
+            const isSuccess = hl.type === 'success' || hl.type === 'pr';
             const isWarning = hl.type === 'warning';
-
-            const bg = isPr
-              ? '#FEF3C7'
-              : isSuccess
-              ? '#ECFDF5'
-              : isWarning
-              ? '#FEF2F2'
-              : '#F1F5F9';
-            const border = isPr
-              ? '#FDE68A'
-              : isSuccess
-              ? '#A7F3D0'
-              : isWarning
-              ? '#FECACA'
-              : '#E2E8F0';
-            const iconColor = isPr
-              ? '#D97706'
-              : isSuccess
-              ? '#059669'
-              : isWarning
-              ? '#DC2626'
-              : '#64748B';
 
             return (
               <View
                 key={idx}
-                style={[styles.highlightCard, { backgroundColor: bg, borderColor: border }]}
+                style={[
+                  styles.highlightCard,
+                  {
+                    backgroundColor: isWarning ? '#FEF2F2' : isSuccess ? '#ECFDF5' : '#F8FAFC',
+                    borderColor: isWarning ? '#FECACA' : isSuccess ? '#A7F3D0' : '#E2E8F0',
+                  },
+                ]}
               >
                 <Ionicons
                   name={
-                    isPr
-                      ? 'trophy'
+                    isWarning
+                      ? 'warning'
                       : isSuccess
                       ? 'checkmark-circle'
-                      : isWarning
-                      ? 'alert-circle'
                       : 'information-circle'
                   }
-                  size={18}
-                  color={iconColor}
-                  style={{ marginTop: 2 }}
+                  size={16}
+                  color={isWarning ? '#DC2626' : isSuccess ? '#059669' : '#64748B'}
+                  style={{ marginTop: 1 }}
                 />
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.highlightTitle, { color: iconColor }]}>
+                  <Text
+                    style={[
+                      styles.highlightTitle,
+                      { color: isWarning ? '#991B1B' : isSuccess ? '#065F46' : '#1E293B' },
+                    ]}
+                  >
                     {hl.title}
                   </Text>
                   {hl.desc ? (
@@ -240,31 +203,21 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
-    shadowRadius: 12,
+    shadowRadius: 10,
     elevation: 3,
     marginBottom: 14,
   },
   header: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    padding: 16,
   },
-  headerLeft: {
-    flex: 1,
+  headerTop: {
+    marginBottom: 12,
   },
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     marginBottom: 4,
-  },
-  pulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#38BDF8',
   },
   badgeText: {
     fontSize: 10,
@@ -273,51 +226,66 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   athleteName: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 20,
+    fontWeight: '900',
     color: '#FFFFFF',
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
   },
-  globalScoreWrap: {
-    alignItems: 'flex-end',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  allTimeSection: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: 12,
+    padding: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  scoreSubtitle: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#94A3B8',
+  allTimeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  allTimeTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#F59E0B',
     letterSpacing: 0.5,
   },
-  scoreRow: {
+  prGrid: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  scoreNumber: {
-    fontSize: 22,
+  prChip: {
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+    minWidth: 100,
+  },
+  prExercise: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#94A3B8',
+  },
+  prValue: {
+    fontSize: 14,
     fontWeight: '900',
-    letterSpacing: -0.5,
+    color: '#F59E0B',
+    marginVertical: 1,
   },
-  scoreMax: {
-    fontSize: 12,
-    fontWeight: '700',
+  prDate: {
+    fontSize: 9,
     color: '#64748B',
-    marginLeft: 2,
   },
-  gaugesSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 14,
-    paddingHorizontal: 8,
+  chartWrapper: {
+    padding: 12,
     backgroundColor: '#F8FAFC',
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
-  chartSection: {
+  progressionsSection: {
     padding: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
@@ -329,85 +297,55 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   sectionTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#334155',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  barsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'flex-end',
-    height: 80,
-    paddingTop: 8,
-  },
-  barCol: {
-    alignItems: 'center',
-    flex: 1,
-    height: '100%',
-    justifyContent: 'flex-end',
-  },
-  barTrack: {
-    width: 14,
-    height: 52,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 7,
-    overflow: 'hidden',
-    justifyContent: 'flex-end',
-  },
-  barFill: {
-    width: '100%',
-    borderRadius: 7,
-  },
-  barLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#64748B',
-    marginTop: 4,
-  },
-  barValue: {
-    fontSize: 9,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '800',
     color: '#0F172A',
-  },
-  progressionsSection: {
-    padding: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    letterSpacing: 0.3,
   },
   progressionsList: {
     gap: 8,
   },
-  progressionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  progressionCard: {
     backgroundColor: '#F8FAFC',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
     borderRadius: 10,
+    padding: 10,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
+  progressionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   progressionEx: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#0F172A',
-  },
-  progressionDetail: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 1,
   },
   deltaBadge: {
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 2,
     borderRadius: 6,
   },
   deltaText: {
     fontSize: 12,
     fontWeight: '800',
+  },
+  sessionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 2,
+  },
+  sessionPrev: {
+    fontSize: 11,
+    color: '#64748B',
+  },
+  sessionCurr: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#334155',
   },
   highlightsSection: {
     padding: 14,
@@ -416,7 +354,7 @@ const styles = StyleSheet.create({
   highlightCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 10,
+    gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
