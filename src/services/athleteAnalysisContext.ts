@@ -490,19 +490,45 @@ function buildWellnessSection(checkins: any[]) {
   const win = (n: number) => checkins.filter(c => daysAgo(toLocalDay(c.date)) <= n);
   const last7 = win(7);
   const last30 = win(FOCUS_DAYS);
-  const painDays30 = last30.filter(c => Array.isArray(c.pains) && c.pains.length > 0);
-  const zones = new Map<string, number>();
-  painDays30.forEach(c => (c.pains || []).forEach((p: any) => {
-    const z = typeof p === 'string' ? p : (p.muscle_name || p.muscle_id || 'zone');
-    zones.set(z, (zones.get(z) || 0) + 1);
-  }));
+
+  // Analyse intelligente des douleurs et conscience temporelle
+  const activeSignificantPains: string[] = [];
+  const pastOrMildSoreness: string[] = [];
+  const allZoneCounts = new Map<string, number>();
+
+  checkins.forEach(c => {
+    const age = daysAgo(toLocalDay(c.date));
+    (c.pains || []).forEach((p: any) => {
+      const z = typeof p === 'string' ? p : (p.muscle_name || p.muscle_id || 'zone');
+      allZoneCounts.set(z, (allZoneCounts.get(z) || 0) + 1);
+      const intensity = num(p.intensity) ?? 2;
+      const isInjuryType = p.type && (p.type.toLowerCase().includes('articulaire') || p.type.toLowerCase().includes('tendin') || p.type.toLowerCase().includes('déchirure'));
+      const desc = `${z} (${p.type || 'douleur'}, int. ${intensity}/10 le ${toLocalDay(c.date)})`;
+
+      if (age <= 7 && (intensity >= 3 || isInjuryType)) {
+        activeSignificantPains.push(desc);
+      } else {
+        pastOrMildSoreness.push(desc);
+      }
+    });
+  });
+
+  const chronicZones = Array.from(allZoneCounts.entries()).filter(([_, count]) => count >= 3).map(([z, c]) => `${z} (${c}x dans l'historique)`);
 
   const summary = [
     `- Check-ins remplis : ${checkins.length} au total · ${last30.length}/${FOCUS_DAYS} sur les ${FOCUS_DAYS} derniers jours · dernier : ${toLocalDay(checkins[0]?.date) || 'aucun'}`,
     `- Forme moyenne : 7 j = ${fmt(avg(last7.map(c => num(c.health_score))), '%', 0)} · ${FOCUS_DAYS} j = ${fmt(avg(last30.map(c => num(c.health_score))), '%', 0)}`,
     `- Sommeil moyen ${FOCUS_DAYS} j : ${fmt(avg(last30.map(c => num(c.sleep_hours))), 'h')} · Fatigue moy. ${fmt(avg(last30.map(c => num(c.fatigue_level))), '/5')} · Stress moy. ${fmt(avg(last30.map(c => num(c.stress_level))), '/5')}`,
-    `- Jours avec douleurs (${FOCUS_DAYS} j) : ${painDays30.length}${zones.size ? ` · zones : ${Array.from(zones.entries()).map(([z, n]) => `${z} (${n}x)`).join(', ')}` : ''}`,
-  ].join('\n');
+    activeSignificantPains.length > 0
+      ? `🚨 DOULEURS ACTIVES RÉCENTES (< 7j, à surveiller) : ${activeSignificantPains.join(' ; ')}`
+      : '✅ AUCUNE douleur aiguë active sur les 7 derniers jours.',
+    chronicZones.length > 0
+      ? `⚠️ ZONES CHRONIQUES OU RÉCURRENTES (3+ fois) : ${chronicZones.join(', ')}`
+      : '✅ Aucune zone chronique récurrente.',
+    pastOrMildSoreness.length > 0
+      ? `ℹ️ Courbatures passées ou légères déjà résolues (ne pas traiter comme une blessure) : ${pastOrMildSoreness.slice(0, 3).join(' ; ')}`
+      : '',
+  ].filter(Boolean).join('\n');
 
   return {
     summary,
@@ -690,12 +716,20 @@ ${philosophy}
 \`\`\`
    *Note : dans curveChart, pour les chronos mets metricType: "chrono" (une baisse est une progression) ; pour les charges mets metricType: "weight" (une hausse est une progression). Ne mets un curveChart QUE si au moins 2 séances identiques existent pour la métrique demandée.*
 
-4. SYNTHÈSE TACTIQUE POUR LE COACH (sous le bloc visuel) :
-   - Fais une analyse directe, concrète et utile au coach :
-     * 🏆 **All-Time Records & Paliers Franchis** : Ce que l'athlète a accompli de mieux depuis le début.
-     * ⚡ **Gains Réels sur Séances Identiques** : Analyse stricte des deltas (charge / chrono) sans extrapolation.
-     * ⚠️ **État de Forme & Alertes Blessures** : Fatigue, douleurs déclarées lors des check-ins.
-     * 🎯 **Ajustements Immédiats Conseillés** : Ce que le coach doit adapter pour la prochaine séance.
+4. SYNTHÈSE TACTIQUE POUR LE COACH & FORMATAGE RICHE (sous le bloc visuel) :
+   - Présentation impeccable :
+     * UTILISE DES TABLEAUX MARKDOWN quand tu compares plusieurs séances, exercices ou données nutritionnelles :
+       | Date | Exercice / Séance | Chrono / Charge | Note / RPE |
+       | --- | --- | --- | --- |
+       | 11/09 | 120m Côte | 17.36s | Base |
+       | 02/10 | 120m Côte | 15.90s | PR (-1.46s) |
+     * Fini les puces avec des astérisques bruts ou les titres encombrés d'étoiles : utilise de vrais titres Markdown (# Titre, ## Sous-titre) et du texte en gras net (**titre**).
+     * CONSCIENCE DU TEMPS & DOULEURS : Ne mentionne JAMAIS une courbature ancienne (> 7j) ou légère comme un "risque de blessure" ou une "douleur à surveiller". Ne lance d'alerte QUE sur les douleurs actives (< 7j d'intensité >= 3 ou articulaires) ou les zones chroniques récurrentes.
+     * Structure claire :
+       * 🏆 **All-Time Records & Paliers Franchis**
+       * ⚡ **Gains Réels sur Séances Identiques** (avec tableau comparatif si pertinent)
+       * ⚠️ **État de Forme & Alertes Blessures** (distinction stricte entre courbatures normales résolues et vraies alertes)
+       * 🎯 **Ajustements Immédiats Conseillés pour le Coach**
 
 5. Domaines prioritaires choisis par le coach :
 ${domains.map(d => DOMAIN_INSTRUCTIONS[d]).join('\n')}

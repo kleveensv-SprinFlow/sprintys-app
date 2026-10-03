@@ -10,6 +10,7 @@ import { fetchOpenAIResponse } from '../../src/services/aiService';
 import SprintyThinkingBubble from '../../src/components/SprintyThinkingBubble';
 import { AIAnalysisDashboardCard, AnalysisDashboardData } from '../../src/components/AIAnalysisDashboardCard';
 import { InteractiveMetricPicker, MetricOption } from '../../src/components/InteractiveMetricPicker';
+import { RichChatMessage } from '../../src/components/RichChatMessage';
 import * as Haptics from 'expo-haptics';
 import { WorkoutProposalCard, AIWorkoutProposal } from '../../src/components/WorkoutProposalCard';
 import { useAuthStore } from '../../src/store/authStore';
@@ -124,7 +125,7 @@ export default function CoachMessageScreen() {
             <AIAnalysisDashboardCard data={dashboardObj} />
           </View>
         )}
-        {textOnly ? <Text style={styles.messageTextAssistant}>{textOnly}</Text> : null}
+        {textOnly ? <RichChatMessage content={textOnly} /> : null}
         {metricPickerObj && (
           <View style={{ marginTop: 10 }}>
             <InteractiveMetricPicker
