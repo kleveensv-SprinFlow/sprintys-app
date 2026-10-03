@@ -7,7 +7,8 @@ import { buildGeneralCoachSystemPrompt, buildCoachSystemPromptForAthlete } from 
 import { AnalysisDomain, ALL_DOMAINS, DOMAIN_LABELS } from '../../src/services/athleteAnalysisContext';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { fetchOpenAIResponse } from '../../src/services/aiService';
-import AILoadingIndicator from '../../src/components/AILoadingIndicator';
+import SprintyThinkingBubble from '../../src/components/SprintyThinkingBubble';
+import { AIAnalysisDashboardCard, AnalysisDashboardData } from '../../src/components/AIAnalysisDashboardCard';
 import * as Haptics from 'expo-haptics';
 import { WorkoutProposalCard, AIWorkoutProposal } from '../../src/components/WorkoutProposalCard';
 import { useAuthStore } from '../../src/store/authStore';
@@ -77,14 +78,27 @@ export default function CoachMessageScreen() {
     }
 
     const proposalRegex = /```workout_proposal([\s\S]*?)```/i;
+    const dashboardRegex = /```analysis_dashboard([\s\S]*?)```/i;
+
     let textOnly = msg.content;
     let proposalObj: AIWorkoutProposal | null = null;
-    
-    const match = textOnly.match(proposalRegex);
-    if (match && match[1]) {
+    let dashboardObj: AnalysisDashboardData | null = null;
+
+    const dashMatch = textOnly.match(dashboardRegex);
+    if (dashMatch && dashMatch[1]) {
+      textOnly = textOnly.replace(dashboardRegex, '').trim();
+      try {
+        dashboardObj = JSON.parse(dashMatch[1].trim());
+      } catch (e) {
+        console.error('Failed to parse AI analysis dashboard', e);
+      }
+    }
+
+    const propMatch = textOnly.match(proposalRegex);
+    if (propMatch && propMatch[1]) {
       textOnly = textOnly.replace(proposalRegex, '').trim();
       try {
-        proposalObj = JSON.parse(match[1].trim());
+        proposalObj = JSON.parse(propMatch[1].trim());
       } catch (e) {
         console.error('Failed to parse AI workout proposal', e);
       }
@@ -92,6 +106,11 @@ export default function CoachMessageScreen() {
 
     return (
       <View style={{ width: '100%' }}>
+        {dashboardObj && (
+          <View style={{ marginBottom: 12 }}>
+            <AIAnalysisDashboardCard data={dashboardObj} />
+          </View>
+        )}
         {textOnly ? <Text style={styles.messageTextAssistant}>{textOnly}</Text> : null}
         {proposalObj && (
           <View style={{ marginTop: 12, minWidth: 280 }}>
@@ -170,11 +189,11 @@ export default function CoachMessageScreen() {
     const isFull = domains.length === ALL_DOMAINS.length;
     const labels = domains.map(d => DOMAIN_LABELS[d].toLowerCase());
     const scope = isFull
-      ? 'complète (entraînements, nutrition, forme et poids/compo)'
+      ? 'globale et complète de tout son historique (entraînements, charges, chronos, forme, assiduité et nutrition)'
       : labels.length === 1
-        ? `de ${labels[0] === 'forme' ? 'la forme' : labels[0] === 'nutrition' ? 'la nutrition' : labels[0] === 'entraînements' ? 'ses entraînements' : 'son poids / sa composition corporelle'}`
-        : `ciblée sur : ${labels.slice(0, -1).join(', ')} et ${labels[labels.length - 1]}`;
-    sendMessage(`Fais-moi une analyse ${scope} de ${firstName} sur les 30 derniers jours.`, { auto: true });
+        ? `globale de ${labels[0] === 'forme' ? 'la forme' : labels[0] === 'nutrition' ? 'la nutrition' : labels[0] === 'entraînements' ? 'ses entraînements (charges & chronos)' : 'son poids / sa composition'}`
+        : `ciblée sur tout son historique : ${labels.slice(0, -1).join(', ')} et ${labels[labels.length - 1]}`;
+    sendMessage(`Fais-moi une analyse ${scope} de ${firstName}. Identifie ses progressions majeures d'une semaine à l'autre et génère le tableau de bord visuel.`, { auto: true });
   };
 
   const exitAthleteMode = () => {
@@ -317,8 +336,8 @@ export default function CoachMessageScreen() {
                     style={{ width: 20, height: 20 }}
                   />
                 </View>
-                <View style={[styles.messageBubbleLeft, { paddingHorizontal: 16, paddingVertical: 12 }]}>
-                  <AILoadingIndicator />
+                <View style={[styles.messageBubbleLeft, { paddingHorizontal: 14, paddingVertical: 10, minWidth: 260 }]}>
+                  <SprintyThinkingBubble />
                 </View>
               </View>
             )}

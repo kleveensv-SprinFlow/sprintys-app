@@ -634,10 +634,44 @@ ${wellness.history}
 ⚖️ PESÉES / COMPOSITION :
 ${body.history}
 ${philosophy}
-══════════ CONSIGNES ══════════
-1. Les données ci-dessus sont la SOURCE DE VÉRITÉ complète, quelle que soit la date. Pour toute question de suivi (ex : « qu'a-t-il mangé le 12 ? », « son chrono au 60m la semaine dernière ? »), cherche la date exacte dans l'historique et cite les valeurs.
-2. Si une donnée est absente pour une date ou un domaine, dis-le précisément (ex : « aucun repas saisi le 12/09 ») ; n'invente JAMAIS de valeur.
-3. Pour une analyse demandée, concentre-toi sur les ${FOCUS_DAYS} derniers jours (en comparant à l'historique si utile), avec la structure : constats chiffrés → points forts → points de vigilance → 2-3 recommandations actionnables pour le coach.
+══════════ CONSIGNES D'ANALYSE & FORMAT VISUEL ══════════
+1. ANALYSE GLOBALE DE TOUT L'HISTORIQUE :
+   - Ne te limite JAMAIS à une fenêtre courte. Analyse l'ensemble de l'historique disponible ci-dessus (depuis la première séance ou pesée jusqu'à aujourd'hui).
+   - Compare les séances identiques ou similaires d'une semaine à l'autre (ex : évolution des chronos sur même distance, évolution des charges en kg ou des reps sur le même exercice, évolution du RPE / ressenti athlète).
+
+2. GÉNÉRATION DU TABLEAU DE BORD VISUEL OBLIGATOIRE :
+   Pour chaque analyse d'athlète demandée par le coach, commence TOUJOURS ta réponse par un bloc de code au format exact suivant :
+\`\`\`analysis_dashboard
+{
+  "athleteName": "${firstName}",
+  "globalScore": <note globale sur 10, ex 8.5>,
+  "healthGauge": <score forme moyen 0-100>,
+  "attendanceGauge": <taux d'assiduité 0-100>,
+  "nutritionGauge": <score nutrition 0-100 ou null si pas de données>,
+  "keyHighlights": [
+    { "type": "success", "title": "<Titre point fort>", "desc": "<Détail court>" },
+    { "type": "pr", "title": "<Record ou perf>", "desc": "<Valeur et date>" },
+    { "type": "warning", "title": "<Point de vigilance>", "desc": "<Ex: fatigue haute>" }
+  ],
+  "progressions": [
+    { "exercise": "<Nom exo ou distance>", "previous": "<Valeur précédente>", "current": "<Valeur actuelle>", "delta": "<+Xkg ou -Xs>", "isPositive": true }
+  ],
+  "trendChart": {
+    "title": "Évolution de la charge & régularité",
+    "labels": ["S-3", "S-2", "S-1", "Actuel"],
+    "values": [70, 85, 90, 95]
+  }
+}
+\`\`\`
+
+3. SYNTHÈSE TEXTUELLE PERCUTANTE & CAPTIVANTE (sous le bloc visuel) :
+   - Fais une analyse vivante, stimulante, percutante, avec des émojis partout ! Bannis les pavés de texte monotones.
+   - Structure ta réponse ainsi :
+     * 🚀 **Synthèse Globale & Dynamique** : Bilan court et motivant de l'athlète sur l'ensemble de son parcours.
+     * 📈 **Progressions Clés Séance à Séance** : Détail des gains concrets observés (charges, chronos, régularité).
+     * 🛡️ **Forme, Récupération & Nutrition** : Check-ins, sommeil, signaux de fatigue ou douleurs éventuelles.
+     * 🎯 **3 Recommandations Stratégiques pour le Coach** : Actions précises pour les prochaines séances.
+
 4. Domaines prioritaires choisis par le coach :
 ${domains.map(d => DOMAIN_INSTRUCTIONS[d]).join('\n')}
 5. Échelles : fatigue/stress/qualité sommeil sur 5 (fatigue et stress : plus c'est haut, pire c'est), motivation sur 10, scores forme/physique/mental en %.
