@@ -230,11 +230,19 @@ export const useCoachStore = create<CoachState>((set, get) => ({
 
       // Séparer les membres approuvés des demandes en attente
       const approved = allMembers.filter((m: TeamMember) => m.status === 'approved');
-      set({ teamMembers: approved, isLoading: false });
-      } catch (err: any) {
-        console.error("DEBUG fetchTeamMembers error:", err.message);
-        set({ error: err.message, isLoading: false });
-      }
+      const pending = allMembers.filter((m: TeamMember) => m.status === 'pending');
+      set((state) => ({
+        teamMembers: approved,
+        pendingMembers: [
+          ...state.pendingMembers.filter((m) => m.team_id !== teamId),
+          ...pending
+        ],
+        isLoading: false
+      }));
+    } catch (err: any) {
+      console.error("DEBUG fetchTeamMembers error:", err.message);
+      set({ error: err.message, isLoading: false });
+    }
     },
 
   fetchTeamCheckIns: async (teamId: string, dateStr: string) => {

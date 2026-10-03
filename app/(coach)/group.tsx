@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, Animated, Image } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useTheme, theme } from '../../src/core/theme';
 import { Header } from '../../src/shared/components/Header';
@@ -122,6 +122,7 @@ export default function CoachGroupsScreen() {
 
   const renderTeamDetails = () => {
     if (!activeTeam) return null;
+    const currentTeamPending = pendingMembers.filter(m => m.team_id === activeTeam.id);
 
     return (
       <View style={{ flex: 1 }}>
@@ -156,9 +157,9 @@ export default function CoachGroupsScreen() {
             <TouchableOpacity style={[styles.tabBtn, activeTab === 'pending' && styles.tabBtnActive]} onPress={() => setActiveTab('pending')}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Text style={[styles.tabText, activeTab === 'pending' && styles.tabTextActive]}>
-                  Demandes {pendingMembers.length > 0 && `(${pendingMembers.length})`}
+                  Demandes {currentTeamPending.length > 0 && `(${currentTeamPending.length})`}
                 </Text>
-                {pendingMembers.length > 0 && (
+                {currentTeamPending.length > 0 && (
                   <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.warning }} />
                 )}
               </View>
@@ -189,11 +190,14 @@ export default function CoachGroupsScreen() {
                         setModalType('athlete_profile');
                       }}
                       activeOpacity={0.7}
-                    >                        <View style={styles.avatar}>
-                          <Text style={styles.avatarText}>
-                            {(member.profile?.first_name?.charAt(0) || member.profile?.full_name?.charAt(0) || 'A').toUpperCase()}
-                          </Text>
-                        </View>
+                    >
+                      <View style={styles.avatar}>
+                        {member.profile?.avatar_url ? (
+                          <Image source={{ uri: member.profile.avatar_url }} style={styles.avatarImage} />
+                        ) : (
+                          <Ionicons name="person" size={22} color={theme.colors.textMuted} />
+                        )}
+                      </View>
                       <View style={styles.rowInfo}>
                         <Text style={styles.rowTitle}>
                           {member.profile?.full_name || `${member.profile?.first_name || ''} ${member.profile?.last_name || ''}`.trim() || 'Athlète'}
@@ -264,15 +268,17 @@ export default function CoachGroupsScreen() {
 
           {activeTab === 'pending' && (
             <>
-              {pendingMembers.length === 0 ? (
+              {currentTeamPending.length === 0 ? (
                 <Text style={styles.emptyText}>Aucune demande en attente.</Text>
               ) : (
-                pendingMembers.map(member => (
+                currentTeamPending.map(member => (
                   <View key={member.user_id} style={styles.rowCard}>
                     <View style={styles.avatar}>
-                      <Text style={styles.avatarText}>
-                        {(member.profile?.first_name?.charAt(0) || member.profile?.full_name?.charAt(0) || 'A').toUpperCase()}
-                      </Text>
+                      {member.profile?.avatar_url ? (
+                        <Image source={{ uri: member.profile.avatar_url }} style={styles.avatarImage} />
+                      ) : (
+                        <Ionicons name="person" size={22} color={theme.colors.textMuted} />
+                      )}
                     </View>
                     <View style={styles.rowInfo}>
                       <Text style={styles.rowTitle}>
@@ -371,10 +377,12 @@ export default function CoachGroupsScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
             
-            <View style={{ alignItems: 'center', marginBottom: 24 }}>                <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: theme.colors.surfaceLight, justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
-                  <Text style={{ fontSize: 32, fontWeight: 'bold', color: theme.colors.textSecondary }}>
-                    {(selectedAthlete?.profile?.first_name?.charAt(0) || selectedAthlete?.profile?.full_name?.charAt(0) || 'A').toUpperCase()}
-                  </Text>
+            <View style={{ alignItems: 'center', marginBottom: 24 }}>                <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: theme.colors.surfaceLight, justifyContent: 'center', alignItems: 'center', marginBottom: 12, overflow: 'hidden' }}>
+                  {selectedAthlete?.profile?.avatar_url ? (
+                    <Image source={{ uri: selectedAthlete.profile.avatar_url }} style={{ width: 80, height: 80, borderRadius: 40 }} />
+                  ) : (
+                    <Ionicons name="person" size={40} color={theme.colors.textMuted} />
+                  )}
                 </View>
               <Text style={{ fontSize: 24, fontWeight: 'bold', color: theme.colors.text }}>
                 {selectedAthlete?.profile?.full_name || `${selectedAthlete?.profile?.first_name || ''} ${selectedAthlete?.profile?.last_name || ''}`.trim() || 'Athlète'}
@@ -633,6 +641,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
   avatarText: {
     color: theme.colors.textSecondary,
