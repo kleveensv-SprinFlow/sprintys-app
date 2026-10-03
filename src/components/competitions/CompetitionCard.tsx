@@ -143,14 +143,14 @@ export const CompetitionCard: React.FC<CompetitionCardProps> = ({
 
       {/* Action : Ajouter au calendrier */}
       <TouchableOpacity
-        style={[styles.actionBtn, { backgroundColor: theme.colors.accent }]}
+        style={[styles.actionBtn, { backgroundColor: '#0F172A' }]}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           onAddToCalendar(competition);
         }}
         activeOpacity={0.8}
       >
-        <Feather name="calendar" size={16} color="#09090D" style={{ marginRight: 8 }} />
+        <Feather name="calendar" size={16} color="#FFFFFF" style={{ marginRight: 8 }} />
         <Text style={styles.actionBtnText}>Ajouter au calendrier de l'équipe</Text>
       </TouchableOpacity>
     </View>
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   actionBtnText: {
-    color: '#09090D',
+    color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '700',
   },
