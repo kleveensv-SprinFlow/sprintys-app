@@ -1,7 +1,11 @@
 export interface WeatherData {
   temperature: number;
   windSpeed: number;
+  windDirection?: string; // ex: N, NE, E, SE, S, SO, O, NO
+  precipitation?: number; // mm
+  sunset?: string; // ex: 19:24
   condition: string;
+  conditionLabel: string; // Français : Dégagé, Nuageux, Pluvieux, etc.
   timestamp: number;
   hourly?: {
     datetime: string;
@@ -21,9 +25,15 @@ export interface WeatherData {
 
 const DAYS_FR = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 
+function getWindCardinal(degrees: number): string {
+  const directions = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
+  const index = Math.round(((degrees % 360) / 45)) % 8;
+  return directions[index];
+}
+
 export const weatherService = {
   fetchWeather: async (lat: number, lon: number): Promise<WeatherData> => {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,weather_code&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=7`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,wind_direction_10m,precipitation,weather_code&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,sunset&timezone=auto&forecast_days=7`;
     
     const response = await fetch(url);
     if (!response.ok) throw new Error('Weather fetch failed');
@@ -47,11 +57,19 @@ export const weatherService = {
     }
 
     const daily = [];
+    let sunsetTimeStr: string | undefined;
+
     if (data.daily && data.daily.time) {
       const today = new Date();
       today.setHours(0,0,0,0);
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
+
+      // Extract today sunset
+      if (data.daily.sunset && data.daily.sunset[0]) {
+        const parts = data.daily.sunset[0].split('T');
+        sunsetTimeStr = parts[1] ? parts[1].substring(0, 5) : undefined;
+      }
 
       for (let i = 0; i < data.daily.time.length; i++) {
         const dateStr = data.daily.time[i];
@@ -72,10 +90,15 @@ export const weatherService = {
       }
     }
     
+    const condition = getWeatherCondition(current.weather_code);
     return {
       temperature: Math.round(current.temperature_2m),
       windSpeed: Math.round(current.wind_speed_10m),
-      condition: getWeatherCondition(current.weather_code),
+      windDirection: current.wind_direction_10m != null ? getWindCardinal(current.wind_direction_10m) : undefined,
+      precipitation: current.precipitation != null ? Math.round(current.precipitation * 10) / 10 : 0,
+      sunset: sunsetTimeStr,
+      condition,
+      conditionLabel: getWeatherConditionLabel(condition),
       timestamp: Date.now(),
       hourly,
       daily,
@@ -92,4 +115,17 @@ function getWeatherCondition(code: number): string {
   if (code >= 80 && code <= 82) return 'showers';
   if (code >= 95) return 'stormy';
   return 'clear';
+}
+
+export function getWeatherConditionLabel(condition: string): string {
+  switch (condition) {
+    case 'clear': return 'Ensoleillé';
+    case 'cloudy': return 'Nuageux';
+    case 'foggy': return 'Brumeux';
+    case 'rainy': return 'Pluvieux';
+    case 'snowy': return 'Neigeux';
+    case 'showers': return 'Averses';
+    case 'stormy': return 'Orageux';
+    default: return 'Dégagé';
+  }
 }

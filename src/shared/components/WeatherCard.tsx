@@ -175,38 +175,76 @@ export const WeatherCard = () => {
               </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={{ paddingVertical: 20 }}>
+            <ScrollView contentContainerStyle={{ paddingVertical: 16 }}>
+              {/* Hero Météo Pro & Compact */}
               <View style={styles.modalHero}>
-                <Feather name={getWeatherIcon(weather?.condition) as any} size={64} color={theme.colors.warning} />
+                <Feather name={getWeatherIcon(weather?.condition) as any} size={52} color={theme.colors.warning} />
                 <Text style={[styles.modalTemp, { color: theme.colors.text }]}>{weather ? `${weather.temperature}°C` : '--'}</Text>
                 <Text style={[styles.modalLoc, { color: theme.colors.textSecondary }]}>{locationName}</Text>
-                <Text style={[styles.modalCondition, { color: theme.colors.textMuted }]}>{weather?.condition || 'Inconnu'}</Text>
-              </View>
-
-              <View style={styles.modalStatsGrid}>
-                <View style={[styles.modalStatCard, { backgroundColor: theme.colors.background }]}>
-                  <Feather name="wind" size={24} color={theme.colors.accent} />
-                  <Text style={[styles.modalStatValue, { color: theme.colors.text }]}>{weather?.windSpeed || '--'} km/h</Text>
-                  <Text style={styles.modalStatLabel}>Vent</Text>
+                <View style={styles.conditionPill}>
+                  <Text style={[styles.modalConditionText, { color: theme.colors.text }]}>
+                    {weather?.conditionLabel || 'Dégagé'}
+                  </Text>
                 </View>
               </View>
 
+              {/* 3 Indicateurs Clés pour l'Entraînement Sprint */}
+              <View style={styles.modalStatsRow}>
+                {/* 1. Vent (km/h + orientation cardinale) */}
+                <View style={styles.modalMetricCard}>
+                  <View style={styles.metricIconWrap}>
+                    <Feather name="wind" size={16} color="#0069E8" />
+                  </View>
+                  <Text style={styles.metricValue}>
+                    {weather?.windSpeed || '--'} <Text style={styles.metricUnit}>km/h</Text>
+                  </Text>
+                  <Text style={styles.metricSub}>
+                    {weather?.windDirection ? `Cap ${weather.windDirection}` : 'Vent'}
+                  </Text>
+                </View>
+
+                {/* 2. Précipitations (Pluie / Piste) */}
+                <View style={styles.modalMetricCard}>
+                  <View style={styles.metricIconWrap}>
+                    <Feather name="cloud-rain" size={16} color="#0284C7" />
+                  </View>
+                  <Text style={styles.metricValue}>
+                    {weather?.precipitation != null ? `${weather.precipitation}` : '0'} <Text style={styles.metricUnit}>mm</Text>
+                  </Text>
+                  <Text style={styles.metricSub}>
+                    {weather?.precipitation && weather.precipitation > 0 ? 'Piste humide' : 'Piste sèche'}
+                  </Text>
+                </View>
+
+                {/* 3. Coucher du soleil */}
+                <View style={styles.modalMetricCard}>
+                  <View style={styles.metricIconWrap}>
+                    <Feather name="sunset" size={16} color="#D97706" />
+                  </View>
+                  <Text style={styles.metricValue}>
+                    {weather?.sunset || '--:--'}
+                  </Text>
+                  <Text style={styles.metricSub}>Coucher</Text>
+                </View>
+              </View>
+
+              {/* Prévisions horaires épurées */}
               <View style={styles.aiSection}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <Text style={styles.aiSectionTitle}>PRÉVISIONS HORAIRES</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <Text style={styles.aiSectionTitle}>PRÉVISIONS HORAIRES (24H)</Text>
                   {selectedDate && (
                     <TouchableOpacity onPress={() => setSelectedDate(null)}>
-                      <Text style={{ fontSize: 12, color: theme.colors.accent, fontWeight: 'bold' }}>Réinitialiser (24h)</Text>
+                      <Text style={{ fontSize: 12, color: '#0069E8', fontWeight: '700' }}>Réinitialiser</Text>
                     </TouchableOpacity>
                   )}
                 </View>
 
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 10, gap: 12 }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 4, gap: 10 }}>
                   {displayHourly.length > 0 ? displayHourly.map((h, i) => (
-                    <View key={i} style={[styles.hourlyCard, { backgroundColor: getThermalBackgroundColor(h.temperature) }]}>
-                      <Text style={[styles.hourlyTime, { color: theme.colors.textSecondary }]}>{h.time}</Text>
-                      <Feather name={getWeatherIcon(h.condition) as any} size={24} color={getWeatherIconColor(h.condition)} style={{ marginVertical: 8 }} />
-                      <Text style={[styles.hourlyTemp, { color: theme.colors.text }]}>{h.temperature}°</Text>
+                    <View key={i} style={styles.hourlyCard}>
+                      <Text style={styles.hourlyTime}>{h.time}</Text>
+                      <Feather name={getWeatherIcon(h.condition) as any} size={22} color={getWeatherIconColor(h.condition)} style={{ marginVertical: 8 }} />
+                      <Text style={styles.hourlyTemp}>{h.temperature}°</Text>
                     </View>
                   )) : (
                     <Text style={{ color: theme.colors.textMuted }}>Aucune donnée horaire disponible.</Text>
@@ -315,70 +353,102 @@ const styles = StyleSheet.create({
   },
   modalHero: {
     alignItems: 'center',
-    marginBottom: 32,
-    paddingVertical: 20,
+    marginBottom: 20,
+    paddingTop: 8,
   },
   modalTemp: {
-    fontSize: 56,
+    fontSize: 48,
     fontWeight: '800',
-    marginTop: 12,
+    marginTop: 8,
+    letterSpacing: -1,
   },
   modalLoc: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    marginTop: 4,
+    marginTop: 2,
   },
-  modalCondition: {
-    fontSize: 14,
-    marginTop: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  modalStatsGrid: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 32,
-  },
-  modalStatCard: {
-    flex: 1,
-    padding: 20,
+  conditionPill: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     borderRadius: 20,
-    alignItems: 'center',
-  },
-  modalStatValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginTop: 12,
-  },
-  modalStatLabel: {
-    fontSize: 12,
-    color: '#94A3B8',
-    marginTop: 4,
-    textTransform: 'uppercase',
-  },
-  aiSection: {
     marginTop: 8,
   },
-  aiSectionTitle: {
+  modalConditionText: {
     fontSize: 12,
-    fontWeight: 'bold',
-    color: '#94A3B8',
-    letterSpacing: 1,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  modalStatsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 24,
+  },
+  modalMetricCard: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+  },
+  metricIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 8,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  metricValue: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  metricUnit: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  metricSub: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#94A3B8',
+    marginTop: 3,
+  },
+  aiSection: {
+    marginTop: 4,
+  },
+  aiSectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94A3B8',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
   hourlyCard: {
-    padding: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
     borderRadius: 16,
     alignItems: 'center',
-    width: 70,
+    width: 68,
+    backgroundColor: '#F8FAFC',
   },
   hourlyTime: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
+    color: '#64748B',
   },
   hourlyTemp: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
   },
   dailyCard: {
     flexDirection: 'row',
