@@ -140,19 +140,13 @@ export const CoachTabBar: React.FC<BottomTabBarProps> = ({
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const [containerWidth, setContainerWidth] = useState(0);
+  const translateXAnim = useRef(new Animated.Value(0)).current;
 
   const visibleRoutes = state.routes.filter((route) => COACH_TABS[route.name]);
   const activeRoute = state.routes[state.index];
   const activeVisibleIndex = visibleRoutes.findIndex((r) => r.name === activeRoute?.name);
 
-  const focusedDescriptor = descriptors[activeRoute?.key];
-  const tabBarStyle = focusedDescriptor?.options?.tabBarStyle as any;
-  if (tabBarStyle && tabBarStyle.display === 'none') {
-    return null;
-  }
-
   const tabWidth = containerWidth > 0 ? (containerWidth - 16) / Math.max(1, visibleRoutes.length) : 0;
-  const translateXAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (activeVisibleIndex >= 0 && tabWidth > 0) {
@@ -164,6 +158,12 @@ export const CoachTabBar: React.FC<BottomTabBarProps> = ({
       }).start();
     }
   }, [activeVisibleIndex, tabWidth]);
+
+  const focusedDescriptor = descriptors[activeRoute?.key];
+  const tabBarStyle = focusedDescriptor?.options?.tabBarStyle as any;
+  if (tabBarStyle && tabBarStyle.display === 'none') {
+    return null;
+  }
 
   const handleLayout = (e: LayoutChangeEvent) => {
     const width = e.nativeEvent.layout.width;
