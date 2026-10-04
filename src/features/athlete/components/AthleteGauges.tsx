@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTheme } from '../../../core/theme';
 import { Feather } from '@expo/vector-icons';
@@ -84,26 +84,20 @@ export const AthleteGauges = () => {
     <View style={styles.container}>
       {/* 1. Main Pill: Check-In / Readiness */}
       <TouchableOpacity onPress={handleCheckInPress} activeOpacity={0.8} style={[styles.mainCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-        {!showScore ? (
-          <LinearGradient
-            colors={['#0026AE', '#00DCFD']} // Sprintflow logo gradient
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.gradientCard}
-          >
+          <View style={[styles.gradientCard, { backgroundColor: '#0F172A' }]}>
             <View style={styles.mainPillContent}>
               <View style={styles.iconCircleWhite}>
-                <Feather name="activity" size={24} color="#0069E8" />
+                <Feather name="activity" size={24} color="#0F172A" />
               </View>
               <View style={styles.mainPillText}>
                 <Text style={styles.mainTitleWhite}>Faire le Check-In</Text>
-                <Text style={styles.mainSubtitleWhite}>Action matinale requise âœ¨</Text>
+                <Text style={styles.mainSubtitleWhite}>Action matinale requise</Text>
               </View>
               <View style={styles.chevronCircle}>
                 <Feather name="chevron-right" size={20} color="#FFF" />
               </View>
             </View>
-          </LinearGradient>
+          </View>
         ) : (
           <View style={[styles.gradientCard, { padding: 16 }]}>
             <View style={styles.mainPillContent}>
@@ -176,13 +170,8 @@ const styles = StyleSheet.create({
   mainCard: {
     width: '100%',
     borderRadius: 24,
-    borderWidth: 1,
+    borderWidth: 0,
     overflow: 'hidden',
-    shadowColor: '#0026AE',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.1,
-    shadowRadius: 15,
-    elevation: 5,
   },
   gradientCard: {
     width: '100%',
@@ -256,13 +245,9 @@ const styles = StyleSheet.create({
   secondaryPillWrapper: {
     flex: 1,
     borderRadius: 20,
-    borderWidth: 1,
+    borderWidth: 0,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    backgroundColor: '#F8FAFC',
   },
   secondaryHeader: {
     alignItems: 'flex-start',

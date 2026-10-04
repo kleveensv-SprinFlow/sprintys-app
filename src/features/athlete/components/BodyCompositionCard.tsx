@@ -1,4 +1,4 @@
-﻿import React, { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTheme } from '../../../core/theme';
 import { Feather } from '@expo/vector-icons';
@@ -38,10 +38,8 @@ export const BodyCompositionCard = () => {
       >
         <View style={styles.circlesContainer}>
           {bodyFat && (
-            <View style={styles.sideCircleContainer}>
-              <View style={[styles.sideCircle, { borderColor: theme.colors.warning }]}>
-                <Text style={[styles.sideCircleText, { color: theme.colors.text }]}>{bodyFat}</Text>
-              </View>
+            <View style={styles.sideStatContainer}>
+              <Text style={[styles.sideStatValue, { color: theme.colors.text }]}>{bodyFat}</Text>
               <Text style={[styles.circleLabel, { color: theme.colors.textSecondary }]}>Masse Grasse</Text>
             </View>
           )}
@@ -55,11 +53,9 @@ export const BodyCompositionCard = () => {
           </View>
 
           {muscleMass && (
-            <View style={styles.sideCircleContainer}>
-              <View style={[styles.sideCircle, { borderColor: theme.colors.success }]}>
-                <Text style={[styles.sideCircleText, { color: theme.colors.text }]}>{muscleMass}</Text>
-              </View>
-              <Text style={[styles.circleLabel, { color: theme.colors.textSecondary }]}>Masse Muscle</Text>
+            <View style={styles.sideStatContainer}>
+              <Text style={[styles.sideStatValue, { color: theme.colors.text }]}>{muscleMass}</Text>
+              <Text style={[styles.circleLabel, { color: theme.colors.textSecondary }]}>Masse Musculaire</Text>
             </View>
           )}
         </View>
@@ -91,57 +87,47 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: 24,
-    borderWidth: 1,
+    borderWidth: 0,
+    backgroundColor: '#F8FAFC',
     padding: 24,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 4,
   },
   circlesContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'center',
     gap: 20,
   },
   mainCircleContainer: {
     alignItems: 'center',
   },
-  sideCircleContainer: {
+  sideStatContainer: {
     alignItems: 'center',
-    paddingBottom: 8,
+    paddingBottom: 24,
   },
   mainCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 6,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    borderWidth: 5,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
   },
-  sideCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
   mainCircleText: {
-    fontSize: 32,
-    fontWeight: 'bold',
+    fontSize: 34,
+    fontWeight: '900',
+    letterSpacing: -1,
   },
   mainCircleUnit: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
+    marginTop: -4,
   },
-  sideCircleText: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  sideStatValue: {
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 4,
   },
   circleLabel: {
     fontSize: 13,

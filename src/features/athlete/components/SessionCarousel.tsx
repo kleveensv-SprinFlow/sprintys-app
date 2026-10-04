@@ -1,4 +1,4 @@
-﻿import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
@@ -484,8 +484,8 @@ const styles = StyleSheet.create({
   restCard: {
     justifyContent: 'center',
     alignItems: 'center',
-    borderStyle: 'dashed',
-    borderWidth: 1.5,
+    borderStyle: 'solid',
+    borderWidth: 0,
   },
   restTitle: {
     fontSize: 18,
