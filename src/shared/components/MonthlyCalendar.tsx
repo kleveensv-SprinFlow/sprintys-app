@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -83,6 +83,7 @@ interface MonthlyCalendarProps {
   onPressPeriodBadge?: (period: TrainingPeriod) => void;
   onPressCreatePeriod?: (date: Date) => void;
   isCoach?: boolean;
+  glassMode?: boolean;
   onMonthChange?: (year: number, month: number) => void;
 }
 
@@ -108,9 +109,11 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
   onPressPeriodBadge,
   onPressCreatePeriod,
   isCoach = false,
+  glassMode,
   onMonthChange,
 }) => {
   const theme = useTheme();
+  const isGlass = glassMode ?? isCoach;
   const [currentMonth, setCurrentMonth] = useState(
     new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1)
   );
@@ -258,35 +261,43 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
   const totalWeeks = weeks.length;
 
   return (
-    <View style={[styles.container, { backgroundColor: '#FFFFFF' }]} {...panResponder.panHandlers}>
+    <View style={[styles.container, { backgroundColor: isGlass ? 'transparent' : '#FFFFFF' }]} {...panResponder.panHandlers}>
       {/* === Header (< Septembre 2026 >) === */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={[styles.monthTitle, { color: theme.colors.text }]}>
+          <Text style={[styles.monthTitle, { color: isGlass ? '#0F172A' : theme.colors.text }]}>
             {MONTH_NAMES[currentMonth.getMonth()]}
           </Text>
-          <Text style={[styles.yearSubtitle, { color: theme.colors.textSecondary }]}>
+          <Text style={[styles.yearSubtitle, { color: isGlass ? '#334155' : theme.colors.textSecondary }]}>
             {currentMonth.getFullYear()}
           </Text>
         </View>
 
-        <View style={[styles.navPills, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        <View style={[
+          styles.navPills,
+          {
+            backgroundColor: isGlass
+              ? (Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.65)' : 'rgba(255, 255, 255, 0.88)')
+              : theme.colors.surface,
+            borderColor: isGlass ? 'rgba(255, 255, 255, 0.85)' : theme.colors.border,
+          }
+        ]}>
           <TouchableOpacity
             onPress={() => navigateMonth('prev')}
             style={styles.navArrow}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Feather name="chevron-left" size={18} color={theme.colors.text} />
+            <Feather name="chevron-left" size={18} color={isGlass ? '#0F172A' : theme.colors.text} />
           </TouchableOpacity>
 
-          <View style={[styles.navDivider, { backgroundColor: theme.colors.border }]} />
+          <View style={[styles.navDivider, { backgroundColor: isGlass ? 'rgba(255, 255, 255, 0.85)' : theme.colors.border }]} />
 
           <TouchableOpacity
             onPress={() => navigateMonth('next')}
             style={styles.navArrow}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Feather name="chevron-right" size={18} color={theme.colors.text} />
+            <Feather name="chevron-right" size={18} color={isGlass ? '#0F172A' : theme.colors.text} />
           </TouchableOpacity>
         </View>
       </View>
@@ -297,8 +308,10 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
           style={[
             styles.periodBadgeRow,
             {
-              backgroundColor: activeSelectedPeriod.color + '18',
-              borderColor: activeSelectedPeriod.color + '45',
+              backgroundColor: isGlass
+                ? (Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.68)' : 'rgba(255, 255, 255, 0.88)')
+                : activeSelectedPeriod.color + '18',
+              borderColor: activeSelectedPeriod.color + (isGlass ? '60' : '45'),
             },
           ]}
           onPress={() => {
@@ -310,7 +323,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
           activeOpacity={isCoach ? 0.7 : 1}
         >
           <View style={[styles.periodDot, { backgroundColor: activeSelectedPeriod.color }]} />
-          <Text style={[styles.periodBadgeText, { color: theme.colors.text }]} numberOfLines={1}>
+          <Text style={[styles.periodBadgeText, { color: isGlass ? '#0F172A' : theme.colors.text }]} numberOfLines={1}>
             Phase active : <Text style={{ fontWeight: '800', color: activeSelectedPeriod.color }}>{activeSelectedPeriod.name}</Text>
           </Text>
           {isCoach && (
@@ -325,8 +338,10 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
             styles.periodBadgeRow,
             styles.periodBadgeRowEmpty,
             {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.border,
+              backgroundColor: isGlass
+                ? (Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.60)' : 'rgba(255, 255, 255, 0.85)')
+                : theme.colors.surface,
+              borderColor: isGlass ? 'rgba(255, 255, 255, 0.85)' : theme.colors.border,
             },
           ]}
           onPress={() => {
@@ -335,8 +350,8 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
           }}
           activeOpacity={0.7}
         >
-          <Feather name="plus-circle" size={13} color={theme.colors.textSecondary} />
-          <Text style={[styles.periodBadgeText, { color: theme.colors.textSecondary }]}>
+          <Feather name="plus-circle" size={13} color={isGlass ? '#0284C7' : theme.colors.textSecondary} />
+          <Text style={[styles.periodBadgeText, { color: isGlass ? '#0F172A' : theme.colors.textSecondary }]}>
             Définir une phase d'entraînement
           </Text>
         </TouchableOpacity>
@@ -351,7 +366,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
               <Text
                 style={[
                   styles.dayLabelText,
-                  { color: isSunday ? '#E11D48' : theme.colors.textSecondary },
+                  { color: isSunday ? '#E11D48' : isGlass ? '#1E293B' : theme.colors.textSecondary },
                 ]}
               >
                 {day}
@@ -387,11 +402,17 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
               // - Else standard clean surface
               const cellBgColor = !item.isCurrentMonth
                 ? 'transparent'
-                : periodColor
-                  ? periodColor + '26' // 15% opacity tint
-                  : hasWorkouts
-                    ? 'rgba(186, 230, 253, 0.08)'
-                    : theme.colors.surface;
+                : isGlass
+                  ? periodColor
+                    ? periodColor + '30'
+                    : hasWorkouts
+                      ? (Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.70)' : 'rgba(255, 255, 255, 0.90)')
+                      : (Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.55)' : 'rgba(255, 255, 255, 0.80)')
+                  : periodColor
+                    ? periodColor + '26' // 15% opacity tint
+                    : hasWorkouts
+                      ? 'rgba(186, 230, 253, 0.08)'
+                      : theme.colors.surface;
 
               const visibleWorkouts = dayWorkouts.slice(0, 3);
               const extraCount = dayWorkouts.length - 3;
@@ -404,12 +425,19 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                     {
                       backgroundColor: cellBgColor,
                       borderColor: selected
-                        ? theme.colors.text
+                        ? '#0F172A'
                         : periodColor
-                          ? periodColor + '40'
-                          : theme.colors.border,
-                      borderWidth: selected ? 1.5 : StyleSheet.hairlineWidth,
+                          ? periodColor + '60'
+                          : isGlass
+                            ? 'rgba(255, 255, 255, 0.85)'
+                            : theme.colors.border,
+                      borderWidth: selected ? 2 : 1,
                       opacity: item.isCurrentMonth ? 1 : 0.28,
+                      shadowColor: '#0F172A',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: isGlass && item.isCurrentMonth ? 0.06 : 0,
+                      shadowRadius: 4,
+                      elevation: isGlass && item.isCurrentMonth ? 1 : 0,
                     },
                   ]}
                   onPress={() => handleDayPress(item.date)}
@@ -418,7 +446,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                   {/* Date number header */}
                   <View style={styles.dateHeaderRow}>
                     {isTodayCell ? (
-                      <View style={[styles.todayNumberBadge, { backgroundColor: theme.colors.text }]}>
+                      <View style={[styles.todayNumberBadge, { backgroundColor: '#0F172A' }]}>
                         <Text style={[styles.todayNumberText, { color: '#FFFFFF' }]}>
                           {item.date.getDate()}
                         </Text>
@@ -429,11 +457,13 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                           styles.dayNumberText,
                           {
                             color: !item.isCurrentMonth
-                              ? theme.colors.border
+                              ? (isGlass ? 'rgba(15, 23, 42, 0.3)' : theme.colors.border)
                               : isSunday
                                 ? '#E11D48'
-                                : theme.colors.text,
-                            fontWeight: selected ? '800' : '600',
+                                : isGlass
+                                  ? '#0F172A'
+                                  : theme.colors.text,
+                            fontWeight: selected ? '800' : '700',
                           },
                         ]}
                       >

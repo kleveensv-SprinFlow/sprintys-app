@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -92,19 +93,20 @@ export default function CoachDashboardScreen() {
         {/* Santé du Groupe (Breathing Aura) */}
         <View style={styles.statsRow}>
           <TouchableOpacity 
-            style={[styles.statCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1, overflow: 'hidden' }]}
+            style={[styles.statCard, { overflow: 'hidden' }]}
             activeOpacity={0.9}
             onPress={() => setTeamHealthVisible(true)}
           >
+            <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFillObject} />
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Feather name="activity" size={20} color={healthColor} />
                 <Text style={styles.statLabel}>SANTÉ DU GROUPE</Text>
               </View>
-              <Feather name="chevron-right" size={20} color={theme.colors.textMuted} />
+              <Feather name="chevron-right" size={20} color="#334155" />
             </View>
-            <Text style={[styles.statValue, { color: theme.colors.text }]}>{avgHealthStr}</Text>
-            <Text style={{ color: theme.colors.textSecondary, fontSize: 13, marginTop: 4, fontWeight: '500' }}>
+            <Text style={styles.statValue}>{avgHealthStr}</Text>
+            <Text style={{ color: '#334155', fontSize: 13, marginTop: 4, fontWeight: '600' }}>
               {avgHealth !== null ? (avgHealth >= 70 ? 'Excellente forme globale' : avgHealth >= 40 ? 'Fatigue modérée - Vigilance' : 'Récupération critique requise') : 'En attente de données'}
             </Text>
           </TouchableOpacity>
@@ -119,8 +121,9 @@ export default function CoachDashboardScreen() {
         </View>
         
         {todayWorkouts.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Feather name="calendar" size={24} color={theme.colors.textMuted} style={{ marginBottom: 12 }} />
+          <View style={[styles.emptyCard, { overflow: 'hidden' }]}>
+            <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFillObject} />
+            <Feather name="calendar" size={24} color="#64748B" style={{ marginBottom: 12 }} />
             <Text style={styles.emptyText}>Aucune séance planifiée pour aujourd'hui.</Text>
             <TouchableOpacity onPress={() => router.push('/(coach)/day/' + todayStr)} style={{ marginTop: 16 }}>
               <Text style={{ color: theme.colors.accent, fontWeight: 'bold' }}>Aller au calendrier</Text>
@@ -130,10 +133,11 @@ export default function CoachDashboardScreen() {
           todayWorkouts.map((workout, index) => (
             <TouchableOpacity 
               key={workout.id || index}
-              style={styles.sessionCard}
+              style={[styles.sessionCard, { overflow: 'hidden' }]}
               activeOpacity={0.8}
               onPress={() => router.push('/(coach)/day/' + (workout.date_prevue ? workout.date_prevue.split('T')[0] : todayStr))}
             >
+              <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFillObject} />
               <View style={styles.sessionCardHeader}>
                 <View style={[styles.sessionBadge, { backgroundColor: workout.type_seance === 'musculation' ? '#3B82F620' : '#F59E0B20' }]}>
                   <Text style={[styles.sessionBadgeText, { color: workout.type_seance === 'musculation' ? '#3B82F6' : '#F59E0B' }]}>
@@ -179,7 +183,7 @@ export default function CoachDashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: 'transparent',
   },
   header: {
     flexDirection: 'row',
@@ -198,8 +202,8 @@ const styles = StyleSheet.create({
   },
   welcomeText: {
     fontSize: 22,
-    fontWeight: 'bold',
-    color: theme.colors.text,
+    fontWeight: '800',
+    color: '#0F172A',
     marginBottom: 4,
     marginTop: 10,
   },
@@ -214,19 +218,30 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     padding: 24,
-    borderRadius: 20,
+    borderRadius: 22,
     alignItems: 'flex-start',
+    backgroundColor:
+      Platform.OS === 'android'
+        ? 'rgba(255, 255, 255, 0.78)'
+        : 'rgba(255, 255, 255, 0.58)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 3,
   },
   statValue: {
     fontSize: 40,
     fontWeight: '900',
-    color: theme.colors.text,
+    color: '#0F172A',
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    color: theme.colors.textMuted,
-    fontWeight: 'bold',
+    color: '#334155',
+    fontWeight: '800',
     letterSpacing: 1,
   },
   sectionHeader: {
@@ -234,18 +249,26 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#94A3B8',
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0F172A',
     letterSpacing: 1,
   },
   sessionCard: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 16,
+    backgroundColor:
+      Platform.OS === 'android'
+        ? 'rgba(255, 255, 255, 0.78)'
+        : 'rgba(255, 255, 255, 0.58)',
+    borderRadius: 20,
     padding: 20,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    marginBottom: 20,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
+    marginBottom: 16,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 3,
   },
   sessionCardHeader: {
     flexDirection: 'row',
@@ -266,46 +289,56 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   sessionDuration: {
-    color: theme.colors.textMuted,
+    color: '#475569',
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   sessionCardTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: theme.colors.text,
+    fontWeight: '800',
+    color: '#0F172A',
     marginBottom: 8,
   },
   sessionCardDesc: {
     fontSize: 13,
-    color: theme.colors.textSecondary,
+    color: '#334155',
     lineHeight: 20,
     marginBottom: 16,
+    fontWeight: '500',
   },
   sessionCardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
+    borderTopColor: 'rgba(255, 255, 255, 0.6)',
     paddingTop: 16,
   },
   sessionCardAction: {
     flex: 1,
     color: theme.colors.accent,
-    fontWeight: '600',
+    fontWeight: '700',
     fontSize: 13,
   },
   emptyCard: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor:
+      Platform.OS === 'android'
+        ? 'rgba(255, 255, 255, 0.78)'
+        : 'rgba(255, 255, 255, 0.58)',
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
     padding: 24,
-    borderRadius: 16,
+    borderRadius: 20,
     alignItems: 'center',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 3,
   },
   emptyText: {
-    color: theme.colors.textMuted,
+    color: '#334155',
     fontSize: 14,
+    fontWeight: '600',
   }
 });
 

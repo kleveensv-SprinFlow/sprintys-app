@@ -1,27 +1,56 @@
+import React from 'react';
+import { ImageBackground, StyleSheet, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Tabs } from 'expo-router';
 import { CoachTabBar } from '../../src/features/coach/components/CoachTabBar';
 
 export default function CoachTabsLayout() {
   return (
-    <Tabs
-      tabBar={(props) => <CoachTabBar {...props} />}
-      screenOptions={{
-        headerShown: false,
-        sceneStyle: { backgroundColor: 'transparent' },
-      }}
-    >
-      <Tabs.Screen name="index" />
-      <Tabs.Screen name="group" />
-      <Tabs.Screen name="calendar" />
-      <Tabs.Screen name="chat" options={{ tabBarStyle: { display: 'none' } }} />
-      <Tabs.Screen name="analyze" options={{ href: null, tabBarStyle: { display: 'none' } }} />
-      
-      {/* Cacher les écrans qui ne sont pas des onglets principaux */}
-      <Tabs.Screen name="profile" options={{ href: null }} />
-      <Tabs.Screen name="library" options={{ href: null }} />
-      <Tabs.Screen name="athlete" options={{ href: null }} />
-      <Tabs.Screen name="assign" options={{ href: null }} />
-    </Tabs>
+    <View style={styles.container}>
+      {/* Arrière-plan global persistant de la piste d'athlétisme */}
+      <ImageBackground
+        source={require('../../assets/track_background.png')}
+        style={StyleSheet.absoluteFillObject}
+        resizeMode="cover"
+      >
+        {/* Voile d'ambiance et d'adoucissement pour un contraste parfait */}
+        <LinearGradient
+          colors={[
+            'rgba(255, 255, 255, 0.40)',
+            'rgba(255, 255, 255, 0.10)',
+            'rgba(240, 246, 255, 0.25)',
+          ]}
+          style={StyleSheet.absoluteFillObject}
+          pointerEvents="none"
+        />
+      </ImageBackground>
+
+      <Tabs
+        tabBar={(props) => <CoachTabBar {...props} />}
+        screenOptions={{
+          headerShown: false,
+          sceneStyle: { backgroundColor: 'transparent' },
+        }}
+      >
+        <Tabs.Screen name="index" />
+        <Tabs.Screen name="group" />
+        <Tabs.Screen name="calendar" />
+        <Tabs.Screen name="chat" options={{ tabBarStyle: { display: 'none' } }} />
+        <Tabs.Screen name="analyze" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+        
+        {/* Cacher les écrans qui ne sont pas des onglets principaux */}
+        <Tabs.Screen name="profile" options={{ href: null }} />
+        <Tabs.Screen name="library" options={{ href: null }} />
+        <Tabs.Screen name="athlete" options={{ href: null }} />
+        <Tabs.Screen name="assign" options={{ href: null }} />
+      </Tabs>
+    </View>
   );
 }
 
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0F172A',
+  },
+});

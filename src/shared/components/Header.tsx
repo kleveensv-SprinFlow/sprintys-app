@@ -9,20 +9,29 @@ interface HeaderProps {
   rightComponent?: React.ReactNode;
   showBackButton?: boolean;
   onBackPress?: () => void;
+  transparent?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ title, rightComponent, showBackButton, onBackPress }) => {
+export const Header: React.FC<HeaderProps> = ({ title, rightComponent, showBackButton, onBackPress, transparent }) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const titleColor = transparent ? '#0F172A' : theme.colors.text;
 
   return (
-    <View style={[styles.container, { paddingTop: Math.max(insets.top, 16) + 6, backgroundColor: theme.colors.background }]}>
+    <View style={[
+      styles.container, 
+      { 
+        paddingTop: Math.max(insets.top, 16) + 6, 
+        backgroundColor: transparent ? 'transparent' : theme.colors.background,
+        borderBottomColor: transparent ? 'transparent' : 'rgba(0,0,0,0.05)',
+      }
+    ]}>
       {showBackButton && (
         <TouchableOpacity style={styles.leftContainer} onPress={onBackPress}>
-          <Feather name="chevron-left" size={28} color={theme.colors.text} />
+          <Feather name="chevron-left" size={28} color={titleColor} />
         </TouchableOpacity>
       )}
-      <Text style={[styles.title, { color: theme.colors.text }]}>
+      <Text style={[styles.title, { color: titleColor }]}>
         {title}
       </Text>
       {rightComponent && (
