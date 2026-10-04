@@ -252,6 +252,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         options: {
           redirectTo: redirectUrl,
           skipBrowserRedirect: true,
+          queryParams: {
+            prompt: 'select_account',
+            access_type: 'offline',
+          },
         },
       });
 
@@ -575,23 +579,42 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   reloadProfile: async () => {
-    const { user } = get();
-    if (!user?.id) return;
     try {
-      const { data: profile, error } = await supabase
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session?.user) {
+        set({ isLoading: false });
+        return;
+      }
+
+      const userId = session.user.id;
+      let { data: profile } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user.id)
+        .eq('id', userId)
         .maybeSingle();
 
-      if (profile && !error) {
-        const { data: { session } } = await supabase.auth.getSession();
-        const userProfile = buildUserProfile(session?.user || { id: user.id, email: user.email }, profile);
-        await AsyncStorage.setItem(CACHE_PROFILE_KEY, JSON.stringify(userProfile));
-        set({ user: userProfile });
+      if (!profile) {
+        const newProfile = {
+          id: userId,
+          full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Utilisateur',
+          first_name: session.user.user_metadata?.first_name || null,
+          last_name: session.user.user_metadata?.last_name || null,
+          role: session.user.user_metadata?.role || 'athlete',
+        };
+        const { data: upserted } = await supabase
+          .from('profiles')
+          .upsert(newProfile)
+          .select()
+          .maybeSingle();
+        if (upserted) profile = upserted;
       }
+
+      const userProfile = buildUserProfile(session.user, profile);
+      await AsyncStorage.setItem(CACHE_PROFILE_KEY, JSON.stringify(userProfile));
+      set({ user: userProfile, isLoading: false, isInitialized: true, error: null });
     } catch (err) {
       console.warn('Error reloading profile in store:', err);
+      set({ isLoading: false });
     }
   },
 }));
