@@ -111,9 +111,9 @@ export const MultiTargetSelectorModal: React.FC<MultiTargetSelectorModalProps> =
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Feather name="x" size={24} color={theme.colors.text} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>{title}</Text>
+          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>{title.toUpperCase()}</Text>
           <TouchableOpacity onPress={handleSave} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Text style={[styles.saveButtonText, { color: theme.colors.accent }]}>Valider</Text>
+            <Text style={[styles.saveButtonText, { color: '#0069E8' }]}>Valider</Text>
           </TouchableOpacity>
         </View>
 
@@ -123,41 +123,43 @@ export const MultiTargetSelectorModal: React.FC<MultiTargetSelectorModalProps> =
             style={[
               styles.optionRow,
               { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-              isAllSelected && { borderColor: theme.colors.accent, backgroundColor: theme.colors.accent + '10' }
+              isAllSelected && { borderColor: '#0069E8', backgroundColor: '#0069E810' }
             ]}
             onPress={handleSelectAll}
             activeOpacity={0.7}
           >
             <View style={styles.optionContent}>
-              <View style={[styles.iconBox, { backgroundColor: theme.colors.accent + '20' }]}>
-                <Feather name="users" size={18} color={theme.colors.accent} />
+              <View style={[styles.iconBox, { backgroundColor: '#0069E820' }]}>
+                <Feather name="users" size={18} color="#0069E8" />
               </View>
-              <Text style={[styles.optionName, { color: theme.colors.text }]}>Tout le groupe</Text>
+              <Text style={[styles.optionName, { color: theme.colors.text }]}>TOUT LE GROUPE</Text>
             </View>
-            <View style={[styles.checkbox, isAllSelected && { backgroundColor: theme.colors.accent, borderColor: theme.colors.accent }]}>
+            <View style={[styles.checkbox, isAllSelected && { backgroundColor: '#0069E8', borderColor: '#0069E8' }]}>
               {isAllSelected && <Feather name="check" size={14} color="#FFF" />}
             </View>
           </TouchableOpacity>
 
           <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>SOUS-GROUPES</Text>
-          <View style={styles.sectionContainer}>
-            {subgroups.map((sg, index) => {
+          <View style={styles.pillsContainer}>
+            {subgroups.map((sg) => {
               const isSelected = selectedSubgroups.has(sg.id);
-              const isLast = index === subgroups.length - 1;
               return (
                 <TouchableOpacity
                   key={sg.id}
                   style={[
-                    styles.itemRow,
-                    !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.border }
+                    styles.pill,
+                    { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+                    isSelected && { backgroundColor: '#0069E8', borderColor: '#0069E8' }
                   ]}
                   onPress={() => handleToggleSubgroup(sg.id)}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.itemName, { color: theme.colors.text }]}>{sg.name}</Text>
-                  <View style={[styles.checkbox, isSelected && { backgroundColor: theme.colors.accent, borderColor: theme.colors.accent }]}>
-                    {isSelected && <Feather name="check" size={14} color="#FFF" />}
-                  </View>
+                  <Text style={[
+                    styles.pillText,
+                    { color: isSelected ? '#FFFFFF' : theme.colors.text }
+                  ]}>
+                    {sg.name.toUpperCase()}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
@@ -167,31 +169,28 @@ export const MultiTargetSelectorModal: React.FC<MultiTargetSelectorModalProps> =
           </View>
 
           <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary, marginTop: 24 }]}>ATHLÈTES</Text>
-          <View style={styles.sectionContainer}>
-            {approvedMembers.map((member, index) => {
+          <View style={styles.pillsContainer}>
+            {approvedMembers.map((member) => {
               const isSelected = selectedAthletes.has(member.user_id);
-              const isLast = index === approvedMembers.length - 1;
               const name = `${member.profile?.first_name || ''} ${member.profile?.last_name || ''}`.trim() || 'Athlète';
               
               return (
                 <TouchableOpacity
                   key={member.user_id}
                   style={[
-                    styles.itemRow,
-                    !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.border }
+                    styles.pill,
+                    { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+                    isSelected && { backgroundColor: '#0069E8', borderColor: '#0069E8' }
                   ]}
                   onPress={() => handleToggleAthlete(member.user_id)}
                   activeOpacity={0.7}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <View style={styles.avatarPlaceholder}>
-                      <Text style={styles.avatarText}>{name.charAt(0).toUpperCase()}</Text>
-                    </View>
-                    <Text style={[styles.itemName, { color: theme.colors.text, marginLeft: 12 }]}>{name}</Text>
-                  </View>
-                  <View style={[styles.checkbox, isSelected && { backgroundColor: theme.colors.accent, borderColor: theme.colors.accent }]}>
-                    {isSelected && <Feather name="check" size={14} color="#FFF" />}
-                  </View>
+                  <Text style={[
+                    styles.pillText,
+                    { color: isSelected ? '#FFFFFF' : theme.colors.text }
+                  ]}>
+                    {name.toUpperCase()}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
@@ -260,25 +259,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 0.5,
-    marginBottom: 8,
+    marginBottom: 12,
     marginLeft: 4,
   },
-  sectionContainer: {
-    backgroundColor: '#FFFFFF', // Overridden by theme usually but let's assume it matches surface
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  itemRow: {
+  pillsContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
+    flexWrap: 'wrap',
+    gap: 10,
   },
-  itemName: {
-    fontSize: 16,
-    fontWeight: '500',
+  pill: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  pillText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   checkbox: {
     width: 22,
@@ -289,18 +286,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarPlaceholder: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#E2E8F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#64748B',
-  },
 });
-

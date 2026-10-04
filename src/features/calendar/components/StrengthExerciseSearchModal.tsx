@@ -349,7 +349,9 @@ export const StrengthExerciseSearchModal: React.FC<StrengthExerciseSearchModalPr
                                   Exercice personnalisé coach
                                 </Text>
                               </View>
-                              <Feather name="plus-circle" size={20} color={theme.colors.accent} />
+                              <View style={{ backgroundColor: theme.colors.accent + '20', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
+                                <Text style={{ color: theme.colors.accent, fontWeight: '700', fontSize: 13 }}>Ajouter</Text>
+                              </View>
                             </TouchableOpacity>
                           );
                         })}
@@ -392,8 +394,17 @@ export const StrengthExerciseSearchModal: React.FC<StrengthExerciseSearchModalPr
                                     {item.name_en}
                                   </Text>
                                 )}
+                                {item.equipment && (
+                                  <View style={{ alignSelf: 'flex-start', backgroundColor: theme.colors.border, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginTop: 4 }}>
+                                    <Text style={{ fontSize: 10, color: theme.colors.textSecondary, fontWeight: '600', textTransform: 'capitalize' }}>
+                                      {item.equipment}
+                                    </Text>
+                                  </View>
+                                )}
                               </View>
-                              <Feather name="plus-circle" size={20} color={theme.colors.accent} />
+                              <View style={{ backgroundColor: theme.colors.accent + '20', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
+                                <Text style={{ color: theme.colors.accent, fontWeight: '700', fontSize: 13 }}>Ajouter</Text>
+                              </View>
                             </TouchableOpacity>
                           );
                         })}

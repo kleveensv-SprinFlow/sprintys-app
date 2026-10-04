@@ -40,6 +40,14 @@ export const RestTimePickerModal: React.FC<RestTimePickerModalProps> = ({
   const minScrollRef = useRef<ScrollView>(null);
   const secScrollRef = useRef<ScrollView>(null);
 
+  const presets = [
+    { label: '45 s', value: 45 },
+    { label: '1 min', value: 60 },
+    { label: '1m30', value: 90 },
+    { label: '2 min', value: 120 },
+    { label: '3 min', value: 180 },
+  ];
+
   useEffect(() => {
     if (visible) {
       const mins = Math.floor(initialSeconds / 60);
@@ -47,7 +55,6 @@ export const RestTimePickerModal: React.FC<RestTimePickerModalProps> = ({
       setSelectedMinutes(Math.min(15, Math.max(0, mins)));
       setSelectedSeconds(Math.min(55, Math.max(0, secs)));
 
-      // Auto-scroll to initial positions
       setTimeout(() => {
         const minIndex = MINUTES_LIST.indexOf(Math.min(15, Math.max(0, mins)));
         const secIndex = SECONDS_LIST.indexOf(Math.min(55, Math.max(0, secs)));
@@ -80,7 +87,13 @@ export const RestTimePickerModal: React.FC<RestTimePickerModalProps> = ({
   const handleConfirm = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const total = selectedMinutes * 60 + selectedSeconds;
-    onConfirm(Math.max(5, total)); // minimum 5 seconds
+    onConfirm(Math.max(5, total));
+    onClose();
+  };
+
+  const handlePresetTap = (totalSeconds: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onConfirm(totalSeconds);
     onClose();
   };
 
@@ -98,6 +111,22 @@ export const RestTimePickerModal: React.FC<RestTimePickerModalProps> = ({
             </TouchableOpacity>
           </View>
 
+          {/* Presets Row */}
+          <View style={styles.presetsContainer}>
+            {presets.map((preset) => (
+              <TouchableOpacity
+                key={preset.value}
+                style={[styles.presetBtn, { backgroundColor: theme.colors.background }]}
+                onPress={() => handlePresetTap(preset.value)}
+              >
+                <Text style={[styles.presetText, { color: theme.colors.text }]}>{preset.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Divider */}
+          <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
+
           {/* Column Headers */}
           <View style={styles.columnsHeader}>
             <Text style={[styles.columnLabel, { color: theme.colors.textSecondary }]}>Minutes</Text>
@@ -106,13 +135,13 @@ export const RestTimePickerModal: React.FC<RestTimePickerModalProps> = ({
 
           {/* Wheel Selector Area */}
           <View style={styles.wheelsContainer}>
-            {/* Center Active Highlight Bar */}
             <View
               style={[
                 styles.activeHighlightBar,
                 {
                   backgroundColor: theme.colors.background,
-                  borderColor: theme.colors.border,
+                  borderColor: '#0069E8', // Bleu électrique border for selection
+                  borderWidth: 2,
                 },
               ]}
               pointerEvents="none"
@@ -120,7 +149,6 @@ export const RestTimePickerModal: React.FC<RestTimePickerModalProps> = ({
               <Text style={[styles.colonSeparator, { color: theme.colors.text }]}>:</Text>
             </View>
 
-            {/* Minutes Wheel */}
             <View style={styles.wheelColumn}>
               <ScrollView
                 ref={minScrollRef}
@@ -128,9 +156,7 @@ export const RestTimePickerModal: React.FC<RestTimePickerModalProps> = ({
                 snapToInterval={ITEM_HEIGHT}
                 decelerationRate="fast"
                 onMomentumScrollEnd={handleMinScrollEnd}
-                contentContainerStyle={{
-                  paddingVertical: ITEM_HEIGHT, // padding to center top and bottom items
-                }}
+                contentContainerStyle={{ paddingVertical: ITEM_HEIGHT }}
               >
                 {MINUTES_LIST.map((min) => {
                   const isSelected = selectedMinutes === min;
@@ -151,7 +177,7 @@ export const RestTimePickerModal: React.FC<RestTimePickerModalProps> = ({
                         style={[
                           styles.itemText,
                           {
-                            color: isSelected ? theme.colors.text : theme.colors.textMuted,
+                            color: isSelected ? '#0069E8' : theme.colors.textMuted,
                             fontWeight: isSelected ? '800' : '400',
                             opacity: isSelected ? 1 : 0.4,
                           },
@@ -165,7 +191,6 @@ export const RestTimePickerModal: React.FC<RestTimePickerModalProps> = ({
               </ScrollView>
             </View>
 
-            {/* Secondes Wheel */}
             <View style={styles.wheelColumn}>
               <ScrollView
                 ref={secScrollRef}
@@ -173,9 +198,7 @@ export const RestTimePickerModal: React.FC<RestTimePickerModalProps> = ({
                 snapToInterval={ITEM_HEIGHT}
                 decelerationRate="fast"
                 onMomentumScrollEnd={handleSecScrollEnd}
-                contentContainerStyle={{
-                  paddingVertical: ITEM_HEIGHT,
-                }}
+                contentContainerStyle={{ paddingVertical: ITEM_HEIGHT }}
               >
                 {SECONDS_LIST.map((sec) => {
                   const isSelected = selectedSeconds === sec;
@@ -196,7 +219,7 @@ export const RestTimePickerModal: React.FC<RestTimePickerModalProps> = ({
                         style={[
                           styles.itemText,
                           {
-                            color: isSelected ? theme.colors.text : theme.colors.textMuted,
+                            color: isSelected ? '#0069E8' : theme.colors.textMuted,
                             fontWeight: isSelected ? '800' : '400',
                             opacity: isSelected ? 1 : 0.4,
                           },
@@ -211,22 +234,12 @@ export const RestTimePickerModal: React.FC<RestTimePickerModalProps> = ({
             </View>
           </View>
 
-          {/* Quick Info */}
-          <Text style={[styles.durationSummary, { color: theme.colors.textSecondary }]}>
-            Durée sélectionnée :{' '}
-            <Text style={{ color: theme.colors.accent, fontWeight: '800' }}>
-              {selectedMinutes > 0 ? `${selectedMinutes} min ` : ''}
-              {selectedSeconds > 0 || selectedMinutes === 0 ? `${selectedSeconds} s` : ''}
-            </Text>
-          </Text>
-
-          {/* Valider Button */}
           <TouchableOpacity
-            style={[styles.confirmBtn, { backgroundColor: theme.colors.accent }]}
+            style={[styles.confirmBtn, { backgroundColor: '#0F172A' }]}
             onPress={handleConfirm}
             activeOpacity={0.8}
           >
-            <Text style={styles.confirmBtnText}>Valider</Text>
+            <Text style={styles.confirmBtnText}>Valider ce temps</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -274,6 +287,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  presetsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  presetBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  presetText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  divider: {
+    width: '100%',
+    height: 1,
+    marginBottom: 16,
+  },
   columnsHeader: {
     width: '100%',
     flexDirection: 'row',
@@ -302,7 +336,6 @@ const styles = StyleSheet.create({
     right: 10,
     height: ITEM_HEIGHT,
     borderRadius: 14,
-    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -324,16 +357,13 @@ const styles = StyleSheet.create({
     fontSize: 30,
     letterSpacing: 1,
   },
-  durationSummary: {
-    fontSize: 13,
-    marginVertical: 14,
-  },
   confirmBtn: {
     width: '100%',
     paddingVertical: 14,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 10,
   },
   confirmBtnText: {
     color: '#FFFFFF',

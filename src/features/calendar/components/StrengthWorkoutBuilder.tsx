@@ -33,17 +33,24 @@ import {
   MultiTarget,
 } from '../../../shared/components/MultiTargetSelectorModal';
 
+export interface StrengthSetItem {
+  id: string;
+  reps: number;
+  weight: number;
+}
+
 export interface StrengthExerciseItem {
   id: string;
   catalog_id?: string;
   name: string;
   name_en?: string;
-  setsCount: number;
-  repsCount: number;
-  weight: number; // in kg or %
+  setsCount: number; // Keeping for legacy/compatibility if needed
+  repsCount: number; // Keeping for legacy/compatibility if needed
+  weight: number;    // Keeping for legacy/compatibility if needed
   weightType: 'kg' | 'percent_1rm';
   restSets: number; // in seconds
   targets: MultiTarget;
+  sets: StrengthSetItem[];
 }
 
 interface StrengthWorkoutBuilderProps {
@@ -110,6 +117,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
   const [setsCount, setSetsCount] = useState<number>(4);
   const [repsCount, setRepsCount] = useState<number>(10);
   const [weightValueText, setWeightValueText] = useState<string>('0');
+  const [setsData, setSetsData] = useState<StrengthSetItem[]>([]);
   const [weightType, setWeightType] = useState<'kg' | 'percent_1rm'>('kg');
   const [restSets, setRestSets] = useState<number>(90); // 90s default for strength
 
@@ -167,18 +175,40 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
       }
 
       if (exList.length > 0) {
-        const loaded: StrengthExerciseItem[] = exList.map((ex: any) => ({
-          id: ex.id || String(uuid.v4()),
-          catalog_id: ex.catalog_id,
-          name: ex.name,
-          name_en: ex.name_en,
-          setsCount: ex.sets?.length || ex.sets_count || 4,
-          repsCount: ex.sets?.[0]?.reps || ex.reps_count || 10,
-          weight: ex.sets?.[0]?.weight || ex.weight || 0,
-          weightType: ex.sets?.[0]?.weight_type || ex.sets?.[0]?.weightType || ex.weight_type || 'kg',
-          restSets: ex.sets?.[0]?.restSeconds || ex.rest_between_sets_s || 90,
-          targets: ex.targets || { subgroups: [], athletes: [] },
-        }));
+        const loaded: StrengthExerciseItem[] = exList.map((ex: any) => {
+          const loadedSetsCount = ex.sets?.length || ex.sets_count || 4;
+          const defaultReps = ex.sets?.[0]?.reps || ex.reps_count || 10;
+          const defaultWeight = ex.sets?.[0]?.weight || ex.weight || 0;
+          
+          let parsedSets: StrengthSetItem[] = [];
+          if (ex.sets && Array.isArray(ex.sets) && ex.sets.length > 0) {
+            parsedSets = ex.sets.map((s: any) => ({
+              id: String(uuid.v4()),
+              reps: s.reps || defaultReps,
+              weight: s.weight || defaultWeight,
+            }));
+          } else {
+            parsedSets = Array.from({ length: loadedSetsCount }).map(() => ({
+              id: String(uuid.v4()),
+              reps: defaultReps,
+              weight: defaultWeight,
+            }));
+          }
+
+          return {
+            id: ex.id || String(uuid.v4()),
+            catalog_id: ex.catalog_id,
+            name: ex.name,
+            name_en: ex.name_en,
+            setsCount: loadedSetsCount,
+            repsCount: defaultReps,
+            weight: defaultWeight,
+            weightType: ex.sets?.[0]?.weight_type || ex.sets?.[0]?.weightType || ex.weight_type || 'kg',
+            restSets: ex.sets?.[0]?.restSeconds || ex.rest_between_sets_s || 90,
+            targets: ex.targets || { subgroups: [], athletes: [] },
+            sets: parsedSets,
+          };
+        });
         setSessionExercises(loaded);
       }
     } else if (visible && !initialWorkout) {
@@ -293,11 +323,16 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
     setExerciseNameEn(undefined);
     setCatalogId(undefined);
     setExTargets({ subgroups: [], athletes: [] });
-    // We intentionally keep setsCount, repsCount, weightValueText, weightType, restSets from memory!
+    const parsedWeight = parseFloat(weightValueText.replace(',', '.')) || 0;
+    const initialSets = Array.from({ length: setsCount }).map(() => ({
+      id: String(uuid.v4()),
+      reps: repsCount,
+      weight: parsedWeight,
+    }));
+    setSetsData(initialSets);
     setIsExerciseSheetVisible(true);
   };
 
-  // Open "Modifier l'exercice" sheet
   const handleStartEdit = (item: StrengthExerciseItem) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setEditingId(item.id);
@@ -310,6 +345,18 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
     setWeightType(item.weightType);
     setRestSets(item.restSets);
     setExTargets(item.targets || { subgroups: [], athletes: [] });
+    
+    if (item.sets && item.sets.length > 0) {
+      setSetsData([...item.sets]);
+    } else {
+      const initialSets = Array.from({ length: item.setsCount }).map(() => ({
+        id: String(uuid.v4()),
+        reps: item.repsCount,
+        weight: item.weight || 0,
+      }));
+      setSetsData(initialSets);
+    }
+    
     setIsExerciseSheetVisible(true);
   };
 
@@ -343,6 +390,15 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
     setWeightType(targetWeightType);
     setRestSets(targetRest);
     setExTargets({ subgroups: [], athletes: [] });
+    
+    const parsedWeight = parseFloat(targetWeight.replace(',', '.')) || 0;
+    const initialSets = Array.from({ length: targetSets }).map(() => ({
+      id: String(uuid.v4()),
+      reps: targetReps,
+      weight: parsedWeight,
+    }));
+    setSetsData(initialSets);
+    
     setIsExerciseSheetVisible(true);
   };
 
@@ -354,15 +410,18 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
       return;
     }
 
-    if (setsCount <= 0) {
+    if (setsData.length === 0) {
       Alert.alert('Séries requises', 'Veuillez renseigner au moins 1 série.');
       return;
     }
 
-    const parsedWeight = parseFloat(weightValueText.replace(',', '.')) || 0;
+    // Update counts from setsData
+    const updatedSetsCount = setsData.length;
+    const updatedRepsCount = setsData.length > 0 ? setsData[0].reps : 0;
+    const updatedWeight = setsData.length > 0 ? setsData[0].weight : 0;
 
     // Persist all values in AsyncStorage for instant pre-fill on next exercise
-    saveStrengthMemory(setsCount, repsCount, weightValueText, weightType, restSets);
+    saveStrengthMemory(updatedSetsCount, updatedRepsCount, String(updatedWeight), weightType, restSets);
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
@@ -376,12 +435,13 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
                 name: trimmed,
                 name_en: exerciseNameEn,
                 catalog_id: catalogId,
-                setsCount,
-                repsCount,
-                weight: parsedWeight,
+                setsCount: updatedSetsCount,
+                repsCount: updatedRepsCount,
+                weight: updatedWeight,
                 weightType,
                 restSets,
                 targets: exTargets,
+                sets: setsData,
               }
             : item
         )
@@ -393,12 +453,13 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
         catalog_id: catalogId,
         name: trimmed,
         name_en: exerciseNameEn,
-        setsCount,
-        repsCount,
-        weight: parsedWeight,
+        setsCount: updatedSetsCount,
+        repsCount: updatedRepsCount,
+        weight: updatedWeight,
         weightType,
         restSets,
         targets: exTargets,
+        sets: setsData,
       };
       setSessionExercises((prev) => [...prev, newEx]);
     }
@@ -487,18 +548,18 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
           name: ex.name,
           name_en: ex.name_en,
           category: 'musculation',
-          sets_count: ex.setsCount,
-          reps_count: ex.repsCount,
-          weight: ex.weight,
+          sets_count: ex.sets.length,
+          reps_count: ex.sets.length > 0 ? ex.sets[0].reps : 0,
+          weight: ex.sets.length > 0 ? ex.sets[0].weight : 0,
           weight_type: ex.weightType,
           weightType: ex.weightType,
           rest_between_sets_s: ex.restSets,
           targets: ex.targets,
-          sets: Array.from({ length: ex.setsCount }, (_, idx) => ({
-            id: uuid.v4() as string,
+          sets: ex.sets.map((s, idx) => ({
+            id: s.id || uuid.v4() as string,
             set_index: idx + 1,
-            reps: ex.repsCount,
-            weight: ex.weight || undefined,
+            reps: s.reps,
+            weight: s.weight || undefined,
             weight_type: ex.weightType,
             weightType: ex.weightType,
             restSeconds: ex.restSets,
@@ -658,13 +719,20 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
 
           {sessionExercises.length === 0 ? (
             <View style={[styles.emptyStateCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              <View style={[styles.emptyIconCircle, { backgroundColor: theme.colors.accent + '15' }]}>
-                <Feather name="activity" size={28} color={theme.colors.accent} />
+              <View style={[styles.emptyIconCircle, { backgroundColor: theme.colors.background }]}>
+                <Feather name="zap" size={42} color="#0069E8" />
               </View>
-              <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Aucun exercice ajouté</Text>
-              <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
+              <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Votre séance est vide, commencez à pousser !</Text>
+              <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary, marginBottom: 20 }]}>
                 Composez votre séance en piochant dans la base d'exercices ou votre bibliothèque coach.
               </Text>
+              <TouchableOpacity
+                style={{ backgroundColor: '#0F172A', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center' }}
+                onPress={handleOpenAddSheet}
+              >
+                <Feather name="plus" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 15 }}>Ajouter un exercice</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             <View style={{ gap: 10, marginBottom: 12 }}>
@@ -875,175 +943,100 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
                   </TouchableOpacity>
                 </View>
 
-                {/* Field 3: Séries & Répétitions */}
+                {/* Field 3: Séries, Répétitions & Charge (Tableur) */}
                 <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>SÉRIES & RÉPÉTITIONS</Text>
+                  <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>SÉRIES, RÉPÉTITIONS & CHARGE</Text>
                 </View>
-                <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                  {/* Séries Stepper Row */}
-                  <View style={styles.settingRow}>
-                    <View style={{ flex: 1, marginRight: 10 }}>
-                      <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Nombre de séries</Text>
-                      <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>
-                        {setsCount} {setsCount > 1 ? 'séries au total' : 'série'}
-                      </Text>
-                    </View>
-                    <View style={styles.stepperContainer}>
+                <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, padding: 0, overflow: 'hidden' }]}>
+                  {/* Mode de charge toggle at top */}
+                  <View style={[styles.settingRow, { paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: theme.colors.border }]}>
+                    <Text style={[styles.settingLabel, { color: theme.colors.text, fontSize: 13 }]}>Format de la charge</Text>
+                    <View style={{ flexDirection: 'row', backgroundColor: theme.colors.background, borderRadius: 8, padding: 2 }}>
                       <TouchableOpacity
-                        style={[styles.stepperActionBtn, { backgroundColor: theme.colors.background }]}
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          const next = Math.max(1, setsCount - 1);
-                          setSetsCount(next);
-                          saveStrengthMemory(next, repsCount, weightValueText, weightType, restSets);
-                        }}
+                        style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: 6, backgroundColor: weightType === 'kg' ? theme.colors.accent : 'transparent' }}
+                        onPress={() => { Haptics.selectionAsync(); setWeightType('kg'); }}
                       >
-                        <Feather name="minus" size={16} color={theme.colors.text} />
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: weightType === 'kg' ? '#FFF' : theme.colors.textSecondary }}>kg</Text>
                       </TouchableOpacity>
-
-                      <Text style={[styles.stepperNumberText, { color: theme.colors.text }]}>{setsCount}</Text>
-
                       <TouchableOpacity
-                        style={[styles.stepperActionBtn, { backgroundColor: theme.colors.background }]}
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          const next = setsCount + 1;
-                          setSetsCount(next);
-                          saveStrengthMemory(next, repsCount, weightValueText, weightType, restSets);
-                        }}
+                        style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: 6, backgroundColor: weightType === 'percent_1rm' ? theme.colors.accent : 'transparent' }}
+                        onPress={() => { Haptics.selectionAsync(); setWeightType('percent_1rm'); }}
                       >
-                        <Feather name="plus" size={16} color={theme.colors.text} />
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: weightType === 'percent_1rm' ? '#FFF' : theme.colors.textSecondary }}>%1RM</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
 
-                  <View style={[styles.rowDivider, { backgroundColor: theme.colors.border }]} />
-
-                  {/* Répétitions Stepper Row */}
-                  <View style={styles.settingRow}>
-                    <View style={{ flex: 1, marginRight: 10 }}>
-                      <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Nombre de répétitions</Text>
-                      <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>
-                        {repsCount} reps par série
-                      </Text>
-                    </View>
-                    <View style={styles.stepperContainer}>
-                      <TouchableOpacity
-                        style={[styles.stepperActionBtn, { backgroundColor: theme.colors.background }]}
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          const next = Math.max(1, repsCount - 1);
-                          setRepsCount(next);
-                          saveStrengthMemory(setsCount, next, weightValueText, weightType, restSets);
-                        }}
-                      >
-                        <Feather name="minus" size={16} color={theme.colors.text} />
-                      </TouchableOpacity>
-
-                      <Text style={[styles.stepperNumberText, { color: theme.colors.text }]}>{repsCount}</Text>
-
-                      <TouchableOpacity
-                        style={[styles.stepperActionBtn, { backgroundColor: theme.colors.background }]}
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          const next = repsCount + 1;
-                          setRepsCount(next);
-                          saveStrengthMemory(setsCount, next, weightValueText, weightType, restSets);
-                        }}
-                      >
-                        <Feather name="plus" size={16} color={theme.colors.text} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Field 4: Charge / Poids */}
-                <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>CHARGE / POIDS</Text>
-                </View>
-                <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                  {/* Mode de charge : kg vs % 1RM */}
-                  <View style={styles.settingRow}>
-                    <View style={{ flex: 1, marginRight: 10 }}>
-                      <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Format de la charge</Text>
-                      <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>
-                        {weightType === 'kg' ? 'Charge fixe en kg' : 'Pourcentage du max (1RM)'}
-                      </Text>
-                    </View>
-
-                    <View style={styles.stairsModeWrapper}>
-                      <TouchableOpacity
-                        style={[
-                          styles.stairsPillBtn,
-                          weightType === 'kg' && [styles.stairsPillActive, { backgroundColor: theme.colors.accent }],
-                        ]}
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          setWeightType('kg');
-                          saveStrengthMemory(setsCount, repsCount, weightValueText, 'kg', restSets);
-                        }}
-                      >
-                        <Text style={[styles.stairsPillText, { color: weightType === 'kg' ? '#FFF' : theme.colors.textSecondary }]}>
-                          kg
-                        </Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={[
-                          styles.stairsPillBtn,
-                          weightType === 'percent_1rm' && [styles.stairsPillActive, { backgroundColor: theme.colors.accent }],
-                        ]}
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          setWeightType('percent_1rm');
-                          saveStrengthMemory(setsCount, repsCount, weightValueText, 'percent_1rm', restSets);
-                        }}
-                      >
-                        <Text style={[styles.stairsPillText, { color: weightType === 'percent_1rm' ? '#FFF' : theme.colors.textSecondary }]}>
-                          % 1RM
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
+                  {/* Table Header */}
+                  <View style={{ flexDirection: 'row', paddingVertical: 8, paddingHorizontal: 14, backgroundColor: theme.colors.background + '50', borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
+                    <Text style={{ flex: 0.5, fontSize: 11, fontWeight: '700', color: theme.colors.textSecondary, textAlign: 'center' }}>SÉRIE</Text>
+                    <Text style={{ flex: 1, fontSize: 11, fontWeight: '700', color: theme.colors.textSecondary, textAlign: 'center' }}>REPS</Text>
+                    <Text style={{ flex: 1, fontSize: 11, fontWeight: '700', color: theme.colors.textSecondary, textAlign: 'center' }}>{weightType === 'kg' ? 'KG' : '%'}</Text>
+                    <View style={{ width: 30 }} />
                   </View>
 
-                  <View style={[styles.rowDivider, { backgroundColor: theme.colors.border }]} />
-
-                  {/* Saisie de la valeur */}
-                  <View style={styles.settingRow}>
-                    <View style={{ flex: 1, marginRight: 10 }}>
-                      <Text style={[styles.settingLabel, { color: theme.colors.text }]}>
-                        {weightType === 'kg' ? 'Poids en kilogrammes' : 'Pourcentage du 1RM'}
-                      </Text>
-                      <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>
-                        {weightType === 'kg' ? 'Mettre 0 pour poids du corps (PDC)' : 'Ex : 70, 75, 80% du max'}
-                      </Text>
-                    </View>
-
-                    <View style={styles.weightInputContainer}>
-                      <TextInput
-                        style={[
-                          styles.weightDetailedInput,
-                          {
-                            backgroundColor: theme.colors.background,
-                            color: theme.colors.text,
-                            borderColor: theme.colors.border,
-                          },
-                        ]}
-                        keyboardType="decimal-pad"
-                        placeholder="0"
-                        placeholderTextColor={theme.colors.textMuted}
-                        value={weightValueText}
-                        onChangeText={(val) => {
-                          setWeightValueText(val);
-                          saveStrengthMemory(setsCount, repsCount, val, weightType, restSets);
+                  {/* Table Rows */}
+                  {setsData.map((set, idx) => (
+                    <View key={set.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 14, borderBottomWidth: idx < setsData.length - 1 ? 1 : 0, borderBottomColor: theme.colors.border }}>
+                      <View style={{ flex: 0.5, alignItems: 'center' }}>
+                        <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: theme.colors.background, alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.text }}>{idx + 1}</Text>
+                        </View>
+                      </View>
+                      <View style={{ flex: 1, paddingHorizontal: 8 }}>
+                        <TextInput
+                          style={{ backgroundColor: theme.colors.background, borderRadius: 6, paddingVertical: 6, textAlign: 'center', color: theme.colors.text, fontSize: 14, fontWeight: '600' }}
+                          keyboardType="number-pad"
+                          value={String(set.reps || '')}
+                          onChangeText={(val) => {
+                            const newSets = [...setsData];
+                            newSets[idx].reps = parseInt(val) || 0;
+                            setSetsData(newSets);
+                          }}
+                        />
+                      </View>
+                      <View style={{ flex: 1, paddingHorizontal: 8 }}>
+                        <TextInput
+                          style={{ backgroundColor: theme.colors.background, borderRadius: 6, paddingVertical: 6, textAlign: 'center', color: theme.colors.text, fontSize: 14, fontWeight: '600' }}
+                          keyboardType="decimal-pad"
+                          value={set.weight ? String(set.weight) : ''}
+                          placeholder="0"
+                          placeholderTextColor={theme.colors.textMuted}
+                          onChangeText={(val) => {
+                            const newSets = [...setsData];
+                            newSets[idx].weight = parseFloat(val.replace(',', '.')) || 0;
+                            setSetsData(newSets);
+                          }}
+                        />
+                      </View>
+                      <TouchableOpacity
+                        style={{ width: 30, alignItems: 'center' }}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          setSetsData(setsData.filter((_, i) => i !== idx));
                         }}
-                        maxLength={5}
-                      />
-                      <Text style={[styles.weightSuffixText, { color: theme.colors.textSecondary }]}>
-                        {weightType === 'kg' ? 'kg' : '% 1RM'}
-                      </Text>
+                      >
+                        <Feather name="x" size={16} color={theme.colors.textMuted} />
+                      </TouchableOpacity>
                     </View>
-                  </View>
+                  ))}
+
+                  {/* Add Row Button */}
+                  <TouchableOpacity
+                    style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderTopWidth: setsData.length > 0 ? 1 : 0, borderTopColor: theme.colors.border, backgroundColor: theme.colors.surface }}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      const lastSet = setsData[setsData.length - 1];
+                      setSetsData([...setsData, {
+                        id: String(uuid.v4()),
+                        reps: lastSet ? lastSet.reps : 10,
+                        weight: lastSet ? lastSet.weight : 0,
+                      }]);
+                    }}
+                  >
+                    <Feather name="plus" size={16} color={theme.colors.accent} />
+                    <Text style={{ marginLeft: 6, fontSize: 13, fontWeight: '600', color: theme.colors.accent }}>Ajouter une série</Text>
+                  </TouchableOpacity>
                 </View>
 
                 {/* Field 5: Temps de Repos */}
