@@ -167,29 +167,60 @@ export default function ChatScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Messages */}
-        <FlatList
-          data={messages}
-          keyExtractor={item => item.id}
-          renderItem={renderMessage}
-          inverted
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-        />
+        {/* Messages or Empty State */}
+        {messages.length === 0 ? (
+          <View style={styles.emptyChatContainer}>
+            <View style={styles.emptyIconCircle}>
+              <Feather name="users" size={32} color="#0069E8" />
+            </View>
+            <Text style={styles.emptyChatTitle}>
+              {type === 'team' ? "Salon d'Équipe" : "Discussion Directe"}
+            </Text>
+            <Text style={styles.emptyChatSubtitle}>
+              {type === 'team'
+                ? "Échangez avec l'ensemble des athlètes, partagez les annonces de séances et organisez vos sondages d'équipe."
+                : "Envoyez un premier message direct."}
+            </Text>
+            {user?.role === 'coach' && type === 'team' && (
+              <TouchableOpacity
+                style={styles.emptyQuickActionBtn}
+                onPress={() => setIsCreatingPoll(true)}
+                activeOpacity={0.8}
+              >
+                <Feather name="bar-chart-2" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <Text style={styles.emptyQuickActionText}>Lancer un sondage d'équipe</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : (
+          <FlatList
+            data={messages}
+            keyExtractor={item => item.id}
+            renderItem={renderMessage}
+            inverted
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
 
-        {/* Input */}
+        {/* Input Bar or Poll Sheet */}
         {isCreatingPoll ? (
-          <BlurView intensity={80} tint="dark" style={styles.pollContainer}>
+          <View style={styles.pollContainer}>
             <View style={styles.pollHeader}>
-              <Text style={styles.pollTitle}>Créer un sondage</Text>
-              <TouchableOpacity onPress={() => setIsCreatingPoll(false)}>
-                <Feather name="x" size={24} color={theme.colors.text} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={styles.pollIconWrap}>
+                  <Feather name="bar-chart-2" size={18} color="#0069E8" />
+                </View>
+                <Text style={styles.pollTitle}>Nouveau sondage d'équipe</Text>
+              </View>
+              <TouchableOpacity onPress={() => setIsCreatingPoll(false)} style={styles.pollCloseBtn}>
+                <Feather name="x" size={20} color={theme.colors.text} />
               </TouchableOpacity>
             </View>
             <TextInput
               style={styles.pollInput}
-              placeholder="Poser une question..."
-              placeholderTextColor={theme.colors.textMuted}
+              placeholder="Poser une question à l'équipe..."
+              placeholderTextColor="#94A3B8"
               value={pollQuestion}
               onChangeText={setPollQuestion}
             />
@@ -198,7 +229,7 @@ export default function ChatScreen() {
                 key={idx}
                 style={styles.pollInput}
                 placeholder={`Option ${idx + 1}`}
-                placeholderTextColor={theme.colors.textMuted}
+                placeholderTextColor="#94A3B8"
                 value={opt}
                 onChangeText={(val) => {
                   const newOpts = [...pollOptions];
@@ -210,21 +241,21 @@ export default function ChatScreen() {
                 }}
               />
             ))}
-            <TouchableOpacity style={styles.sendPollBtn} onPress={handleSendPoll}>
+            <TouchableOpacity style={styles.sendPollBtn} onPress={handleSendPoll} activeOpacity={0.8}>
               <Text style={styles.sendPollBtnText}>Envoyer le sondage</Text>
             </TouchableOpacity>
-          </BlurView>
+          </View>
         ) : (
           <View style={styles.inputContainer}>
             {user?.role === 'coach' && (
-              <TouchableOpacity style={styles.attachBtn} onPress={() => setIsCreatingPoll(true)}>
-                <Feather name="bar-chart-2" size={20} color={theme.colors.textSecondary} />
+              <TouchableOpacity style={styles.attachBtn} onPress={() => setIsCreatingPoll(true)} activeOpacity={0.7}>
+                <Feather name="bar-chart-2" size={20} color="#0069E8" />
               </TouchableOpacity>
             )}
             <TextInput
               style={styles.input}
               placeholder="Votre message..."
-              placeholderTextColor={theme.colors.textMuted}
+              placeholderTextColor="#94A3B8"
               value={inputText}
               onChangeText={setInputText}
               multiline
@@ -233,6 +264,7 @@ export default function ChatScreen() {
               style={[styles.sendBtn, !inputText.trim() && { opacity: 0.5 }]} 
               onPress={handleSend}
               disabled={!inputText.trim()}
+              activeOpacity={0.8}
             >
               <Feather name="send" size={18} color="#fff" />
             </TouchableOpacity>
@@ -365,46 +397,132 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: theme.colors.accent,
+    backgroundColor: '#0069E8',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
   },
+
+  // Empty State Chat
+  emptyChatContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  emptyIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#0069E815',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyChatTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 8,
+    textAlign: 'center',
+    letterSpacing: -0.3,
+  },
+  emptyChatSubtitle: {
+    fontSize: 13.5,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  emptyQuickActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0069E8',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 14,
+    shadowColor: '#0069E8',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  emptyQuickActionText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+
+  // Light Theme Poll Sheet
   pollContainer: {
-    padding: 16,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 16,
+    padding: 18,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 18,
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 6,
   },
   pollHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 14,
+  },
+  pollIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#0069E815',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pollTitle: {
-    fontWeight: '600',
-    fontSize: 18,
-    color: theme.colors.text,
+    fontWeight: '800',
+    fontSize: 16,
+    color: '#0F172A',
+    letterSpacing: -0.2,
+  },
+  pollCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pollInput: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 12,
-    padding: 12,
-    color: theme.colors.text,
-    fontWeight: '400',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: '#0F172A',
+    fontWeight: '500',
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     marginBottom: 8,
   },
   sendPollBtn: {
-    backgroundColor: theme.colors.accent,
-    borderRadius: 12,
-    padding: 14,
+    backgroundColor: '#0069E8',
+    borderRadius: 14,
+    paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 6,
+    shadowColor: '#0069E8',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 3,
   },
   sendPollBtnText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 15,
   },
 });

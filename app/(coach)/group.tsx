@@ -96,13 +96,18 @@ export default function CoachGroupsScreen() {
           onPress={() => setActiveTeamId(team.id)}
         >
           <View style={styles.teamCardHeader}>
-            <Text style={styles.teamCardTitle}>{team.name}</Text>
-            <Feather name="chevron-right" size={20} color={theme.colors.textMuted} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.teamCardTitle}>{team.name}</Text>
+              <Text style={styles.teamCardSub}>Groupe d'entraînement</Text>
+            </View>
+            <View style={styles.teamCardChevron}>
+              <Feather name="chevron-right" size={18} color="#0F172A" />
+            </View>
           </View>
           <View style={styles.teamCardFooter}>
             <TouchableOpacity style={styles.teamCodeBadge} onPress={() => copyToClipboard(team.invite_code)} activeOpacity={0.7}>
-              <Feather name="key" size={12} color={theme.colors.accent} />
-              <Text style={styles.teamCodeText}>{team.invite_code}</Text>
+              <Feather name="copy" size={12} color="#0069E8" />
+              <Text style={styles.teamCodeText}>Code : {team.invite_code}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -110,10 +115,13 @@ export default function CoachGroupsScreen() {
 
       <TouchableOpacity 
         style={styles.createBtn}
-        onPress={() => setModalType('create_sg')} // Wait, we use a single modal state. Let's use it for create team if no active team
+        onPress={() => setModalType('create_sg')}
+        activeOpacity={0.8}
       >
-        <Feather name="plus" size={20} color={theme.colors.text} />
-        <Text style={styles.createBtnText}>Nouveau Groupe</Text>
+        <View style={styles.createBtnIconWrap}>
+          <Feather name="plus" size={18} color="#0069E8" />
+        </View>
+        <Text style={styles.createBtnText}>Créer un nouveau groupe</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -230,24 +238,39 @@ export default function CoachGroupsScreen() {
               <TouchableOpacity 
                 style={styles.createBtn}
                 onPress={() => { setModalType('create_sg'); setTempValue(''); }}
+                activeOpacity={0.8}
               >
-                <Feather name="plus" size={18} color={theme.colors.text} />
+                <View style={styles.createBtnIconWrap}>
+                  <Feather name="plus" size={18} color="#0069E8" />
+                </View>
                 <Text style={styles.createBtnText}>Ajouter un sous-groupe</Text>
               </TouchableOpacity>
 
               {subgroups.length === 0 ? (
-                <Text style={styles.emptyText}>Aucun sous-groupe.</Text>
+                <View style={styles.emptyStateBox}>
+                  <View style={styles.emptyStateIconCircle}>
+                    <Feather name="layers" size={24} color="#0069E8" />
+                  </View>
+                  <Text style={styles.emptyStateTitle}>Aucun sous-groupe configuré</Text>
+                  <Text style={styles.emptyStateSubtitle}>
+                    Créez des sous-groupes (ex: 100m/200m, Haies, Relais) pour segmenter vos programmes d'entraînement.
+                  </Text>
+                </View>
               ) : (
                 subgroups.map(sg => (
                   <View key={sg.id} style={styles.rowCard}>
+                    <View style={styles.sgTagIcon}>
+                      <Feather name="tag" size={16} color="#0069E8" />
+                    </View>
                     <View style={styles.rowInfo}>
                       <Text style={styles.rowTitle}>{sg.name}</Text>
                     </View>
                     <TouchableOpacity 
                       onPress={() => { setSelectedEntityId(sg.id); setTempValue(sg.name); setModalType('rename_sg'); }}
                       style={styles.actionBtnIcon}
+                      activeOpacity={0.7}
                     >
-                      <Feather name="edit-2" size={18} color={theme.colors.textSecondary} />
+                      <Feather name="edit-2" size={16} color={theme.colors.textSecondary} />
                     </TouchableOpacity>
                     <TouchableOpacity 
                       onPress={() => {
@@ -256,9 +279,10 @@ export default function CoachGroupsScreen() {
                           { text: 'Supprimer', style: 'destructive', onPress: () => deleteSubgroup(sg.id) }
                         ]);
                       }}
-                      style={styles.actionBtnIcon}
+                      style={[styles.actionBtnIcon, { backgroundColor: '#FEE2E2' }]}
+                      activeOpacity={0.7}
                     >
-                      <Feather name="trash-2" size={18} color={theme.colors.error} />
+                      <Feather name="trash-2" size={16} color="#DC2626" />
                     </TouchableOpacity>
                   </View>
                 ))
@@ -269,7 +293,15 @@ export default function CoachGroupsScreen() {
           {activeTab === 'pending' && (
             <>
               {currentTeamPending.length === 0 ? (
-                <Text style={styles.emptyText}>Aucune demande en attente.</Text>
+                <View style={styles.emptyStateBox}>
+                  <View style={[styles.emptyStateIconCircle, { backgroundColor: '#DCFCE7' }]}>
+                    <Feather name="check-circle" size={24} color="#16A34A" />
+                  </View>
+                  <Text style={styles.emptyStateTitle}>Toutes les demandes sont traitées</Text>
+                  <Text style={styles.emptyStateSubtitle}>
+                    Aucun athlète en attente de validation pour le moment.
+                  </Text>
+                </View>
               ) : (
                 currentTeamPending.map(member => (
                   <View key={member.user_id} style={styles.rowCard}>
@@ -284,13 +316,13 @@ export default function CoachGroupsScreen() {
                       <Text style={styles.rowTitle}>
                         {member.profile?.full_name || `${member.profile?.first_name || ''} ${member.profile?.last_name || ''}`.trim() || 'Athlète'}
                       </Text>
-                      <Text style={styles.rowSubtitle}>Demande d'accès</Text>
+                      <Text style={styles.rowSubtitle}>Demande d'accès au groupe</Text>
                     </View>
-                    <TouchableOpacity onPress={() => approveAthlete(member.user_id, activeTeam.id)} style={[styles.actionBtnIcon, { backgroundColor: theme.colors.success + '20' }]}>
-                      <Feather name="check" size={20} color={theme.colors.success} />
+                    <TouchableOpacity onPress={() => approveAthlete(member.user_id, activeTeam.id)} style={[styles.actionBtnIcon, { backgroundColor: '#DCFCE7' }]} activeOpacity={0.7}>
+                      <Feather name="check" size={18} color="#16A34A" />
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => rejectAthlete(member.user_id, activeTeam.id)} style={[styles.actionBtnIcon, { backgroundColor: theme.colors.error + '20' }]}>
-                      <Feather name="x" size={20} color={theme.colors.error} />
+                    <TouchableOpacity onPress={() => rejectAthlete(member.user_id, activeTeam.id)} style={[styles.actionBtnIcon, { backgroundColor: '#FEE2E2' }]} activeOpacity={0.7}>
+                      <Feather name="x" size={18} color="#DC2626" />
                     </TouchableOpacity>
                   </View>
                 ))
@@ -299,18 +331,45 @@ export default function CoachGroupsScreen() {
           )}
 
           {activeTab === 'settings' && (
-            <View style={{ gap: 16 }}>
+            <View style={{ gap: 14 }}>
+              {/* Card Group Info */}
+              <View style={styles.settingsCard}>
+                <View style={styles.settingsCardHeader}>
+                  <Feather name="info" size={18} color="#0069E8" />
+                  <Text style={styles.settingsCardTitle}>Informations du groupe</Text>
+                </View>
+                <View style={styles.settingsRow}>
+                  <Text style={styles.settingsLabel}>Nom</Text>
+                  <Text style={styles.settingsValue}>{activeTeam.name}</Text>
+                </View>
+                <View style={styles.settingsDivider} />
+                <View style={styles.settingsRow}>
+                  <Text style={styles.settingsLabel}>Code d'accès</Text>
+                  <TouchableOpacity onPress={() => copyToClipboard(activeTeam.invite_code)} style={styles.settingsCodeBadge} activeOpacity={0.7}>
+                    <Text style={styles.settingsCodeText}>{activeTeam.invite_code}</Text>
+                    <Feather name="copy" size={12} color="#0069E8" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
               <TouchableOpacity 
                 style={styles.settingsBtn}
                 onPress={() => { setTempValue(activeTeam.name); setModalType('rename_team'); }}
+                activeOpacity={0.7}
               >
-                <Feather name="edit-3" size={20} color={theme.colors.text} />
+                <Feather name="edit-3" size={18} color="#0F172A" />
                 <Text style={styles.settingsBtnText}>Renommer le groupe</Text>
+                <Feather name="chevron-right" size={16} color="#94A3B8" style={{ marginLeft: 'auto' }} />
               </TouchableOpacity>
 
-              <TouchableOpacity style={[styles.settingsBtn, { borderColor: theme.colors.error + '50' }]} onPress={handleDeleteTeam}>
-                <Feather name="trash" size={20} color={theme.colors.error} />
-                <Text style={[styles.settingsBtnText, { color: theme.colors.error }]}>Supprimer le groupe</Text>
+              <TouchableOpacity 
+                style={[styles.settingsBtn, styles.settingsDeleteBtn]} 
+                onPress={handleDeleteTeam}
+                activeOpacity={0.7}
+              >
+                <Feather name="trash-2" size={18} color="#DC2626" />
+                <Text style={[styles.settingsBtnText, { color: '#DC2626' }]}>Supprimer le groupe</Text>
+                <Feather name="chevron-right" size={16} color="#DC2626" style={{ marginLeft: 'auto' }} />
               </TouchableOpacity>
             </View>
           )}
@@ -513,23 +572,42 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   teamCard: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 16,
-    padding: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 18,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: '#E2E8F0',
     marginBottom: 12,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
   teamCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   teamCardTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: theme.colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: -0.3,
+  },
+  teamCardSub: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  teamCardChevron: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   teamCardFooter: {
     flexDirection: 'row',
@@ -538,43 +616,59 @@ const styles = StyleSheet.create({
   teamCodeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.accent + '20',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    backgroundColor: '#F0F7FF',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 8,
-    gap: 8,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    gap: 6,
   },
   teamCodeText: {
-    color: theme.colors.accent,
-    fontWeight: 'bold',
-    fontSize: 14,
-    letterSpacing: 2,
+    color: '#0369A1',
+    fontWeight: '700',
+    fontSize: 13,
+    letterSpacing: 0.5,
   },
   createBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
-    backgroundColor: theme.colors.surfaceLight,
-    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderStyle: 'dashed',
-    marginBottom: 12,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
+    elevation: 1,
+    marginBottom: 14,
+  },
+  createBtnIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#0069E815',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
   },
   createBtnText: {
-    color: theme.colors.text,
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
+    color: '#0F172A',
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
   
   // Detail View
   detailHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    marginBottom: 20,
+    paddingHorizontal: 20,
+    marginBottom: 16,
   },
   backBtn: {
     width: 40, height: 40,
@@ -681,20 +775,138 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 
-  // Settings
+  // Empty State Box (Athletic clean look)
+  emptyStateBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 36,
+    paddingHorizontal: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginTop: 8,
+  },
+  emptyStateIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#0069E815',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  emptyStateTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 6,
+    textAlign: 'center',
+    letterSpacing: -0.2,
+  },
+  emptyStateSubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
+    maxWidth: 280,
+  },
+  sgTagIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#0069E815',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+
+  // Settings Card & Buttons
+  settingsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+    marginBottom: 4,
+  },
+  settingsCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  settingsCardTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: -0.2,
+  },
+  settingsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  settingsLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  settingsValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  settingsDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#F1F5F9',
+    marginVertical: 4,
+  },
+  settingsCodeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F0F7FF',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+  },
+  settingsCodeText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0369A1',
+  },
   settingsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: theme.colors.surface,
-    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
+    elevation: 1,
+  },
+  settingsDeleteBtn: {
+    borderColor: '#FEE2E2',
+    backgroundColor: '#FFF5F5',
   },
   settingsBtnText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: theme.colors.text,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
     marginLeft: 12,
   },
 
