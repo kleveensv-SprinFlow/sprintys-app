@@ -23,7 +23,6 @@ export default function RootLayout() {
 
     const inAuthGroup = segments[0] === '(auth)';
     const isVerifyScreen = (segments as string[])[1] === 'verify-email';
-    const isOnboardingScreen = (segments as string[])[1] === 'onboarding';
     const isCallbackRoute = segments[0] === 'auth';
 
     if (isCallbackRoute) return;
@@ -36,13 +35,6 @@ export default function RootLayout() {
     } else if (!user && !pendingEmail && !inAuthGroup) {
       router.replace('/(auth)/login');
     } else if (user) {
-      if (user.needsOnboarding) {
-        if (!isOnboardingScreen) {
-          router.replace('/(auth)/onboarding');
-        }
-        return;
-      }
-
       // Stricter routing: even if not in auth group, force correct role segment
       const isCoachRoute = segments[0] === '(coach)';
       const isAthleteRoute = segments[0] === '(athlete)';

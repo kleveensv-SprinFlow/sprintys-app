@@ -35,7 +35,6 @@ export interface UserProfile {
   lastFlowDate?: string | null;
   nextCompetitionDate?: string; // Not in DB yet, future competitions table feature
   sleepGoal?: number | null;
-  needsOnboarding?: boolean;
 }
 
 export interface SignupData {
@@ -128,7 +127,6 @@ const buildUserProfile = (authUser: any, profile: any): UserProfile => {
     currentFlowStreak: profile?.current_flow_streak,
     lastFlowDate: profile?.last_flow_date,
     sleepGoal: profile?.sleep_goal,
-    needsOnboarding: (!profile?.disciplines || profile.disciplines.length === 0) && !profile?.group_name && (!profile?.gender),
   };
 };
 
@@ -538,7 +536,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!user) return false;
     
     // Optimistic update
-    const updatedUser = { ...user, ...updates, needsOnboarding: false };
+    const updatedUser = { ...user, ...updates };
     set({ user: updatedUser });
     await AsyncStorage.setItem(CACHE_PROFILE_KEY, JSON.stringify(updatedUser));
     
