@@ -58,7 +58,8 @@
           "photosPermission": "Sprintflow a besoin d'accéder à vos photos pour modifier votre photo de profil.",
           "cameraPermission": "Sprintflow a besoin de l'appareil photo pour prendre une nouvelle photo de profil."
         }
-      ]
+      ],
+      "expo-web-browser"
     ]
   }
 }

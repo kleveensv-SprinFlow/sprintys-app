@@ -155,17 +155,7 @@ export const RegisterMultiStep: React.FC<RegisterMultiStepProps> = ({ onSwitchTo
 
         {error && <Text style={[styles.errorText, { color: theme.colors.error }]}>{error}</Text>}
 
-        {step === 1 && (
-          <TouchableOpacity
-            onPress={handleLoginPress}
-            style={styles.loginLink}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.loginText, { color: theme.colors.textSecondary }]}>
-              Déjà un compte ? <Text style={[styles.loginTextBold, { color: theme.colors.accent }]}>Se connecter</Text>
-            </Text>
-          </TouchableOpacity>
-        )}
+
       </View>
     </View>
   );

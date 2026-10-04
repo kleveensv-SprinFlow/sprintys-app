@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as WebBrowser from 'expo-web-browser';
+import { makeRedirectUri } from 'expo-auth-session';
+import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import { supabase } from '../services/supabase';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export type UserRole = 'coach' | 'athlete';
 
@@ -30,6 +35,7 @@ export interface UserProfile {
   lastFlowDate?: string | null;
   nextCompetitionDate?: string; // Not in DB yet, future competitions table feature
   sleepGoal?: number | null;
+  needsOnboarding?: boolean;
 }
 
 export interface SignupData {
@@ -58,6 +64,7 @@ interface AuthState {
   initializeAuth: () => Promise<void>;
   login: (email: string, pass: string) => Promise<void>;
   signup: (data: SignupData) => Promise<{ success: boolean; requiresVerification: boolean }>;
+  signInWithGoogle: () => Promise<{ success: boolean; cancelled?: boolean; error?: string }>;
   verifyOtp: (email: string, token: string) => Promise<boolean>;
   resendOtp: (email: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -121,6 +128,7 @@ const buildUserProfile = (authUser: any, profile: any): UserProfile => {
     currentFlowStreak: profile?.current_flow_streak,
     lastFlowDate: profile?.last_flow_date,
     sleepGoal: profile?.sleep_goal,
+    needsOnboarding: (!profile?.disciplines || profile.disciplines.length === 0) && !profile?.group_name && (!profile?.gender),
   };
 };
 
@@ -230,6 +238,64 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (err: any) {
       console.warn('Error during initializeAuth:', err?.message);
       set({ isLoading: false, isInitialized: true });
+    }
+  },
+
+  signInWithGoogle: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const redirectUrl = makeRedirectUri({
+        scheme: 'sprintflowv2',
+        path: 'auth/callback',
+      });
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      if (error) throw error;
+      if (!data?.url) throw new Error("Impossible d'initialiser la connexion Google.");
+
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+
+      if (result.type === 'success' && result.url) {
+        const { params, errorCode } = QueryParams.getQueryParams(result.url);
+        if (errorCode) throw new Error(errorCode);
+
+        if (params.code) {
+          const { data: sessionData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(params.code);
+          if (exchangeError) throw exchangeError;
+          if (sessionData?.user) {
+            await get().reloadProfile();
+            set({ isLoading: false });
+            return { success: true };
+          }
+        }
+
+        if (params.access_token && params.refresh_token) {
+          const { data: sessionData, error: setSessionError } = await supabase.auth.setSession({
+            access_token: params.access_token,
+            refresh_token: params.refresh_token,
+          });
+          if (setSessionError) throw setSessionError;
+          if (sessionData?.user) {
+            await get().reloadProfile();
+            set({ isLoading: false });
+            return { success: true };
+          }
+        }
+      }
+
+      set({ isLoading: false });
+      return { success: false, cancelled: true };
+    } catch (err: any) {
+      console.error('Google Sign-In error:', err);
+      set({ error: translateAuthError(err), isLoading: false });
+      return { success: false, error: err.message };
     }
   },
 
@@ -472,7 +538,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!user) return false;
     
     // Optimistic update
-    const updatedUser = { ...user, ...updates };
+    const updatedUser = { ...user, ...updates, needsOnboarding: false };
     set({ user: updatedUser });
     await AsyncStorage.setItem(CACHE_PROFILE_KEY, JSON.stringify(updatedUser));
     
@@ -485,6 +551,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (updates.weight !== undefined) dbUpdates.weight = updates.weight;
     if (updates.objective !== undefined) dbUpdates.objective = updates.objective;
     if (updates.avatarUrl !== undefined) dbUpdates.avatar_url = updates.avatarUrl;
+    if (updates.role !== undefined) dbUpdates.role = updates.role;
+    if (updates.gender !== undefined) dbUpdates.gender = updates.gender;
+    if (updates.disciplines !== undefined) dbUpdates.disciplines = updates.disciplines;
+    if (updates.groupName !== undefined) dbUpdates.group_name = updates.groupName;
+    if (updates.subgroups !== undefined) dbUpdates.subgroups = updates.subgroups;
 
     if (Object.keys(dbUpdates).length === 0) return true;
 

@@ -7,14 +7,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../../core/theme';
 import { SprintyLogo } from '../../../shared/components/SprintyLogo';
 import { LoginForm } from './LoginForm';
 import { RegisterMultiStep } from './RegisterMultiStep';
-import { LinearGradient } from 'expo-linear-gradient';
 
 interface AuthScreenProps {
   initialTab?: 'login' | 'signup';
@@ -24,12 +24,102 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ initialTab = 'login' }) 
   const theme = useTheme();
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>(initialTab);
 
+  const handleTabChange = (tab: 'login' | 'signup') => {
+    if (activeTab !== tab) {
+      Haptics.selectionAsync().catch(() => {});
+      setActiveTab(tab);
+    }
+  };
+
+  const Content = (
+    <ScrollView
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="always"
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Brand Hero Header */}
+      <View style={styles.heroSection}>
+        <View style={styles.logoWrapper}>
+          <SprintyLogo width={180} height={46} />
+        </View>
+        <Text style={[styles.tagline, { color: theme.colors.textSecondary }]}>
+          L'accélération de votre performance
+        </Text>
+      </View>
+
+      {/* Modern Athletic Segmented Switcher */}
+      <View style={[styles.switcherContainer, { backgroundColor: '#F1F5F9' }]}>
+        <TouchableOpacity
+          style={[
+            styles.tabButton,
+            activeTab === 'login' && styles.activeTabButton,
+          ]}
+          onPress={() => handleTabChange('login')}
+          activeOpacity={0.8}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'login'
+                ? { color: '#0F172A', fontWeight: '700' }
+                : { color: theme.colors.textSecondary, fontWeight: '500' },
+            ]}
+          >
+            Connexion
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.tabButton,
+            activeTab === 'signup' && styles.activeTabButton,
+          ]}
+          onPress={() => handleTabChange('signup')}
+          activeOpacity={0.8}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'signup'
+                ? { color: '#0F172A', fontWeight: '700' }
+                : { color: theme.colors.textSecondary, fontWeight: '500' },
+            ]}
+          >
+            Inscription
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Main Authentication Card */}
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        {activeTab === 'login' ? (
+          <LoginForm onSwitchToSignup={() => handleTabChange('signup')} />
+        ) : (
+          <RegisterMultiStep onSwitchToLogin={() => handleTabChange('login')} />
+        )}
+      </View>
+
+      {/* Minimal Athletic Footer */}
+      <Text style={[styles.footerText, { color: theme.colors.textMuted }]}>
+        Sprintflow • Athlétisme & Haute Performance
+      </Text>
+    </ScrollView>
+  );
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Background Decorative Athletic Halo */}
+      {/* Subtle Top Ambient Glow */}
       <View style={styles.glowTopContainer} pointerEvents="none">
         <LinearGradient
-          colors={['rgba(0, 220, 253, 0.12)', 'rgba(0, 38, 174, 0.04)', 'transparent']}
+          colors={['rgba(0, 105, 232, 0.08)', 'rgba(0, 220, 253, 0.03)', 'transparent']}
           style={styles.glowGradient}
         />
       </View>
@@ -37,170 +127,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ initialTab = 'login' }) 
       <SafeAreaView style={styles.safeArea}>
         {Platform.OS === 'ios' ? (
           <KeyboardAvoidingView behavior="padding" style={styles.keyboardView}>
-            <ScrollView
-              contentContainerStyle={styles.scrollContent}
-              keyboardShouldPersistTaps="always"
-              showsVerticalScrollIndicator={false}
-            >
-            {/* HERO BRAND HEADER */}
-            <View style={styles.heroSection}>
-              <View style={styles.logoWrapper}>
-                <SprintyLogo width={180} height={46} />
-              </View>
-              <Text style={[styles.tagline, { color: theme.colors.textSecondary }]}>
-                L'accélération de votre performance <Text style={{ color: theme.colors.accent }}>⚡</Text>
-              </Text>
-            </View>
-
-            {/* SEGMENTED SWITCHER (Connexion | Inscription) */}
-            <View style={[styles.switcherContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              {/* Tab 1: Connexion */}
-              <TouchableOpacity
-                style={styles.tabButton}
-                onPress={() => setActiveTab('login')}
-                activeOpacity={0.8}
-              >
-                {activeTab === 'login' ? (
-                  <LinearGradient
-                    colors={['#0026AE', '#0069E8']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.activeTabGradient}
-                  >
-                    <Text style={styles.activeTabText}>Connexion</Text>
-                  </LinearGradient>
-                ) : (
-                  <View style={styles.inactiveTab}>
-                    <Text style={[styles.inactiveTabText, { color: theme.colors.textSecondary }]}>
-                      Connexion
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-
-              {/* Tab 2: Inscription */}
-              <TouchableOpacity
-                style={styles.tabButton}
-                onPress={() => setActiveTab('signup')}
-                activeOpacity={0.8}
-              >
-                {activeTab === 'signup' ? (
-                  <LinearGradient
-                    colors={['#0026AE', '#0069E8']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.activeTabGradient}
-                  >
-                    <Text style={styles.activeTabText}>Inscription</Text>
-                  </LinearGradient>
-                ) : (
-                  <View style={styles.inactiveTab}>
-                    <Text style={[styles.inactiveTabText, { color: theme.colors.textSecondary }]}>
-                      Inscription
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            </View>
-
-            {/* MAIN CARD CONTAINER */}
-            <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              {activeTab === 'login' ? (
-                <LoginForm onSwitchToSignup={() => setActiveTab('signup')} />
-              ) : (
-                <RegisterMultiStep onSwitchToLogin={() => setActiveTab('login')} />
-              )}
-            </View>
-
-            {/* Minimal Footer */}
-            <Text style={[styles.footerText, { color: theme.colors.textMuted }]}>
-              Sprintflow • Athlétisme & Haute Performance
-            </Text>
-            </ScrollView>
+            {Content}
           </KeyboardAvoidingView>
         ) : (
-          <View style={styles.keyboardView}>
-            <ScrollView
-              contentContainerStyle={styles.scrollContent}
-              keyboardShouldPersistTaps="always"
-              showsVerticalScrollIndicator={false}
-            >
-              {/* HERO BRAND HEADER */}
-              <View style={styles.heroSection}>
-                <View style={styles.logoWrapper}>
-                  <SprintyLogo width={180} height={46} />
-                </View>
-                <Text style={[styles.tagline, { color: theme.colors.textSecondary }]}>
-                  L'accélération de votre performance <Text style={{ color: theme.colors.accent }}>⚡</Text>
-                </Text>
-              </View>
-
-              {/* SEGMENTED SWITCHER (Connexion | Inscription) */}
-              <View style={[styles.switcherContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                {/* Tab 1: Connexion */}
-                <TouchableOpacity
-                  style={styles.tabButton}
-                  onPress={() => setActiveTab('login')}
-                  activeOpacity={0.8}
-                >
-                  {activeTab === 'login' ? (
-                    <LinearGradient
-                      colors={['#0026AE', '#0069E8']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.activeTabGradient}
-                    >
-                      <Text style={styles.activeTabText}>Connexion</Text>
-                    </LinearGradient>
-                  ) : (
-                    <View style={styles.inactiveTab}>
-                      <Text style={[styles.inactiveTabText, { color: theme.colors.textSecondary }]}>
-                        Connexion
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-
-                {/* Tab 2: Inscription */}
-                <TouchableOpacity
-                  style={styles.tabButton}
-                  onPress={() => setActiveTab('signup')}
-                  activeOpacity={0.8}
-                >
-                  {activeTab === 'signup' ? (
-                    <LinearGradient
-                      colors={['#0026AE', '#0069E8']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.activeTabGradient}
-                    >
-                      <Text style={styles.activeTabText}>Inscription</Text>
-                    </LinearGradient>
-                  ) : (
-                    <View style={styles.inactiveTab}>
-                      <Text style={[styles.inactiveTabText, { color: theme.colors.textSecondary }]}>
-                        Inscription
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              </View>
-
-              {/* MAIN CARD CONTAINER */}
-              <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                {activeTab === 'login' ? (
-                  <LoginForm onSwitchToSignup={() => setActiveTab('signup')} />
-                ) : (
-                  <RegisterMultiStep onSwitchToLogin={() => setActiveTab('login')} />
-                )}
-              </View>
-
-              {/* Minimal Footer */}
-              <Text style={[styles.footerText, { color: theme.colors.textMuted }]}>
-                Sprintflow • Athlétisme & Haute Performance
-              </Text>
-            </ScrollView>
-          </View>
+          <View style={styles.keyboardView}>{Content}</View>
         )}
       </SafeAreaView>
     </View>
@@ -214,17 +144,17 @@ const styles = StyleSheet.create({
   },
   glowTopContainer: {
     position: 'absolute',
-    top: -50,
+    top: -60,
     left: 0,
     right: 0,
-    height: 320,
+    height: 280,
     alignItems: 'center',
   },
   glowGradient: {
     width: '100%',
     height: '100%',
-    borderBottomLeftRadius: 180,
-    borderBottomRightRadius: 180,
+    borderBottomLeftRadius: 200,
+    borderBottomRightRadius: 200,
   },
   safeArea: {
     flex: 1,
@@ -234,14 +164,14 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 120,
+    paddingTop: 12,
+    paddingBottom: 90,
     alignItems: 'center',
   },
   heroSection: {
     alignItems: 'center',
     marginBottom: 20,
-    marginTop: 8,
+    marginTop: 6,
   },
   logoWrapper: {
     alignItems: 'center',
@@ -256,64 +186,50 @@ const styles = StyleSheet.create({
   switcherContainer: {
     flexDirection: 'row',
     width: '100%',
-    height: 50,
-    borderRadius: 25,
-    borderWidth: 1,
-    padding: 4,
+    height: 44,
+    borderRadius: 12,
+    padding: 3,
     marginBottom: 16,
-    shadowColor: '#0026AE',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.03)',
   },
   tabButton: {
     flex: 1,
     height: '100%',
-  },
-  activeTabGradient: {
-    flex: 1,
-    borderRadius: 21,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#0026AE',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    borderRadius: 9,
   },
-  activeTabText: {
-    color: '#FFF',
+  activeTabButton: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1.5 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  tabText: {
     fontSize: 14,
-    fontWeight: '700',
     letterSpacing: -0.2,
-  },
-  inactiveTab: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  inactiveTabText: {
-    fontSize: 14,
-    fontWeight: '600',
   },
   card: {
     width: '100%',
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
     paddingHorizontal: 22,
-    paddingVertical: 26,
-    shadowColor: '#0026AE',
+    paddingVertical: 24,
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 3,
-    marginBottom: 24,
+    shadowOpacity: 0.05,
+    shadowRadius: 14,
+    elevation: 2,
+    marginBottom: 20,
   },
   footerText: {
     fontSize: 12,
     fontWeight: '500',
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 2,
+    letterSpacing: 0.1,
   },
 });
