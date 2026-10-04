@@ -143,14 +143,16 @@ export const TeamHealthModal = ({ visible, onClose }: Props) => {
           </View>
 
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            {/* Overview Readiness Banner */}
+            {/* Overview Readiness Banner - Modern Clean */}
             <View style={styles.summaryBanner}>
               <View style={styles.summaryTopRow}>
                 <View>
                   <Text style={styles.summaryLabel}>READINESS GLOBAL</Text>
-                  <Text style={styles.summaryScore}>
-                    {summary.avgScore !== null ? `${summary.avgScore}%` : 'N/A'}
-                  </Text>
+                  {summary.avgScore !== null ? (
+                    <Text style={styles.summaryScore}>{summary.avgScore}%</Text>
+                  ) : (
+                    <Text style={[styles.summaryScoreEmpty, { color: theme.colors.textSecondary }]}>En attente</Text>
+                  )}
                 </View>
                 <View style={[styles.statusBadge, { backgroundColor: globalStatus.bg }]}>
                   <View style={[styles.statusDot, { backgroundColor: globalStatus.color }]} />
@@ -160,23 +162,36 @@ export const TeamHealthModal = ({ visible, onClose }: Props) => {
                 </View>
               </View>
 
+              {/* Progress bar team checkins */}
+              <View style={styles.progressBarBg}>
+                <View 
+                  style={[
+                    styles.progressBarFill, 
+                    { 
+                      width: summary.total > 0 ? `${(summary.completedCount / summary.total) * 100}%` : '0%',
+                      backgroundColor: summary.completedCount > 0 ? '#10B981' : 'transparent' 
+                    }
+                  ]} 
+                />
+              </View>
+
               <View style={styles.summaryStatsRow}>
                 <View style={styles.miniStatItem}>
-                  <Feather name="check-circle" size={14} color="#059669" />
+                  <Feather name="check-circle" size={13} color={summary.completedCount > 0 ? '#059669' : '#94A3B8'} />
                   <Text style={styles.miniStatText}>
-                    <Text style={styles.miniStatBold}>{summary.completedCount}</Text>/{summary.total} remplis
+                    <Text style={styles.miniStatBold}>{summary.completedCount}</Text>/{summary.total} check-ins
                   </Text>
                 </View>
                 <View style={styles.miniStatDivider} />
                 <View style={styles.miniStatItem}>
-                  <Feather name="moon" size={14} color="#6366F1" />
+                  <Feather name="moon" size={13} color="#6366F1" />
                   <Text style={styles.miniStatText}>
                     Sommeil : <Text style={styles.miniStatBold}>{summary.avgSleep ? `${summary.avgSleep}h` : '-'}</Text>
                   </Text>
                 </View>
                 <View style={styles.miniStatDivider} />
                 <View style={styles.miniStatItem}>
-                  <Feather name="battery-charging" size={14} color="#F59E0B" />
+                  <Feather name="battery-charging" size={13} color="#F59E0B" />
                   <Text style={styles.miniStatText}>
                     Fatigue : <Text style={styles.miniStatBold}>{summary.avgFatigue ? `${summary.avgFatigue}/5` : '-'}</Text>
                   </Text>
@@ -254,25 +269,23 @@ export const TeamHealthModal = ({ visible, onClose }: Props) => {
                           {initials ? (
                             <Text style={styles.avatarText}>{initials}</Text>
                           ) : (
-                            <Ionicons name="person" size={20} color="#94A3B8" />
+                            <Ionicons name="person" size={18} color="#94A3B8" />
                           )}
                         </View>
                       )}
 
-                      {/* Athlete info */}
+                      {/* Athlete info : Nom entier + sous-titre hiérarchisé */}
                       <View style={styles.athleteInfo}>
-                        <View style={styles.athleteNameRow}>
-                          <Text style={styles.athleteName} numberOfLines={1}>
-                            {athleteName}
-                          </Text>
+                        <Text style={styles.athleteName} numberOfLines={1} ellipsizeMode="tail">
+                          {athleteName}
+                        </Text>
+
+                        <View style={styles.metaRow}>
                           {subgroup && (
                             <View style={styles.subgroupPill}>
                               <Text style={styles.subgroupText}>{subgroup.name}</Text>
                             </View>
                           )}
-                        </View>
-
-                        <View style={styles.checkinStatusRow}>
                           <View
                             style={[
                               styles.statusIndicatorDot,
@@ -280,23 +293,30 @@ export const TeamHealthModal = ({ visible, onClose }: Props) => {
                             ]}
                           />
                           <Text style={styles.athleteStatus}>
-                            {checkIn ? 'Check-in validé' : 'Pas de check-in aujourd\'hui'}
+                            {checkIn ? 'Check-in validé' : 'En attente'}
                           </Text>
                         </View>
                       </View>
 
-                      {/* Score Badge */}
+                      {/* Score Badge ou statut d'attente (Fin du faux bouton avec tiret) */}
                       <View style={styles.scoreContainer}>
-                        <View
-                          style={[
-                            styles.scoreBadge,
-                            { backgroundColor: scoreTheme.bg, borderColor: scoreTheme.border },
-                          ]}
-                        >
-                          <Text style={[styles.scoreText, { color: scoreTheme.text }]}>
-                            {score !== null ? `${score}%` : '-'}
-                          </Text>
-                        </View>
+                        {score !== null ? (
+                          <View
+                            style={[
+                              styles.scoreBadge,
+                              { backgroundColor: scoreTheme.bg, borderColor: scoreTheme.border },
+                            ]}
+                          >
+                            <Text style={[styles.scoreText, { color: scoreTheme.text }]}>
+                              {score}%
+                            </Text>
+                          </View>
+                        ) : (
+                          <View style={styles.pendingBadge}>
+                            <Feather name="clock" size={12} color="#94A3B8" />
+                            <Text style={styles.pendingBadgeText}>Attente</Text>
+                          </View>
+                        )}
                         <Feather
                           name={isExpanded ? 'chevron-up' : 'chevron-down'}
                           size={18}
@@ -531,22 +551,20 @@ const styles = StyleSheet.create({
   },
   summaryBanner: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
+    borderRadius: 22,
+    padding: 18,
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.04,
-    shadowRadius: 8,
+    shadowRadius: 14,
     elevation: 2,
   },
   summaryTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    marginBottom: 12,
   },
   summaryLabel: {
     fontSize: 11,
@@ -560,6 +578,23 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#0F172A',
     marginTop: 2,
+    letterSpacing: -0.5,
+  },
+  summaryScoreEmpty: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  progressBarBg: {
+    height: 6,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 14,
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 3,
   },
   statusBadge: {
     flexDirection: 'row',
@@ -584,7 +619,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: '#F8FAFC',
   },
   miniStatItem: {
     flexDirection: 'row',
@@ -606,8 +641,8 @@ const styles = StyleSheet.create({
   },
   tabsRow: {
     flexDirection: 'row',
-    backgroundColor: '#E2E8F0',
-    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 14,
     padding: 3,
     marginBottom: 16,
     gap: 4,
@@ -616,15 +651,15 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 8,
     alignItems: 'center',
-    borderRadius: 9,
+    borderRadius: 11,
   },
   tabButtonActive: {
     backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
   tabText: {
     fontSize: 12,
@@ -642,17 +677,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
     marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
     overflow: 'hidden',
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,
-    shadowRadius: 4,
+    shadowRadius: 8,
     elevation: 1,
   },
   athleteCardActive: {
-    borderColor: '#0F172A',
+    borderWidth: 1.5,
+    borderColor: '#0069E8',
   },
   athleteRow: {
     flexDirection: 'row',
@@ -664,8 +698,6 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     marginRight: 12,
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
     backgroundColor: '#F1F5F9',
   },
   avatarFallback: {
@@ -676,8 +708,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
   },
   avatarText: {
     color: '#0F172A',
@@ -687,22 +717,23 @@ const styles = StyleSheet.create({
   athleteInfo: {
     flex: 1,
     marginRight: 8,
-  },
-  athleteNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 3,
+    justifyContent: 'center',
   },
   athleteName: {
     fontSize: 15,
     fontWeight: '700',
     color: '#0F172A',
-    flexShrink: 1,
+    marginBottom: 4,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
   },
   subgroupPill: {
     backgroundColor: '#F1F5F9',
-    paddingHorizontal: 6,
+    paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 6,
   },
@@ -710,11 +741,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     color: '#475569',
-  },
-  checkinStatusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
   },
   statusIndicatorDot: {
     width: 6,
@@ -730,17 +756,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   scoreBadge: {
-    minWidth: 48,
+    minWidth: 46,
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 10,
-    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   scoreText: {
     fontWeight: '800',
     fontSize: 13,
+  },
+  pendingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  pendingBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#94A3B8',
   },
   detailsContainer: {
     padding: 14,
