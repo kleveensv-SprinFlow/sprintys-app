@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Image, Keyboard } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { theme } from '../../src/core/theme';
@@ -93,6 +93,28 @@ export default function CoachMessageScreen() {
 
   const insets = useSafeAreaInsets();
   const { updateCoachPhilosophy } = useAuthStore();
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    });
+
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
   const params = useLocalSearchParams<{ athleteId?: string; athleteName?: string; avatarUrl?: string; domains?: string; ts?: string }>();
   const scrollViewRef = useRef<ScrollView>(null);
   const lottieRef = useRef<LottieView>(null);
@@ -449,7 +471,17 @@ export default function CoachMessageScreen() {
           </ScrollView>
 
           {/* Solid Bottom Input Bar (Flex layout, never overlaps or bleeds) */}
-          <View style={[styles.bottomInputBar, { paddingBottom: Math.max(12, insets.bottom) }]}>
+          <View
+            style={[
+              styles.bottomInputBar,
+              {
+                paddingBottom:
+                  Platform.OS === 'android' && keyboardHeight > 0
+                    ? keyboardHeight + 8
+                    : Math.max(12, insets.bottom),
+              },
+            ]}
+          >
             <View style={styles.inputBox}>
               <TextInput
                 style={styles.input}
