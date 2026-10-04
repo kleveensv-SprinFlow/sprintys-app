@@ -89,19 +89,19 @@ export default function CoachDashboardScreen() {
         
         <Text style={styles.welcomeText}>Bonjour, Coach {user?.firstName || user?.name?.split(' ')[0]}</Text>
 
-        {/* Santé du Groupe (Breathing Aura) */}
+        {/* Santé du Groupe (Carte Épurée Apple Fitness) */}
         <View style={styles.statsRow}>
           <TouchableOpacity 
-            style={[styles.statCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1, overflow: 'hidden' }]}
+            style={[styles.statCard, { backgroundColor: theme.colors.surface, ...theme.shadows.soft }]}
             activeOpacity={0.9}
             onPress={() => setTeamHealthVisible(true)}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Feather name="activity" size={20} color={healthColor} />
+                <View style={[styles.microStatusDot, { backgroundColor: healthColor }]} />
                 <Text style={styles.statLabel}>SANTÉ DU GROUPE</Text>
               </View>
-              <Feather name="chevron-right" size={20} color={theme.colors.textMuted} />
+              <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />
             </View>
             <Text style={[styles.statValue, { color: theme.colors.text }]}>{avgHealthStr}</Text>
             <Text style={{ color: theme.colors.textSecondary, fontSize: 13, marginTop: 4, fontWeight: '500' }}>
@@ -119,24 +119,24 @@ export default function CoachDashboardScreen() {
         </View>
         
         {todayWorkouts.length === 0 ? (
-          <View style={styles.emptyCard}>
+          <View style={[styles.emptyCard, { ...theme.shadows.soft }]}>
             <Feather name="calendar" size={24} color={theme.colors.textMuted} style={{ marginBottom: 12 }} />
             <Text style={styles.emptyText}>Aucune séance planifiée pour aujourd'hui.</Text>
             <TouchableOpacity onPress={() => router.push('/(coach)/day/' + todayStr)} style={{ marginTop: 16 }}>
-              <Text style={{ color: theme.colors.accent, fontWeight: 'bold' }}>Aller au calendrier</Text>
+              <Text style={{ color: (theme.colors as any).sprintyBlue || theme.colors.accent, fontWeight: '700' }}>Aller au calendrier</Text>
             </TouchableOpacity>
           </View>
         ) : (
           todayWorkouts.map((workout, index) => (
             <TouchableOpacity 
               key={workout.id || index}
-              style={styles.sessionCard}
+              style={[styles.sessionCard, { ...theme.shadows.soft }]}
               activeOpacity={0.8}
               onPress={() => router.push('/(coach)/day/' + (workout.date_prevue ? workout.date_prevue.split('T')[0] : todayStr))}
             >
               <View style={styles.sessionCardHeader}>
-                <View style={[styles.sessionBadge, { backgroundColor: workout.type_seance === 'musculation' ? '#3B82F620' : '#F59E0B20' }]}>
-                  <Text style={[styles.sessionBadgeText, { color: workout.type_seance === 'musculation' ? '#3B82F6' : '#F59E0B' }]}>
+                <View style={[styles.sessionBadge, { backgroundColor: workout.type_seance === 'musculation' ? 'rgba(0, 105, 232, 0.08)' : 'rgba(245, 158, 11, 0.1)' }]}>
+                  <Text style={[styles.sessionBadgeText, { color: workout.type_seance === 'musculation' ? ((theme.colors as any).sprintyBlue || '#0069E8') : '#F59E0B' }]}>
                     {workout.type_seance.toUpperCase()}
                   </Text>
                 </View>
@@ -155,7 +155,7 @@ export default function CoachDashboardScreen() {
               )}
               <View style={styles.sessionCardFooter}>
                 <Text style={styles.sessionCardAction}>Voir la séance</Text>
-                <Feather name="chevron-right" size={16} color={theme.colors.accent} />
+                <Feather name="chevron-right" size={16} color={(theme.colors as any).sprintyBlue || theme.colors.accent} />
               </View>
             </TouchableOpacity>
           ))
@@ -213,39 +213,43 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    padding: 24,
-    borderRadius: 20,
+    padding: 22,
+    borderRadius: 22,
     alignItems: 'flex-start',
+  },
+  microStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   statValue: {
     fontSize: 40,
-    fontWeight: '900',
+    fontWeight: '800',
     color: theme.colors.text,
-    marginBottom: 4,
+    marginBottom: 2,
+    letterSpacing: -1,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: theme.colors.textMuted,
-    fontWeight: 'bold',
-    letterSpacing: 1,
+    fontWeight: '700',
+    letterSpacing: 0.8,
   },
   sectionHeader: {
-    marginTop: 10,
-    marginBottom: 16,
+    marginTop: 12,
+    marginBottom: 14,
   },
   sectionTitle: {
     fontSize: 11,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#94A3B8',
-    letterSpacing: 1,
+    letterSpacing: 0.8,
   },
   sessionCard: {
     backgroundColor: theme.colors.surface,
-    borderRadius: 16,
+    borderRadius: 22,
     padding: 20,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   sessionCardHeader: {
     flexDirection: 'row',
@@ -254,15 +258,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sessionBadge: {
-    backgroundColor: theme.colors.error + '20',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
   },
   sessionBadgeText: {
-    color: theme.colors.error,
-    fontSize: 10,
-    fontWeight: 'bold',
+    fontSize: 11,
+    fontWeight: '700',
     letterSpacing: 0.5,
   },
   sessionDuration: {
@@ -272,9 +274,10 @@ const styles = StyleSheet.create({
   },
   sessionCardTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: theme.colors.text,
-    marginBottom: 8,
+    marginBottom: 6,
+    textTransform: 'capitalize',
   },
   sessionCardDesc: {
     fontSize: 13,
@@ -285,22 +288,18 @@ const styles = StyleSheet.create({
   sessionCardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-    paddingTop: 16,
+    paddingTop: 12,
   },
   sessionCardAction: {
     flex: 1,
-    color: theme.colors.accent,
+    color: theme.colors.text,
     fontWeight: '600',
     fontSize: 13,
   },
   emptyCard: {
     backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    padding: 24,
-    borderRadius: 16,
+    padding: 28,
+    borderRadius: 22,
     alignItems: 'center',
   },
   emptyText: {

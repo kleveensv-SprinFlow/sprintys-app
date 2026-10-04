@@ -96,7 +96,7 @@ const TabItem = ({
     onPress();
   };
 
-  const iconColor = isFocused ? theme.colors.accent : theme.colors.textSecondary;
+  const iconColor = isFocused ? ((theme.colors as any).sprintyBlue || theme.colors.accent) : theme.colors.textSecondary;
 
   return (
     <TouchableOpacity
@@ -121,7 +121,7 @@ const TabItem = ({
           style={[
             styles.activePill,
             {
-              backgroundColor: theme.colors.accentMuted,
+              backgroundColor: (theme.colors as any).sprintyMuted || theme.colors.accentMuted,
               opacity: pillOpacity,
             },
           ]}
@@ -136,8 +136,8 @@ const TabItem = ({
         style={[
           styles.tabLabel,
           {
-            color: isFocused ? theme.colors.accent : theme.colors.textSecondary,
-            fontWeight: isFocused ? '600' : '400',
+            color: isFocused ? ((theme.colors as any).sprintyBlue || theme.colors.accent) : theme.colors.textSecondary,
+            fontWeight: isFocused ? '600' : '500',
           },
         ]}
       >
@@ -145,7 +145,7 @@ const TabItem = ({
       </Text>
 
       {isFocused && (
-        <View style={[styles.activeDot, { backgroundColor: theme.colors.accent }]} />
+        <View style={[styles.activeDot, { backgroundColor: (theme.colors as any).sprintyBlue || theme.colors.accent }]} />
       )}
     </TouchableOpacity>
   );
@@ -172,7 +172,6 @@ export const CoachTabBar: React.FC<BottomTabBarProps> = ({
         styles.barContainer,
         {
           backgroundColor: theme.colors.surface,
-          borderTopColor: theme.colors.border,
           paddingBottom: Math.max(insets.bottom, 12),
         },
       ]}
@@ -220,13 +219,13 @@ export const CoachTabBar: React.FC<BottomTabBarProps> = ({
 
 const styles = StyleSheet.create({
   barContainer: {
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 0,
     paddingTop: 8,
-    shadowColor: '#000',
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOpacity: 0.04,
+    shadowRadius: 14,
+    elevation: 4,
   },
   tabList: {
     flexDirection: 'row',

@@ -1,4 +1,4 @@
-﻿import { useColorScheme as useDeviceColorScheme } from 'react-native';
+import { useColorScheme as useDeviceColorScheme } from 'react-native';
 
 const spacing = {
   xs: 4,
@@ -43,12 +43,15 @@ const glass = {
 
 // GLOBAL TIMELESS LIGHT THEME
 export const universalColors = {
-  background: 'transparent',
+  background: '#F8FAFC', // Crisp modern light background
   surface: '#FFFFFF', // Pure white cards
   surfaceLight: '#F1F5F9', // Light slate for inputs/rows
   accent: '#0F172A', // Dark Slate/Black for premium active elements
   accentSecondary: '#475569',
   accentMuted: 'rgba(15, 23, 42, 0.05)',
+  sprintyBlue: '#0069E8', // Signature electric blue from logo
+  sprintyCyan: '#00DCFD', // Signature electric cyan from logo
+  sprintyMuted: 'rgba(0, 105, 232, 0.08)', // Subtle translucent tint for active pills
   text: '#0F172A',
   textSecondary: '#64748B',
   textMuted: '#94A3B8',
@@ -74,10 +77,10 @@ export const useTheme = () => {
 export const theme = {
   shadows: {
     soft: {
-      shadowColor: '#000',
+      shadowColor: '#0F172A',
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.05,
-      shadowRadius: 12,
+      shadowOpacity: 0.04,
+      shadowRadius: 14,
       elevation: 2,
     }
   },

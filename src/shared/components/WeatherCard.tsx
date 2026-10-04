@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Modal, ScrollView, Animated, Easing } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../core/theme';
@@ -246,15 +246,14 @@ export const WeatherCard = () => {
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 16,
-    marginVertical: 12,
-    padding: 16,
-    borderRadius: 20,
-    
+    marginHorizontal: 0,
+    marginVertical: 10,
+    padding: 20,
+    borderRadius: 22,
   },
   cardHeaderTitle: {
     fontSize: 11,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#94A3B8',
     letterSpacing: 1,
     marginBottom: 12,
