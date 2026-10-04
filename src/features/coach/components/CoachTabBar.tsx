@@ -142,8 +142,11 @@ export const CoachTabBar: React.FC<BottomTabBarProps> = ({
   const [containerWidth, setContainerWidth] = useState(0);
   const translateXAnim = useRef(new Animated.Value(0)).current;
 
-  const visibleRoutes = state.routes.filter((route) => COACH_TABS[route.name]);
+  const PRIMARY_COACH_TABS = ['index', 'group', 'calendar', 'chat'];
   const activeRoute = state.routes[state.index];
+  const isPrimaryTab = PRIMARY_COACH_TABS.includes(activeRoute?.name);
+
+  const visibleRoutes = state.routes.filter((route) => COACH_TABS[route.name]);
   const activeVisibleIndex = visibleRoutes.findIndex((r) => r.name === activeRoute?.name);
 
   const tabWidth = containerWidth > 0 ? (containerWidth - 16) / Math.max(1, visibleRoutes.length) : 0;
@@ -161,7 +164,7 @@ export const CoachTabBar: React.FC<BottomTabBarProps> = ({
 
   const focusedDescriptor = descriptors[activeRoute?.key];
   const tabBarStyle = focusedDescriptor?.options?.tabBarStyle as any;
-  if (tabBarStyle && tabBarStyle.display === 'none') {
+  if (!isPrimaryTab || (tabBarStyle && tabBarStyle.display === 'none')) {
     return null;
   }
 
