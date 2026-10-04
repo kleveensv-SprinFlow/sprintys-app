@@ -24,6 +24,9 @@ export default function RootLayout() {
     const inAuthGroup = segments[0] === '(auth)';
     const isVerifyScreen = (segments as string[])[1] === 'verify-email';
     const isOnboardingScreen = (segments as string[])[1] === 'onboarding';
+    const isCallbackRoute = segments[0] === 'auth';
+
+    if (isCallbackRoute) return;
 
     if (pendingEmail && !isVerifyScreen) {
       router.replace({
@@ -69,6 +72,7 @@ export default function RootLayout() {
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
         <Stack.Screen name="(auth)" />
+        <Stack.Screen name="auth" />
         <Stack.Screen name="(athlete)" />
         <Stack.Screen name="(coach)" />
         <Stack.Screen name="chat" />
