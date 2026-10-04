@@ -798,7 +798,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
             style={[
               styles.headerSaveBtn,
               {
-                backgroundColor: blocks.length > 0 ? theme.colors.accent : theme.colors.border,
+                backgroundColor: blocks.length > 0 ? '#0069E8' : theme.colors.border,
               },
             ]}
           >
@@ -830,7 +830,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                 <TouchableOpacity
                   style={[
                     styles.segmentSmallBtn,
-                    surface === 'piste' && { backgroundColor: theme.colors.accent },
+                    surface === 'piste' && { backgroundColor: '#0069E8' },
                   ]}
                   onPress={() => {
                     Haptics.selectionAsync();
@@ -845,7 +845,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                 <TouchableOpacity
                   style={[
                     styles.segmentSmallBtn,
-                    surface === 'cote' && { backgroundColor: theme.colors.accent },
+                    surface === 'cote' && { backgroundColor: '#0069E8' },
                   ]}
                   onPress={() => {
                     Haptics.selectionAsync();
@@ -864,14 +864,14 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
             {/* Chaussures */}
             <View style={styles.contextRow}>
               <View style={styles.contextLabelBox}>
-                <Ionicons name="footsteps-outline" size={16} color={theme.colors.textSecondary} style={{ marginRight: 8 }} />
+                <Feather name="wind" size={16} color={theme.colors.textSecondary} style={{ marginRight: 8 }} />
                 <Text style={[styles.contextLabelText, { color: theme.colors.text }]}>Chaussures</Text>
               </View>
               <View style={styles.segmentedSmall}>
                 <TouchableOpacity
                   style={[
                     styles.segmentSmallBtn,
-                    equipment === 'pointes' && { backgroundColor: theme.colors.accent },
+                    equipment === 'pointes' && { backgroundColor: '#0069E8' },
                   ]}
                   onPress={() => {
                     Haptics.selectionAsync();
@@ -886,7 +886,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                 <TouchableOpacity
                   style={[
                     styles.segmentSmallBtn,
-                    equipment === 'baskets' && { backgroundColor: theme.colors.accent },
+                    equipment === 'baskets' && { backgroundColor: '#0069E8' },
                   ]}
                   onPress={() => {
                     Haptics.selectionAsync();
@@ -929,8 +929,8 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                 onPress={handleOpenSaveFavoriteModal}
                 activeOpacity={0.7}
               >
-                <Feather name="star" size={13} color={theme.colors.accent} style={{ marginRight: 4 }} />
-                <Text style={[styles.saveFavHeaderText, { color: theme.colors.accent }]}>
+                <Feather name="star" size={13} color={'#0069E8'} style={{ marginRight: 4 }} />
+                <Text style={[styles.saveFavHeaderText, { color: '#0069E8' }]}>
                   Enregistrer en séance type
                 </Text>
               </TouchableOpacity>
@@ -939,8 +939,8 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
 
           {blocks.length === 0 ? (
             <View style={[styles.emptyBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              <View style={[styles.emptyIconCircle, { backgroundColor: theme.colors.accent + '15' }]}>
-                <Feather name="zap" size={24} color={theme.colors.accent} />
+              <View style={[styles.emptyIconCircle, { backgroundColor: '#0069E8' + '15' }]}>
+                <Feather name="zap" size={24} color={'#0069E8'} />
               </View>
               <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Aucun bloc ajouté</Text>
               <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
@@ -949,7 +949,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
 
               <View style={styles.actionButtonsContainer}>
                 <TouchableOpacity
-                  style={[styles.primaryActionBtn, { backgroundColor: theme.colors.accent }]}
+                  style={[styles.primaryActionBtn, { backgroundColor: '#0069E8' }]}
                   onPress={handleOpenAddSheet}
                   activeOpacity={0.8}
                 >
@@ -967,8 +967,8 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                   onPress={handleOpenTemplatesModal}
                   activeOpacity={0.7}
                 >
-                  <View style={[styles.secondaryActionIconBox, { backgroundColor: theme.colors.accent + '15' }]}>
-                    <Feather name="copy" size={15} color={theme.colors.accent} />
+                  <View style={[styles.secondaryActionIconBox, { backgroundColor: '#0069E8' + '15' }]}>
+                    <Feather name="copy" size={15} color={'#0069E8'} />
                   </View>
                   <Text style={[styles.secondaryActionText, { color: theme.colors.text }]}>
                     Séances types
@@ -988,7 +988,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                       !isLast && [styles.rowBorder, { borderBottomColor: theme.colors.border }],
                     ]}
                   >
-                    <View style={[styles.badgeNumber, { backgroundColor: theme.colors.accent }]}>
+                    <View style={[styles.badgeNumber, { backgroundColor: '#0069E8' }]}>
                       <Text style={styles.badgeNumberText}>{index + 1}</Text>
                     </View>
 
@@ -998,8 +998,8 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                           {item.name}
                         </Text>
                         {item.targets && (item.targets.subgroups.length > 0 || item.targets.athletes.length > 0) && (
-  <View style={[styles.targetMiniBadge, { backgroundColor: theme.colors.accent + '20' }]}>
-    <Text style={[styles.targetMiniBadgeText, { color: theme.colors.accent }]}>
+  <View style={[styles.targetMiniBadge, { backgroundColor: '#0069E8' + '20' }]}>
+    <Text style={[styles.targetMiniBadgeText, { color: '#0069E8' }]}>
       ${item.targets.subgroups.length + item.targets.athletes.length} cible(s)
     </Text>
   </View>
@@ -1028,10 +1028,10 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                 onPress={handleOpenAddSheet}
                 activeOpacity={0.7}
               >
-                <View style={[styles.actionRowIconCircle, { backgroundColor: theme.colors.accent + '15' }]}>
-                  <Feather name="plus" size={14} color={theme.colors.accent} />
+                <View style={[styles.actionRowIconCircle, { backgroundColor: '#0069E8' + '15' }]}>
+                  <Feather name="plus" size={14} color={'#0069E8'} />
                 </View>
-                <Text style={[styles.addMoreRowText, { color: theme.colors.accent }]}>Ajouter un autre bloc</Text>
+                <Text style={[styles.addMoreRowText, { color: '#0069E8' }]}>Ajouter un autre bloc</Text>
               </TouchableOpacity>
 
               {/* Séances Types Row */}
@@ -1040,8 +1040,8 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                 onPress={handleOpenTemplatesModal}
                 activeOpacity={0.7}
               >
-                <View style={[styles.actionRowIconCircle, { backgroundColor: theme.colors.accent + '15' }]}>
-                  <Feather name="copy" size={13} color={theme.colors.accent} />
+                <View style={[styles.actionRowIconCircle, { backgroundColor: '#0069E8' + '15' }]}>
+                  <Feather name="copy" size={13} color={'#0069E8'} />
                 </View>
                 <Text style={[styles.addMoreRowText, { color: theme.colors.text }]}>
                   Séances types (Favoris & Récents)
@@ -1076,7 +1076,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                   {editingBlockId ? 'Modifier le bloc' : 'Nouveau bloc'}
                 </Text>
 
-                <TouchableOpacity onPress={handleSaveBlockSheet} style={[styles.headerSaveBtn, { backgroundColor: theme.colors.accent }]}>
+                <TouchableOpacity onPress={handleSaveBlockSheet} style={[styles.headerSaveBtn, { backgroundColor: '#0069E8' }]}>
                   <Text style={styles.headerSaveBtnText}>{editingBlockId ? 'Enregistrer' : 'Ajouter'}</Text>
                 </TouchableOpacity>
               </View>
@@ -1107,7 +1107,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                 <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                   <View style={styles.segmentedRow}>
                     <TouchableOpacity
-                      style={[styles.segmentBtn, blockMode === 'identical' && { backgroundColor: theme.colors.accent }]}
+                      style={[styles.segmentBtn, blockMode === 'identical' && { backgroundColor: '#0069E8' }]}
                       onPress={() => {
                         Haptics.selectionAsync();
                         setBlockMode('identical');
@@ -1119,7 +1119,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[styles.segmentBtn, blockMode === 'varied' && { backgroundColor: theme.colors.accent }]}
+                      style={[styles.segmentBtn, blockMode === 'varied' && { backgroundColor: '#0069E8' }]}
                       onPress={() => {
                         Haptics.selectionAsync();
                         setBlockMode('varied');
@@ -1151,7 +1151,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                             maxLength={5}
                             selectTextOnFocus
                           />
-                          <Text style={[styles.meterUnitText, { color: theme.colors.accent }]}>m</Text>
+                          <Text style={[styles.meterUnitText, { color: '#0069E8' }]}>m</Text>
                         </View>
                       </View>
                     </View>
@@ -1230,8 +1230,8 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                         COURSES DU BLOC ({variedRuns.length})
                       </Text>
                       <TouchableOpacity onPress={handleAddRunToBlock} style={styles.addRunHeaderBtn}>
-                        <Feather name="plus-circle" size={14} color={theme.colors.accent} style={{ marginRight: 4 }} />
-                        <Text style={[styles.addRunHeaderBtnText, { color: theme.colors.accent }]}>Ajouter une course</Text>
+                        <Feather name="plus-circle" size={14} color={'#0069E8'} style={{ marginRight: 4 }} />
+                        <Text style={[styles.addRunHeaderBtnText, { color: '#0069E8' }]}>Ajouter une course</Text>
                       </TouchableOpacity>
                     </View>
 
@@ -1246,8 +1246,8 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                               !isLastRun && [styles.rowDivider, { borderBottomColor: theme.colors.border }],
                             ]}
                           >
-                            <View style={[styles.variedIndexBadge, { backgroundColor: theme.colors.accent + '15' }]}>
-                              <Text style={[styles.variedIndexText, { color: theme.colors.accent }]}>{runIdx + 1}</Text>
+                            <View style={[styles.variedIndexBadge, { backgroundColor: '#0069E8' + '15' }]}>
+                              <Text style={[styles.variedIndexText, { color: '#0069E8' }]}>{runIdx + 1}</Text>
                             </View>
 
                             {/* Distance field */}
@@ -1265,7 +1265,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                                   maxLength={5}
                                   selectTextOnFocus
                                 />
-                                <Text style={[styles.meterUnitText, { color: theme.colors.accent }]}>m</Text>
+                                <Text style={[styles.meterUnitText, { color: '#0069E8' }]}>m</Text>
                               </View>
                             </View>
 
@@ -1285,7 +1285,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                                   maxLength={3}
                                   selectTextOnFocus
                                 />
-                                <Text style={[styles.meterUnitText, { color: theme.colors.accent }]}>%</Text>
+                                <Text style={[styles.meterUnitText, { color: '#0069E8' }]}>%</Text>
                               </View>
                             </View>
 
@@ -1307,10 +1307,10 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                         onPress={handleAddRunToBlock}
                         activeOpacity={0.7}
                       >
-                        <View style={[styles.actionRowIconCircle, { backgroundColor: theme.colors.accent + '15' }]}>
-                          <Feather name="plus" size={14} color={theme.colors.accent} />
+                        <View style={[styles.actionRowIconCircle, { backgroundColor: '#0069E8' + '15' }]}>
+                          <Feather name="plus" size={14} color={'#0069E8'} />
                         </View>
-                        <Text style={[styles.addMoreRowText, { color: theme.colors.accent }]}>
+                        <Text style={[styles.addMoreRowText, { color: '#0069E8' }]}>
                           Ajouter une course dans ce bloc
                         </Text>
                       </TouchableOpacity>
@@ -1335,7 +1335,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                       </Text>
                     </View>
                     <View style={styles.clickableRowRight}>
-                      <Text style={[styles.clickableRowValue, { color: theme.colors.accent }]}>
+                      <Text style={[styles.clickableRowValue, { color: '#0069E8' }]}>
                         {formatRestDisplay(restReps)}
                       </Text>
                       <Feather name="chevron-right" size={16} color={theme.colors.textMuted} />
@@ -1356,7 +1356,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                       </Text>
                     </View>
                     <View style={styles.clickableRowRight}>
-                      <Text style={[styles.clickableRowValue, { color: theme.colors.accent }]}>
+                      <Text style={[styles.clickableRowValue, { color: '#0069E8' }]}>
                         {formatRestDisplay(restBlock)}
                       </Text>
                       <Feather name="chevron-right" size={16} color={theme.colors.textMuted} />
@@ -1418,7 +1418,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
               <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                 <View style={styles.segmentedRow}>
                   <TouchableOpacity
-                    style={[styles.segmentBtn, templatesTab === 'favorites' && { backgroundColor: theme.colors.accent }]}
+                    style={[styles.segmentBtn, templatesTab === 'favorites' && { backgroundColor: '#0069E8' }]}
                     onPress={() => {
                       Haptics.selectionAsync();
                       setTemplatesTab('favorites');
@@ -1430,7 +1430,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={[styles.segmentBtn, templatesTab === 'recents' && { backgroundColor: theme.colors.accent }]}
+                    style={[styles.segmentBtn, templatesTab === 'recents' && { backgroundColor: '#0069E8' }]}
                     onPress={() => {
                       Haptics.selectionAsync();
                       setTemplatesTab('recents');
@@ -1446,7 +1446,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
 
             {isLoadingTemplates ? (
               <View style={{ padding: 40, alignItems: 'center' }}>
-                <ActivityIndicator size="large" color={theme.colors.accent} />
+                <ActivityIndicator size="large" color={'#0069E8'} />
               </View>
             ) : (
               <ScrollView
@@ -1482,13 +1482,13 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                           </View>
 
                           <View style={styles.metaRow}>
-                            <View style={[styles.metaPill, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
-                              <Text style={[styles.metaPillText, { color: theme.colors.accent }]}>
+                            <View style={[styles.metaPill, { backgroundColor: '#0069E8' + '15', borderColor: '#0069E8' + '30' }]}>
+                              <Text style={[styles.metaPillText, { color: '#0069E8' }]}>
                                 {tpl.surface === 'cote' ? '⛰️ Côte' : '🏟️ Piste'}
                               </Text>
                             </View>
-                            <View style={[styles.metaPill, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
-                              <Text style={[styles.metaPillText, { color: theme.colors.accent }]}>
+                            <View style={[styles.metaPill, { backgroundColor: '#0069E8' + '15', borderColor: '#0069E8' + '30' }]}>
+                              <Text style={[styles.metaPillText, { color: '#0069E8' }]}>
                                 {tpl.equipment === 'pointes' ? '👟 Pointes' : '👟 Baskets'}
                               </Text>
                             </View>
@@ -1509,7 +1509,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                           </View>
 
                           <TouchableOpacity
-                            style={[styles.applyTemplateBtn, { backgroundColor: theme.colors.accent }]}
+                            style={[styles.applyTemplateBtn, { backgroundColor: '#0069E8' }]}
                             onPress={() => handleApplyTemplate(tpl, false)}
                             activeOpacity={0.8}
                           >
@@ -1558,13 +1558,13 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                             </View>
 
                             <View style={styles.metaRow}>
-                              <View style={[styles.metaPill, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
-                                <Text style={[styles.metaPillText, { color: theme.colors.accent }]}>
+                              <View style={[styles.metaPill, { backgroundColor: '#0069E8' + '15', borderColor: '#0069E8' + '30' }]}>
+                                <Text style={[styles.metaPillText, { color: '#0069E8' }]}>
                                   {surfaceVal === 'cote' ? '⛰️ Côte' : '🏟️ Piste'}
                                 </Text>
                               </View>
-                              <View style={[styles.metaPill, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
-                                <Text style={[styles.metaPillText, { color: theme.colors.accent }]}>
+                              <View style={[styles.metaPill, { backgroundColor: '#0069E8' + '15', borderColor: '#0069E8' + '30' }]}>
+                                <Text style={[styles.metaPillText, { color: '#0069E8' }]}>
                                   {equipVal === 'pointes' ? '👟 Pointes' : '👟 Baskets'}
                                 </Text>
                               </View>
@@ -1585,7 +1585,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                             </View>
 
                             <TouchableOpacity
-                              style={[styles.applyTemplateBtn, { backgroundColor: theme.colors.accent }]}
+                              style={[styles.applyTemplateBtn, { backgroundColor: '#0069E8' }]}
                               onPress={() => handleApplyTemplate(w, true)}
                               activeOpacity={0.8}
                             >
@@ -1615,8 +1615,8 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
         >
           <View style={styles.alertBackdrop}>
             <View style={[styles.alertModalCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              <View style={[styles.alertIconCircle, { backgroundColor: theme.colors.accent + '15' }]}>
-                <Feather name="star" size={24} color={theme.colors.accent} />
+              <View style={[styles.alertIconCircle, { backgroundColor: '#0069E8' + '15' }]}>
+                <Feather name="star" size={24} color={'#0069E8'} />
               </View>
 
               <Text style={[styles.alertTitle, { color: theme.colors.text }]}>Enregistrer en séance type</Text>
@@ -1644,7 +1644,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.alertConfirmBtn, { backgroundColor: theme.colors.accent }]}
+                  style={[styles.alertConfirmBtn, { backgroundColor: '#0069E8' }]}
                   onPress={handleConfirmSaveFavorite}
                   disabled={isSavingFavorite}
                 >

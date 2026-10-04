@@ -687,7 +687,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
             style={[
               styles.headerSaveBtn,
               {
-                backgroundColor: sessionExercises.length > 0 ? theme.colors.accent : theme.colors.border,
+                backgroundColor: sessionExercises.length > 0 ? '#0F172A' : theme.colors.border,
               },
             ]}
           >
@@ -748,13 +748,13 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                       style={[
                         styles.chip,
                         {
-                          backgroundColor: isSelected ? theme.colors.accent + '20' : theme.colors.background,
-                          borderColor: isSelected ? theme.colors.accent : theme.colors.border,
+                          backgroundColor: isSelected ? '#0069E8' + '20' : theme.colors.background,
+                          borderColor: isSelected ? '#0069E8' : theme.colors.border,
                         },
                       ]}
                       onPress={() => setSelectedSubgroupId(sg.id)}
                     >
-                      <Text style={[styles.chipText, { color: isSelected ? theme.colors.accent : theme.colors.text }]}>
+                      <Text style={[styles.chipText, { color: isSelected ? '#0069E8' : theme.colors.text }]}>
                         {sg.name}
                       </Text>
                     </TouchableOpacity>
@@ -775,13 +775,13 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                       style={[
                         styles.chip,
                         {
-                          backgroundColor: isSelected ? theme.colors.accent + '20' : theme.colors.background,
-                          borderColor: isSelected ? theme.colors.accent : theme.colors.border,
+                          backgroundColor: isSelected ? '#0069E8' + '20' : theme.colors.background,
+                          borderColor: isSelected ? '#0069E8' : theme.colors.border,
                         },
                       ]}
                       onPress={() => setSelectedAthleteId(m.user_id)}
                     >
-                      <Text style={[styles.chipText, { color: isSelected ? theme.colors.accent : theme.colors.text }]}>
+                      <Text style={[styles.chipText, { color: isSelected ? '#0069E8' : theme.colors.text }]}>
                         {name}
                       </Text>
                     </TouchableOpacity>
@@ -819,8 +819,8 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
 
           {sessionExercises.length === 0 ? (
             <View style={[styles.emptyBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              <View style={[styles.emptyIconCircle, { backgroundColor: theme.colors.accent + '15' }]}>
-                <Feather name="layers" size={24} color={theme.colors.accent} />
+              <View style={[styles.emptyIconCircle, { backgroundColor: '#0069E8' + '15' }]}>
+                <Feather name="trending-up" size={24} color={'#0069E8'} />
               </View>
               <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Aucun exercice ajouté</Text>
               <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
@@ -829,7 +829,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
 
               <View style={styles.actionButtonsContainer}>
                 <TouchableOpacity
-                  style={[styles.primaryActionBtn, { backgroundColor: theme.colors.accent }]}
+                  style={[styles.primaryActionBtn, { backgroundColor: '#0069E8' }]}
                   onPress={handleOpenAddSheet}
                   activeOpacity={0.8}
                 >
@@ -848,14 +848,14 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                     onPress={() => setIsManageLibraryVisible(true)}
                     activeOpacity={0.7}
                   >
-                    <View style={[styles.secondaryActionIconBox, { backgroundColor: theme.colors.accent + '15' }]}>
-                      <Feather name="bookmark" size={15} color={theme.colors.accent} />
+                    <View style={[styles.secondaryActionIconBox, { backgroundColor: '#0069E8' + '15' }]}>
+                      <Feather name="bookmark" size={15} color={'#0069E8'} />
                     </View>
                     <Text style={[styles.secondaryActionText, { color: theme.colors.text }]}>
                       Depuis ma bibliothèque
                     </Text>
-                    <View style={[styles.countBadge, { backgroundColor: theme.colors.accent + '15' }]}>
-                      <Text style={[styles.countBadgeText, { color: theme.colors.accent }]}>
+                    <View style={[styles.countBadge, { backgroundColor: '#0069E8' + '15' }]}>
+                      <Text style={[styles.countBadgeText, { color: '#0069E8' }]}>
                         {savedExercises.length}
                       </Text>
                     </View>
@@ -875,7 +875,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                       !isLast && [styles.rowBorder, { borderBottomColor: theme.colors.border }],
                     ]}
                   >
-                    <View style={[styles.badgeNumber, { backgroundColor: theme.colors.accent }]}>
+                    <View style={[styles.badgeNumber, { backgroundColor: '#0069E8' }]}>
                       <Text style={styles.badgeNumberText}>{index + 1}</Text>
                     </View>
 
@@ -885,8 +885,8 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                           {item.name}
                         </Text>
                         {item.target?.type !== 'all' && (
-                          <View style={[styles.targetMiniBadge, { backgroundColor: theme.colors.accent + '20' }]}>
-                            <Text style={[styles.targetMiniBadgeText, { color: theme.colors.accent }]}>
+                          <View style={[styles.targetMiniBadge, { backgroundColor: '#0069E8' + '20' }]}>
+                            <Text style={[styles.targetMiniBadgeText, { color: '#0069E8' }]}>
                               {item.target?.name}
                             </Text>
                           </View>
@@ -915,10 +915,10 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                 onPress={handleOpenAddSheet}
                 activeOpacity={0.7}
               >
-                <View style={[styles.actionRowIconCircle, { backgroundColor: theme.colors.accent + '15' }]}>
-                  <Feather name="plus" size={14} color={theme.colors.accent} />
+                <View style={[styles.actionRowIconCircle, { backgroundColor: '#0069E8' + '15' }]}>
+                  <Feather name="plus" size={14} color={'#0069E8'} />
                 </View>
-                <Text style={[styles.addMoreRowText, { color: theme.colors.accent }]}>Ajouter un autre exercice</Text>
+                <Text style={[styles.addMoreRowText, { color: '#0069E8' }]}>Ajouter un autre exercice</Text>
               </TouchableOpacity>
 
               {/* Secondary Button: Pick from Library */}
@@ -928,8 +928,8 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                   onPress={() => setIsManageLibraryVisible(true)}
                   activeOpacity={0.7}
                 >
-                  <View style={[styles.actionRowIconCircle, { backgroundColor: theme.colors.accent + '15' }]}>
-                    <Feather name="bookmark" size={13} color={theme.colors.accent} />
+                  <View style={[styles.actionRowIconCircle, { backgroundColor: '#0069E8' + '15' }]}>
+                    <Feather name="bookmark" size={13} color={'#0069E8'} />
                   </View>
                   <Text style={[styles.addMoreRowText, { color: theme.colors.text }]}>
                     Depuis ma bibliothèque
@@ -1039,13 +1039,13 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                                 style={[
                                   styles.chip,
                                   {
-                                    backgroundColor: isSelected ? theme.colors.accent + '20' : theme.colors.background,
-                                    borderColor: isSelected ? theme.colors.accent : theme.colors.border,
+                                    backgroundColor: isSelected ? '#0069E8' + '20' : theme.colors.background,
+                                    borderColor: isSelected ? '#0069E8' : theme.colors.border,
                                   },
                                 ]}
                                 onPress={() => setExTargetSubgroupId(sg.id)}
                               >
-                                <Text style={[styles.chipText, { color: isSelected ? theme.colors.accent : theme.colors.text }]}>
+                                <Text style={[styles.chipText, { color: isSelected ? '#0069E8' : theme.colors.text }]}>
                                   {sg.name}
                                 </Text>
                               </TouchableOpacity>
@@ -1066,13 +1066,13 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                                 style={[
                                   styles.chip,
                                   {
-                                    backgroundColor: isSelected ? theme.colors.accent + '20' : theme.colors.background,
-                                    borderColor: isSelected ? theme.colors.accent : theme.colors.border,
+                                    backgroundColor: isSelected ? '#0069E8' + '20' : theme.colors.background,
+                                    borderColor: isSelected ? '#0069E8' : theme.colors.border,
                                   },
                                 ]}
                                 onPress={() => setExTargetAthleteId(m.user_id)}
                               >
-                                <Text style={[styles.chipText, { color: isSelected ? theme.colors.accent : theme.colors.text }]}>
+                                <Text style={[styles.chipText, { color: isSelected ? '#0069E8' : theme.colors.text }]}>
                                   {name}
                                 </Text>
                               </TouchableOpacity>
@@ -1102,7 +1102,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                       <TouchableOpacity
                         style={[
                           styles.stairsPillBtn,
-                          !isStairsModeManual && [styles.stairsPillActive, { backgroundColor: theme.colors.accent }],
+                          !isStairsModeManual && [styles.stairsPillActive, { backgroundColor: '#0069E8' }],
                         ]}
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1118,7 +1118,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                       <TouchableOpacity
                         style={[
                           styles.stairsPillBtn,
-                          isStairsModeManual && [styles.stairsPillActive, { backgroundColor: theme.colors.accent }],
+                          isStairsModeManual && [styles.stairsPillActive, { backgroundColor: '#0069E8' }],
                         ]}
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1222,7 +1222,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                   <TouchableOpacity style={styles.settingRow} onPress={() => openRestPicker('sets')} activeOpacity={0.6}>
                     <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Entre les séries</Text>
                     <View style={styles.settingRight}>
-                      <Text style={[styles.settingValueText, { color: theme.colors.accent }]}>
+                      <Text style={[styles.settingValueText, { color: '#0069E8' }]}>
                         {formatRestDisplay(restSets)}
                       </Text>
                       <Feather name="chevron-right" size={14} color={theme.colors.textMuted} />
@@ -1235,7 +1235,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                   <TouchableOpacity style={styles.settingRow} onPress={() => openRestPicker('exercise')} activeOpacity={0.6}>
                     <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Fin d'exercice</Text>
                     <View style={styles.settingRight}>
-                      <Text style={[styles.settingValueText, { color: theme.colors.accent }]}>
+                      <Text style={[styles.settingValueText, { color: '#0069E8' }]}>
                         {formatRestDisplay(restExercise)}
                       </Text>
                       <Feather name="chevron-right" size={14} color={theme.colors.textMuted} />
@@ -1245,7 +1245,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
 
                 {/* Bottom Add Action Button */}
                 <TouchableOpacity
-                  style={[styles.submitSheetBtn, { backgroundColor: theme.colors.accent }]}
+                  style={[styles.submitSheetBtn, { backgroundColor: '#0069E8' }]}
                   onPress={handleSaveExerciseToSession}
                   activeOpacity={0.8}
                 >
@@ -1286,7 +1286,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                 }}
                 style={styles.headerTextBtn}
               >
-                <Text style={[styles.headerCancelText, { color: theme.colors.accent }]}>Fermer</Text>
+                <Text style={[styles.headerCancelText, { color: '#0069E8' }]}>Fermer</Text>
               </TouchableOpacity>
             </View>
 
@@ -1301,7 +1301,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                   />
                   <View style={{ flexDirection: 'row', gap: 8 }}>
                     <TouchableOpacity
-                      style={[styles.headerSaveBtn, { backgroundColor: theme.colors.accent, flex: 1 }]}
+                      style={[styles.headerSaveBtn, { backgroundColor: '#0069E8', flex: 1 }]}
                       onPress={handleSaveLibraryEdit}
                     >
                       <Text style={styles.headerSaveBtnText}>Enregistrer</Text>
@@ -1355,7 +1355,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
 
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                             <TouchableOpacity
-                              style={[styles.libraryPickRowBtn, { backgroundColor: theme.colors.accent + '15' }]}
+                              style={[styles.libraryPickRowBtn, { backgroundColor: '#0069E8' + '15' }]}
                               onPress={() => {
                                 handleSelectFromLibrary(ex);
                                 setIsManageLibraryVisible(false);
@@ -1363,8 +1363,8 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
                               }}
                               activeOpacity={0.7}
                             >
-                              <Feather name="plus" size={13} color={theme.colors.accent} style={{ marginRight: 4 }} />
-                              <Text style={[styles.libraryPickRowText, { color: theme.colors.accent }]}>Choisir</Text>
+                              <Feather name="plus" size={13} color={'#0069E8'} style={{ marginRight: 4 }} />
+                              <Text style={[styles.libraryPickRowText, { color: '#0069E8' }]}>Choisir</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity onPress={() => handleStartEditLibraryEx(ex)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>

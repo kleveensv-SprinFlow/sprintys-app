@@ -295,7 +295,7 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
             <TouchableOpacity
               onPress={handleSaveWorkout}
               disabled={isSubmitting}
-              style={[styles.headerSaveBtn, { backgroundColor: '#10B981' }]}
+              style={[styles.headerSaveBtn, { backgroundColor: '#0F172A' }]}
             >
               {isSubmitting ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
@@ -308,8 +308,8 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
           <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
             {/* Emerald Banner card */}
             <View style={[styles.bannerCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              <View style={[styles.iconCircle, { backgroundColor: '#D1FAE5' }]}>
-                <Ionicons name="git-merge-outline" size={26} color="#047857" />
+              <View style={[styles.iconCircle, { backgroundColor: '#F0F9FF' }]}>
+                <Feather name="crosshair" size={26} color="#0069E8" />
               </View>
               <Text style={[styles.bannerTitle, { color: theme.colors.text }]}>Consignes & Ateliers Techniques</Text>
               <Text style={[styles.bannerSubtitle, { color: theme.colors.textSecondary }]}>
@@ -352,7 +352,7 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
                   <TouchableOpacity
                     style={[
                       styles.segmentBtn,
-                      note.targetType === 'team' && [styles.segmentBtnActive, { backgroundColor: '#10B981' }],
+                      note.targetType === 'team' && [styles.segmentBtnActive, { backgroundColor: '#0069E8' }],
                     ]}
                     onPress={() => {
                       Haptics.selectionAsync();
@@ -376,7 +376,7 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
                   <TouchableOpacity
                     style={[
                       styles.segmentBtn,
-                      note.targetType === 'subgroup' && [styles.segmentBtnActive, { backgroundColor: '#10B981' }],
+                      note.targetType === 'subgroup' && [styles.segmentBtnActive, { backgroundColor: '#0069E8' }],
                     ]}
                     onPress={() => {
                       Haptics.selectionAsync();
@@ -401,7 +401,7 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
                   <TouchableOpacity
                     style={[
                       styles.segmentBtn,
-                      note.targetType === 'athlete' && [styles.segmentBtnActive, { backgroundColor: '#10B981' }],
+                      note.targetType === 'athlete' && [styles.segmentBtnActive, { backgroundColor: '#0069E8' }],
                     ]}
                     onPress={() => {
                       Haptics.selectionAsync();
@@ -441,8 +441,8 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
                               style={[
                                 styles.chip,
                                 {
-                                  backgroundColor: isSelected ? '#D1FAE5' : theme.colors.background,
-                                  borderColor: isSelected ? '#10B981' : theme.colors.border,
+                                  backgroundColor: isSelected ? '#0069E820' : theme.colors.background,
+                                  borderColor: isSelected ? '#0069E8' : theme.colors.border,
                                 },
                               ]}
                               onPress={() => {
@@ -453,7 +453,7 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
                               <Text
                                 style={[
                                   styles.chipText,
-                                  { color: isSelected ? '#047857' : theme.colors.text, fontWeight: isSelected ? '700' : '500' },
+                                  { color: isSelected ? '#0069E8' : theme.colors.text, fontWeight: isSelected ? '700' : '500' },
                                 ]}
                               >
                                 {sg.name}
@@ -484,8 +484,8 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
                               style={[
                                 styles.chip,
                                 {
-                                  backgroundColor: isSelected ? '#D1FAE5' : theme.colors.background,
-                                  borderColor: isSelected ? '#10B981' : theme.colors.border,
+                                  backgroundColor: isSelected ? '#0069E820' : theme.colors.background,
+                                  borderColor: isSelected ? '#0069E8' : theme.colors.border,
                                 },
                               ]}
                               onPress={() => {
@@ -496,7 +496,7 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
                               <Text
                                 style={[
                                   styles.chipText,
-                                  { color: isSelected ? '#047857' : theme.colors.text, fontWeight: isSelected ? '700' : '500' },
+                                  { color: isSelected ? '#0069E8' : theme.colors.text, fontWeight: isSelected ? '700' : '500' },
                                 ]}
                               >
                                 {name}
@@ -564,8 +564,8 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
               onPress={handleAddNoteItem}
               activeOpacity={0.7}
             >
-              <View style={[styles.addNoteIconCircle, { backgroundColor: '#D1FAE5' }]}>
-                <Feather name="plus" size={18} color="#047857" />
+              <View style={[styles.addNoteIconCircle, { backgroundColor: '#0069E820' }]}>
+                <Feather name="plus" size={18} color="#0069E8" />
               </View>
               <Text style={[styles.addNoteBtnText, { color: theme.colors.text }]}>
                 Ajouter une consigne pour un autre groupe / athlète
@@ -690,7 +690,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#10B981',
+    backgroundColor: '#0069E8',
   },
   noteNumberText: {
     fontSize: 12,

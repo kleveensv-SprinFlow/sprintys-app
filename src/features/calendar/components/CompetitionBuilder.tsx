@@ -204,7 +204,7 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
             <TouchableOpacity
               onPress={handleSaveWorkout}
               disabled={isSubmitting}
-              style={[styles.headerSaveBtn, { backgroundColor: '#F59E0B' }]}
+              style={[styles.headerSaveBtn, { backgroundColor: '#0F172A' }]}
             >
               {isSubmitting ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
@@ -218,7 +218,7 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
             {/* Banner card */}
             <View style={[styles.bannerCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
               <View style={[styles.iconCircle, { backgroundColor: '#FEF3C7' }]}>
-                <Feather name="award" size={26} color="#D97706" />
+                <Ionicons name="trophy-outline" size={26} color="#D97706" />
               </View>
               <Text style={[styles.bannerTitle, { color: theme.colors.text }]}>Ajouter une compétition</Text>
               <Text style={[styles.bannerSubtitle, { color: theme.colors.textSecondary }]}>
@@ -269,7 +269,7 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
               <Text style={[styles.cardInputCaption, { color: theme.colors.textSecondary }]}>PARTICIPANTS</Text>
               <View style={[styles.segmentedRow, { backgroundColor: theme.colors.background }]}>
                 <TouchableOpacity
-                  style={[styles.segmentBtn, targetType === 'team' && [styles.segmentBtnActive, { backgroundColor: '#F59E0B' }]]}
+                  style={[styles.segmentBtn, targetType === 'team' && [styles.segmentBtnActive, { backgroundColor: '#0069E8' }]]}
                   onPress={() => {
                     Haptics.selectionAsync();
                     setTargetType('team');
@@ -282,7 +282,7 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.segmentBtn, targetType === 'subgroup' && [styles.segmentBtnActive, { backgroundColor: '#F59E0B' }]]}
+                  style={[styles.segmentBtn, targetType === 'subgroup' && [styles.segmentBtnActive, { backgroundColor: '#0069E8' }]]}
                   onPress={() => {
                     Haptics.selectionAsync();
                     setTargetType('subgroup');
@@ -295,7 +295,7 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.segmentBtn, targetType === 'athlete' && [styles.segmentBtnActive, { backgroundColor: '#F59E0B' }]]}
+                  style={[styles.segmentBtn, targetType === 'athlete' && [styles.segmentBtnActive, { backgroundColor: '#0069E8' }]]}
                   onPress={() => {
                     Haptics.selectionAsync();
                     setTargetType('athlete');
@@ -321,15 +321,15 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
                           <TouchableOpacity
                             key={sg.id}
                             style={[styles.chip, {
-                              backgroundColor: isSelected ? '#FEF3C7' : theme.colors.background,
-                              borderColor: isSelected ? '#F59E0B' : theme.colors.border,
+                              backgroundColor: isSelected ? '#0069E820' : theme.colors.background,
+                              borderColor: isSelected ? '#0069E8' : theme.colors.border,
                             }]}
                             onPress={() => {
                               Haptics.selectionAsync();
                               setTargetId(sg.id);
                             }}
                           >
-                            <Text style={[styles.chipText, { color: isSelected ? '#B45309' : theme.colors.text, fontWeight: isSelected ? '700' : '500' }]}>
+                            <Text style={[styles.chipText, { color: isSelected ? '#0069E8' : theme.colors.text, fontWeight: isSelected ? '700' : '500' }]}>
                               {sg.name}
                             </Text>
                           </TouchableOpacity>
@@ -354,15 +354,15 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
                           <TouchableOpacity
                             key={m.user_id}
                             style={[styles.chip, {
-                              backgroundColor: isSelected ? '#FEF3C7' : theme.colors.background,
-                              borderColor: isSelected ? '#F59E0B' : theme.colors.border,
+                              backgroundColor: isSelected ? '#0069E820' : theme.colors.background,
+                              borderColor: isSelected ? '#0069E8' : theme.colors.border,
                             }]}
                             onPress={() => {
                               Haptics.selectionAsync();
                               setTargetId(m.user_id);
                             }}
                           >
-                            <Text style={[styles.chipText, { color: isSelected ? '#B45309' : theme.colors.text, fontWeight: isSelected ? '700' : '500' }]}>
+                            <Text style={[styles.chipText, { color: isSelected ? '#0069E8' : theme.colors.text, fontWeight: isSelected ? '700' : '500' }]}>
                               {name}
                             </Text>
                           </TouchableOpacity>

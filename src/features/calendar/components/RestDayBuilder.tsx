@@ -215,7 +215,7 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
             <TouchableOpacity
               onPress={handleSaveRestDay}
               disabled={isSubmitting}
-              style={[styles.headerSaveBtn, { backgroundColor: theme.colors.accent }]}
+              style={[styles.headerSaveBtn, { backgroundColor: '#0F172A' }]}
             >
               {isSubmitting ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
@@ -233,7 +233,7 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
             {/* Banner card */}
             <View style={[styles.bannerCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
               <View style={[styles.iconCircle, { backgroundColor: '#F1F5F9' }]}>
-                <Ionicons name="cafe-outline" size={28} color="#475569" />
+                <Feather name="coffee" size={28} color="#475569" />
               </View>
               <Text style={[styles.bannerTitle, { color: theme.colors.text }]}>Journée de récupération</Text>
               <Text style={[styles.bannerSubtitle, { color: theme.colors.textSecondary }]}>
@@ -249,7 +249,7 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
             <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
               <View style={styles.segmentedRow}>
                 <TouchableOpacity
-                  style={[styles.segmentBtn, targetType === 'team' && { backgroundColor: theme.colors.accent }]}
+                  style={[styles.segmentBtn, targetType === 'team' && { backgroundColor: '#0069E8' }]}
                   onPress={() => {
                     Haptics.selectionAsync();
                     setTargetType('team');
@@ -261,7 +261,7 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.segmentBtn, targetType === 'subgroup' && { backgroundColor: theme.colors.accent }]}
+                  style={[styles.segmentBtn, targetType === 'subgroup' && { backgroundColor: '#0069E8' }]}
                   onPress={() => {
                     Haptics.selectionAsync();
                     setTargetType('subgroup');
@@ -274,7 +274,7 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.segmentBtn, targetType === 'athlete' && { backgroundColor: theme.colors.accent }]}
+                  style={[styles.segmentBtn, targetType === 'athlete' && { backgroundColor: '#0069E8' }]}
                   onPress={() => {
                     Haptics.selectionAsync();
                     setTargetType('athlete');
@@ -297,13 +297,13 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
                         style={[
                           styles.chip,
                           {
-                            backgroundColor: isSelected ? theme.colors.accent + '20' : theme.colors.background,
-                            borderColor: isSelected ? theme.colors.accent : theme.colors.border,
+                            backgroundColor: isSelected ? '#0069E820' : theme.colors.background,
+                            borderColor: isSelected ? '#0069E8' : theme.colors.border,
                           },
                         ]}
                         onPress={() => setSelectedSubgroupId(sg.id)}
                       >
-                        <Text style={[styles.chipText, { color: isSelected ? theme.colors.accent : theme.colors.text }]}>
+                        <Text style={[styles.chipText, { color: isSelected ? '#0069E8' : theme.colors.text }]}>
                           {sg.name}
                         </Text>
                       </TouchableOpacity>
@@ -324,13 +324,13 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
                         style={[
                           styles.chip,
                           {
-                            backgroundColor: isSelected ? theme.colors.accent + '20' : theme.colors.background,
-                            borderColor: isSelected ? theme.colors.accent : theme.colors.border,
+                            backgroundColor: isSelected ? '#0069E820' : theme.colors.background,
+                            borderColor: isSelected ? '#0069E8' : theme.colors.border,
                           },
                         ]}
                         onPress={() => setSelectedAthleteId(m.user_id)}
                       >
-                        <Text style={[styles.chipText, { color: isSelected ? theme.colors.accent : theme.colors.text }]}>
+                        <Text style={[styles.chipText, { color: isSelected ? '#0069E8' : theme.colors.text }]}>
                           {name}
                         </Text>
                       </TouchableOpacity>
