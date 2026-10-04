@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -72,17 +71,8 @@ export default function CoachDashboardScreen() {
       {/* HEADER COACH */}
       <View style={styles.header}>
         {/* Left: Annonce */}
-        <TouchableOpacity 
-          onPress={() => setBroadcastVisible(true)} 
-          style={styles.iconButton}
-          activeOpacity={0.7}
-        >
-          <BlurView intensity={65} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFillObject} />
-          <LinearGradient
-            colors={['rgba(255, 255, 255, 0.40)', 'rgba(255, 255, 255, 0.15)']}
-            style={StyleSheet.absoluteFillObject}
-          />
-          <Feather name="mic" size={20} color="#0F172A" />
+        <TouchableOpacity onPress={() => setBroadcastVisible(true)} style={[styles.iconButton, { backgroundColor: theme.colors.surfaceLight }]}>
+          <Feather name="mic" size={24} color={theme.colors.text} />
         </TouchableOpacity>
 
         {/* Center: Logo */}
@@ -103,18 +93,11 @@ export default function CoachDashboardScreen() {
         {/* Santé du Groupe (Breathing Aura) */}
         <View style={styles.statsRow}>
           <TouchableOpacity 
-            style={styles.statCard}
+            style={[styles.statCard, { overflow: 'hidden' }]}
             activeOpacity={0.9}
             onPress={() => setTeamHealthVisible(true)}
           >
-            <BlurView intensity={60} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFillObject} />
-            <LinearGradient
-              colors={['rgba(255, 255, 255, 0.45)', 'rgba(255, 255, 255, 0.18)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFillObject}
-              pointerEvents="none"
-            />
+            <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFillObject} />
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Feather name="activity" size={20} color={healthColor} />
@@ -138,15 +121,8 @@ export default function CoachDashboardScreen() {
         </View>
         
         {todayWorkouts.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <BlurView intensity={60} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFillObject} />
-            <LinearGradient
-              colors={['rgba(255, 255, 255, 0.45)', 'rgba(255, 255, 255, 0.18)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFillObject}
-              pointerEvents="none"
-            />
+          <View style={[styles.emptyCard, { overflow: 'hidden' }]}>
+            <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFillObject} />
             <Feather name="calendar" size={24} color="#64748B" style={{ marginBottom: 12 }} />
             <Text style={styles.emptyText}>Aucune séance planifiée pour aujourd'hui.</Text>
             <TouchableOpacity onPress={() => router.push('/(coach)/day/' + todayStr)} style={{ marginTop: 16 }}>
@@ -157,18 +133,11 @@ export default function CoachDashboardScreen() {
           todayWorkouts.map((workout, index) => (
             <TouchableOpacity 
               key={workout.id || index}
-              style={styles.sessionCard}
+              style={[styles.sessionCard, { overflow: 'hidden' }]}
               activeOpacity={0.8}
               onPress={() => router.push('/(coach)/day/' + (workout.date_prevue ? workout.date_prevue.split('T')[0] : todayStr))}
             >
-              <BlurView intensity={60} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFillObject} />
-              <LinearGradient
-                colors={['rgba(255, 255, 255, 0.45)', 'rgba(255, 255, 255, 0.18)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFillObject}
-                pointerEvents="none"
-              />
+              <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFillObject} />
               <View style={styles.sessionCardHeader}>
                 <View style={[styles.sessionBadge, { backgroundColor: workout.type_seance === 'musculation' ? '#3B82F620' : '#F59E0B20' }]}>
                   <Text style={[styles.sessionBadgeText, { color: workout.type_seance === 'musculation' ? '#3B82F6' : '#F59E0B' }]}>
@@ -225,28 +194,11 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   iconButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Platform.OS === 'android' ? 'rgba(255, 255, 255, 0.20)' : 'transparent',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.75)',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 2,
-    overflow: 'hidden',
-  },
-  topGlossHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
   },
   welcomeText: {
     fontSize: 22,
@@ -268,14 +220,17 @@ const styles = StyleSheet.create({
     padding: 24,
     borderRadius: 22,
     alignItems: 'flex-start',
-    backgroundColor: Platform.OS === 'android' ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
-    borderWidth: 0,
+    backgroundColor:
+      Platform.OS === 'android'
+        ? 'rgba(255, 255, 255, 0.78)'
+        : 'rgba(255, 255, 255, 0.58)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.10,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
     elevation: 3,
-    overflow: 'hidden',
   },
   statValue: {
     fontSize: 40,
@@ -300,17 +255,20 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   sessionCard: {
-    backgroundColor: Platform.OS === 'android' ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
-    borderRadius: 22,
+    backgroundColor:
+      Platform.OS === 'android'
+        ? 'rgba(255, 255, 255, 0.78)'
+        : 'rgba(255, 255, 255, 0.58)',
+    borderRadius: 20,
     padding: 20,
-    borderWidth: 0,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
     marginBottom: 16,
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.10,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
     elevation: 3,
-    overflow: 'hidden',
   },
   sessionCardHeader: {
     flexDirection: 'row',
@@ -352,7 +310,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.4)',
+    borderTopColor: 'rgba(255, 255, 255, 0.6)',
     paddingTop: 16,
   },
   sessionCardAction: {
@@ -362,17 +320,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   emptyCard: {
-    backgroundColor: Platform.OS === 'android' ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
-    borderWidth: 0,
+    backgroundColor:
+      Platform.OS === 'android'
+        ? 'rgba(255, 255, 255, 0.78)'
+        : 'rgba(255, 255, 255, 0.58)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
     padding: 24,
-    borderRadius: 22,
+    borderRadius: 20,
     alignItems: 'center',
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.10,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
     elevation: 3,
-    overflow: 'hidden',
   },
   emptyText: {
     color: '#334155',

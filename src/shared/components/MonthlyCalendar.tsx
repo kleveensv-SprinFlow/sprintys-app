@@ -277,10 +277,9 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
           styles.navPills,
           {
             backgroundColor: isGlass
-              ? (Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.35)' : 'rgba(255, 255, 255, 0.25)')
+              ? (Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.65)' : 'rgba(255, 255, 255, 0.88)')
               : theme.colors.surface,
-            borderColor: isGlass ? 'transparent' : theme.colors.border,
-            borderWidth: isGlass ? 0 : 1,
+            borderColor: isGlass ? 'rgba(255, 255, 255, 0.85)' : theme.colors.border,
           }
         ]}>
           <TouchableOpacity
@@ -291,7 +290,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
             <Feather name="chevron-left" size={18} color={isGlass ? '#0F172A' : theme.colors.text} />
           </TouchableOpacity>
 
-          <View style={[styles.navDivider, { backgroundColor: isGlass ? 'rgba(255, 255, 255, 0.4)' : theme.colors.border }]} />
+          <View style={[styles.navDivider, { backgroundColor: isGlass ? 'rgba(255, 255, 255, 0.85)' : theme.colors.border }]} />
 
           <TouchableOpacity
             onPress={() => navigateMonth('next')}
@@ -310,10 +309,9 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
             styles.periodBadgeRow,
             {
               backgroundColor: isGlass
-                ? (Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.35)' : 'rgba(255, 255, 255, 0.25)')
+                ? (Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.68)' : 'rgba(255, 255, 255, 0.88)')
                 : activeSelectedPeriod.color + '18',
-              borderColor: activeSelectedPeriod.color + (isGlass ? '70' : '45'),
-              borderWidth: isGlass ? 0 : 1,
+              borderColor: activeSelectedPeriod.color + (isGlass ? '60' : '45'),
             },
           ]}
           onPress={() => {
@@ -341,10 +339,9 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
             styles.periodBadgeRowEmpty,
             {
               backgroundColor: isGlass
-                ? (Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.35)' : 'rgba(255, 255, 255, 0.25)')
+                ? (Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.60)' : 'rgba(255, 255, 255, 0.85)')
                 : theme.colors.surface,
-              borderColor: isGlass ? 'transparent' : theme.colors.border,
-              borderWidth: isGlass ? 0 : 1,
+              borderColor: isGlass ? 'rgba(255, 255, 255, 0.85)' : theme.colors.border,
             },
           ]}
           onPress={() => {
@@ -409,8 +406,8 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                   ? periodColor
                     ? periodColor + '30'
                     : hasWorkouts
-                      ? (Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.35)' : 'rgba(255, 255, 255, 0.25)')
-                      : (Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.22)' : 'rgba(255, 255, 255, 0.16)')
+                      ? (Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.70)' : 'rgba(255, 255, 255, 0.90)')
+                      : (Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.55)' : 'rgba(255, 255, 255, 0.80)')
                   : periodColor
                     ? periodColor + '26' // 15% opacity tint
                     : hasWorkouts
@@ -430,17 +427,17 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                       borderColor: selected
                         ? '#0F172A'
                         : periodColor
-                          ? periodColor + '70'
+                          ? periodColor + '60'
                           : isGlass
-                            ? 'transparent'
+                            ? 'rgba(255, 255, 255, 0.85)'
                             : theme.colors.border,
-                      borderWidth: selected ? 2 : (isGlass ? 0 : 1),
+                      borderWidth: selected ? 2 : 1,
                       opacity: item.isCurrentMonth ? 1 : 0.28,
                       shadowColor: '#0F172A',
                       shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: isGlass && item.isCurrentMonth ? 0.08 : 0,
+                      shadowOpacity: isGlass && item.isCurrentMonth ? 0.06 : 0,
                       shadowRadius: 4,
-                      elevation: isGlass && item.isCurrentMonth ? 2 : 0,
+                      elevation: isGlass && item.isCurrentMonth ? 1 : 0,
                     },
                   ]}
                   onPress={() => handleDayPress(item.date)}

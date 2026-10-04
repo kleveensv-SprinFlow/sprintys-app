@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Modal, ScrollView, Animated, Easing, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../core/theme';
 import * as Location from 'expo-location';
@@ -141,12 +140,16 @@ export const WeatherCard = () => {
         style={[
           styles.container,
           {
-            backgroundColor: Platform.OS === 'android' ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
-            borderWidth: 0,
+            backgroundColor:
+              Platform.OS === 'android'
+                ? 'rgba(255, 255, 255, 0.78)'
+                : 'rgba(255, 255, 255, 0.58)',
+            borderColor: 'rgba(255, 255, 255, 0.85)',
+            borderWidth: 1,
             shadowColor: '#0F172A',
-            shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.10,
-            shadowRadius: 20,
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.08,
+            shadowRadius: 16,
             elevation: 3,
             overflow: 'hidden',
           },
@@ -154,14 +157,7 @@ export const WeatherCard = () => {
         activeOpacity={0.8}
         onPress={() => setIsModalVisible(true)}
       >
-        <BlurView intensity={60} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFillObject} />
-        <LinearGradient
-          colors={['rgba(255, 255, 255, 0.45)', 'rgba(255, 255, 255, 0.18)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFillObject}
-          pointerEvents="none"
-        />
+        <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFillObject} />
         <Text style={[styles.cardHeaderTitle, { color: '#0F172A', fontWeight: '800' }]}>
           CONDITIONS D'ENTRAÎNEMENT
         </Text>
@@ -273,15 +269,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginVertical: 12,
     padding: 16,
-    borderRadius: 22,
-  },
-  topGlossHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 20,
+    
   },
   cardHeaderTitle: {
     fontSize: 11,

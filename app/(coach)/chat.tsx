@@ -345,11 +345,7 @@ export default function CoachMessageScreen() {
         {/* Bandeau : conversation verrouillée sur un athlète */}
         {athleteCtx && (
           <View style={styles.athleteBanner}>
-            <BlurView intensity={60} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFillObject} />
-            <LinearGradient
-              colors={['rgba(255, 255, 255, 0.45)', 'rgba(255, 255, 255, 0.18)']}
-              style={StyleSheet.absoluteFillObject}
-            />
+            <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFillObject} />
             {athleteCtx.avatarUrl ? (
               <Image source={{ uri: athleteCtx.avatarUrl }} style={styles.bannerAvatar} />
             ) : (
@@ -410,11 +406,7 @@ export default function CoachMessageScreen() {
                         }
                       }}
                     >
-                      <BlurView intensity={60} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFillObject} />
-                      <LinearGradient
-                        colors={['rgba(255, 255, 255, 0.45)', 'rgba(255, 255, 255, 0.18)']}
-                        style={StyleSheet.absoluteFillObject}
-                      />
+                      <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFillObject} />
                       <View style={styles.capabilityIconWrap}>
                         <Feather name={cap.icon as any} size={20} color={theme.colors.accent} />
                       </View>
@@ -447,17 +439,7 @@ export default function CoachMessageScreen() {
                     </View>
                   )}
                   <View style={!isAssistant ? styles.messageBubbleRight : [styles.messageBubbleLeft, hasRichCards && styles.messageBubbleWide]}>
-                    {isAssistant && (
-                      <>
-                        <BlurView intensity={60} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFillObject} />
-                        <LinearGradient
-                          colors={['rgba(255, 255, 255, 0.45)', 'rgba(255, 255, 255, 0.18)']}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={StyleSheet.absoluteFillObject}
-                        />
-                      </>
-                    )}
+                    {isAssistant && <BlurView intensity={45} tint="light" style={StyleSheet.absoluteFillObject} />}
                     {renderMessageContent(msg)}
                   </View>
                 </View>
@@ -475,13 +457,7 @@ export default function CoachMessageScreen() {
                   />
                 </View>
                 <View style={[styles.messageBubbleLeft, { paddingHorizontal: 14, paddingVertical: 10, minWidth: 260 }]}>
-                  <BlurView intensity={60} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFillObject} />
-                  <LinearGradient
-                    colors={['rgba(255, 255, 255, 0.45)', 'rgba(255, 255, 255, 0.18)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={StyleSheet.absoluteFillObject}
-                  />
+                  <BlurView intensity={45} tint="light" style={StyleSheet.absoluteFillObject} />
                   <SprintyThinkingBubble />
                 </View>
               </View>
@@ -490,11 +466,7 @@ export default function CoachMessageScreen() {
 
           {/* Floating Input Bar */}
           <View style={styles.floatingInputWrapper}>
-            <BlurView intensity={60} tint="light" experimentalBlurMethod="dimezisBlurView" style={styles.floatingBlur}>
-              <LinearGradient
-                colors={['rgba(255, 255, 255, 0.45)', 'rgba(255, 255, 255, 0.18)']}
-                style={StyleSheet.absoluteFillObject}
-              />
+            <BlurView intensity={30} tint="default" style={styles.floatingBlur}>
               <View style={[styles.inputContainer, { paddingBottom: Platform.OS === 'ios' ? Math.max(16, insets.bottom) : 16 }]}>
                 <View style={styles.inputBox}>
                   <TextInput
@@ -574,23 +546,16 @@ const styles = StyleSheet.create({
     paddingBottom: 16, 
     zIndex: 10
   },
-  topGlossHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-  },
   backBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Platform.OS === 'android' ? 'rgba(255, 255, 255, 0.20)' : 'transparent',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.65)' : 'rgba(255, 255, 255, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 0,
-    shadowColor: '#0F172A',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 6,
@@ -600,11 +565,12 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Platform.OS === 'android' ? 'rgba(255, 255, 255, 0.20)' : 'transparent',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.65)' : 'rgba(255, 255, 255, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 0,
-    shadowColor: '#0F172A',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 6,
@@ -618,11 +584,12 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Platform.OS === 'android' ? 'rgba(255, 255, 255, 0.20)' : 'transparent',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.65)' : 'rgba(255, 255, 255, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
-    borderWidth: 0,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
     overflow: 'hidden',
   },
   lottieAvatar: { width: 40, height: 40 },
@@ -646,14 +613,15 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 6,
     padding: 12,
-    borderRadius: 20,
-    backgroundColor: Platform.OS === 'android' ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
-    borderWidth: 0,
+    borderRadius: 18,
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.60)' : 'rgba(255, 255, 255, 0.82)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.10,
-    shadowRadius: 14,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
     overflow: 'hidden',
   },
   bannerAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F1F5F9', borderWidth: 1.5, borderColor: '#E2E8F0' },
@@ -661,9 +629,9 @@ const styles = StyleSheet.create({
   bannerKicker: { fontSize: 9, fontWeight: '800', color: '#0284C7', letterSpacing: 1 },
   bannerName: { fontSize: 15, fontWeight: '800', color: '#0F172A', marginTop: 1 },
   bannerChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 5 },
-  bannerChip: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: 'rgba(255, 255, 255, 0.5)' },
+  bannerChip: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: 'rgba(255, 255, 255, 0.7)' },
   bannerChipText: { fontSize: 10, fontWeight: '700', color: '#1E293B' },
-  bannerClose: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(255, 255, 255, 0.5)', alignItems: 'center', justifyContent: 'center' },
+  bannerClose: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(255, 255, 255, 0.7)', alignItems: 'center', justifyContent: 'center' },
   keyboardAvoid: { flex: 1 },
   chatArea: { flex: 1 },
   chatContent: { paddingHorizontal: 16, paddingTop: 20 },
@@ -674,14 +642,15 @@ const styles = StyleSheet.create({
   capabilitiesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   capabilityCard: {
     width: '48%',
-    backgroundColor: Platform.OS === 'android' ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
-    borderRadius: 22,
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.58)' : 'rgba(255, 255, 255, 0.80)',
+    borderRadius: 20,
     padding: 16,
-    borderWidth: 0,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.10,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
     elevation: 3,
     overflow: 'hidden',
   },
@@ -701,10 +670,10 @@ const styles = StyleSheet.create({
   },
   
   messageBubbleLeft: {
-    backgroundColor: Platform.OS === 'android' ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.65)' : 'rgba(255, 255, 255, 0.85)',
     borderRadius: 20, borderBottomLeftRadius: 4,
-    paddingHorizontal: 16, paddingVertical: 12, maxWidth: '80%', borderWidth: 0,
-    shadowColor: '#0F172A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12,
+    paddingHorizontal: 16, paddingVertical: 12, maxWidth: '80%', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.85)',
+    shadowColor: '#0F172A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8,
     elevation: 2, overflow: 'hidden',
   },
   messageBubbleWide: {
@@ -723,14 +692,14 @@ const styles = StyleSheet.create({
   floatingInputWrapper: { position: 'absolute', bottom: 0, left: 0, right: 0 },
   floatingBlur: {
     paddingTop: 12, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden',
-    borderTopWidth: 0,
-    backgroundColor: Platform.OS === 'android' ? 'rgba(255, 255, 255, 0.20)' : 'transparent',
+    borderTopWidth: 1, borderTopColor: 'rgba(255, 255, 255, 0.6)',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.45)' : 'rgba(255, 255, 255, 0.75)',
   },
   inputContainer: { paddingHorizontal: 16 },
   inputBox: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
-    borderRadius: 30, paddingHorizontal: 6, paddingVertical: 6, borderWidth: 1.5, borderColor: 'rgba(255, 255, 255, 0.85)',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.75)' : 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 30, paddingHorizontal: 6, paddingVertical: 6, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.85)',
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6,
   },
   input: { flex: 1, minHeight: 40, maxHeight: 100, color: '#0F172A', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, fontSize: 15, fontWeight: '500' },
