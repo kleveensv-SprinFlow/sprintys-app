@@ -44,7 +44,7 @@ interface SprintyChatState {
 
 const defaultIntro: ChatMessage = {
   role: 'assistant',
-  content: "Salut ! Je suis Sprinty, ton assistant neural actif. Que puis-je t'aider à créer aujourd'hui ?"
+  content: "Salut ! Je suis Sprinty, ton assistant d'entraînement. Prêt à planifier une séance, analyser tes athlètes ou préparer une compétition ?"
 };
 
 const athleteIntro = (name: string): ChatMessage => ({

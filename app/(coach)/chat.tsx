@@ -304,10 +304,11 @@ export default function CoachMessageScreen() {
     startNewConversation();
   };
 
-  const coachCapabilities: { id: number; title: string; icon: string; prompt?: string; route?: string }[] = [
-    { id: 1, title: 'Planifier une séance', icon: 'zap', prompt: 'Crée-moi une séance de sprint' },
-    { id: 2, title: 'Planifier une compétition', icon: 'award', prompt: 'Je veux planifier une compétition' },
-    { id: 3, title: 'Analyser un athlète', icon: 'activity', route: '/(coach)/analyze' },
+  const coachCapabilities: { id: number; title: string; subtitle: string; icon: string; prompt?: string; route?: string }[] = [
+    { id: 1, title: 'Planifier une séance', subtitle: 'Piste, muscu, vitesse', icon: 'zap', prompt: 'Crée-moi une séance de sprint' },
+    { id: 2, title: 'Planifier une compétition', subtitle: 'Objectifs & calendrier', icon: 'award', prompt: 'Je veux planifier une compétition' },
+    { id: 3, title: 'Analyser un athlète', subtitle: 'Forme & progression', icon: 'activity', route: '/(coach)/analyze' },
+    { id: 4, title: 'Bilan charge & forme', subtitle: 'Charges récentes & alertes', icon: 'trending-up', prompt: "Fais-moi un bilan global sur l'état de forme et les charges récentes de mon groupe d'entraînement." },
   ];
 
   return (
@@ -334,7 +335,7 @@ export default function CoachMessageScreen() {
             </View>
             <View>
               <Text style={styles.title}>Sprinty IA</Text>
-              <Text style={styles.subtitle}>{isTyping ? 'ENTRAIN DE RÉFLÉCHIR...' : 'NEURAL ASSISTANT ACTIF'}</Text>
+              <Text style={styles.subtitle}>{isTyping ? "En cours d'analyse..." : 'En ligne • Prêt à vous aider'}</Text>
             </View>
           </View>
           <TouchableOpacity style={styles.menuBtn} onPress={() => setHistoryVisible(true)}>
@@ -383,12 +384,16 @@ export default function CoachMessageScreen() {
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
           >
-            {/* Hero Quick Actions if empty */}
+            {/* Hero Quick Actions horizontal carousel if empty */}
             {messages.length <= 1 && !athleteCtx && (
               <View style={styles.heroContainer}>
                 <Text style={styles.heroTitle}>Capacités Sprinty</Text>
                 <Text style={styles.heroSub}>Explore tout le potentiel de ton assistant IA personnel.</Text>
-                <View style={styles.capabilitiesGrid}>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.capabilitiesCarousel}
+                >
                   {coachCapabilities.map(cap => (
                     <TouchableOpacity 
                       key={cap.id} 
@@ -406,12 +411,13 @@ export default function CoachMessageScreen() {
                       }}
                     >
                       <View style={styles.capabilityIconWrap}>
-                        <Feather name={cap.icon as any} size={20} color={theme.colors.accent} />
+                        <Feather name={cap.icon as any} size={18} color="#0069E8" />
                       </View>
                       <Text style={styles.capabilityTitle}>{cap.title}</Text>
+                      <Text style={styles.capabilitySubtitle}>{cap.subtitle}</Text>
                     </TouchableOpacity>
                   ))}
-                </View>
+                </ScrollView>
               </View>
             )}
 
@@ -621,19 +627,51 @@ const styles = StyleSheet.create({
   chatArea: { flex: 1 },
   chatContent: { paddingHorizontal: 16, paddingTop: 20 },
   
-  heroContainer: { marginTop: 20, marginBottom: 40, paddingHorizontal: 8 },
-  heroTitle: { fontSize: 24, fontWeight: '800', color: theme.colors.text, marginBottom: 8 },
-  heroSub: { fontSize: 14, color: theme.colors.textSecondary, marginBottom: 24, lineHeight: 20 },
-  capabilitiesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  heroContainer: { marginTop: 16, marginBottom: 24, paddingHorizontal: 4 },
+  heroTitle: { fontSize: 22, fontWeight: '800', color: theme.colors.text, marginBottom: 6, letterSpacing: -0.4 },
+  heroSub: { fontSize: 13, color: theme.colors.textSecondary, marginBottom: 18, lineHeight: 18 },
+
+  capabilitiesCarousel: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingRight: 16,
+    paddingVertical: 4,
+  },
   capabilityCard: {
-    width: '48%', backgroundColor: theme.colors.surface,
-    borderRadius: 20, padding: 16, borderWidth: 1, borderColor: theme.colors.surfaceLight,
+    width: 170,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
   capabilityIconWrap: {
-    width: 40, height: 40, borderRadius: 12, backgroundColor: theme.colors.accentMuted,
-    justifyContent: 'center', alignItems: 'center', marginBottom: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: '#0069E815',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
   },
-  capabilityTitle: { fontSize: 14, fontWeight: '600', color: theme.colors.text, lineHeight: 20 },
+  capabilityTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#0F172A',
+    lineHeight: 18,
+    letterSpacing: -0.2,
+  },
+  capabilitySubtitle: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 3,
+    lineHeight: 15,
+  },
 
   messageRowLeft: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 16, justifyContent: 'flex-start' },
   messageRowRight: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 16, justifyContent: 'flex-end' },

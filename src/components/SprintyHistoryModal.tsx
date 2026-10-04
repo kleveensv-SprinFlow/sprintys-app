@@ -58,104 +58,168 @@ export default function SprintyHistoryModal({ visible, onClose }: Props) {
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalContainer}>
-        <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFillObject} />
-        <LinearGradient
-          colors={['rgba(31, 14, 56, 0.9)', 'rgba(9, 9, 13, 0.95)']}
-          style={StyleSheet.absoluteFillObject}
-        />
-        <View style={styles.header}>
-          <Text style={styles.title}>Historique Sprinty</Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-            <Feather name="x" size={24} color="#FFF" />
-          </TouchableOpacity>
-        </View>
-
-        <TouchableOpacity style={styles.newChatBtn} onPress={handleNewChat}>
-          <Feather name="plus" size={20} color="#09090D" style={{ marginRight: 8 }} />
-          <Text style={styles.newChatText}>Nouvelle conversation</Text>
-        </TouchableOpacity>
-
-        <FlatList
-          data={sortedConvs}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: 16 }}
-          renderItem={({ item }) => (
-            <TouchableOpacity 
-              style={[styles.convCard, item.isPinned && styles.pinnedCard]}
-              onPress={() => handleSelect(item.id)}
-              onLongPress={() => handleLongPress(item)}
-              delayLongPress={300}
-            >
-              <View style={styles.convHeader}>
-                <Feather name="message-square" size={18} color={item.isPinned ? '#00FFFF' : 'rgba(255,255,255,0.6)'} />
-                <Text style={styles.convTitle} numberOfLines={1}>{item.title}</Text>
-                {item.isPinned && <Feather name="map-pin" size={14} color="#00FFFF" />}
-              </View>
-              <Text style={styles.dateText}>
-                {new Date(item.updatedAt).toLocaleDateString('fr-FR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-              </Text>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContainer}>
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.title}>Historique Sprinty</Text>
+              <Text style={styles.subtitle}>Retrouve toutes tes sessions d'assistance</Text>
+            </View>
+            <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Feather name="x" size={22} color="#0F172A" />
             </TouchableOpacity>
-          )}
-        />
+          </View>
+
+          <TouchableOpacity style={styles.newChatBtn} onPress={handleNewChat} activeOpacity={0.8}>
+            <Feather name="plus" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+            <Text style={styles.newChatText}>Nouvelle conversation</Text>
+          </TouchableOpacity>
+
+          <FlatList
+            data={sortedConvs}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 24 }}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <TouchableOpacity 
+                style={[styles.convCard, item.isPinned && styles.pinnedCard]}
+                onPress={() => handleSelect(item.id)}
+                onLongPress={() => handleLongPress(item)}
+                delayLongPress={300}
+                activeOpacity={0.7}
+              >
+                <View style={styles.convHeader}>
+                  <View style={[styles.convIconBox, item.isPinned && styles.pinnedIconBox]}>
+                    <Feather name="message-square" size={16} color={item.isPinned ? '#0069E8' : '#64748B'} />
+                  </View>
+                  <Text style={styles.convTitle} numberOfLines={1}>{item.title}</Text>
+                  {item.isPinned && (
+                    <View style={styles.pinBadge}>
+                      <Feather name="map-pin" size={12} color="#0069E8" />
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.dateText}>
+                  {new Date(item.updatedAt).toLocaleDateString('fr-FR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </Text>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  modalContainer: { flex: 1 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    maxHeight: '85%',
+    minHeight: '55%',
+    paddingTop: 8,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E2E8F0',
   },
-  title: { fontSize: 20, fontWeight: '700', color: '#FFF' },
-  closeBtn: { padding: 8 },
+  title: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   newChatBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#00FFFF',
-    marginHorizontal: 16,
-    padding: 14,
-    borderRadius: 24,
+    backgroundColor: '#0069E8',
+    marginHorizontal: 18,
+    marginTop: 16,
     marginBottom: 16,
+    paddingVertical: 14,
+    borderRadius: 16,
+    shadowColor: '#0069E8',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
   },
   newChatText: {
-    color: '#09090D',
+    color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: 16,
+    fontSize: 15,
   },
   convCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#F8FAFC',
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    padding: 14,
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: '#E2E8F0',
   },
   pinnedCard: {
-    backgroundColor: 'rgba(0, 255, 255, 0.05)',
-    borderColor: 'rgba(0, 255, 255, 0.2)',
+    backgroundColor: '#F0F7FF',
+    borderColor: '#BAE6FD',
   },
   convHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
+  },
+  convIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pinnedIconBox: {
+    backgroundColor: '#0069E815',
   },
   convTitle: {
     flex: 1,
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#0F172A',
+    fontSize: 15,
+    fontWeight: '700',
     marginHorizontal: 10,
+    letterSpacing: -0.2,
+  },
+  pinBadge: {
+    padding: 4,
+    borderRadius: 6,
+    backgroundColor: '#0069E815',
   },
   dateText: {
-    color: 'rgba(255,255,255,0.5)',
+    color: '#94A3B8',
     fontSize: 12,
-    marginLeft: 28,
-  }
+    marginLeft: 38,
+    fontWeight: '500',
+  },
 });

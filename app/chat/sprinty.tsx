@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -148,7 +148,7 @@ export default function AthleteMessageScreen() {
             </View>
             <View>
               <Text style={styles.title}>Sprinty IA</Text>
-              <Text style={styles.subtitle}>{isTyping ? 'ENTRAIN DE RÉFLÉCHIR...' : 'NEURAL ASSISTANT ACTIF'}</Text>
+              <Text style={styles.subtitle}>{isTyping ? "En cours d'analyse..." : 'En ligne • Prêt à vous aider'}</Text>
             </View>
           </View>
           <TouchableOpacity style={styles.menuBtn} onPress={() => setHistoryVisible(true)}>
