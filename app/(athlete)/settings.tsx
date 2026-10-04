@@ -9,6 +9,7 @@ import { useAuthStore } from '../../src/store/authStore';
 import { supabase } from '../../src/services/supabase';
 import { useRouter } from 'expo-router';
 import { EditProfileModal } from '../../src/shared/components/EditProfileModal';
+import { FaqModal } from '../../src/shared/components/FaqModal';
 
 // Helper to convert base64 to Uint8Array for binary upload
 function base64ToUint8Array(base64: string): Uint8Array {
@@ -51,10 +52,19 @@ export default function SettingsScreen() {
   const router = useRouter();
   
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [isFaqModalVisible, setIsFaqModalVisible] = useState(false);
   const [isPhotoSheetVisible, setIsPhotoSheetVisible] = useState(false);
   const [pendingImage, setPendingImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [isConfirmModalVisible, setIsConfirmModalVisible] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
+  const handleContactSupport = () => {
+    const subject = encodeURIComponent(`Contact Support - Athlète ${user?.name || ''}`);
+    const body = encodeURIComponent(
+      `Bonjour l'équipe Sprintflow,\n\n[Décris ton besoin ou ta question ici]\n\n---\nUtilisateur: ${user?.email || ''}\nRôle: Athlète`
+    );
+    Linking.openURL(`mailto:support@sprintflow.app?subject=${subject}&body=${body}`);
+  };
 
   // Reload fresh profile info from Supabase whenever user opens settings
   useFocusEffect(
@@ -350,14 +360,20 @@ export default function SettingsScreen() {
 
         <Text style={styles.sectionTitle}>Application</Text>
         <View style={styles.card}>
-          <SettingsItem icon="help-circle" title="FAQ & Aide" onPress={() => Linking.openURL('mailto:support@sprintflow.app?subject=FAQ%20%26%20Aide')} />
+          <SettingsItem icon="help-circle" title="FAQ & Centre d'aide" onPress={() => setIsFaqModalVisible(true)} />
           <SettingsItem icon="download" title="Exporter mes données" onPress={handleExportData} />
-          <SettingsItem icon="mail" title="Nous contacter" onPress={() => Linking.openURL('mailto:support@sprintflow.app?subject=Contact')} />
+          <SettingsItem icon="mail" title="Nous contacter" onPress={handleContactSupport} />
         </View>
 
-        <View style={[styles.card, { marginTop: 30, marginBottom: 80 }]}>
+        <View style={[styles.card, { marginTop: 24 }]}>
           <SettingsItem icon="log-out" title="Se déconnecter" isDestructive onPress={handleLogout} />
           <SettingsItem icon="trash-2" title="Supprimer mon compte" isDestructive onPress={handleDeleteAccount} />
+        </View>
+
+        {/* App Version Info */}
+        <View style={styles.versionContainer}>
+          <Text style={styles.versionText}>Sprintflow Athletics • v1.0.0</Text>
+          <Text style={styles.buildText}>Conçu pour la performance et le sprint</Text>
         </View>
       </ScrollView>
 
@@ -484,6 +500,12 @@ export default function SettingsScreen() {
       <EditProfileModal 
         visible={isEditModalVisible} 
         onClose={() => setIsEditModalVisible(false)} 
+      />
+
+      {/* MODAL 4 : Centre d'aide & FAQ */}
+      <FaqModal
+        visible={isFaqModalVisible}
+        onClose={() => setIsFaqModalVisible(false)}
       />
     </SafeAreaView>
   );
@@ -788,5 +810,21 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
     color: '#FFF',
+  },
+  versionContainer: {
+    alignItems: 'center',
+    marginTop: 28,
+    marginBottom: 40,
+  },
+  versionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94A3B8',
+    letterSpacing: 0.2,
+  },
+  buildText: {
+    fontSize: 11,
+    color: '#CBD5E1',
+    marginTop: 2,
   },
 });

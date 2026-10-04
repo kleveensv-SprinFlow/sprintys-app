@@ -66,26 +66,38 @@ export const EditProfileModal = ({ visible, onClose }: Props) => {
                 label="Prénom"
                 value={firstName}
                 onChangeText={setFirstName}
-                placeholder="Jean"
+                placeholder="Prénom"
               />
 
               <Input
                 label="Nom"
                 value={lastName}
                 onChangeText={setLastName}
-                placeholder="Dupont"
+                placeholder="Nom"
               />
 
-              <Input
-                label="Taille (cm)"
-                value={height}
-                onChangeText={setHeight}
-                placeholder="Ex: 180"
-                keyboardType="numeric"
-              />
+              {user?.role === 'athlete' ? (
+                <Input
+                  label="Taille (cm)"
+                  value={height}
+                  onChangeText={setHeight}
+                  placeholder="Ex: 180"
+                  keyboardType="numeric"
+                />
+              ) : (
+                <View style={styles.coachRoleBadgeRow}>
+                  <View style={styles.coachRoleIconBox}>
+                    <Feather name="shield" size={15} color="#0069E8" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.coachRoleLabel}>Rôle du compte</Text>
+                    <Text style={styles.coachRoleValue}>Entraîneur / Coach</Text>
+                  </View>
+                </View>
+              )}
 
               <TouchableOpacity 
-                style={[styles.saveBtn, { backgroundColor: theme.colors.accent }]} 
+                style={[styles.saveBtn, { backgroundColor: '#0069E8' }]} 
                 onPress={handleSave}
                 disabled={isSaving}
               >
@@ -169,5 +181,35 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: 'bold',
-  }
+  },
+  coachRoleBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F7FF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    padding: 14,
+    marginBottom: 20,
+    gap: 12,
+  },
+  coachRoleIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#0069E815',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coachRoleLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#0369A1',
+  },
+  coachRoleValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginTop: 1,
+  },
 });

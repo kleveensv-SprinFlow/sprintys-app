@@ -18,6 +18,7 @@ import { theme } from '../../src/core/theme';
 import { useAuthStore } from '../../src/store/authStore';
 import { useRouter } from 'expo-router';
 import { EditProfileModal } from '../../src/shared/components/EditProfileModal';
+import { FaqModal } from '../../src/shared/components/FaqModal';
 import { supabase } from '../../src/services/supabase';
 
 function base64ToUint8Array(base64: string): Uint8Array {
@@ -59,10 +60,19 @@ export default function ProfileScreen() {
   const { user, logout, updateProfile } = useAuthStore();
   const router = useRouter();
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [isFaqModalVisible, setIsFaqModalVisible] = useState(false);
   const [isPhotoSheetVisible, setIsPhotoSheetVisible] = useState(false);
   const [isConfirmModalVisible, setIsConfirmModalVisible] = useState(false);
   const [pendingImage, setPendingImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
+  const handleContactSupport = () => {
+    const subject = encodeURIComponent(`Contact Support - Coach ${user?.name || ''}`);
+    const body = encodeURIComponent(
+      `Bonjour l'équipe Sprintflow,\n\n[Décris ton besoin ou ta question ici]\n\n---\nUtilisateur: ${user?.email || ''}\nRôle: Coach`
+    );
+    Linking.openURL(`mailto:support@sprintflow.app?subject=${subject}&body=${body}`);
+  };
 
   const handleLogout = async () => {
     Alert.alert('Déconnexion', 'Es-tu sûr de vouloir te déconnecter ?', [
@@ -282,19 +292,25 @@ export default function ProfileScreen() {
         <View style={styles.card}>
           <SettingsItem
             icon="help-circle"
-            title="FAQ & Aide"
-            onPress={() => Linking.openURL('mailto:support@sprintflow.app?subject=FAQ%20%26%20Aide')}
+            title="FAQ & Centre d'aide"
+            onPress={() => setIsFaqModalVisible(true)}
           />
           <SettingsItem
             icon="mail"
             title="Nous contacter"
-            onPress={() => Linking.openURL('mailto:support@sprintflow.app?subject=Contact')}
+            onPress={handleContactSupport}
           />
         </View>
 
-        <View style={[styles.card, { marginTop: 30, marginBottom: 40 }]}>
+        <View style={[styles.card, { marginTop: 24 }]}>
           <SettingsItem icon="log-out" title="Se déconnecter" isDestructive onPress={handleLogout} />
           <SettingsItem icon="trash-2" title="Supprimer mon compte" isDestructive onPress={handleDeleteAccount} />
+        </View>
+
+        {/* App Version Info */}
+        <View style={styles.versionContainer}>
+          <Text style={styles.versionText}>Sprintflow Athletics • v1.0.0</Text>
+          <Text style={styles.buildText}>Conçu pour la performance et le sprint</Text>
         </View>
       </ScrollView>
 
@@ -375,6 +391,7 @@ export default function ProfileScreen() {
       </Modal>
 
       <EditProfileModal visible={isEditModalVisible} onClose={() => setIsEditModalVisible(false)} />
+      <FaqModal visible={isFaqModalVisible} onClose={() => setIsFaqModalVisible(false)} />
     </SafeAreaView>
   );
 }
@@ -594,5 +611,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  versionContainer: {
+    alignItems: 'center',
+    marginTop: 28,
+    marginBottom: 40,
+  },
+  versionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94A3B8',
+    letterSpacing: 0.2,
+  },
+  buildText: {
+    fontSize: 11,
+    color: '#CBD5E1',
+    marginTop: 2,
   },
 });
