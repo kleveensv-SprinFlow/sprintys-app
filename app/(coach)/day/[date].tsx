@@ -253,13 +253,14 @@ export default function CoachDayScreen() {
           </View>
         ) : (
           <View style={styles.workoutsContainer}>
-            {/* Summary Header */}
-            <View style={[styles.summaryBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              <Feather name="activity" size={20} color={theme.colors.accent} style={{ marginRight: 10 }} />
-              <Text style={[styles.summaryText, { color: theme.colors.text }]}>{getSummaryText()}</Text>
+            {/* Header info léger */}
+            <View style={styles.sessionCountHeader}>
+              <Text style={styles.sessionCountText}>
+                {workouts.length} séance{workouts.length > 1 ? 's' : ''} programmée{workouts.length > 1 ? 's' : ''}
+              </Text>
             </View>
 
-            {/* Timeline View */}
+            {/* Workouts List / Timeline propre */}
             <View style={styles.timelineWrapper}>
               {workouts.length > 1 && (
                 <View style={[styles.absoluteTimelineLine, { backgroundColor: theme.colors.border }]} />
@@ -281,10 +282,12 @@ export default function CoachDayScreen() {
 
                 return (
                   <View key={w.id || i} style={styles.timelineRow}>
-                    <View style={styles.timelineDotContainer}>
-                      <View style={[styles.timelineDot, { backgroundColor: typeColor, borderColor: theme.colors.background }]} />
-                    </View>
-                    <View style={styles.timelineContent}>
+                    {workouts.length > 1 && (
+                      <View style={styles.timelineDotContainer}>
+                        <View style={[styles.timelineDot, { backgroundColor: typeColor, borderColor: theme.colors.background }]} />
+                      </View>
+                    )}
+                    <View style={[styles.timelineContent, workouts.length === 1 && { paddingLeft: 0 }]}>
                       <WorkoutCard
                         title={w.type_seance}
                         status={w.status}
@@ -301,37 +304,22 @@ export default function CoachDayScreen() {
               })}
             </View>
 
-            {/* Floating add button OR options list */}
+            {/* Bouton Unique Principal "＋ Planifier" */}
             {!showAddOptions ? (
-              <View style={{ gap: 12 }}>
-                <TouchableOpacity
-                  style={[styles.appleAddBtn, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setShowAddOptions(true);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.appleAddIcon, { backgroundColor: theme.colors.accent + '15' }]}>
-                    <Feather name="plus" size={18} color={theme.colors.accent} />
-                  </View>
-                  <Text style={[styles.appleAddText, { color: theme.colors.text }]}>Ajouter une autre séance</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.appleAddBtn, { backgroundColor: '#FFFBEB', borderColor: '#FCD34D', borderWidth: 1 }]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setBuilderType('competition');
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.appleAddIcon, { backgroundColor: '#FEF3C7' }]}>
-                    <Feather name="award" size={18} color="#D97706" />
-                  </View>
-                  <Text style={[styles.appleAddText, { color: '#D97706', fontWeight: 'bold' }]}>Ajouter une compétition</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={[styles.primaryPlanBtn, { ...theme.shadows.soft }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowAddOptions(true);
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={styles.planIconWrap}>
+                  <Feather name="plus" size={18} color="#0069E8" />
+                </View>
+                <Text style={styles.planBtnText}>Planifier un entraînement</Text>
+                <Feather name="chevron-down" size={18} color="#94A3B8" />
+              </TouchableOpacity>
             ) : (
               <View style={[styles.emptyWrapper, { marginTop: 10 }]}>
                 <View style={styles.sectionHeader}>
@@ -495,19 +483,17 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
-  // Summary
-  summaryBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    borderWidth: 1,
+  // Session Count Header
+  sessionCountHeader: {
     marginBottom: 16,
+    paddingHorizontal: 2,
   },
-  summaryText: {
-    fontSize: 15,
-    fontWeight: '600',
+  sessionCountText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#64748B',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
 
   // Timeline
@@ -555,12 +541,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    shadowColor: '#000',
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,
-    shadowRadius: 6,
+    shadowRadius: 8,
     elevation: 1,
   },
   appleIconBox: {
@@ -584,31 +570,29 @@ const styles = StyleSheet.create({
     gap: 0,
   },
 
-  // Apple Add Button
-  appleAddBtn: {
+  // Primary Plan Button (Bouton Unique Élégant)
+  primaryPlanBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 18,
-    borderWidth: 1,
-    marginTop: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.02,
-    shadowRadius: 4,
-    elevation: 1,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderRadius: 22,
+    marginTop: 6,
   },
-  appleAddIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  planIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(0, 105, 232, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 14,
   },
-  appleAddText: {
+  planBtnText: {
+    flex: 1,
     fontSize: 15,
     fontWeight: '700',
+    color: '#0F172A',
   },
 });

@@ -40,9 +40,7 @@ export const WorkoutCard: React.FC<WorkoutCardProps> = ({
           styles.card,
           {
             backgroundColor: cardBg,
-            borderColor: theme.colors.border,
-            borderLeftWidth: 4.5,
-            borderLeftColor: typeConfig.text,
+            ...theme.shadows.soft,
           },
         ]}
         onPress={onPress}
@@ -102,19 +100,12 @@ export const WorkoutCard: React.FC<WorkoutCardProps> = ({
 const styles = StyleSheet.create({
   containerRow: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   card: {
     flex: 1,
-    borderRadius: 20,
+    borderRadius: 22,
     padding: 18,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    elevation: 2,
   },
   header: {
     flexDirection: 'row',
