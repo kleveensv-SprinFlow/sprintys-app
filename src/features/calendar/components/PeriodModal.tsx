@@ -71,9 +71,19 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
   // Fetch coach's existing periods when modal opens
   useEffect(() => {
     if (visible && user?.id) {
-      periodService.fetchAllCoachPeriods(user.id).then(setExistingPeriods);
+      periodService.fetchAllCoachPeriods(user.id).then((periods) => {
+        setExistingPeriods(periods);
+      });
     }
   }, [visible, user?.id]);
+
+  // Helper pour trouver si une date tombe dans une période existante
+  const findConflictingPeriodForDate = (dateIso: string, periods: TrainingPeriod[]) => {
+    return periods.find((p) => {
+      if (periodToEdit && p.id === periodToEdit.id) return false;
+      return dateIso >= p.start_date && dateIso <= p.end_date;
+    });
+  };
 
   // Initialize or reset modal data
   useEffect(() => {
@@ -93,9 +103,22 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
           setTargetType('team');
         }
       } else {
-        // New period defaults
-        const start = new Date(selectedDate);
-        const end = addDays(start, 13); // Default 2 weeks
+        // Smart initialization for new period:
+        // Si la date cliquée est déjà couverte par une période existante,
+        // on propose intelligemment de commencer le lendemain de la fin de cette période !
+        const initialDateIso = formatDateToIso(selectedDate);
+        const existingConflict = findConflictingPeriodForDate(initialDateIso, existingPeriods);
+
+        let start: Date;
+        if (existingConflict) {
+          // Commencer le lendemain de la fin de la phase existante
+          const conflictEndDate = new Date(existingConflict.end_date);
+          start = addDays(conflictEndDate, 1);
+        } else {
+          start = new Date(selectedDate);
+        }
+
+        const end = addDays(start, 13); // Par défaut 2 semaines
         setName('');
         setColor(PERIOD_COLORS[0].hex);
         setStartDateStr(formatDateToIso(start));
@@ -105,7 +128,7 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
         setSelectedAthleteId(null);
       }
     }
-  }, [visible, periodToEdit, selectedDate, user?.id]);
+  }, [visible, periodToEdit, selectedDate, user?.id, existingPeriods.length]);
 
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
@@ -366,21 +389,37 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
             <View style={styles.section}>
               <Text style={[styles.sectionLabel, { color: theme.colors.text }]}>Plage de dates</Text>
 
-              {/* Message d'avertissement et blocage strict si chevauchement */}
+              {/* Message d'avertissement et aide au repositionnement si chevauchement */}
               {conflictInfo && (
-                <View style={[styles.conflictBanner, { backgroundColor: 'rgba(239, 68, 68, 0.12)', borderColor: '#EF4444' }]}>
+                <View style={[styles.conflictBanner, { backgroundColor: '#FEF2F2', borderColor: '#FCA5A5' }]}>
                   <View style={styles.conflictHeaderRow}>
-                    <Ionicons name="warning" size={18} color="#EF4444" style={{ marginRight: 6 }} />
-                    <Text style={styles.conflictTitle}>Chevauchement de phase interdit</Text>
+                    <Ionicons name="alert-circle" size={18} color="#EF4444" style={{ marginRight: 6 }} />
+                    <Text style={styles.conflictTitle}>Période déjà occupée</Text>
                   </View>
                   <Text style={[styles.conflictMessage, { color: theme.colors.text }]}>
-                    Cette phase chevauche la phase{' '}
-                    <Text style={{ fontWeight: '700', color: '#EF4444' }}>« {conflictInfo.conflictingPeriod.name} »</Text>{' '}
-                    {conflictInfo.formattedOverlap}.
+                    Cette période chevauche la phase{' '}
+                    <Text style={{ fontWeight: '700', color: '#DC2626' }}>« {conflictInfo.conflictingPeriod.name} »</Text>{' '}
+                    ({conflictInfo.formattedOverlap}).
                   </Text>
-                  <Text style={[styles.conflictHint, { color: theme.colors.textMuted }]}>
-                    Veuillez ajuster les dates pour que les phases ne se croisent pas.
-                  </Text>
+
+                  {/* Bouton d'action en 1 clic pour résoudre le conflit */}
+                  <TouchableOpacity
+                    style={styles.conflictQuickFixBtn}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      const nextAvailableStart = addDays(new Date(conflictInfo.conflictingPeriod.end_date), 1);
+                      const durationInDays = Math.max(1, Math.round((endDateObj.getTime() - startDateObj.getTime()) / (1000 * 60 * 60 * 24)));
+                      const nextAvailableEnd = addDays(nextAvailableStart, durationInDays);
+                      setStartDateStr(formatDateToIso(nextAvailableStart));
+                      setEndDateStr(formatDateToIso(nextAvailableEnd));
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Feather name="fast-forward" size={14} color="#B91C1C" />
+                    <Text style={styles.conflictQuickFixText}>
+                      Positionner juste après « {conflictInfo.conflictingPeriod.name} »
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               )}
 
@@ -468,6 +507,50 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
                     />
                   )}
                 </View>
+              </View>
+
+              {/* Raccourcis de durée rapide (Apple Fitness / Athletic presets) */}
+              <View style={styles.presetsRow}>
+                {[
+                  { label: '1 sem.', days: 6 },
+                  { label: '2 sem.', days: 13 },
+                  { label: '3 sem.', days: 20 },
+                  { label: '4 sem.', days: 27 },
+                  { label: '6 sem.', days: 41 },
+                ].map((preset) => {
+                  const targetEnd = addDays(startDateObj, preset.days);
+                  const isCurrentPreset =
+                    startDateStr &&
+                    endDateStr &&
+                    formatDateToIso(targetEnd) === endDateStr;
+
+                  return (
+                    <TouchableOpacity
+                      key={preset.label}
+                      style={[
+                        styles.presetBtn,
+                        {
+                          backgroundColor: isCurrentPreset ? theme.colors.accent + '15' : theme.colors.background,
+                          borderColor: isCurrentPreset ? theme.colors.accent : theme.colors.border,
+                        },
+                      ]}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setEndDateStr(formatDateToIso(targetEnd));
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.presetBtnText,
+                          { color: isCurrentPreset ? theme.colors.accent : theme.colors.textSecondary },
+                        ]}
+                      >
+                        {preset.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
 
@@ -868,7 +951,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 14,
     padding: 12,
-    marginBottom: 12,
+    marginBottom: 14,
   },
   conflictHeaderRow: {
     flexDirection: 'row',
@@ -878,17 +961,30 @@ const styles = StyleSheet.create({
   conflictTitle: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#EF4444',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    color: '#DC2626',
+    letterSpacing: 0.3,
   },
   conflictMessage: {
     fontSize: 13,
     lineHeight: 18,
-    marginBottom: 4,
+    marginBottom: 8,
   },
-  conflictHint: {
-    fontSize: 11,
-    fontStyle: 'italic',
+  conflictQuickFixBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#F87171',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    gap: 6,
+    marginTop: 4,
+  },
+  conflictQuickFixText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#991B1B',
   },
 });
