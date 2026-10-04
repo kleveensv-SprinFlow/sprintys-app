@@ -7,23 +7,28 @@ import {
   Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface GlassCardProps {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
+  contentStyle?: StyleProp<ViewStyle>;
   intensity?: number;
   tint?: 'light' | 'default' | 'dark';
   borderRadius?: number;
   borderWidth?: number;
+  borderColor?: string;
 }
 
 export const GlassCard: React.FC<GlassCardProps> = ({
   children,
   style,
-  intensity = 50,
+  contentStyle,
+  intensity = 60,
   tint = 'light',
-  borderRadius = 20,
-  borderWidth = 1,
+  borderRadius = 22,
+  borderWidth = 0,
+  borderColor = 'transparent',
 }) => {
   return (
     <View
@@ -32,27 +37,33 @@ export const GlassCard: React.FC<GlassCardProps> = ({
         {
           borderRadius,
           borderWidth,
+          borderColor,
         },
         style,
       ]}
     >
+      {/* 1. Flou d'arrière-plan (20px blur) avec dimezisBlurView forcé sur Android */}
       <BlurView
         intensity={intensity}
         tint={tint}
-        style={[StyleSheet.absoluteFillObject, { borderRadius }]}
+        experimentalBlurMethod="dimezisBlurView"
+        style={StyleSheet.absoluteFillObject}
       />
-      <View
-        style={[
-          styles.innerSurface,
-          {
-            borderRadius,
-            backgroundColor:
-              Platform.OS === 'android'
-                ? 'rgba(255, 255, 255, 0.78)'
-                : 'rgba(255, 255, 255, 0.58)',
-          },
+
+      {/* 2. Dégradé de brillance zénithale spéculaire (35% moyen) */}
+      <LinearGradient
+        colors={[
+          'rgba(255, 255, 255, 0.45)',
+          'rgba(255, 255, 255, 0.18)',
         ]}
-      >
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+        pointerEvents="none"
+      />
+
+      {/* 3. Contenu enfant */}
+      <View style={[styles.innerContent, contentStyle]}>
         {children}
       </View>
     </View>
@@ -61,15 +72,15 @@ export const GlassCard: React.FC<GlassCardProps> = ({
 
 const styles = StyleSheet.create({
   outerContainer: {
-    borderColor: 'rgba(255, 255, 255, 0.85)',
     overflow: 'hidden',
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.10,
+    shadowRadius: 20,
     elevation: 3,
+    backgroundColor: Platform.OS === 'android' ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
   },
-  innerSurface: {
+  innerContent: {
     width: '100%',
   },
 });

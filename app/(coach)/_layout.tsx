@@ -7,18 +7,21 @@ import { CoachTabBar } from '../../src/features/coach/components/CoachTabBar';
 export default function CoachTabsLayout() {
   return (
     <View style={styles.container}>
-      {/* Arrière-plan global persistant de la piste d'athlétisme */}
+      {/* Arrière-plan global persistant de la piste d'athlétisme avec virage rehaussé */}
       <ImageBackground
         source={require('../../assets/track_background.png')}
         style={StyleSheet.absoluteFillObject}
+        imageStyle={{
+          transform: [{ translateY: -60 }, { scale: 1.14 }],
+        }}
         resizeMode="cover"
       >
-        {/* Voile d'ambiance et d'adoucissement pour un contraste parfait */}
+        {/* Voile d'ambiance protecteur léger pour faire ressortir le verre sans effet laiteux */}
         <LinearGradient
           colors={[
-            'rgba(255, 255, 255, 0.40)',
-            'rgba(255, 255, 255, 0.10)',
-            'rgba(240, 246, 255, 0.25)',
+            'rgba(15, 23, 42, 0.12)',
+            'transparent',
+            'rgba(2, 132, 199, 0.06)',
           ]}
           style={StyleSheet.absoluteFillObject}
           pointerEvents="none"
