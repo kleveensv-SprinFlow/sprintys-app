@@ -144,7 +144,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
     return workoutsByDay[key] || [];
   }, [workoutsByDay]);
 
-  // Find active period for any date (Option A: most recently created has visual priority)
+  // Find active period for any date
   const getPeriodForDate = useCallback((date: Date): TrainingPeriod | null => {
     if (!periods || periods.length === 0) return null;
     const dateIso = toLocalDateString(date);
@@ -155,13 +155,33 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
     )[0];
   }, [periods]);
 
-  // Active period for currently selected day
-  const activeSelectedPeriod = useMemo(
-    () => getPeriodForDate(selectedDate),
-    [getPeriodForDate, selectedDate]
-  );
+  // Active period for currently displayed month or selected day
+  // CRITICAL FIX: If selectedDate belongs to currentMonth, check selectedDate.
+  // Otherwise, find the active period covering the current month's dates.
+  const activeSelectedPeriod = useMemo(() => {
+    if (!periods || periods.length === 0) return null;
 
-  // Month navigation with pure cross-fade (eliminates horizontal column shift)
+    const isSelectedInCurrentMonth =
+      selectedDate.getFullYear() === currentMonth.getFullYear() &&
+      selectedDate.getMonth() === currentMonth.getMonth();
+
+    if (isSelectedInCurrentMonth) {
+      return getPeriodForDate(selectedDate);
+    }
+
+    // Month boundary check (YYYY-MM-01 to YYYY-MM-LastDay)
+    const monthStartIso = toLocalDateString(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1));
+    const monthEndIso = toLocalDateString(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0));
+
+    const monthMatching = periods.filter(p => p.start_date <= monthEndIso && p.end_date >= monthStartIso);
+    if (monthMatching.length === 0) return null;
+
+    return monthMatching.sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )[0];
+  }, [periods, selectedDate, currentMonth, getPeriodForDate]);
+
+  // Month navigation with pure cross-fade
   const navigateMonth = useCallback((direction: 'prev' | 'next') => {
     Animated.timing(opacityAnim, {
       toValue: 0.05,
@@ -170,6 +190,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
     }).start(() => {
       setCurrentMonth(prev => {
         const nextMonthDate = new Date(prev.getFullYear(), prev.getMonth() + (direction === 'next' ? 1 : -1), 1);
+        onSelectDate(nextMonthDate);
         onMonthChange?.(nextMonthDate.getFullYear(), nextMonthDate.getMonth());
         return nextMonthDate;
       });
@@ -182,7 +203,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
     });
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, [onMonthChange, opacityAnim]);
+  }, [onSelectDate, onMonthChange, opacityAnim]);
 
   const navigateMonthRef = useRef(navigateMonth);
   useEffect(() => {
@@ -291,14 +312,19 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
         </View>
       </View>
 
-      {/* === Active Phase Pill (Clean Apple Fitness athletic badge) === */}
+      {/* === Active Phase Pill (Clean Apple Fitness athletic badge with dates) === */}
       {activeSelectedPeriod ? (
         <TouchableOpacity
           style={[
             styles.periodBadgeRow,
             {
-              backgroundColor: activeSelectedPeriod.color + '12',
-              borderColor: activeSelectedPeriod.color + '30',
+              backgroundColor: '#FFFFFF',
+              borderColor: activeSelectedPeriod.color + '40',
+              shadowColor: activeSelectedPeriod.color,
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.12,
+              shadowRadius: 6,
+              elevation: 2,
             },
           ]}
           onPress={() => {
@@ -310,12 +336,23 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
           activeOpacity={isCoach ? 0.7 : 1}
         >
           <View style={[styles.periodDot, { backgroundColor: activeSelectedPeriod.color }]} />
-          <Text style={[styles.periodBadgeText, { color: theme.colors.text }]} numberOfLines={1}>
-            Phase : <Text style={{ fontWeight: '800', color: activeSelectedPeriod.color }}>{activeSelectedPeriod.name}</Text>
-          </Text>
+          <View style={styles.periodTextContainer}>
+            <Text style={styles.periodBadgeTitle} numberOfLines={1}>
+              Phase : <Text style={{ fontWeight: '800', color: activeSelectedPeriod.color }}>{activeSelectedPeriod.name}</Text>
+            </Text>
+            {activeSelectedPeriod.start_date && activeSelectedPeriod.end_date && (
+              <Text style={styles.periodBadgeDates}>
+                {(() => {
+                  const s = new Date(activeSelectedPeriod.start_date);
+                  const e = new Date(activeSelectedPeriod.end_date);
+                  return `${s.getDate()} ${MONTH_NAMES[s.getMonth()].slice(0, 4)}. - ${e.getDate()} ${MONTH_NAMES[e.getMonth()].slice(0, 4)}.`;
+                })()}
+              </Text>
+            )}
+          </View>
           {isCoach && (
-            <View style={[styles.periodEditHint, { backgroundColor: activeSelectedPeriod.color + '20' }]}>
-              <Feather name="edit-2" size={10} color={activeSelectedPeriod.color} />
+            <View style={[styles.periodEditHint, { backgroundColor: activeSelectedPeriod.color + '15' }]}>
+              <Feather name="edit-2" size={11} color={activeSelectedPeriod.color} />
             </View>
           )}
         </TouchableOpacity>
@@ -326,7 +363,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
             styles.periodBadgeRowEmpty,
             {
               backgroundColor: '#F8FAFC',
-              borderColor: theme.colors.border,
+              borderColor: theme.colors.border + '80',
             },
           ]}
           onPress={() => {
@@ -336,7 +373,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
           activeOpacity={0.7}
         >
           <Feather name="plus" size={13} color={theme.colors.textSecondary} />
-          <Text style={[styles.periodBadgeText, { color: theme.colors.textSecondary }]}>
+          <Text style={[styles.periodBadgeTitle, { color: theme.colors.textSecondary }]}>
             Définir une phase d'entraînement
           </Text>
         </TouchableOpacity>
@@ -377,19 +414,12 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
               const isSunday = dayIndex === 6;
               const hasWorkouts = dayWorkouts.length > 0;
 
-              // Period covering this specific day
-              const period = item.isCurrentMonth ? getPeriodForDate(item.date) : null;
-              const periodColor = period ? period.color : null;
-
-              // Clean Apple Fitness / Nike styling:
-              // - Cells remain clean white surface (#FFFFFF)
-              // - Active period is shown as a sleek 3px top accent bar + subtle 3% tint (#RRGGBB08)
-              // - Workouts without period have standard surface
+              // Pure Apple Fitness clean styling:
+              // Cells remain 100% clean white surface (#FFFFFF).
+              // No distracting top stripes or reddish tints across the grid.
               const cellBgColor = !item.isCurrentMonth
                 ? 'transparent'
-                : periodColor
-                  ? periodColor + '0A' // 4% micro-tint for elegance, never flood the calendar
-                  : theme.colors.surface;
+                : theme.colors.surface;
 
               const visibleWorkouts = dayWorkouts.slice(0, 3);
               const extraCount = dayWorkouts.length - 3;
@@ -412,16 +442,6 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                   onPress={() => handleDayPress(item.date)}
                   activeOpacity={0.7}
                 >
-                  {/* Active Period Top Stripe */}
-                  {item.isCurrentMonth && periodColor && (
-                    <View
-                      style={[
-                        styles.cellPeriodStripe,
-                        { backgroundColor: periodColor },
-                      ]}
-                    />
-                  )}
-
                   {/* Date number header */}
                   <View style={styles.dateHeaderRow}>
                     {isTodayCell ? (
@@ -546,8 +566,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
     marginBottom: 10,
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingVertical: 7,
+    borderRadius: 22,
     borderWidth: 1,
     gap: 8,
   },
@@ -556,22 +576,32 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   periodDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
   },
-  periodBadgeText: {
-    fontSize: 12,
+  periodTextContainer: {
+    flexDirection: 'column',
+    gap: 1,
+  },
+  periodBadgeTitle: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#0F172A',
+    letterSpacing: -0.2,
+  },
+  periodBadgeDates: {
+    fontSize: 10.5,
     fontWeight: '600',
-    letterSpacing: -0.1,
+    color: '#64748B',
   },
   periodEditHint: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 2,
+    marginLeft: 4,
   },
 
   // Days of Week Header
@@ -614,16 +644,6 @@ const styles = StyleSheet.create({
     paddingBottom: 2,
     justifyContent: 'flex-start',
     overflow: 'hidden',
-    position: 'relative',
-  },
-  cellPeriodStripe: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
   },
   selectedCellShadow: {
     shadowColor: '#0069E8',
