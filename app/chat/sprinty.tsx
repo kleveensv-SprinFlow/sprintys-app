@@ -15,6 +15,7 @@ import { BlurView } from 'expo-blur';
 import LottieView from 'lottie-react-native';
 import { useSprintyChatStore } from '../../src/store/sprintyChatStore';
 import SprintyHistoryModal from '../../src/components/SprintyHistoryModal';
+import { useKeyboardOffset } from '../../src/shared/hooks/useKeyboardOffset';
 
 export default function AthleteMessageScreen() {
   const router = useRouter();
@@ -36,6 +37,10 @@ export default function AthleteMessageScreen() {
   const { updateCoachPhilosophy } = useAuthStore();
   const scrollViewRef = useRef<ScrollView>(null);
   const lottieRef = useRef<LottieView>(null);
+  const { bottomOffset } = useKeyboardOffset({
+    extraMargin: 20,
+    onKeyboardShow: () => scrollViewRef.current?.scrollToEnd({ animated: true }),
+  });
 
   // Auto reset conversation on mount
   useEffect(() => {
@@ -233,29 +238,28 @@ export default function AthleteMessageScreen() {
             )}
           </ScrollView>
 
-          {/* Floating Input Bar */}
-          <View style={styles.floatingInputWrapper}>
-            <BlurView intensity={30} tint="default" style={styles.floatingBlur}>
-              <View style={[styles.inputContainer, { paddingBottom: Platform.OS === 'ios' ? Math.max(16, insets.bottom) : 16 }]}>
-                <View style={styles.inputBox}>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Tapez un message..."
-                    placeholderTextColor={theme.colors.textMuted}
-                    multiline
-                    value={inputText}
-                    onChangeText={setInputText}
-                  />
-                  <TouchableOpacity 
-                    style={[styles.sendBtn, (!inputText.trim()) && { opacity: 0.5, backgroundColor: theme.colors.accentMuted }]} 
-                    onPress={() => sendMessage()} 
-                    disabled={isTyping || !inputText.trim()}
-                  >
-                    <Ionicons name="arrow-up" size={18} color={inputText.trim() ? "#09090D" : "rgba(255, 255, 255, 0.4)"} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </BlurView>
+          {/* Solid Bottom Input Bar */}
+          <View style={[styles.bottomInputBar, { paddingBottom: bottomOffset }]}>
+            <View style={styles.inputBox}>
+              <TextInput
+                style={styles.input}
+                placeholder="Tapez un message..."
+                placeholderTextColor={theme.colors.textMuted}
+                multiline
+                value={inputText}
+                onChangeText={setInputText}
+              />
+              <TouchableOpacity 
+                style={[
+                  styles.sendBtn, 
+                  (!inputText.trim()) ? styles.sendBtnDisabled : styles.sendBtnActive
+                ]} 
+                onPress={() => sendMessage()} 
+                disabled={isTyping || !inputText.trim()}
+              >
+                <Ionicons name="arrow-up" size={18} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -362,26 +366,56 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12, maxWidth: '80%', borderWidth: 1, borderColor: theme.colors.border,
   },
   messageBubbleRight: {
-    backgroundColor: theme.colors.text, borderRadius: 20, borderBottomRightRadius: 4,
-    paddingHorizontal: 16, paddingVertical: 12, maxWidth: '80%', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8,
+    backgroundColor: '#0069E8', // Bleu Électrique pro
+    borderRadius: 20,
+    borderBottomRightRadius: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    maxWidth: '85%',
   },
   messageTextAssistant: { fontSize: 15, lineHeight: 22, color: theme.colors.text },
-  messageTextUser: { fontSize: 15, lineHeight: 22, color: '#FFFFFF' } , // Fixed user text color
+  messageTextUser: { fontSize: 15, lineHeight: 22, color: '#FFFFFF' },
   
-  floatingInputWrapper: { position: 'absolute', bottom: 0, left: 0, right: 0 },
-  floatingBlur: {
-    paddingTop: 16, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden',
-    borderTopWidth: 1, borderTopColor: theme.colors.surface,
+  bottomInputBar: {
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    paddingHorizontal: 14,
+    paddingTop: 10,
   },
-  inputContainer: { paddingHorizontal: 16 },
   inputBox: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surfaceLight,
-    borderRadius: 30, paddingHorizontal: 6, paddingVertical: 6, borderWidth: 1, borderColor: theme.colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 24,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  input: { flex: 1, minHeight: 40, maxHeight: 100, color: theme.colors.text, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, fontSize: 15 },
+  input: {
+    flex: 1,
+    minHeight: 38,
+    maxHeight: 100,
+    color: '#0F172A',
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 8,
+    fontSize: 15,
+  },
   sendBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: theme.colors.accent, justifyContent: 'center', alignItems: 'center',
-    shadowColor: theme.colors.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.4, shadowRadius: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sendBtnActive: {
+    backgroundColor: '#0069E8',
+  },
+  sendBtnDisabled: {
+    backgroundColor: '#CBD5E1',
+    opacity: 0.6,
   },
 });
 

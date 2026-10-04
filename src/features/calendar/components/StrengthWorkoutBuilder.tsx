@@ -891,7 +891,13 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
                 <View style={{ width: 60 }} />
               </View>
 
-              <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+              <ScrollView 
+                style={styles.scroll} 
+                contentContainerStyle={[styles.scrollContent, { paddingBottom: 280 }]} 
+                showsVerticalScrollIndicator={false}
+                keyboardDismissMode="interactive"
+                keyboardShouldPersistTaps="handled"
+              >
                 {/* Field 1: Nom de l'exercice / Sélecteur Catalogue */}
                 <View style={styles.sectionHeader}>
                   <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>EXERCICE</Text>

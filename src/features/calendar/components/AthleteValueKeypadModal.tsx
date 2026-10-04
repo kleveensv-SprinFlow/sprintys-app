@@ -119,8 +119,9 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
 
     const showSub = Keyboard.addListener(showEvent, (e) => {
       setIsKeyboardVisible(true);
+      const targetHeight = e.endCoordinates.height + (Platform.OS === 'android' ? (insets.bottom || 0) + 8 : 0);
       Animated.timing(keyboardHeightAnim, {
-        toValue: e.endCoordinates.height,
+        toValue: targetHeight,
         duration: Platform.OS === 'ios' ? (e.duration || 250) : 150,
         useNativeDriver: false,
       }).start();

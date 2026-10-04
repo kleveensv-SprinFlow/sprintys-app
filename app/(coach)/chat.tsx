@@ -23,6 +23,7 @@ import { CompetitionSearchModal } from '../../src/components/competitions/Compet
 import { CompetitionCard } from '../../src/components/competitions/CompetitionCard';
 import { CompetitionBuilder } from '../../src/features/calendar/components/CompetitionBuilder';
 import { searchCompetitionsOnWeb, FoundCompetition, CompetitionSearchParams } from '../../src/services/competitionSearchService';
+import { useKeyboardOffset } from '../../src/shared/hooks/useKeyboardOffset';
 
 export default function CoachMessageScreen() {
   const router = useRouter();
@@ -93,30 +94,12 @@ export default function CoachMessageScreen() {
 
   const insets = useSafeAreaInsets();
   const { updateCoachPhilosophy } = useAuthStore();
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-
-    const showSub = Keyboard.addListener(showEvent, (e) => {
-      setKeyboardHeight(e.endCoordinates.height);
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    });
-
-    const hideSub = Keyboard.addListener(hideEvent, () => {
-      setKeyboardHeight(0);
-    });
-
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
-  const params = useLocalSearchParams<{ athleteId?: string; athleteName?: string; avatarUrl?: string; domains?: string; ts?: string }>();
   const scrollViewRef = useRef<ScrollView>(null);
+  const { bottomOffset } = useKeyboardOffset({
+    extraMargin: 20,
+    onKeyboardShow: () => scrollViewRef.current?.scrollToEnd({ animated: true }),
+  });
+  const params = useLocalSearchParams<{ athleteId?: string; athleteName?: string; avatarUrl?: string; domains?: string; ts?: string }>();
   const lottieRef = useRef<LottieView>(null);
   // Prompt système de l'athlète, construit une fois par conversation (requêtes Supabase lourdes)
   const promptCacheRef = useRef<Record<string, string>>({});
@@ -471,17 +454,7 @@ export default function CoachMessageScreen() {
           </ScrollView>
 
           {/* Solid Bottom Input Bar (Flex layout, never overlaps or bleeds) */}
-          <View
-            style={[
-              styles.bottomInputBar,
-              {
-                paddingBottom:
-                  Platform.OS === 'android' && keyboardHeight > 0
-                    ? keyboardHeight + 8
-                    : Math.max(12, insets.bottom),
-              },
-            ]}
-          >
+          <View style={[styles.bottomInputBar, { paddingBottom: bottomOffset }]}>
             <View style={styles.inputBox}>
               <TextInput
                 style={styles.input}

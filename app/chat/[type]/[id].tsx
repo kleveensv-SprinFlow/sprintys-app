@@ -8,11 +8,13 @@ import { chatService } from '../../../src/services/chatService';
 import { supabase } from '../../../src/services/supabase';
 import { PollMessage } from '../../../src/features/chat/PollMessage';
 import { BlurView } from 'expo-blur';
+import { useKeyboardOffset } from '../../../src/shared/hooks/useKeyboardOffset';
 
 export default function ChatScreen() {
   const { type, id, title } = useLocalSearchParams();
   const router = useRouter();
   const { user } = useAuthStore();
+  const { bottomOffset } = useKeyboardOffset({ extraMargin: 20 });
   const [messages, setMessages] = useState<any[]>([]);
   const [inputText, setInputText] = useState('');
   const [conversation, setConversation] = useState<any>(null);
@@ -205,7 +207,7 @@ export default function ChatScreen() {
 
         {/* Input Bar or Poll Sheet */}
         {isCreatingPoll ? (
-          <View style={styles.pollContainer}>
+          <View style={[styles.pollContainer, { paddingBottom: bottomOffset }]}>
             <View style={styles.pollHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <View style={styles.pollIconWrap}>
@@ -246,7 +248,7 @@ export default function ChatScreen() {
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={styles.inputContainer}>
+          <View style={[styles.inputContainer, { paddingBottom: bottomOffset }]}>
             {user?.role === 'coach' && (
               <TouchableOpacity style={styles.attachBtn} onPress={() => setIsCreatingPoll(true)} activeOpacity={0.7}>
                 <Feather name="bar-chart-2" size={20} color="#0069E8" />

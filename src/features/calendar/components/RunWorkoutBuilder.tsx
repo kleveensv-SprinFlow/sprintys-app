@@ -1084,7 +1084,9 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
               <ScrollView
                 style={styles.sheetScroll}
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.sheetScrollContent}
+                contentContainerStyle={[styles.sheetScrollContent, { paddingBottom: 280 }]}
+                keyboardDismissMode="interactive"
+                keyboardShouldPersistTaps="handled"
               >
                 {/* 1. NOM DU BLOC */}
                 <View style={styles.sectionHeader}>
