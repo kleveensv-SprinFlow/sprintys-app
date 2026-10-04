@@ -24,6 +24,7 @@ export default function AuthCallbackScreen() {
         try {
           await reloadProfile();
         } catch {}
+        useAuthStore.setState({ isLoading: false, isInitialized: true });
         router.replace('/');
       }
     }, 2000);
@@ -78,6 +79,7 @@ export default function AuthCallbackScreen() {
         console.warn('Callback exchange warning:', err);
       } finally {
         if (isMounted) {
+          useAuthStore.setState({ isLoading: false, isInitialized: true });
           router.replace('/');
         }
       }
