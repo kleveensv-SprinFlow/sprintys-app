@@ -319,7 +319,7 @@ export default function CoachMessageScreen() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.replace('/(coach)')}>
-            <Feather name="chevron-left" size={24} color="#0F172A" />
+            <Feather name="chevron-left" size={24} color={theme.colors.text} />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
             <View style={styles.avatarWrapper}>
@@ -338,14 +338,13 @@ export default function CoachMessageScreen() {
             </View>
           </View>
           <TouchableOpacity style={styles.menuBtn} onPress={() => setHistoryVisible(true)}>
-            <Feather name="more-horizontal" size={20} color="#0F172A" />
+            <Feather name="more-horizontal" size={20} color={theme.colors.text} />
           </TouchableOpacity>
         </View>
 
         {/* Bandeau : conversation verrouillée sur un athlète */}
         {athleteCtx && (
           <View style={styles.athleteBanner}>
-            <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFillObject} />
             {athleteCtx.avatarUrl ? (
               <Image source={{ uri: athleteCtx.avatarUrl }} style={styles.bannerAvatar} />
             ) : (
@@ -406,7 +405,6 @@ export default function CoachMessageScreen() {
                         }
                       }}
                     >
-                      <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFillObject} />
                       <View style={styles.capabilityIconWrap}>
                         <Feather name={cap.icon as any} size={20} color={theme.colors.accent} />
                       </View>
@@ -439,7 +437,6 @@ export default function CoachMessageScreen() {
                     </View>
                   )}
                   <View style={!isAssistant ? styles.messageBubbleRight : [styles.messageBubbleLeft, hasRichCards && styles.messageBubbleWide]}>
-                    {isAssistant && <BlurView intensity={45} tint="light" style={StyleSheet.absoluteFillObject} />}
                     {renderMessageContent(msg)}
                   </View>
                 </View>
@@ -457,7 +454,6 @@ export default function CoachMessageScreen() {
                   />
                 </View>
                 <View style={[styles.messageBubbleLeft, { paddingHorizontal: 14, paddingVertical: 10, minWidth: 260 }]}>
-                  <BlurView intensity={45} tint="light" style={StyleSheet.absoluteFillObject} />
                   <SprintyThinkingBubble />
                 </View>
               </View>
@@ -550,31 +546,21 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.65)' : 'rgba(255, 255, 255, 0.85)',
+    backgroundColor: theme.colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.85)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 2,
+    borderColor: theme.colors.surfaceLight,
   },
   menuBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.65)' : 'rgba(255, 255, 255, 0.85)',
+    backgroundColor: theme.colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.85)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 2,
+    borderColor: theme.colors.surfaceLight,
   },
   headerCenter: {
     flexDirection: 'row',
@@ -584,12 +570,12 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.65)' : 'rgba(255, 255, 255, 0.85)',
+    backgroundColor: theme.colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.85)',
+    borderColor: theme.colors.border,
     overflow: 'hidden',
   },
   lottieAvatar: { width: 40, height: 40 },
@@ -600,12 +586,12 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#10B981',
+    backgroundColor: theme.colors.success,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: theme.colors.surface,
   },
-  title: { fontSize: 16, fontWeight: '700', color: '#0F172A' },
-  subtitle: { fontSize: 11, fontWeight: '700', color: '#0284C7', marginTop: 2 },
+  title: { fontSize: 16, fontWeight: '700', color: theme.colors.text },
+  subtitle: { fontSize: 10, fontWeight: '600', color: theme.colors.accent, marginTop: 2 },
   athleteBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -614,67 +600,53 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     padding: 12,
     borderRadius: 18,
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.60)' : 'rgba(255, 255, 255, 0.82)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.85)',
+    borderColor: '#E2E8F0',
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
-    overflow: 'hidden',
   },
   bannerAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F1F5F9', borderWidth: 1.5, borderColor: '#E2E8F0' },
   bannerAvatarFallback: { alignItems: 'center', justifyContent: 'center' },
-  bannerKicker: { fontSize: 9, fontWeight: '800', color: '#0284C7', letterSpacing: 1 },
+  bannerKicker: { fontSize: 9, fontWeight: '800', color: '#94A3B8', letterSpacing: 1 },
   bannerName: { fontSize: 15, fontWeight: '800', color: '#0F172A', marginTop: 1 },
   bannerChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 5 },
-  bannerChip: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: 'rgba(255, 255, 255, 0.7)' },
-  bannerChipText: { fontSize: 10, fontWeight: '700', color: '#1E293B' },
-  bannerClose: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(255, 255, 255, 0.7)', alignItems: 'center', justifyContent: 'center' },
+  bannerChip: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: '#F1F5F9' },
+  bannerChipText: { fontSize: 10, fontWeight: '700', color: '#475569' },
+  bannerClose: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
   keyboardAvoid: { flex: 1 },
   chatArea: { flex: 1 },
   chatContent: { paddingHorizontal: 16, paddingTop: 20 },
   
   heroContainer: { marginTop: 20, marginBottom: 40, paddingHorizontal: 8 },
-  heroTitle: { fontSize: 24, fontWeight: '800', color: '#0F172A', marginBottom: 8 },
-  heroSub: { fontSize: 14, color: '#334155', marginBottom: 24, lineHeight: 20, fontWeight: '500' },
+  heroTitle: { fontSize: 24, fontWeight: '800', color: theme.colors.text, marginBottom: 8 },
+  heroSub: { fontSize: 14, color: theme.colors.textSecondary, marginBottom: 24, lineHeight: 20 },
   capabilitiesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   capabilityCard: {
-    width: '48%',
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.58)' : 'rgba(255, 255, 255, 0.80)',
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.85)',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 3,
-    overflow: 'hidden',
+    width: '48%', backgroundColor: theme.colors.surface,
+    borderRadius: 20, padding: 16, borderWidth: 1, borderColor: theme.colors.surfaceLight,
   },
   capabilityIconWrap: {
-    width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(2, 132, 199, 0.12)',
+    width: 40, height: 40, borderRadius: 12, backgroundColor: theme.colors.accentMuted,
     justifyContent: 'center', alignItems: 'center', marginBottom: 12,
   },
-  capabilityTitle: { fontSize: 14, fontWeight: '700', color: '#0F172A', lineHeight: 20 },
+  capabilityTitle: { fontSize: 14, fontWeight: '600', color: theme.colors.text, lineHeight: 20 },
 
   messageRowLeft: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 16, justifyContent: 'flex-start' },
   messageRowRight: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 16, justifyContent: 'flex-end' },
   
   chatAvatarSmall: {
-    width: 28, height: 28, borderRadius: 14, backgroundColor: '#FFFFFF',
-    justifyContent: 'center', alignItems: 'center', marginRight: 8, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.8)',
+    width: 28, height: 28, borderRadius: 14, backgroundColor: theme.colors.surfaceLight,
+    justifyContent: 'center', alignItems: 'center', marginRight: 8, borderWidth: 1, borderColor: theme.colors.border,
     overflow: 'hidden',
   },
   
   messageBubbleLeft: {
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.65)' : 'rgba(255, 255, 255, 0.85)',
-    borderRadius: 20, borderBottomLeftRadius: 4,
-    paddingHorizontal: 16, paddingVertical: 12, maxWidth: '80%', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.85)',
-    shadowColor: '#0F172A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8,
-    elevation: 2, overflow: 'hidden',
+    backgroundColor: theme.colors.surface, borderRadius: 20, borderBottomLeftRadius: 4,
+    paddingHorizontal: 16, paddingVertical: 12, maxWidth: '80%', borderWidth: 1, borderColor: theme.colors.border,
   },
   messageBubbleWide: {
     maxWidth: '94%',
@@ -682,30 +654,26 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   messageBubbleRight: {
-    backgroundColor: '#0F172A', borderRadius: 20, borderBottomRightRadius: 4,
-    paddingHorizontal: 16, paddingVertical: 12, maxWidth: '80%', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8,
-    elevation: 4,
+    backgroundColor: theme.colors.text, borderRadius: 20, borderBottomRightRadius: 4,
+    paddingHorizontal: 16, paddingVertical: 12, maxWidth: '80%', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8,
   },
-  messageTextAssistant: { fontSize: 15, lineHeight: 22, color: '#0F172A' },
-  messageTextUser: { fontSize: 15, lineHeight: 22, color: '#FFFFFF' },
+  messageTextAssistant: { fontSize: 15, lineHeight: 22, color: theme.colors.text },
+  messageTextUser: { fontSize: 15, lineHeight: 22, color: '#FFFFFF' } , // Fixed user text color
   
   floatingInputWrapper: { position: 'absolute', bottom: 0, left: 0, right: 0 },
   floatingBlur: {
-    paddingTop: 12, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden',
-    borderTopWidth: 1, borderTopColor: 'rgba(255, 255, 255, 0.6)',
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.45)' : 'rgba(255, 255, 255, 0.75)',
+    paddingTop: 16, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden',
+    borderTopWidth: 1, borderTopColor: theme.colors.surface,
   },
   inputContainer: { paddingHorizontal: 16 },
   inputBox: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.75)' : 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 30, paddingHorizontal: 6, paddingVertical: 6, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.85)',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surfaceLight,
+    borderRadius: 30, paddingHorizontal: 6, paddingVertical: 6, borderWidth: 1, borderColor: theme.colors.border,
   },
-  input: { flex: 1, minHeight: 40, maxHeight: 100, color: '#0F172A', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, fontSize: 15, fontWeight: '500' },
+  input: { flex: 1, minHeight: 40, maxHeight: 100, color: theme.colors.text, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, fontSize: 15 },
   sendBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: '#0284C7', justifyContent: 'center', alignItems: 'center',
-    shadowColor: '#0284C7', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.4, shadowRadius: 10,
+    width: 40, height: 40, borderRadius: 20, backgroundColor: theme.colors.accent, justifyContent: 'center', alignItems: 'center',
+    shadowColor: theme.colors.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.4, shadowRadius: 10,
   },
 });
 

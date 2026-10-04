@@ -1,6 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Modal, ScrollView, Animated, Easing, Platform } from 'react-native';
-import { BlurView } from 'expo-blur';
+﻿import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Modal, ScrollView, Animated, Easing } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../core/theme';
 import * as Location from 'expo-location';
@@ -137,38 +136,19 @@ export const WeatherCard = () => {
   return (
     <>
       <TouchableOpacity
-        style={[
-          styles.container,
-          {
-            backgroundColor:
-              Platform.OS === 'android'
-                ? 'rgba(255, 255, 255, 0.78)'
-                : 'rgba(255, 255, 255, 0.58)',
-            borderColor: 'rgba(255, 255, 255, 0.85)',
-            borderWidth: 1,
-            shadowColor: '#0F172A',
-            shadowOffset: { width: 0, height: 6 },
-            shadowOpacity: 0.08,
-            shadowRadius: 16,
-            elevation: 3,
-            overflow: 'hidden',
-          },
-        ]}
+        style={[styles.container, { backgroundColor: theme.colors.surface, ...theme.shadows.soft }]}
         activeOpacity={0.8}
         onPress={() => setIsModalVisible(true)}
       >
-        <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFillObject} />
-        <Text style={[styles.cardHeaderTitle, { color: '#0F172A', fontWeight: '800' }]}>
-          CONDITIONS D'ENTRAÎNEMENT
-        </Text>
+        <Text style={styles.cardHeaderTitle}>CONDITIONS D'ENTRAÎNEMENT</Text>
 
         <View style={styles.topRow}>
           <View style={styles.leftContent}>
-            <Text style={[styles.temperature, { color: '#0F172A', fontWeight: '900' }]}>
+            <Text style={[styles.temperature, { color: theme.colors.text }]}>
               {weather ? `${weather.temperature}°` : '--°'}
             </Text>
             <View style={styles.details}>
-              <Text style={[styles.location, { color: '#334155', fontWeight: '700' }]}>{locationName}</Text>
+              <Text style={[styles.location, { color: theme.colors.textSecondary }]}>{locationName}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
                 <Feather name="wind" size={12} color={theme.colors.textMuted} />
                 <Text style={[styles.statText, { color: theme.colors.textMuted, marginLeft: 4 }]}>

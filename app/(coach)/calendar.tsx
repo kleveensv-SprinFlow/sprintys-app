@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Platform } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useTheme } from '../../src/core/theme';
 import { Header } from '../../src/shared/components/Header';
 import { MonthlyCalendar, MonthWorkout } from '../../src/shared/components/MonthlyCalendar';
@@ -98,18 +98,20 @@ export default function CoachCalendarScreen() {
   }, [loadMonthData, selectedDate]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header
         title="Calendrier"
-        transparent
         rightComponent={
           <TouchableOpacity
             onPress={handleOpenCreatePeriod}
-            style={styles.periodActionBtn}
+            style={[
+              styles.periodActionBtn,
+              { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '35' },
+            ]}
             activeOpacity={0.7}
           >
-            <Feather name="plus" size={14} color="#0284C7" style={{ marginRight: 4 }} />
-            <Text style={styles.periodActionBtnText}>Phase</Text>
+            <Feather name="plus" size={14} color={theme.colors.accent} style={{ marginRight: 4 }} />
+            <Text style={[styles.periodActionBtnText, { color: theme.colors.accent }]}>Phase</Text>
           </TouchableOpacity>
         }
       />
@@ -123,7 +125,6 @@ export default function CoachCalendarScreen() {
         onPressPeriodBadge={handlePressPeriodBadge}
         onPressCreatePeriod={handleOpenCreatePeriod}
         isCoach={true}
-        glassMode={true}
         onMonthChange={handleMonthChange}
       />
 
@@ -142,27 +143,18 @@ export default function CoachCalendarScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'transparent',
   },
   periodActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.65)' : 'rgba(255, 255, 255, 0.88)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.85)',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
   },
   periodActionBtnText: {
     fontSize: 13,
-    fontWeight: '800',
-    color: '#0284C7',
+    fontWeight: '700',
     letterSpacing: -0.2,
   },
 });

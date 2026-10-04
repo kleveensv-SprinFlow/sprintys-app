@@ -1,6 +1,5 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Platform } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -172,18 +171,12 @@ export const CoachTabBar: React.FC<BottomTabBarProps> = ({
       style={[
         styles.barContainer,
         {
-          backgroundColor:
-            Platform.OS === 'android'
-              ? 'rgba(255, 255, 255, 0.88)'
-              : 'rgba(255, 255, 255, 0.65)',
-          borderTopColor: 'rgba(255, 255, 255, 0.85)',
-          borderTopWidth: 1,
+          backgroundColor: theme.colors.surface,
+          borderTopColor: theme.colors.border,
           paddingBottom: Math.max(insets.bottom, 12),
-          overflow: 'hidden',
         },
       ]}
     >
-      <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFillObject} />
       <View style={styles.tabList}>
         {state.routes.map((route, index) => {
           const tabConfig = COACH_TABS[route.name];
