@@ -1,8 +1,8 @@
-import React, { useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Platform } from 'react-native';
+import React, { useRef, useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Platform, LayoutChangeEvent } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../../core/theme';
 import { useCoachStore } from '../../../store/coach/coachStore';
@@ -17,22 +17,22 @@ const COACH_TABS: Record<string, TabConfig> = {
   index: {
     name: 'index',
     label: 'Dashboard',
-    renderIcon: (color) => <Feather name="grid" size={22} color={color} />,
+    renderIcon: (color) => <Feather name="grid" size={20} color={color} />,
   },
   group: {
     name: 'group',
     label: 'Équipe',
-    renderIcon: (color) => <Feather name="users" size={22} color={color} />,
+    renderIcon: (color) => <Feather name="users" size={20} color={color} />,
   },
   calendar: {
     name: 'calendar',
     label: 'Calendrier',
-    renderIcon: (color) => <Feather name="calendar" size={22} color={color} />,
+    renderIcon: (color) => <Feather name="calendar" size={20} color={color} />,
   },
   chat: {
     name: 'chat',
     label: 'Sprinty',
-    renderIcon: (color) => <Feather name="zap" size={22} color={color} />,
+    renderIcon: (color) => <Feather name="zap" size={20} color={color} />,
   },
 };
 
@@ -48,47 +48,37 @@ const TabItem = ({
   onLongPress: () => void;
 }) => {
   const theme = useTheme();
-  const scaleAnim = useRef(new Animated.Value(isFocused ? 1 : 0.95)).current;
-  const pillOpacity = useRef(new Animated.Value(isFocused ? 1 : 0)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const { pendingMembers } = useCoachStore();
   const hasBadge = tab.name === 'group' && pendingMembers.length > 0;
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.spring(scaleAnim, {
-        toValue: isFocused ? 1.08 : 1,
-        friction: 5,
-        tension: 80,
-        useNativeDriver: true,
-      }),
-      Animated.timing(pillOpacity, {
-        toValue: isFocused ? 1 : 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    Animated.spring(scaleAnim, {
+      toValue: isFocused ? 1.05 : 1,
+      friction: 6,
+      tension: 100,
+      useNativeDriver: true,
+    }).start();
   }, [isFocused]);
 
   const handlePress = () => {
-    // Haptic feedback
     if (Platform.OS !== 'web') {
       try {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       } catch (e) {}
     }
 
-    // Quick press bounce animation
     Animated.sequence([
       Animated.timing(scaleAnim, {
-        toValue: 0.9,
-        duration: 80,
+        toValue: 0.92,
+        duration: 70,
         useNativeDriver: true,
       }),
       Animated.spring(scaleAnim, {
-        toValue: 1.08,
-        friction: 4,
-        tension: 100,
+        toValue: isFocused ? 1.05 : 1,
+        friction: 5,
+        tension: 120,
         useNativeDriver: true,
       }),
     ]).start();
@@ -96,7 +86,9 @@ const TabItem = ({
     onPress();
   };
 
-  const iconColor = isFocused ? ((theme.colors as any).sprintyBlue || theme.colors.accent) : theme.colors.textSecondary;
+  const activeColor = '#0069E8';
+  const inactiveColor = '#64748B';
+  const color = isFocused ? activeColor : inactiveColor;
 
   return (
     <TouchableOpacity
@@ -106,47 +98,36 @@ const TabItem = ({
       testID={`tab-${tab.name}`}
       onPress={handlePress}
       onLongPress={onLongPress}
-      activeOpacity={0.8}
+      activeOpacity={0.7}
       style={styles.tabButton}
     >
       <Animated.View
         style={[
-          styles.iconContainer,
+          styles.itemContent,
           {
             transform: [{ scale: scaleAnim }],
           },
         ]}
       >
-        <Animated.View
+        <View style={styles.iconWrapper}>
+          {tab.renderIcon(color, isFocused)}
+          {hasBadge && (
+            <View style={[styles.badgeDot, { borderColor: theme.colors.surface, backgroundColor: '#EF4444' }]} />
+          )}
+        </View>
+
+        <Text
           style={[
-            styles.activePill,
+            styles.tabLabel,
             {
-              backgroundColor: (theme.colors as any).sprintyMuted || theme.colors.accentMuted,
-              opacity: pillOpacity,
+              color,
+              fontWeight: isFocused ? '700' : '500',
             },
           ]}
-        />
-        {tab.renderIcon(iconColor, isFocused)}
-        {hasBadge && (
-          <View style={[styles.badgeDot, { borderColor: theme.colors.surface, backgroundColor: theme.colors.warning }]} />
-        )}
+        >
+          {tab.label}
+        </Text>
       </Animated.View>
-
-      <Text
-        style={[
-          styles.tabLabel,
-          {
-            color: isFocused ? ((theme.colors as any).sprintyBlue || theme.colors.accent) : theme.colors.textSecondary,
-            fontWeight: isFocused ? '600' : '500',
-          },
-        ]}
-      >
-        {tab.label}
-      </Text>
-
-      {isFocused && (
-        <View style={[styles.activeDot, { backgroundColor: (theme.colors as any).sprintyBlue || theme.colors.accent }]} />
-      )}
     </TouchableOpacity>
   );
 };
@@ -158,13 +139,38 @@ export const CoachTabBar: React.FC<BottomTabBarProps> = ({
 }) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const [containerWidth, setContainerWidth] = useState(0);
 
-  const focusedRoute = state.routes[state.index];
-  const focusedDescriptor = descriptors[focusedRoute.key];
-  const tabBarStyle = focusedDescriptor.options.tabBarStyle as any;
+  const visibleRoutes = state.routes.filter((route) => COACH_TABS[route.name]);
+  const activeRoute = state.routes[state.index];
+  const activeVisibleIndex = visibleRoutes.findIndex((r) => r.name === activeRoute?.name);
+
+  const focusedDescriptor = descriptors[activeRoute?.key];
+  const tabBarStyle = focusedDescriptor?.options?.tabBarStyle as any;
   if (tabBarStyle && tabBarStyle.display === 'none') {
     return null;
   }
+
+  const tabWidth = containerWidth > 0 ? (containerWidth - 16) / Math.max(1, visibleRoutes.length) : 0;
+  const translateXAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (activeVisibleIndex >= 0 && tabWidth > 0) {
+      Animated.spring(translateXAnim, {
+        toValue: activeVisibleIndex * tabWidth,
+        friction: 8,
+        tension: 80,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [activeVisibleIndex, tabWidth]);
+
+  const handleLayout = (e: LayoutChangeEvent) => {
+    const width = e.nativeEvent.layout.width;
+    if (width > 0 && width !== containerWidth) {
+      setContainerWidth(width);
+    }
+  };
 
   return (
     <View
@@ -176,12 +182,25 @@ export const CoachTabBar: React.FC<BottomTabBarProps> = ({
         },
       ]}
     >
-      <View style={styles.tabList}>
-        {state.routes.map((route, index) => {
-          const tabConfig = COACH_TABS[route.name];
-          if (!tabConfig) return null; // Ignore hidden screens
+      <View style={styles.tabList} onLayout={handleLayout}>
+        {/* Sliding Background Pill */}
+        {tabWidth > 0 && activeVisibleIndex >= 0 && (
+          <Animated.View
+            style={[
+              styles.slidingPill,
+              {
+                width: tabWidth - 8,
+                transform: [{ translateX: Animated.add(translateXAnim, 4) }],
+              },
+            ]}
+          />
+        )}
 
-          const isFocused = state.index === index;
+        {state.routes.map((route) => {
+          const tabConfig = COACH_TABS[route.name];
+          if (!tabConfig) return null;
+
+          const isFocused = activeRoute?.name === route.name;
 
           const onPress = () => {
             const event = navigation.emit({
@@ -219,59 +238,57 @@ export const CoachTabBar: React.FC<BottomTabBarProps> = ({
 
 const styles = StyleSheet.create({
   barContainer: {
-    borderTopWidth: 0,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(226, 232, 240, 0.6)',
     paddingTop: 8,
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: -4 },
+    shadowOffset: { width: 0, height: -6 },
     shadowOpacity: 0.04,
-    shadowRadius: 14,
-    elevation: 4,
+    shadowRadius: 16,
+    elevation: 6,
   },
   tabList: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
     paddingHorizontal: 8,
+    position: 'relative',
+    height: 52,
+  },
+  slidingPill: {
+    position: 'absolute',
+    left: 8,
+    top: 2,
+    bottom: 2,
+    backgroundColor: 'rgba(0, 105, 232, 0.1)',
+    borderRadius: 16,
   },
   tabButton: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
-    minHeight: 52,
+    height: '100%',
+    zIndex: 2,
   },
-  iconContainer: {
-    width: 44,
-    height: 32,
-    borderRadius: 16,
+  itemContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 2,
   },
-  activePill: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 16,
+  iconWrapper: {
+    position: 'relative',
+    marginBottom: 3,
   },
   tabLabel: {
     fontSize: 11,
-    letterSpacing: 0.2,
-    marginTop: 1,
-  },
-  activeDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    marginTop: 3,
+    letterSpacing: -0.1,
   },
   badgeDot: {
     position: 'absolute',
-    top: 2,
-    right: 6,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#FF3B30', // Orange/Red warning color
-    borderWidth: 2,
-    borderColor: '#FFF',
+    top: -2,
+    right: -4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1.5,
   },
 });
