@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Platform, StatusBar, Alert, TextInput, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -380,15 +380,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
             <Feather name="x" size={24} color={theme.colors.text} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Détails de la Séance</Text>
-          {isCoach ? (
-            <TouchableOpacity
-              onPress={handleDelete}
-              style={[styles.closeButton, { backgroundColor: '#FEE2E2' }]}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Feather name="trash-2" size={18} color="#DC2626" />
-            </TouchableOpacity>
-          ) : <View style={styles.closeButtonPlaceholder} />}
+          <View style={styles.closeButtonPlaceholder} />
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -434,39 +426,30 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
             {isCoach && (
               <View style={styles.actionsContainer}>
                 <TouchableOpacity
-                  style={[styles.actionBtn, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
+                  style={styles.actionBtn}
                   onPress={handleEdit}
                   activeOpacity={0.7}
                 >
-                  <Feather name="edit-2" size={15} color={theme.colors.text} style={{ marginRight: 6 }} />
-                  <Text style={[styles.actionBtnText, { color: theme.colors.text }]}>Modifier</Text>
+                  <Feather name="edit-2" size={14} color="#0F172A" style={{ marginRight: 6 }} />
+                  <Text style={styles.actionBtnText}>Modifier</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.actionBtn, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}
+                  style={styles.actionBtn}
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowCopyModal(true); }}
                   activeOpacity={0.7}
                 >
-                  <Feather name="copy" size={15} color={theme.colors.accent} style={{ marginRight: 6 }} />
-                  <Text style={[styles.actionBtnText, { color: theme.colors.accent }]}>Copier</Text>
+                  <Feather name="copy" size={14} color="#0F172A" style={{ marginRight: 6 }} />
+                  <Text style={styles.actionBtnText}>Copier</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.actionBtn, { backgroundColor: '#EDE9FE', borderColor: '#DDD6FE' }]}
+                  style={styles.actionBtn}
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowRepeatModal(true); }}
                   activeOpacity={0.7}
                 >
-                  <Feather name="repeat" size={15} color="#7C3AED" style={{ marginRight: 6 }} />
-                  <Text style={[styles.actionBtnText, { color: '#7C3AED' }]}>Répéter</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.actionBtn, { backgroundColor: '#FEE2E2', borderColor: '#FECACA' }]}
-                  onPress={handleDelete}
-                  activeOpacity={0.7}
-                >
-                  <Feather name="trash-2" size={15} color="#DC2626" style={{ marginRight: 6 }} />
-                  <Text style={[styles.actionBtnText, { color: '#DC2626' }]}>Supprimer</Text>
+                  <Feather name="repeat" size={14} color="#0F172A" style={{ marginRight: 6 }} />
+                  <Text style={styles.actionBtnText}>Répéter</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -616,7 +599,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                 </View>
 
                 {(block.exercises || []).map((exercise: Exercise) => (
-                  <View key={exercise.id} style={[styles.exerciseCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                  <View key={exercise.id} style={[styles.exerciseCard, { backgroundColor: theme.colors.surface, ...theme.shadows.soft }]}>
                     <Text style={[styles.exerciseName, { color: theme.colors.text }]}>{exercise.name}</Text>
                     
                     {!!(exercise as any).target && (exercise as any).target.type !== 'all' && (
@@ -872,6 +855,18 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
             )}
           </View>
         )}
+
+        {/* ========== COACH BOTTOM DELETE ACTION ========== */}
+        {isCoach && (
+          <TouchableOpacity
+            style={styles.coachDeleteFooterBtn}
+            onPress={handleDelete}
+            activeOpacity={0.7}
+          >
+            <Feather name="trash-2" size={16} color="#DC2626" style={{ marginRight: 8 }} />
+            <Text style={styles.coachDeleteFooterText}>Supprimer cette séance</Text>
+          </TouchableOpacity>
+        )}
         </ScrollView>
 
         {activeKeypad && (
@@ -951,16 +946,15 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   titleContainer: {
-    padding: 20,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginBottom: 20,
+    padding: 22,
+    borderRadius: 22,
+    marginBottom: 16,
   },
   workoutName: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '800',
-    letterSpacing: -0.3,
-    marginBottom: 12,
+    letterSpacing: -0.5,
+    marginBottom: 10,
   },
   metaRow: {
     flexDirection: 'row',
@@ -970,9 +964,8 @@ const styles = StyleSheet.create({
   },
   metaPill: {
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: 12,
-    borderWidth: 1,
   },
   metaPillText: {
     fontSize: 12,
@@ -980,69 +973,69 @@ const styles = StyleSheet.create({
   },
   actionsContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     alignItems: 'center',
     gap: 8,
   },
   actionBtn: {
-    width: '48%',
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
     borderRadius: 14,
-    borderWidth: 1,
+    backgroundColor: '#F1F5F9',
   },
   actionBtnText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
+    color: '#0F172A',
   },
   consignesCard: {
-    padding: 16,
-    borderRadius: 18,
-    borderWidth: 1,
-    marginBottom: 24,
+    padding: 18,
+    borderRadius: 22,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: '#0069E8',
   },
   consignesHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   consignesCaption: {
     fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   consignesBody: {
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 22,
     fontWeight: '500',
   },
   restDayCard: {
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 28,
+    borderRadius: 22,
+    padding: 32,
     alignItems: 'center',
     marginBottom: 24,
   },
   restDayIconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   restDayTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 19,
+    fontWeight: '800',
     marginBottom: 6,
   },
   restDaySubtitle: {
     fontSize: 13,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 20,
     paddingHorizontal: 12,
   },
   targetBadge: {
@@ -1091,18 +1084,19 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   exerciseCard: {
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
+    padding: 20,
+    borderRadius: 22,
+    marginBottom: 8,
   },
   exerciseName: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 17,
+    fontWeight: '800',
     marginBottom: 12,
+    color: '#0F172A',
   },
   exerciseNotes: {
-    fontSize: 14,
-    marginBottom: 16,
+    fontSize: 13,
+    marginBottom: 14,
     fontStyle: 'italic',
   },
   setsContainer: {
@@ -1112,14 +1106,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    paddingVertical: 4,
   },
   setNumber: {
-    width: 20,
-    fontSize: 14,
-    fontWeight: 'bold',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#F1F5F9',
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    fontSize: 12,
+    fontWeight: '700',
+    overflow: 'hidden',
+    lineHeight: 22,
   },
   setDetails: {
-    fontSize: 15,
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
   },
   // Athlete data entry styles
   athleteSetHeader: {
@@ -1263,6 +1267,22 @@ const styles = StyleSheet.create({
   technicalNoteContent: {
     fontSize: 14,
     lineHeight: 21,
+  },
+  coachDeleteFooterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 18,
+    backgroundColor: '#FEF2F2',
+    marginTop: 24,
+    marginBottom: 20,
+  },
+  coachDeleteFooterText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#DC2626',
   },
 });
 
