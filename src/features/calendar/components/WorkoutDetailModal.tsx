@@ -39,25 +39,40 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
   const isCoach = user?.role === 'coach' && !readOnlyAthleteId;
   const isReadOnly = !!readOnlyAthleteId;
 
-  const getTargetsLabel = (targets?: { subgroups?: string[]; athletes?: string[] } | any) => {
+  const getTargetsLabel = (targets?: any) => {
     if (!targets) return null;
     const names: string[] = [];
     
-    // Subgroups
-    targets.subgroups?.forEach((id: string) => {
-      const sg = subgroups.find((s) => s.id === id);
-      if (sg?.name) names.push(sg.name);
-    });
+    // Subgroups (multi-target format)
+    if (Array.isArray(targets.subgroups) && Array.isArray(subgroups)) {
+      targets.subgroups.forEach((id: string) => {
+        if (!id) return;
+        const sg = subgroups.find((s) => s?.id === id);
+        if (sg?.name) names.push(sg.name);
+      });
+    }
 
-    // Athletes
-    targets.athletes?.forEach((id: string) => {
-      const mem = teamMembers.find((m) => m.user_id === id);
-      if (mem?.profile?.first_name) {
-        names.push(mem.profile.first_name);
-      } else if (mem?.profile?.full_name) {
-        names.push(mem.profile.full_name.split(' ')[0]);
+    // Athletes (multi-target format)
+    if (Array.isArray(targets.athletes) && Array.isArray(teamMembers)) {
+      targets.athletes.forEach((id: string) => {
+        if (!id) return;
+        const mem = teamMembers.find((m) => m?.user_id === id);
+        if (mem?.profile?.first_name) {
+          names.push(mem.profile.first_name);
+        } else if (typeof mem?.profile?.full_name === 'string' && mem.profile.full_name.trim().length > 0) {
+          names.push(mem.profile.full_name.trim().split(' ')[0]);
+        }
+      });
+    }
+
+    // Legacy target format support (e.g. { type: 'subgroup', name: 'Sprint' } or targetName)
+    if (names.length === 0) {
+      if (typeof targets.targetName === 'string' && targets.targetName) {
+        names.push(targets.targetName);
+      } else if (typeof targets.name === 'string' && targets.name && targets.type !== 'all') {
+        names.push(targets.name);
       }
-    });
+    }
 
     if (names.length === 0) return null;
     if (names.length === 1) return names[0];
@@ -169,10 +184,16 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
       mode: 'sprint' | 'endurance' | 'weight';
     }> = [];
 
-    const bList = workout?.blocks || [{ id: 'main', exercises: workout?.exercises || [] }];
+    const bList = Array.isArray(workout?.blocks) && workout.blocks.length > 0
+      ? workout.blocks
+      : [{ id: 'main', exercises: workout?.exercises || [] }];
+
     bList.forEach((b: any, bIdx: number) => {
+      if (!b) return;
       (b.exercises || []).forEach((ex: any) => {
+        if (!ex) return;
         (ex.sets || []).forEach((st: any, sIdx: number) => {
+          if (!st) return;
           let setMode: 'sprint' | 'endurance' | 'weight' = 'sprint';
           if (sessionCategory === 'muscu') {
             setMode = 'weight';
@@ -318,7 +339,10 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
   const blocks: WorkoutBlock[] = React.useMemo(() => {
     let rawBlocks: WorkoutBlock[] = [];
     if (Array.isArray(workout?.blocks) && workout.blocks.length > 0) {
-      rawBlocks = workout.blocks.map((b: any) => ({ ...b }));
+      rawBlocks = workout.blocks.map((b: any) => ({
+        ...b,
+        exercises: Array.isArray(b?.exercises) ? b.exercises : [],
+      }));
     } else if (Array.isArray(workout?.exercises) && workout.exercises.length > 0) {
       rawBlocks = [
         {
@@ -332,10 +356,10 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
     // Safety: ensure any exercises in workout.exercises not in rawBlocks are included
     if (Array.isArray(workout?.exercises) && workout.exercises.length > 0) {
       const allBlockExKeys = new Set(
-        rawBlocks.flatMap((b: any) => (b.exercises || []).map((e: any) => e.id || e.name))
+        rawBlocks.flatMap((b: any) => (b.exercises || []).map((e: any) => e?.id || e?.name).filter(Boolean))
       );
       const orphanExercises = workout.exercises.filter(
-        (e: any) => !allBlockExKeys.has(e.id || e.name)
+        (e: any) => e && !allBlockExKeys.has(e?.id || e?.name)
       );
       if (orphanExercises.length > 0) {
         rawBlocks.unshift({
@@ -348,10 +372,10 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
 
     // In athlete mode, show only blocks targeted to all, or to the athlete's subgroup/profile
     if (!isCoach && !isReadOnly && user?.id) {
-      const myMember = teamMembers.find((m) => m.user_id === user.id);
+      const myMember = teamMembers.find((m) => m?.user_id === user.id);
       const mySubgroupId = myMember?.subgroup_id;
       const filtered = rawBlocks.filter((b: any) => {
-        const t = b.targets || b.exercises?.[0]?.targets;
+        const t = b?.targets || b?.exercises?.[0]?.targets;
         if (!t || (!t.subgroups?.length && !t.athletes?.length)) return true;
         if (t.athletes?.includes(user.id)) return true;
         if (mySubgroupId && t.subgroups?.includes(mySubgroupId)) return true;
@@ -363,7 +387,8 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
     return rawBlocks;
   }, [workout, isCoach, isReadOnly, user?.id, teamMembers]);
 
-  const sessionTitle = workout.type_seance || workout.name || 'Séance';
+  const rawTitle = workout?.type_seance || workout?.name;
+  const sessionTitle = typeof rawTitle === 'string' ? rawTitle : 'Séance';
   const isRestDay = sessionTitle.toLowerCase().includes('repos');
   const isTechnical = sessionTitle.toLowerCase().includes('technique');
   const isCompetition = sessionTitle.toLowerCase().includes('compétition') || sessionTitle.toLowerCase().includes('competition');
@@ -658,16 +683,17 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                 </View>
               )}
               {blocks.map((block, index) => {
+                if (!block) return null;
                 const blockTargets = (block as any).targets || (block.exercises?.[0] as any)?.targets;
                 const targetLabel = getTargetsLabel(blockTargets);
 
                 return (
-                  <View key={block.id || index} style={styles.block}>
+                  <View key={block.id || `block-${index}`} style={styles.block}>
                     <View style={styles.blockHeader}>
                       <View style={[styles.blockNumber, { backgroundColor: theme.colors.accent }]}>
                         <Text style={styles.blockNumberText}>{index + 1}</Text>
                       </View>
-                      <Text style={[styles.blockName, { color: theme.colors.text }]} numberOfLines={1}>{block.name}</Text>
+                      <Text style={[styles.blockName, { color: theme.colors.text }]} numberOfLines={1}>{block.name || `Bloc ${index + 1}`}</Text>
                       
                       {targetLabel && (
                         <View style={[styles.blockTargetBadge, { backgroundColor: '#0069E8' + '18' }]}>
@@ -679,9 +705,11 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                       )}
                     </View>
 
-                {(block.exercises || []).map((exercise: Exercise) => (
-                  <View key={exercise.id} style={[styles.exerciseCard, { backgroundColor: theme.colors.surface, ...theme.shadows.soft }]}>
-                    <Text style={[styles.exerciseName, { color: theme.colors.text }]}>{exercise.name}</Text>
+                {(block.exercises || []).map((exercise: Exercise, exIdx: number) => {
+                  if (!exercise) return null;
+                  return (
+                  <View key={exercise.id || `ex-${exIdx}`} style={[styles.exerciseCard, { backgroundColor: theme.colors.surface, ...theme.shadows.soft }]}>
+                    <Text style={[styles.exerciseName, { color: theme.colors.text }]}>{exercise.name || 'Exercice'}</Text>
                     
                     {!!(exercise as any).target && (exercise as any).target.type !== 'all' && (
                       <View style={styles.targetBadge}>
@@ -714,6 +742,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                       )}
 
                       {(exercise.sets || []).map((set, setIndex) => {
+                        if (!set) return null;
                         // Build set objective string
                         const setDetails = [];
                         if (set.steps) {
@@ -832,7 +861,8 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                       </View>
                     ) : null}
                   </View>
-                  ))}
+                  );
+                })}
                 </View>
               );
             })}

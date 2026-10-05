@@ -354,15 +354,18 @@ export const workoutService = {
       // Reconciliation: ensure all exercises in merged.exercises are represented in merged.blocks
       for (const merged of groupedMap.values()) {
         const allBlockExKeys = new Set(
-          (merged.blocks || []).flatMap((b: any) => (b.exercises || []).map((e: any) => e.id || e.name))
+          (merged.blocks || []).flatMap((b: any) => (b?.exercises || []).map((e: any) => e?.id || e?.name).filter(Boolean))
         );
         const missingExercises = (merged.exercises || []).filter(
-          (e: any) => !allBlockExKeys.has(e.id || e.name)
-        );
+          (e: any) => e && !allBlockExKeys.has(e?.id || e?.name)
+        ).map((e: any) => ({
+          ...e,
+          sets: Array.isArray(e?.sets) && e.sets.length > 0 ? e.sets : [{ reps: 1, distance: e?.distance || undefined }],
+        }));
         if (missingExercises.length > 0) {
           if (!merged.blocks) merged.blocks = [];
           merged.blocks.unshift({
-            id: `missing-block-${merged.id}`,
+            id: `missing-block-${merged.id || 'extra'}`,
             name: 'Bloc 1',
             exercises: missingExercises,
           });
