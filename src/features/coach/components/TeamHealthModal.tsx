@@ -45,6 +45,51 @@ export const TeamHealthModal = ({ visible, onClose }: Props) => {
     return { label: 'Alerte', color: '#DC2626' };
   };
 
+  const formatCleanTime = (timeStr?: string | null): string => {
+    if (!timeStr) return '';
+    const parts = timeStr.split(':');
+    if (parts.length >= 2) {
+      return `${parts[0]}h${parts[1]}`;
+    }
+    return timeStr;
+  };
+
+  const getSleepQualityLabel = (q?: number | null) => {
+    if (q === null || q === undefined) return '-';
+    if (q >= 5) return '5/5 · Réparateur';
+    if (q >= 4) return '4/5 · Bon';
+    if (q >= 3) return '3/5 · Correct';
+    if (q >= 2) return '2/5 · Agité';
+    return '1/5 · Mauvais';
+  };
+
+  const getEnergyLabel = (fatigue?: number | null) => {
+    if (fatigue === null || fatigue === undefined) return { text: '-', color: '#64748B' };
+    const energy = 6 - fatigue;
+    if (energy >= 5) return { text: 'En feu (5/5)', color: '#059669' };
+    if (energy >= 4) return { text: 'En forme (4/5)', color: '#059669' };
+    if (energy >= 3) return { text: 'Correct (3/5)', color: '#D97706' };
+    if (energy >= 2) return { text: 'Fatigué (2/5)', color: '#DC2626' };
+    return { text: 'Épuisé (1/5)', color: '#DC2626' };
+  };
+
+  const getStressLabel = (stress?: number | null) => {
+    if (stress === null || stress === undefined) return { text: '-', color: '#64748B' };
+    if (stress <= 1) return { text: 'Très serein', color: '#059669' };
+    if (stress === 2) return { text: 'Serein (2/5)', color: '#059669' };
+    if (stress === 3) return { text: 'Modéré (3/5)', color: '#D97706' };
+    if (stress === 4) return { text: 'Sous tension (4/5)', color: '#DC2626' };
+    return { text: 'Très stressé (5/5)', color: '#DC2626' };
+  };
+
+  const getReadinessRecommendation = (score?: number | null) => {
+    if (score === null || score === undefined) return { text: 'En attente', color: '#64748B' };
+    if (score >= 80) return { text: 'Pleine intensité', color: '#059669' };
+    if (score >= 60) return { text: 'Séance normale', color: '#059669' };
+    if (score >= 40) return { text: 'Adapter charge', color: '#D97706' };
+    return { text: 'Récupération', color: '#DC2626' };
+  };
+
   // Team summary statistics
   const summary = useMemo(() => {
     const total = teamMembers.length;
@@ -362,108 +407,101 @@ export const TeamHealthModal = ({ visible, onClose }: Props) => {
                               </View>
                             )}
 
-                            {/* 5 Core Metrics */}
-                            <View style={styles.metricsGrid}>
-                              {/* Sommeil */}
-                              <View style={styles.metricCard}>
-                                <View style={styles.metricCardHeader}>
-                                  <Feather name="moon" size={14} color="#6366F1" />
-                                  <Text style={styles.metricCardTitle}>Sommeil</Text>
+                            {/* 4 Cartes Sportives Premium (Grille 2x2) */}
+                            <View style={styles.metricsGrid2x2}>
+                              {/* Ligne 1 : Sommeil + Énergie & Stress */}
+                              <View style={styles.metricsRow}>
+                                {/* 1. Carte Sommeil */}
+                                <View style={styles.metricCard2x2}>
+                                  <View style={styles.metricCard2x2Header}>
+                                    <Feather name="moon" size={14} color="#6366F1" />
+                                    <Text style={styles.metricCard2x2Title}>Sommeil</Text>
+                                  </View>
+                                  <Text style={styles.metricCard2x2BigVal}>
+                                    {checkIn.sleep_hours != null ? `${checkIn.sleep_hours}h` : '-'}
+                                  </Text>
+                                  <Text style={styles.metricCard2x2SubText}>
+                                    {getSleepQualityLabel(checkIn.sleep_quality)}
+                                  </Text>
+                                  {(checkIn.bedtime || checkIn.wakeup_time) && (
+                                    <View style={styles.sleepTimeBadge}>
+                                      <Feather name="clock" size={10} color="#6366F1" style={{ marginRight: 3 }} />
+                                      <Text style={styles.sleepTimeBadgeText}>
+                                        {formatCleanTime(checkIn.bedtime)} → {formatCleanTime(checkIn.wakeup_time)}
+                                      </Text>
+                                    </View>
+                                  )}
                                 </View>
-                                <Text style={styles.metricMainVal}>
-                                  {checkIn.sleep_hours != null ? `${checkIn.sleep_hours}h` : '-'}
-                                </Text>
-                                <Text style={styles.metricSubVal}>
-                                  Qualité : {checkIn.sleep_quality != null ? `${checkIn.sleep_quality}/5` : '-'}
-                                </Text>
+
+                                {/* 2. Carte Énergie & Stress */}
+                                <View style={styles.metricCard2x2}>
+                                  <View style={styles.metricCard2x2Header}>
+                                    <Feather name="zap" size={14} color="#F59E0B" />
+                                    <Text style={styles.metricCard2x2Title}>Énergie & Mental</Text>
+                                  </View>
+                                  <View style={[styles.pillBadge, { backgroundColor: getEnergyLabel(checkIn.fatigue_level).color === '#059669' ? '#ECFDF5' : '#FEF2F2' }]}>
+                                    <Text style={[styles.pillBadgeText, { color: getEnergyLabel(checkIn.fatigue_level).color }]}>
+                                      {getEnergyLabel(checkIn.fatigue_level).text}
+                                    </Text>
+                                  </View>
+                                  <Text style={[styles.metricCard2x2SubText, { marginTop: 4 }]}>
+                                    Stress : <Text style={{ fontWeight: '700', color: getStressLabel(checkIn.stress_level).color }}>{getStressLabel(checkIn.stress_level).text}</Text>
+                                  </Text>
+                                  {checkIn.mental_score != null && (
+                                    <Text style={[styles.metricCard2x2SubText, { color: '#64748B', marginTop: 2 }]}>
+                                      Indice mental : {Math.round(checkIn.mental_score)}%
+                                    </Text>
+                                  )}
+                                </View>
                               </View>
 
-                              {/* Fatigue */}
-                              <View style={styles.metricCard}>
-                                <View style={styles.metricCardHeader}>
-                                  <Feather name="battery" size={14} color="#F59E0B" />
-                                  <Text style={styles.metricCardTitle}>Fatigue</Text>
+                              {/* Ligne 2 : Physique & Douleurs + Readiness & Séance */}
+                              <View style={styles.metricsRow}>
+                                {/* 3. Carte Physique & Douleurs */}
+                                <View style={styles.metricCard2x2}>
+                                  <View style={styles.metricCard2x2Header}>
+                                    <Feather 
+                                      name="activity" 
+                                      size={14} 
+                                      color={checkIn.physical_score != null ? getScoreColor(checkIn.physical_score).text : '#10B981'} 
+                                    />
+                                    <Text style={styles.metricCard2x2Title}>Physique</Text>
+                                  </View>
+                                  <Text style={[styles.metricCard2x2BigVal, { color: checkIn.physical_score != null ? getScoreColor(checkIn.physical_score).text : '#10B981' }]}>
+                                    {checkIn.physical_score != null ? `${Math.round(checkIn.physical_score)}%` : '-'}
+                                  </Text>
+                                  {painsList.length === 0 ? (
+                                    <View style={[styles.pillBadge, { backgroundColor: '#ECFDF5' }]}>
+                                      <Feather name="shield" size={11} color="#059669" style={{ marginRight: 3 }} />
+                                      <Text style={[styles.pillBadgeText, { color: '#059669' }]}>0 douleur</Text>
+                                    </View>
+                                  ) : (
+                                    <View style={[styles.pillBadge, { backgroundColor: '#FEF2F2' }]}>
+                                      <Feather name="alert-circle" size={11} color="#DC2626" style={{ marginRight: 3 }} />
+                                      <Text style={[styles.pillBadgeText, { color: '#DC2626' }]}>
+                                        {painsList.length} douleur{painsList.length > 1 ? 's' : ''}
+                                      </Text>
+                                    </View>
+                                  )}
                                 </View>
-                                <Text style={styles.metricMainVal}>
-                                  {checkIn.fatigue_level != null ? `${checkIn.fatigue_level}/5` : '-'}
-                                </Text>
-                                <Text
-                                  style={[
-                                    styles.metricBadgeLabel,
-                                    { color: getMetricBadge(checkIn.fatigue_level, true).color },
-                                  ]}
-                                >
-                                  {getMetricBadge(checkIn.fatigue_level, true).label}
-                                </Text>
-                              </View>
 
-                              {/* Stress */}
-                              <View style={styles.metricCard}>
-                                <View style={styles.metricCardHeader}>
-                                  <Feather name="zap" size={14} color="#EC4899" />
-                                  <Text style={styles.metricCardTitle}>Stress</Text>
+                                {/* 4. Carte Readiness & Séance */}
+                                <View style={styles.metricCard2x2}>
+                                  <View style={styles.metricCard2x2Header}>
+                                    <Feather name="target" size={14} color={scoreTheme.text} />
+                                    <Text style={styles.metricCard2x2Title}>Readiness</Text>
+                                  </View>
+                                  <Text style={[styles.metricCard2x2BigVal, { color: scoreTheme.text }]}>
+                                    {score != null ? `${score}%` : '-'}
+                                  </Text>
+                                  <View style={[styles.pillBadge, { backgroundColor: scoreTheme.bg, borderColor: scoreTheme.border, borderWidth: 1 }]}>
+                                    <Text style={[styles.pillBadgeText, { color: scoreTheme.text }]}>
+                                      {getReadinessRecommendation(score).text}
+                                    </Text>
+                                  </View>
                                 </View>
-                                <Text style={styles.metricMainVal}>
-                                  {checkIn.stress_level != null ? `${checkIn.stress_level}/5` : '-'}
-                                </Text>
-                                <Text
-                                  style={[
-                                    styles.metricBadgeLabel,
-                                    { color: getMetricBadge(checkIn.stress_level, true).color },
-                                  ]}
-                                >
-                                  {getMetricBadge(checkIn.stress_level, true).label}
-                                </Text>
-                              </View>
-
-                              {/* Physique */}
-                              <View style={styles.metricCard}>
-                                <View style={styles.metricCardHeader}>
-                                  <Feather name="activity" size={14} color="#10B981" />
-                                  <Text style={styles.metricCardTitle}>Physique</Text>
-                                </View>
-                                <Text style={styles.metricMainVal}>
-                                  {checkIn.physical_score != null ? `${checkIn.physical_score}/5` : '-'}
-                                </Text>
-                                <Text
-                                  style={[
-                                    styles.metricBadgeLabel,
-                                    { color: getMetricBadge(checkIn.physical_score, true).color },
-                                  ]}
-                                >
-                                  {getMetricBadge(checkIn.physical_score, true).label}
-                                </Text>
-                              </View>
-
-                              {/* Mental */}
-                              <View style={styles.metricCard}>
-                                <View style={styles.metricCardHeader}>
-                                  <Feather name="target" size={14} color="#0EA5E9" />
-                                  <Text style={styles.metricCardTitle}>Mental</Text>
-                                </View>
-                                <Text style={styles.metricMainVal}>
-                                  {checkIn.mental_score != null ? `${checkIn.mental_score}/5` : '-'}
-                                </Text>
-                                <Text
-                                  style={[
-                                    styles.metricBadgeLabel,
-                                    { color: getMetricBadge(checkIn.mental_score).color },
-                                  ]}
-                                >
-                                  {getMetricBadge(checkIn.mental_score).label}
-                                </Text>
                               </View>
                             </View>
-
-                            {/* Sleep schedule note if available */}
-                            {(checkIn.bedtime || checkIn.wakeup_time) && (
-                              <View style={styles.sleepScheduleRow}>
-                                <Feather name="clock" size={12} color="#94A3B8" />
-                                <Text style={styles.sleepScheduleText}>
-                                  Couché : {checkIn.bedtime || '-'} · Réveil : {checkIn.wakeup_time || '-'}
-                                </Text>
-                              </View>
-                            )}
                           </View>
                         )}
                       </View>
@@ -829,57 +867,73 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#991B1B',
   },
-  metricsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+  metricsGrid2x2: {
+    gap: 10,
+    marginTop: 4,
   },
-  metricCard: {
+  metricsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  metricCard2x2: {
     flex: 1,
-    minWidth: '28%',
     backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 10,
+    borderRadius: 16,
+    padding: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    justifyContent: 'space-between',
+    minHeight: 96,
   },
-  metricCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginBottom: 4,
-  },
-  metricCardTitle: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '600',
-  },
-  metricMainVal: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginBottom: 2,
-  },
-  metricSubVal: {
-    fontSize: 10,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  metricBadgeLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  sleepScheduleRow: {
+  metricCard2x2Header: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 10,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    marginBottom: 4,
   },
-  sleepScheduleText: {
+  metricCard2x2Title: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '700',
+  },
+  metricCard2x2BigVal: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#0F172A',
+    letterSpacing: -0.5,
+    marginVertical: 2,
+  },
+  metricCard2x2SubText: {
     fontSize: 11,
-    color: '#94A3B8',
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  pillBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  pillBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  sleepTimeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginTop: 6,
+  },
+  sleepTimeBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#4F46E5',
   },
 });
