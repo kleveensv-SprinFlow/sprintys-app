@@ -562,15 +562,10 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
     }
   };
 
+  if (!visible) return null;
+
   return (
-    <Modal
-      visible={visible}
-      animationType={Platform.OS === 'android' ? 'fade' : 'slide'}
-      transparent={Platform.OS === 'android'}
-      hardwareAccelerated={true}
-      presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined}
-      onRequestClose={onClose}
-    >
+    <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]}>
       <WorkoutModalErrorBoundary onClose={onClose}>
         <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={[styles.header, { paddingTop: safeTop }]}>
@@ -1130,7 +1125,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
         )}
       </View>
       </WorkoutModalErrorBoundary>
-    </Modal>
+    </View>
   );
 };
 

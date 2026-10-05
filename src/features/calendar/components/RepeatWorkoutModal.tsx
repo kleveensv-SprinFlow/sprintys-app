@@ -109,15 +109,10 @@ export const RepeatWorkoutModal: React.FC<RepeatWorkoutModalProps> = ({
     return `Cet événement se répètera ${periodStr}, ${count} fois.`;
   };
 
+  if (!visible) return null;
+
   return (
-    <Modal
-      visible={visible}
-      onRequestClose={onClose}
-      animationType={Platform.OS === 'android' ? 'fade' : 'slide'}
-      transparent={Platform.OS === 'android'}
-      hardwareAccelerated={true}
-      presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined}
-    >
+    <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <KeyboardAvoidingView 
           style={[styles.container, { backgroundColor: theme.colors.background }]} 
@@ -214,7 +209,7 @@ export const RepeatWorkoutModal: React.FC<RepeatWorkoutModalProps> = ({
           </View>
         </KeyboardAvoidingView>
       </TouchableWithoutFeedback>
-    </Modal>
+    </View>
   );
 };
 

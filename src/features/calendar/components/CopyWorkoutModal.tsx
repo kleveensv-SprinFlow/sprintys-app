@@ -239,16 +239,11 @@ export const CopyWorkoutModal: React.FC<CopyWorkoutModalProps> = ({
     },
   });
 
+  if (!visible) return null;
+
   return (
-    <Modal
-      visible={visible}
-      animationType={Platform.OS === 'android' ? 'fade' : 'slide'}
-      transparent={Platform.OS === 'android'}
-      hardwareAccelerated={true}
-      presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined}
-      onRequestClose={onClose}
-    >
-      <View style={styles.container}>
+    <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }]}>
+      <View style={[styles.container, { flex: 0, height: '90%' }]}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Feather name="x" size={24} color={theme.colors.text} />
@@ -335,6 +330,6 @@ export const CopyWorkoutModal: React.FC<CopyWorkoutModalProps> = ({
           </TouchableOpacity>
         </View>
       </View>
-    </Modal>
+    </View>
   );
 };
