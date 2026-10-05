@@ -242,7 +242,15 @@ export const CopyWorkoutModal: React.FC<CopyWorkoutModalProps> = ({
   if (!visible) return null;
 
   return (
-    <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }]}>
+    <Modal
+      visible={visible}
+      animationType="fade"
+      transparent={true}
+      hardwareAccelerated={true}
+      presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined}
+      onRequestClose={onClose}
+    >
+      <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }]}>
       <View style={[styles.container, { flex: 0, height: '90%' }]}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -330,6 +338,6 @@ export const CopyWorkoutModal: React.FC<CopyWorkoutModalProps> = ({
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </Modal>
   );
 };

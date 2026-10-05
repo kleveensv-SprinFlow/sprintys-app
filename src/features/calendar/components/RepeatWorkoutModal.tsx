@@ -112,7 +112,15 @@ export const RepeatWorkoutModal: React.FC<RepeatWorkoutModalProps> = ({
   if (!visible) return null;
 
   return (
-    <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]}>
+    <Modal
+      visible={visible}
+      onRequestClose={onClose}
+      animationType="fade"
+      transparent={true}
+      hardwareAccelerated={true}
+      presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined}
+    >
+      <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <KeyboardAvoidingView 
           style={[styles.container, { backgroundColor: theme.colors.background }]} 
@@ -209,7 +217,8 @@ export const RepeatWorkoutModal: React.FC<RepeatWorkoutModalProps> = ({
           </View>
         </KeyboardAvoidingView>
       </TouchableWithoutFeedback>
-    </View>
+      </View>
+    </Modal>
   );
 };
 

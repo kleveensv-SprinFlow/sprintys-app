@@ -565,7 +565,15 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
   if (!visible) return null;
 
   return (
-    <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]}>
+    <Modal
+      visible={visible}
+      animationType="fade"
+      transparent={true}
+      hardwareAccelerated={true}
+      presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined}
+      onRequestClose={onClose}
+    >
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)', zIndex: -1 }]} />
       <WorkoutModalErrorBoundary onClose={onClose}>
         <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={[styles.header, { paddingTop: safeTop }]}>
@@ -600,14 +608,14 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
             {!isRestDay && !isCompetition && (!!surfaceMeta || !!equipmentMeta) && (
               <View style={styles.metaRow}>
                 {!!surfaceMeta && (
-                  <View style={[styles.metaPill, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
+                  <View style={[styles.metaPill, { backgroundColor: 'rgba(15, 23, 42, 0.08)', borderColor: 'rgba(15, 23, 42, 0.19)' }]}>
                     <Text style={[styles.metaPillText, { color: theme.colors.accent }]}>
                       {surfaceMeta === 'cote' ? '⛰️ Côte' : '🏟️ Piste'}
                     </Text>
                   </View>
                 )}
                 {!!equipmentMeta && (
-                  <View style={[styles.metaPill, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
+                  <View style={[styles.metaPill, { backgroundColor: 'rgba(15, 23, 42, 0.08)', borderColor: 'rgba(15, 23, 42, 0.19)' }]}>
                     <Text style={[styles.metaPillText, { color: theme.colors.accent }]}>
                       {equipmentMeta === 'pointes' ? '👟 Pointes' : '👟 Baskets'}
                     </Text>
@@ -796,7 +804,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                       <Text style={[styles.blockName, { color: theme.colors.text }]} numberOfLines={1}>{block.name || `Bloc ${index + 1}`}</Text>
                       
                       {targetLabel && (
-                        <View style={[styles.blockTargetBadge, { backgroundColor: '#0069E8' + '18' }]}>
+                        <View style={[styles.blockTargetBadge, { backgroundColor: 'rgba(0, 105, 232, 0.09)' }]}>
                           <Feather name="users" size={11} color="#0069E8" style={{ marginRight: 4 }} />
                           <Text style={[styles.blockTargetBadgeText, { color: '#0069E8' }]} numberOfLines={1}>
                             {targetLabel}
@@ -1125,7 +1133,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
         )}
       </View>
       </WorkoutModalErrorBoundary>
-    </View>
+    </Modal>
   );
 };
 
