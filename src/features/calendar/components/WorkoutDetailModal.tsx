@@ -23,6 +23,58 @@ interface WorkoutDetailModalProps {
   readOnlyAthleteId?: string;
 }
 
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+  onClose?: () => void;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
+class WorkoutModalErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('WorkoutModal Error Boundary caught error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={{ flex: 1, backgroundColor: '#F8FAFC', padding: 24, justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#FEF2F2', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+            <Feather name="alert-triangle" size={32} color="#DC2626" />
+          </View>
+          <Text style={{ fontSize: 20, fontWeight: '800', color: '#0F172A', marginBottom: 8, textAlign: 'center' }}>
+            Erreur d'affichage
+          </Text>
+          <Text style={{ fontSize: 14, color: '#64748B', textAlign: 'center', marginBottom: 24, lineHeight: 20 }}>
+            Impossible de charger les détails de cette séance.
+          </Text>
+          {this.props.onClose && (
+            <TouchableOpacity
+              style={{ backgroundColor: '#0069E8', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
+              onPress={this.props.onClose}
+            >
+              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Fermer</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // Determine the "category" of the session for athlete data entry
 const getSessionCategory = (typeSeance: string): 'muscu' | 'course' | 'other' => {
   const t = (typeSeance || '').toLowerCase();
@@ -41,6 +93,9 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
 
   const getTargetsLabel = (targets?: any) => {
     if (!targets) return null;
+    if (typeof targets === 'string') {
+      return targets !== 'all' ? targets : null;
+    }
     const names: string[] = [];
     
     // Subgroups (multi-target format)
@@ -184,24 +239,40 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
       mode: 'sprint' | 'endurance' | 'weight';
     }> = [];
 
-    const bList = Array.isArray(workout?.blocks) && workout.blocks.length > 0
+    const rawBlocks = Array.isArray(workout?.blocks)
       ? workout.blocks
-      : [{ id: 'main', exercises: workout?.exercises || [] }];
+      : typeof workout?.blocks === 'string'
+        ? (() => { try { const p = JSON.parse(workout.blocks); return Array.isArray(p) ? p : []; } catch { return []; } })()
+        : [];
+
+    const rawExercises = Array.isArray(workout?.exercises)
+      ? workout.exercises
+      : typeof workout?.exercises === 'string'
+        ? (() => { try { const p = JSON.parse(workout.exercises); return Array.isArray(p) ? p : []; } catch { return []; } })()
+        : [];
+
+    const bList = rawBlocks.length > 0
+      ? rawBlocks
+      : [{ id: 'main', exercises: rawExercises }];
 
     bList.forEach((b: any, bIdx: number) => {
       if (!b) return;
-      (b.exercises || []).forEach((ex: any) => {
+      const bExs = Array.isArray(b.exercises) ? b.exercises : [];
+      bExs.forEach((ex: any) => {
         if (!ex) return;
-        (ex.sets || []).forEach((st: any, sIdx: number) => {
+        const exSets = Array.isArray(ex.sets) ? ex.sets : [];
+        exSets.forEach((st: any, sIdx: number) => {
           if (!st) return;
           let setMode: 'sprint' | 'endurance' | 'weight' = 'sprint';
+          const rawDist = typeof st === 'object' ? st.distance : undefined;
+          const dist = typeof rawDist === 'number' ? rawDist : parseFloat(String(rawDist || '0')) || 0;
+
           if (sessionCategory === 'muscu') {
             setMode = 'weight';
           } else {
-            const dist = st.distance;
-            if (dist && dist >= 800) {
+            if (dist >= 800) {
               setMode = 'endurance';
-            } else if (dist && dist < 800) {
+            } else if (dist > 0 && dist < 800) {
               setMode = 'sprint';
             } else {
               const str = `${ex.name || ''} ${workout?.type_seance || ''}`.toLowerCase();
@@ -214,7 +285,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
             set: st,
             setIndex: sIdx,
             blockIndex: bIdx,
-            distance: st.distance,
+            distance: dist > 0 ? dist : undefined,
             mode: setMode,
           });
         });
@@ -335,34 +406,60 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
     }
   };
 
+  // Safe measures object
+  const parsedMeasures = React.useMemo(() => {
+    if (!workout?.measures) return {};
+    if (typeof workout.measures === 'string') {
+      try {
+        const parsed = JSON.parse(workout.measures);
+        return typeof parsed === 'object' && parsed !== null ? parsed : {};
+      } catch {
+        return {};
+      }
+    }
+    return typeof workout.measures === 'object' && workout.measures !== null ? workout.measures : {};
+  }, [workout?.measures]);
+
   // Derive blocks if not provided natively, and recover any orphaned exercises
   const blocks: WorkoutBlock[] = React.useMemo(() => {
-    let rawBlocks: WorkoutBlock[] = [];
-    if (Array.isArray(workout?.blocks) && workout.blocks.length > 0) {
-      rawBlocks = workout.blocks.map((b: any) => ({
+    const rawBlocks = Array.isArray(workout?.blocks)
+      ? workout.blocks
+      : typeof workout?.blocks === 'string'
+        ? (() => { try { const p = JSON.parse(workout.blocks); return Array.isArray(p) ? p : []; } catch { return []; } })()
+        : [];
+
+    const rawExercises = Array.isArray(workout?.exercises)
+      ? workout.exercises
+      : typeof workout?.exercises === 'string'
+        ? (() => { try { const p = JSON.parse(workout.exercises); return Array.isArray(p) ? p : []; } catch { return []; } })()
+        : [];
+
+    let formattedBlocks: WorkoutBlock[] = [];
+    if (rawBlocks.length > 0) {
+      formattedBlocks = rawBlocks.map((b: any) => ({
         ...b,
         exercises: Array.isArray(b?.exercises) ? b.exercises : [],
       }));
-    } else if (Array.isArray(workout?.exercises) && workout.exercises.length > 0) {
-      rawBlocks = [
+    } else if (rawExercises.length > 0) {
+      formattedBlocks = [
         {
           id: 'main',
           name: workout?.type_seance || 'Entraînement Principal',
-          exercises: workout.exercises || [],
+          exercises: rawExercises,
         }
       ];
     }
 
-    // Safety: ensure any exercises in workout.exercises not in rawBlocks are included
-    if (Array.isArray(workout?.exercises) && workout.exercises.length > 0) {
+    // Safety: ensure any exercises in workout.exercises not in formattedBlocks are included
+    if (rawExercises.length > 0) {
       const allBlockExKeys = new Set(
-        rawBlocks.flatMap((b: any) => (b.exercises || []).map((e: any) => e?.id || e?.name).filter(Boolean))
+        formattedBlocks.flatMap((b: any) => (Array.isArray(b?.exercises) ? b.exercises : []).map((e: any) => e?.id || e?.name).filter(Boolean))
       );
-      const orphanExercises = workout.exercises.filter(
+      const orphanExercises = rawExercises.filter(
         (e: any) => e && !allBlockExKeys.has(e?.id || e?.name)
       );
       if (orphanExercises.length > 0) {
-        rawBlocks.unshift({
+        formattedBlocks.unshift({
           id: `orphan-${workout?.id || 'extra'}`,
           name: 'Bloc 1',
           exercises: orphanExercises,
@@ -372,19 +469,19 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
 
     // In athlete mode, show only blocks targeted to all, or to the athlete's subgroup/profile
     if (!isCoach && !isReadOnly && user?.id) {
-      const myMember = teamMembers.find((m) => m?.user_id === user.id);
+      const myMember = (Array.isArray(teamMembers) ? teamMembers : []).find((m) => m?.user_id === user.id);
       const mySubgroupId = myMember?.subgroup_id;
-      const filtered = rawBlocks.filter((b: any) => {
-        const t = b?.targets || b?.exercises?.[0]?.targets;
+      const filtered = formattedBlocks.filter((b: any) => {
+        const t = b?.targets || (Array.isArray(b?.exercises) ? b.exercises[0]?.targets : undefined);
         if (!t || (!t.subgroups?.length && !t.athletes?.length)) return true;
         if (t.athletes?.includes(user.id)) return true;
         if (mySubgroupId && t.subgroups?.includes(mySubgroupId)) return true;
         return false;
       });
-      return filtered.length > 0 ? filtered : rawBlocks;
+      return filtered.length > 0 ? filtered : formattedBlocks;
     }
 
-    return rawBlocks;
+    return formattedBlocks;
   }, [workout, isCoach, isReadOnly, user?.id, teamMembers]);
 
   const rawTitle = workout?.type_seance || workout?.name;
@@ -392,11 +489,11 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
   const isRestDay = sessionTitle.toLowerCase().includes('repos');
   const isTechnical = sessionTitle.toLowerCase().includes('technique');
   const isCompetition = sessionTitle.toLowerCase().includes('compétition') || sessionTitle.toLowerCase().includes('competition');
-  const technicalNotes = workout.measures?.technical_notes;
+  const technicalNotes = parsedMeasures?.technical_notes;
 
-  const surfaceMeta = workout.measures?.surface || 
+  const surfaceMeta = parsedMeasures?.surface || 
     (typeof workout?.description === 'string' && workout.description.includes('Côte') ? 'cote' : typeof workout?.description === 'string' && workout.description.includes('Piste') ? 'piste' : null);
-  const equipmentMeta = workout.measures?.equipment ||
+  const equipmentMeta = parsedMeasures?.equipment ||
     (typeof workout?.description === 'string' && workout.description.includes('Pointes') ? 'pointes' : typeof workout?.description === 'string' && workout.description.includes('Baskets') ? 'baskets' : null);
 
   const cleanDescription = typeof workout?.description === 'string'
@@ -466,8 +563,14 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined}
+      onRequestClose={onClose}
+    >
+      <WorkoutModalErrorBoundary onClose={onClose}>
+        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={[styles.header, { paddingTop: safeTop }]}>
           <TouchableOpacity onPress={onClose} style={[styles.closeButton, { backgroundColor: theme.colors.surfaceLight }]}>
             <Feather name="x" size={24} color={theme.colors.text} />
@@ -587,16 +690,16 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                   {typeof workout?.description === 'string' ? workout.description.split('\n')[0] : 'Compétition'}
                 </Text>
 
-                {workout.measures?.location ? (
+                {parsedMeasures?.location ? (
                   <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
                     <Ionicons name="location-outline" size={18} color={theme.colors.textSecondary} style={{ marginRight: 6, marginTop: 1 }} />
                     <Text style={{ color: theme.colors.textSecondary, flex: 1, fontSize: 14 }}>
-                      {workout.measures.location}
+                      {parsedMeasures.location}
                     </Text>
                   </View>
                 ) : null}
 
-                {workout.measures?.attachmentUrl ? (
+                {parsedMeasures?.attachmentUrl ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Ionicons name="link-outline" size={18} color="#3B82F6" style={{ marginRight: 6 }} />
                     <Text 
@@ -605,12 +708,12 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                          // A real app might open the URL here using Linking.openURL
                       }}
                     >
-                      {workout.measures.attachmentUrl}
+                      {parsedMeasures.attachmentUrl}
                     </Text>
                   </View>
                 ) : null}
 
-                {(!workout.measures?.location && !workout.measures?.attachmentUrl) && (
+                {(!parsedMeasures?.location && !parsedMeasures?.attachmentUrl) && (
                   <Text style={{ color: theme.colors.textSecondary, fontStyle: 'italic', fontSize: 14 }}>
                     Aucune information supplémentaire.
                   </Text>
@@ -705,13 +808,14 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                       )}
                     </View>
 
-                {(block.exercises || []).map((exercise: Exercise, exIdx: number) => {
+                {(Array.isArray(block.exercises) ? block.exercises : []).map((exercise: Exercise, exIdx: number) => {
                   if (!exercise) return null;
+                  const exerciseSets = Array.isArray(exercise.sets) ? exercise.sets : [];
                   return (
                   <View key={exercise.id || `ex-${exIdx}`} style={[styles.exerciseCard, { backgroundColor: theme.colors.surface, ...theme.shadows.soft }]}>
                     <Text style={[styles.exerciseName, { color: theme.colors.text }]}>{exercise.name || 'Exercice'}</Text>
                     
-                    {!!(exercise as any).target && (exercise as any).target.type !== 'all' && (
+                    {!!(exercise as any).target && typeof (exercise as any).target === 'object' && (exercise as any).target.type !== 'all' && (
                       <View style={styles.targetBadge}>
                         <Feather name="user" size={11} color={theme.colors.accent} />
                         <Text style={[styles.targetBadgeText, { color: theme.colors.accent }]}>
@@ -728,7 +832,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
 
                     <View style={[styles.setsContainer, needsDataEntry && { gap: 0 }]}>
                       {/* Column headers for athlete mode */}
-                      {needsDataEntry && (exercise.sets || []).length > 0 && (
+                      {needsDataEntry && exerciseSets.length > 0 && (
                         <View style={[styles.athleteSetHeader, { borderBottomColor: theme.colors.border }]}>
                           <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, width: 32 }]}>Série</Text>
                           <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, flex: 1 }]}>Objectif</Text>
@@ -741,7 +845,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                         </View>
                       )}
 
-                      {(exercise.sets || []).map((set, setIndex) => {
+                      {exerciseSets.map((set, setIndex) => {
                         if (!set) return null;
                         // Build set objective string
                         const setDetails = [];
@@ -997,32 +1101,33 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
           />
         )}
 
-        {/* Copy/Repeat Modals (Coach only) */}
-        {isCoach && (
-          <>
-            <CopyWorkoutModal
-              visible={showCopyModal}
-              onClose={() => setShowCopyModal(false)}
-              workout={workout}
-              onCopied={() => {
-                setShowCopyModal(false);
-                onClose();
-                onUpdated?.();
-              }}
-            />
-            <RepeatWorkoutModal
-              visible={showRepeatModal}
-              onClose={() => setShowRepeatModal(false)}
-              workout={workout}
-              onRepeated={() => {
-                setShowRepeatModal(false);
-                onClose();
-                onUpdated?.();
-              }}
-            />
-          </>
+        {/* Copy/Repeat Modals (Coach only) - conditionally rendered to prevent Android nested modal crashes */}
+        {isCoach && showCopyModal && (
+          <CopyWorkoutModal
+            visible={showCopyModal}
+            onClose={() => setShowCopyModal(false)}
+            workout={workout}
+            onCopied={() => {
+              setShowCopyModal(false);
+              onClose();
+              onUpdated?.();
+            }}
+          />
+        )}
+        {isCoach && showRepeatModal && (
+          <RepeatWorkoutModal
+            visible={showRepeatModal}
+            onClose={() => setShowRepeatModal(false)}
+            workout={workout}
+            onRepeated={() => {
+              setShowRepeatModal(false);
+              onClose();
+              onUpdated?.();
+            }}
+          />
         )}
       </View>
+      </WorkoutModalErrorBoundary>
     </Modal>
   );
 };
