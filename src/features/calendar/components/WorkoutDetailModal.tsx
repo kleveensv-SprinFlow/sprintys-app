@@ -395,11 +395,11 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
   const technicalNotes = workout.measures?.technical_notes;
 
   const surfaceMeta = workout.measures?.surface || 
-    (workout.description?.includes('Côte') ? 'cote' : workout.description?.includes('Piste') ? 'piste' : null);
+    (typeof workout?.description === 'string' && workout.description.includes('Côte') ? 'cote' : typeof workout?.description === 'string' && workout.description.includes('Piste') ? 'piste' : null);
   const equipmentMeta = workout.measures?.equipment ||
-    (workout.description?.includes('Pointes') ? 'pointes' : workout.description?.includes('Baskets') ? 'baskets' : null);
+    (typeof workout?.description === 'string' && workout.description.includes('Pointes') ? 'pointes' : typeof workout?.description === 'string' && workout.description.includes('Baskets') ? 'baskets' : null);
 
-  const cleanDescription = workout.description
+  const cleanDescription = typeof workout?.description === 'string'
     ? (isTechnical ? workout.description.trim() : workout.description.replace(/^\[.*?\]\s*/, '').trim())
     : '';
 
@@ -584,7 +584,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
 
               <View style={[styles.technicalCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                 <Text style={[styles.technicalNoteContent, { color: theme.colors.text, fontSize: 16, fontWeight: '700', marginBottom: 12 }]}>
-                  {workout.description?.split('\n')[0] || 'Compétition'}
+                  {typeof workout?.description === 'string' ? workout.description.split('\n')[0] : 'Compétition'}
                 </Text>
 
                 {workout.measures?.location ? (
