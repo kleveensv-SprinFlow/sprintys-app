@@ -308,18 +308,29 @@ export const workoutService = {
       const groupedMap = new Map<string, any>();
       for (const w of (data || [])) {
         const key = w.group_assignment_id || w.id;
+        const wBlocks = (Array.isArray(w.blocks) && w.blocks.length > 0)
+          ? [...w.blocks]
+          : (Array.isArray(w.exercises) && w.exercises.length > 0)
+            ? [{
+                id: `block-${w.id}`,
+                name: w.description || w.type_seance || 'Corps de séance',
+                exercises: [...w.exercises],
+              }]
+            : [];
+        const wExercises = Array.isArray(w.exercises) ? [...w.exercises] : [];
+
         if (!groupedMap.has(key)) {
           groupedMap.set(key, {
             ...w,
-            blocks: Array.isArray(w.blocks) ? [...w.blocks] : [],
-            exercises: Array.isArray(w.exercises) ? [...w.exercises] : [],
+            blocks: wBlocks,
+            exercises: wExercises,
           });
         } else {
           const existing = groupedMap.get(key);
           const existingBlockKeys = new Set(
             (existing.blocks || []).map((b: any) => b.id || b.name)
           );
-          for (const blk of (w.blocks || [])) {
+          for (const blk of wBlocks) {
             const blkKey = blk.id || blk.name;
             if (!existingBlockKeys.has(blkKey)) {
               existingBlockKeys.add(blkKey);
@@ -330,7 +341,7 @@ export const workoutService = {
           const existingExKeys = new Set(
             (existing.exercises || []).map((e: any) => e.id || e.name)
           );
-          for (const ex of (w.exercises || [])) {
+          for (const ex of wExercises) {
             const exKey = ex.id || ex.name;
             if (!existingExKeys.has(exKey)) {
               existingExKeys.add(exKey);
@@ -339,6 +350,25 @@ export const workoutService = {
           }
         }
       }
+
+      // Reconciliation: ensure all exercises in merged.exercises are represented in merged.blocks
+      for (const merged of groupedMap.values()) {
+        const allBlockExKeys = new Set(
+          (merged.blocks || []).flatMap((b: any) => (b.exercises || []).map((e: any) => e.id || e.name))
+        );
+        const missingExercises = (merged.exercises || []).filter(
+          (e: any) => !allBlockExKeys.has(e.id || e.name)
+        );
+        if (missingExercises.length > 0) {
+          if (!merged.blocks) merged.blocks = [];
+          merged.blocks.unshift({
+            id: `missing-block-${merged.id}`,
+            name: 'Bloc 1',
+            exercises: missingExercises,
+          });
+        }
+      }
+
       return Array.from(groupedMap.values());
     }
 

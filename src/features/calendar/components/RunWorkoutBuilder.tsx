@@ -698,6 +698,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
         name: blk.name || `Bloc ${idx + 1} : ${summaryName}`,
         type: 'sprint',
         restAfterBlock: blk.restBlock,
+        targets: blk.targets,
         exercises: [
           {
             id: exerciseId,
@@ -728,61 +729,92 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
 
       // We NO LONGER delete it here to preserve IDs and efforts!
       const oldGroupAssignmentId = initialWorkout?.group_assignment_id || undefined;
-        const payloadsToUpdate: any[] = [];
+      const sharedAssignmentId = oldGroupAssignmentId || (uuid.v4() as string);
+      const payloadsToUpdate: any[] = [];
 
-        const surfaceLabel = surface === 'cote' ? 'Côte' : 'Piste';
-        const equipmentLabel = equipment === 'pointes' ? 'Pointes' : 'Baskets';
-        const finalDescription = sessionNotes.trim() || `Séance ${surfaceLabel} en ${equipmentLabel}`;
-        const sessionTypeSeance = surface === 'cote' ? 'Côte' : 'Piste';
+      const surfaceLabel = surface === 'cote' ? 'Côte' : 'Piste';
+      const equipmentLabel = equipment === 'pointes' ? 'Pointes' : 'Baskets';
+      const finalDescription = sessionNotes.trim() || `Séance ${surfaceLabel} en ${equipmentLabel}`;
+      const sessionTypeSeance = surface === 'cote' ? 'Côte' : 'Piste';
 
-        if (!activeTeamId) {
-          Alert.alert('Erreur', 'Aucune équipe trouvée.');
-          setIsSubmitting(false);
-          return;
-        }
+      if (!activeTeamId) {
+        Alert.alert('Erreur', 'Aucune équipe trouvée.');
+        setIsSubmitting(false);
+        return;
+      }
 
-        if (approvedMembers.length === 0) {
-          Alert.alert(
-            'Aucun athlète',
-            "Aucun athlète validé n'a été trouvé dans votre équipe pour recevoir cette séance."
-          );
-          setIsSubmitting(false);
-          return;
-        }
+      if (approvedMembers.length === 0) {
+        Alert.alert(
+          'Aucun athlète',
+          "Aucun athlète validé n'a été trouvé dans votre équipe pour recevoir cette séance."
+        );
+        setIsSubmitting(false);
+        return;
+      }
 
-        const sharedAssignmentId = uuid.v4() as string;
+      for (const member of approvedMembers) {
+        const athleteFilteredBlocks = blocks.filter((blk) => {
+          const t = blk.targets;
+          if (!t || (t.subgroups.length === 0 && t.athletes.length === 0)) return true;
+          if (t.subgroups.includes(member.subgroup_id || '')) return true;
+          if (t.athletes.includes(member.user_id)) return true;
+          return false;
+        });
 
-        for (const member of approvedMembers) {
-          const athleteFilteredBlocks = blocks.filter((blk) => {
-            const t = blk.targets;
-            if (!t || (t.subgroups.length === 0 && t.athletes.length === 0)) return true;
-            if (t.subgroups.includes(member.subgroup_id || '')) return true;
-            if (t.athletes.includes(member.user_id)) return true;
-            return false;
+        if (athleteFilteredBlocks.length > 0) {
+          const mappedBlocks = mapBlocksToPayload(athleteFilteredBlocks);
+          const flatExercises = mappedBlocks.flatMap((b) => b.exercises);
+
+          payloadsToUpdate.push({
+            type_seance: sessionTypeSeance,
+            coach_id: user.id,
+            team_id: activeTeamId,
+            athlete_id: member.user_id,
+            group_assignment_id: sharedAssignmentId,
+            date_prevue: targetDateIso,
+            description: finalDescription,
+            exercises: flatExercises,
+            blocks: mappedBlocks,
+            measures: {
+              surface,
+              equipment,
+            },
+            status: 'pending',
           });
-
-          if (athleteFilteredBlocks.length > 0) {
-            const mappedBlocks = mapBlocksToPayload(athleteFilteredBlocks);
-            const flatExercises = mappedBlocks.flatMap((b) => b.exercises);
-
-            payloadsToUpdate.push({
-              type_seance: sessionTypeSeance,
-              coach_id: user.id,
-              team_id: activeTeamId,
-              athlete_id: member.user_id,
-              group_assignment_id: sharedAssignmentId,
-              date_prevue: targetDateIso,
-              description: finalDescription,
-              exercises: flatExercises,
-              blocks: mappedBlocks,
-              measures: {
-                surface,
-                equipment,
-              },
-              status: 'pending',
-            });
-          }
         }
+      }
+
+      // CRITICAL: Preserve blocks targeted to subgroups with no currently approved members
+      const assignedBlockIds = new Set(
+        payloadsToUpdate.flatMap((p) => (p.blocks || []).map((b: any) => b.id))
+      );
+      const unassignedBlocks = blocks.filter((b) => !assignedBlockIds.has(b.id));
+
+      if (unassignedBlocks.length > 0) {
+        const mappedUnassigned = mapBlocksToPayload(unassignedBlocks);
+        const flatUnassigned = mappedUnassigned.flatMap((b) => b.exercises);
+        if (payloadsToUpdate.length > 0) {
+          payloadsToUpdate[0].blocks.push(...mappedUnassigned);
+          payloadsToUpdate[0].exercises.push(...flatUnassigned);
+        } else if (approvedMembers.length > 0) {
+          payloadsToUpdate.push({
+            type_seance: sessionTypeSeance,
+            coach_id: user.id,
+            team_id: activeTeamId,
+            athlete_id: approvedMembers[0].user_id,
+            group_assignment_id: sharedAssignmentId,
+            date_prevue: targetDateIso,
+            description: finalDescription,
+            exercises: flatUnassigned,
+            blocks: mappedUnassigned,
+            measures: {
+              surface,
+              equipment,
+            },
+            status: 'pending',
+          });
+        }
+      }
 
         if (payloadsToUpdate.length === 0) {
           Alert.alert('Information', 'Aucun athlète ne correspond aux cibles choisies.');

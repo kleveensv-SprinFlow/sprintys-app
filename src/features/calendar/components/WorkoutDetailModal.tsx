@@ -314,14 +314,54 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
     }
   };
 
-  // Derive blocks if not provided natively
-  const blocks: WorkoutBlock[] = workout.blocks || [
-    {
-      id: 'main',
-      name: 'Entraînement Principal',
-      exercises: workout.exercises || [],
+  // Derive blocks if not provided natively, and recover any orphaned exercises
+  const blocks: WorkoutBlock[] = React.useMemo(() => {
+    let rawBlocks: WorkoutBlock[] = [];
+    if (Array.isArray(workout?.blocks) && workout.blocks.length > 0) {
+      rawBlocks = workout.blocks.map((b: any) => ({ ...b }));
+    } else if (Array.isArray(workout?.exercises) && workout.exercises.length > 0) {
+      rawBlocks = [
+        {
+          id: 'main',
+          name: workout?.type_seance || 'Entraînement Principal',
+          exercises: workout.exercises || [],
+        }
+      ];
     }
-  ];
+
+    // Safety: ensure any exercises in workout.exercises not in rawBlocks are included
+    if (Array.isArray(workout?.exercises) && workout.exercises.length > 0) {
+      const allBlockExKeys = new Set(
+        rawBlocks.flatMap((b: any) => (b.exercises || []).map((e: any) => e.id || e.name))
+      );
+      const orphanExercises = workout.exercises.filter(
+        (e: any) => !allBlockExKeys.has(e.id || e.name)
+      );
+      if (orphanExercises.length > 0) {
+        rawBlocks.unshift({
+          id: `orphan-${workout?.id || 'extra'}`,
+          name: 'Bloc 1',
+          exercises: orphanExercises,
+        });
+      }
+    }
+
+    // In athlete mode, show only blocks targeted to all, or to the athlete's subgroup/profile
+    if (!isCoach && !isReadOnly && user?.id) {
+      const myMember = teamMembers.find((m) => m.user_id === user.id);
+      const mySubgroupId = myMember?.subgroup_id;
+      const filtered = rawBlocks.filter((b: any) => {
+        const t = b.targets || b.exercises?.[0]?.targets;
+        if (!t || (!t.subgroups?.length && !t.athletes?.length)) return true;
+        if (t.athletes?.includes(user.id)) return true;
+        if (mySubgroupId && t.subgroups?.includes(mySubgroupId)) return true;
+        return false;
+      });
+      return filtered.length > 0 ? filtered : rawBlocks;
+    }
+
+    return rawBlocks;
+  }, [workout, isCoach, isReadOnly, user?.id, teamMembers]);
 
   const sessionTitle = workout.type_seance || workout.name || 'Séance';
   const isRestDay = sessionTitle.toLowerCase().includes('repos');

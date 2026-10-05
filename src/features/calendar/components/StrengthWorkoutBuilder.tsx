@@ -609,7 +609,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
         return;
       }
 
-      const sharedAssignmentId = uuid.v4() as string;
+      const sharedAssignmentId = oldGroupAssignmentId || (uuid.v4() as string);
 
       // Filter per athlete so they only receive the exercises assigned to them
       for (const member of approvedMembers) {
@@ -637,6 +637,40 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
                 id: uuid.v4(),
                 name: 'Musculation',
                 exercises: mappedExercises,
+              },
+            ],
+            status: 'pending',
+          });
+        }
+      }
+
+      // Preserve exercises targeted to subgroups with no currently approved members
+      const assignedExIds = new Set(
+        payloadsToUpdate.flatMap((p) => (p.exercises || []).map((e: any) => e.id))
+      );
+      const unassignedExercises = sessionExercises.filter((e) => !assignedExIds.has(e.id));
+      if (unassignedExercises.length > 0) {
+        const mappedUnassigned = mapExercisesToPayload(unassignedExercises);
+        if (payloadsToUpdate.length > 0) {
+          payloadsToUpdate[0].exercises.push(...mappedUnassigned);
+          if (payloadsToUpdate[0].blocks?.[0]?.exercises) {
+            payloadsToUpdate[0].blocks[0].exercises.push(...mappedUnassigned);
+          }
+        } else if (approvedMembers.length > 0) {
+          payloadsToUpdate.push({
+            type_seance: sessionTitle.trim() || 'Musculation',
+            coach_id: user.id,
+            team_id: activeTeamId,
+            athlete_id: approvedMembers[0].user_id,
+            group_assignment_id: sharedAssignmentId,
+            date_prevue: targetDateIso,
+            description: sessionNotes.trim() ? sessionNotes.trim() : `${mappedUnassigned.length} exercice${mappedUnassigned.length > 1 ? 's' : ''} de musculation`,
+            intensity: 7,
+            blocks: [
+              {
+                id: uuid.v4(),
+                name: 'Musculation',
+                exercises: mappedUnassigned,
               },
             ],
             status: 'pending',

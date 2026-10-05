@@ -525,7 +525,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
           return;
         }
 
-        const sharedAssignmentId = uuid.v4() as string;
+        const sharedAssignmentId = oldGroupAssignmentId || (uuid.v4() as string);
 
         // Filter per athlete so they only see their assigned exercises
         for (const member of approvedMembers) {
@@ -560,6 +560,19 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
           }
         }
 
+        // Preserve unassigned exercises
+        const assignedExIds = new Set(
+          payloadsToUpdate.flatMap((p) => (p.exercises || []).map((e: any) => e.id))
+        );
+        const unassignedExercises = sessionExercises.filter((e) => !assignedExIds.has(e.id));
+        if (unassignedExercises.length > 0 && payloadsToUpdate.length > 0) {
+          const mappedUnassigned = mapExercisesToPayload(unassignedExercises);
+          payloadsToUpdate[0].exercises.push(...mappedUnassigned);
+          if (payloadsToUpdate[0].blocks?.[0]?.exercises) {
+            payloadsToUpdate[0].blocks[0].exercises.push(...mappedUnassigned);
+          }
+        }
+
         if (payloadsToUpdate.length === 0) {
           Alert.alert(
             'Information',
@@ -577,7 +590,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
           return;
         }
 
-        const sharedAssignmentId = uuid.v4() as string;
+        const sharedAssignmentId = oldGroupAssignmentId || (uuid.v4() as string);
         for (const member of subMembers) {
           const athleteFiltered = sessionExercises.filter((ex) => {
             if (!ex.target || ex.target.type === 'all' || ex.target.type === 'subgroup') return true;
