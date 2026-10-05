@@ -15,8 +15,14 @@ export const AthleteHeader = () => {
 
   return (
     <View style={styles.container}>
-      {/* Left: Spacer to keep logo centered if we want, or just let logo align left. We'll use an empty view or just let the logo align left. */}
-      <View style={{ width: 44 }} />
+      {/* Left: Group Button Minimalist */}
+      <TouchableOpacity 
+        onPress={() => router.push('/(athlete)/groups')} 
+        style={[styles.iconButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+        activeOpacity={0.7}
+      >
+        <Feather name="users" size={20} color={theme.colors.text} />
+      </TouchableOpacity>
 
       {/* Center: Main Logo (SVG) */}
       <View style={styles.logoContainer}>
@@ -51,12 +57,8 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
+    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#0026AE',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
   },
 });

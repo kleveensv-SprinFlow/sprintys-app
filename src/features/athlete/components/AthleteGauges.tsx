@@ -82,37 +82,39 @@ export const AthleteGauges = () => {
 
   return (
     <View style={styles.container}>
-      {/* 1. Main Pill: Check-In / Readiness */}
-      <TouchableOpacity onPress={handleCheckInPress} activeOpacity={0.8} style={[styles.mainCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <View style={[styles.gradientCard, { backgroundColor: '#0F172A' }]}>
-            <View style={styles.mainPillContent}>
-              <View style={styles.iconCircleWhite}>
-                <Feather name="activity" size={24} color="#0F172A" />
-              </View>
-              <View style={styles.mainPillText}>
-                <Text style={styles.mainTitleWhite}>Faire le Check-In</Text>
-                <Text style={styles.mainSubtitleWhite}>Action matinale requise</Text>
-              </View>
-              <View style={styles.chevronCircle}>
-                <Feather name="chevron-right" size={20} color="#FFF" />
-              </View>
+      {/* 1. Main Card: Check-In / Readiness */}
+      <TouchableOpacity 
+        onPress={handleCheckInPress} 
+        activeOpacity={0.85} 
+        style={[styles.mainCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+      >
+        {!showScore ? (
+          <View style={styles.mainCardInner}>
+            <View style={styles.iconCircleAccent}>
+              <Feather name="activity" size={22} color="#FFF" />
+            </View>
+            <View style={styles.mainPillText}>
+              <Text style={[styles.mainTitle, { color: theme.colors.text }]}>Faire le Check-In</Text>
+              <Text style={[styles.mainSubtitle, { color: theme.colors.textSecondary }]}>Recommandé ce matin</Text>
+            </View>
+            <View style={styles.actionBadge}>
+              <Text style={styles.actionBadgeText}>Commencer</Text>
+              <Feather name="arrow-right" size={14} color="#0066FF" />
             </View>
           </View>
         ) : (
-          <View style={[styles.gradientCard, { padding: 16 }]}>
-            <View style={styles.mainPillContent}>
-              <View style={[styles.scoreCircle, { borderColor: scoreColor, backgroundColor: theme.colors.surfaceLight }]}>
-                <Text style={[styles.scoreValueText, { color: scoreColor }]}>{scoreValue}</Text>
-              </View>
-              <View style={styles.mainPillText}>
-                <Text style={[styles.mainTitle, { color: theme.colors.text }]}>Forme du jour</Text>
-                <Text style={[styles.mainSubtitle, { color: theme.colors.textSecondary }]}>
-                  {scoreValue >= 70 ? 'Prêt à performer \uD83D\uDCAA' : scoreValue >= 40 ? 'À surveiller \uD83D\uDC40' : 'Repos conseillé \uD83D\uDE34'}
-                </Text>
-              </View>
-              <View style={[styles.chevronCircle, { backgroundColor: theme.colors.surfaceLight }]}>
-                <Feather name="chevron-right" size={20} color={theme.colors.textSecondary} />
-              </View>
+          <View style={styles.mainCardInner}>
+            <View style={[styles.scoreCircle, { borderColor: scoreColor, backgroundColor: theme.colors.surfaceLight }]}>
+              <Text style={[styles.scoreValueText, { color: scoreColor }]}>{scoreValue}</Text>
+            </View>
+            <View style={styles.mainPillText}>
+              <Text style={[styles.mainTitle, { color: theme.colors.text }]}>Forme du jour</Text>
+              <Text style={[styles.mainSubtitle, { color: theme.colors.textSecondary }]}>
+                {scoreValue >= 70 ? 'Prêt à performer' : scoreValue >= 40 ? 'À surveiller' : 'Repos conseillé'}
+              </Text>
+            </View>
+            <View style={[styles.chevronCircle, { backgroundColor: theme.colors.surfaceLight }]}>
+              <Feather name="chevron-right" size={20} color={theme.colors.textSecondary} />
             </View>
           </View>
         )}
@@ -169,85 +171,88 @@ const styles = StyleSheet.create({
   },
   mainCard: {
     width: '100%',
-    borderRadius: 24,
-    borderWidth: 0,
-    overflow: 'hidden',
+    borderRadius: 22,
+    borderWidth: 1,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  gradientCard: {
-    width: '100%',
-    padding: 20,
-  },
-  mainPillContent: {
+  mainCardInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 14,
   },
-  iconCircleWhite: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+  iconCircleAccent: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#0066FF',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFF',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 2 },
+  },
+  actionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
+  actionBadgeText: {
+    color: '#0066FF',
+    fontSize: 13,
+    fontWeight: '700',
   },
   scoreCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    borderWidth: 3,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 2.5,
     justifyContent: 'center',
     alignItems: 'center',
   },
   scoreValueText: {
-    fontSize: 20,
-    fontWeight: '900',
+    fontSize: 18,
+    fontWeight: '800',
   },
   mainPillText: {
     flex: 1,
   },
-  mainTitleWhite: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#FFF',
-    marginBottom: 4,
-  },
-  mainSubtitleWhite: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.8)',
-  },
   mainTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    marginBottom: 4,
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 2,
   },
   mainSubtitle: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '500',
   },
   chevronCircle: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
 
   secondaryRow: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 14,
   },
   secondaryPillWrapper: {
     flex: 1,
     borderRadius: 20,
-    borderWidth: 0,
+    borderWidth: 1,
     padding: 16,
-    backgroundColor: '#F8FAFC',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 1,
   },
   secondaryHeader: {
     alignItems: 'flex-start',
