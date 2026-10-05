@@ -242,7 +242,9 @@ export const CopyWorkoutModal: React.FC<CopyWorkoutModalProps> = ({
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType={Platform.OS === 'android' ? 'fade' : 'slide'}
+      transparent={Platform.OS === 'android'}
+      hardwareAccelerated={true}
       presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined}
       onRequestClose={onClose}
     >

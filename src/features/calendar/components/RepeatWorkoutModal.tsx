@@ -113,7 +113,9 @@ export const RepeatWorkoutModal: React.FC<RepeatWorkoutModalProps> = ({
     <Modal
       visible={visible}
       onRequestClose={onClose}
-      animationType="slide"
+      animationType={Platform.OS === 'android' ? 'fade' : 'slide'}
+      transparent={Platform.OS === 'android'}
+      hardwareAccelerated={true}
       presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
