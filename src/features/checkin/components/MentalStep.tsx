@@ -9,12 +9,34 @@ interface MentalStepProps {
   onBack: () => void;
 }
 
-const EMOJI_SCALE = [
-  { value: 1, emoji: '😫' },
-  { value: 2, emoji: '😕' },
-  { value: 3, emoji: '😐' },
-  { value: 4, emoji: '🙂' },
-  { value: 5, emoji: '🤩' }
+interface ScaleOption {
+  value: number;
+  label: string;
+  emoji: string;
+}
+
+const ENERGY_OPTIONS: ScaleOption[] = [
+  { value: 1, label: 'À plat', emoji: '🪫' },
+  { value: 2, label: 'Fatigué', emoji: '🥱' },
+  { value: 3, label: 'Correct', emoji: '🔋' },
+  { value: 4, label: 'En forme', emoji: '⚡' },
+  { value: 5, label: 'En feu', emoji: '🔥' }
+];
+
+const STRESS_OPTIONS: ScaleOption[] = [
+  { value: 1, label: 'Serein', emoji: '🌿' },
+  { value: 2, label: 'Tranquille', emoji: '🧘' },
+  { value: 3, label: 'Modéré', emoji: '⚖️' },
+  { value: 4, label: 'Sous tension', emoji: '⏳' },
+  { value: 5, label: 'Très stressé', emoji: '💥' }
+];
+
+const MOTIVATION_OPTIONS: ScaleOption[] = [
+  { value: 1, label: 'Flemme', emoji: '🛋️' },
+  { value: 2, label: 'Moyenne', emoji: '🚶' },
+  { value: 3, label: 'Prêt', emoji: '👟' },
+  { value: 4, label: 'Déterminé', emoji: '🎯' },
+  { value: 5, label: 'À bloc', emoji: '🚀' }
 ];
 
 export const MentalStep = ({ onNext, onBack }: MentalStepProps) => {
@@ -22,56 +44,66 @@ export const MentalStep = ({ onNext, onBack }: MentalStepProps) => {
   const { currentCheckIn, updateMental } = useCheckInStore();
 
   const [energy, setEnergy] = useState(3);
-  const [serenity, setSerenity] = useState(3);
+  const [stress, setStress] = useState(2); // 1 = serein, 5 = très stressé
   const [motivation, setMotivation] = useState(3);
 
   useEffect(() => {
     if (currentCheckIn) {
       setEnergy(6 - (currentCheckIn.fatigue_level || 3));
-      setSerenity(6 - (currentCheckIn.stress_level || 3));
+      setStress(currentCheckIn.stress_level || 2);
       setMotivation(currentCheckIn.motivation_level || 3);
     }
   }, [currentCheckIn]);
 
   const handleNext = () => {
     const fatigue_level = 6 - energy;
-    const stress_level = 6 - serenity;
+    const stress_level = stress;
     updateMental(stress_level, fatigue_level, motivation);
     onNext();
   };
 
-  const renderEmojiSelector = (label: string, value: number, setValue: (val: number) => void, minLabel: string, maxLabel: string, icon: any) => {
+  const renderOptionSelector = (
+    label: string,
+    currentValue: number,
+    setValue: (val: number) => void,
+    options: ScaleOption[],
+    icon: any
+  ) => {
+    const selectedOption = options.find(o => o.value === currentValue) || options[2];
+
     return (
       <View style={[styles.selectorContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
         <View style={styles.headerRow}>
           <View style={styles.titleRow}>
-            <View style={[styles.iconBox, { backgroundColor: theme.colors.accent + '20' }]}>
-              <Feather name={icon} size={20} color={theme.colors.accent} />
+            <View style={[styles.iconBox, { backgroundColor: theme.colors.accent + '15' }]}>
+              <Feather name={icon} size={18} color={theme.colors.accent} />
             </View>
             <Text style={[styles.label, { color: theme.colors.text }]}>{label}</Text>
           </View>
+          <View style={[styles.activePill, { backgroundColor: theme.colors.accent + '20' }]}>
+            <Text style={[styles.activePillText, { color: theme.colors.accent }]}>
+              {selectedOption.label}
+            </Text>
+          </View>
         </View>
 
-        <View style={styles.emojiRow}>
-          {EMOJI_SCALE.map(item => {
-            const isActive = value === item.value;
+        <View style={styles.optionsRow}>
+          {options.map(item => {
+            const isActive = currentValue === item.value;
             return (
               <TouchableOpacity 
                 key={item.value} 
+                activeOpacity={0.7}
                 style={[
-                  styles.emojiButton, 
-                  isActive && { backgroundColor: theme.colors.accent + '20', borderColor: theme.colors.accent }
+                  styles.optionButton, 
+                  isActive && [styles.optionButtonActive, { backgroundColor: theme.colors.accent + '25', borderColor: theme.colors.accent }]
                 ]}
                 onPress={() => setValue(item.value)}
               >
-                <Text style={styles.emojiText}>{item.emoji}</Text>
+                <Text style={styles.optionEmoji}>{item.emoji}</Text>
               </TouchableOpacity>
             );
           })}
-        </View>
-        <View style={styles.labelsRow}>
-          <Text style={[styles.scaleLabel, { color: theme.colors.textMuted }]}>{minLabel}</Text>
-          <Text style={[styles.scaleLabel, { color: theme.colors.textMuted }]}>{maxLabel}</Text>
         </View>
       </View>
     );
@@ -80,12 +112,12 @@ export const MentalStep = ({ onNext, onBack }: MentalStepProps) => {
   return (
     <View style={styles.container}>
       <Text style={[styles.title, { color: theme.colors.text }]}>Mental & Énergie</Text>
-      <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Comment vous sentez-vous aujourd'hui ?</Text>
+      <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Comment te sens-tu ce matin ?</Text>
 
       <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {renderEmojiSelector('Énergie', energy, setEnergy, 'Épuisé', 'En pleine forme', 'zap')}
-        {renderEmojiSelector('Stress', serenity, setSerenity, 'Très stressé', 'Détendu', 'wind')}
-        {renderEmojiSelector('Motivation', motivation, setMotivation, 'Aucune', 'À bloc', 'target')}
+        {renderOptionSelector('Niveau d\'énergie', energy, setEnergy, ENERGY_OPTIONS, 'zap')}
+        {renderOptionSelector('Charge mentale / Stress', stress, setStress, STRESS_OPTIONS, 'wind')}
+        {renderOptionSelector('Motivation', motivation, setMotivation, MOTIVATION_OPTIONS, 'target')}
       </ScrollView>
 
       <View style={styles.footer}>
@@ -111,14 +143,14 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   iconBox: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  label: { fontSize: 18, fontWeight: 'bold' },
+  label: { fontSize: 16, fontWeight: '700' },
+  activePill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  activePillText: { fontSize: 13, fontWeight: '700' },
   
-  emojiRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  emojiButton: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
-  emojiText: { fontSize: 24 },
-  
-  labelsRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 4 },
-  scaleLabel: { fontSize: 12, fontWeight: '500' },
+  optionsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
+  optionButton: { width: 50, height: 50, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#E2E8F0', backgroundColor: '#F8FAFC' },
+  optionButtonActive: { transform: [{ scale: 1.05 }], shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2 },
+  optionEmoji: { fontSize: 24 },
   
   footer: { flexDirection: 'row', gap: 16, marginBottom: 40, marginTop: 'auto' },
   backBtn: { width: 60, height: 60, borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB', justifyContent: 'center', alignItems: 'center' },

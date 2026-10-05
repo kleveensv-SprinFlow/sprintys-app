@@ -42,6 +42,21 @@ export const CheckInModal = ({ visible, onClose }: CheckInModalProps) => {
       onRequestClose={handleClose}
     >
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        {/* Step Indicator Header */}
+        <View style={styles.stepperContainer}>
+          <View style={styles.stepTrack}>
+            <View 
+              style={[
+                styles.stepProgress, 
+                { 
+                  backgroundColor: theme.colors.accent, 
+                  width: `${(step / 3) * 100}%` 
+                }
+              ]} 
+            />
+          </View>
+        </View>
+
         <View style={styles.content}>
           {step === 1 && <SleepStep onNext={handleNext} onClose={handleClose} />}
           {step === 2 && <MentalStep onNext={handleNext} onBack={handleBack} />}
@@ -55,6 +70,21 @@ export const CheckInModal = ({ visible, onClose }: CheckInModalProps) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  stepperContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 4,
+  },
+  stepTrack: {
+    height: 4,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  stepProgress: {
+    height: '100%',
+    borderRadius: 2,
   },
   content: {
     flex: 1,

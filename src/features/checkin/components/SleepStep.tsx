@@ -12,11 +12,11 @@ interface SleepStepProps {
 }
 
 const SLEEP_EMOJIS = [
-  { value: 1, emoji: '😫', label: 'Épuisé' },
-  { value: 2, emoji: '🥱', label: 'Agité' },
-  { value: 3, emoji: '😐', label: 'Moyen' },
-  { value: 4, emoji: '🙂', label: 'Bon' },
-  { value: 5, emoji: '🤩', label: 'Excellent' }
+  { value: 1, emoji: '😫', label: 'Nuit blanche / Agitée' },
+  { value: 2, emoji: '🥱', label: 'Difficile / Haché' },
+  { value: 3, emoji: '😐', label: 'Correct' },
+  { value: 4, emoji: '😌', label: 'Réparateur' },
+  { value: 5, emoji: '✨', label: 'Au top de ma forme' }
 ];
 
 export const SleepStep = ({ onNext, onClose }: SleepStepProps) => {
@@ -26,8 +26,15 @@ export const SleepStep = ({ onNext, onClose }: SleepStepProps) => {
   
   const sleepGoal = user?.sleepGoal || 8;
 
-  const [bedtime, setBedtime] = useState(currentCheckIn?.bedtime || '23:00');
-  const [wakeup, setWakeup] = useState(currentCheckIn?.wakeup_time || '07:00');
+  // Nettoyer les heures au format standard HH:mm (suppression d'éventuelles secondes :00)
+  const sanitizeTime = (t?: string) => {
+    if (!t) return '23:00';
+    const parts = t.split(':');
+    return `${parts[0].padStart(2, '0')}:${(parts[1] || '00').padStart(2, '0')}`;
+  };
+
+  const [bedtime, setBedtime] = useState(sanitizeTime(currentCheckIn?.bedtime || '23:00'));
+  const [wakeup, setWakeup] = useState(sanitizeTime(currentCheckIn?.wakeup_time || '07:00'));
   const [sleepQuality, setSleepQuality] = useState(currentCheckIn?.sleep_quality || 3);
   const [duration, setDuration] = useState({ hours: 8, minutes: 0, decimal: 8 });
 

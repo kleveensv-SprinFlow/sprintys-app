@@ -296,6 +296,15 @@ export const TeamHealthModal = ({ visible, onClose }: Props) => {
                             {checkIn ? 'Check-in validé' : 'En attente'}
                           </Text>
                         </View>
+                        {/* Alerte Douleur Visible Immédiatement sans dérouler */}
+                        {painsList.length > 0 && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                            <Feather name="alert-circle" size={12} color="#DC2626" style={{ marginRight: 4 }} />
+                            <Text style={{ fontSize: 12, color: '#DC2626', fontWeight: '600' }} numberOfLines={1}>
+                              {painsList.map((p: any) => `${p.muscle_name || p.muscle_id} (${p.intensity}/10)`).join(', ')}
+                            </Text>
+                          </View>
+                        )}
                       </View>
 
                       {/* Score Badge ou statut d'attente (Fin du faux bouton avec tiret) */}

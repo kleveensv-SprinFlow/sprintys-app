@@ -283,21 +283,25 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
                 <View style={styles.sideSection}>
                   <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Côté affecté</Text>
                   <View style={styles.sideGrid}>
-                    {SIDES.map(side => (
+                    {[
+                      { id: 'Gauche', label: 'Gauche' },
+                      { id: 'Bilatéral', label: 'Les deux' },
+                      { id: 'Droit', label: 'Droit' }
+                    ].map(sideItem => (
                       <TouchableOpacity 
-                        key={side}
+                        key={sideItem.id}
                         style={[
                           styles.sideChip, 
                           { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border },
-                          activeSide === side && { backgroundColor: theme.colors.accent + '20', borderColor: theme.colors.accent }
+                          activeSide === sideItem.id && { backgroundColor: theme.colors.accent + '20', borderColor: theme.colors.accent }
                         ]}
-                        onPress={() => setActiveSide(side)}
+                        onPress={() => setActiveSide(sideItem.id as any)}
                       >
                         <Text style={[
                           styles.sideChipText, 
                           { color: theme.colors.textSecondary },
-                          activeSide === side && { color: theme.colors.accent, fontWeight: 'bold' }
-                        ]}>{side}</Text>
+                          activeSide === sideItem.id && { color: theme.colors.accent, fontWeight: 'bold' }
+                        ]}>{sideItem.label}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -305,10 +309,12 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
               )}
 
               {/* Comment */}
-              <Text style={[styles.label, { color: theme.colors.textSecondary, marginTop: 10 }]}>Commentaire (Requis si intensité &gt; 5)</Text>
+              <Text style={[styles.label, { color: theme.colors.textSecondary, marginTop: 10 }]}>
+                {intensity > 5 ? 'Précision pour ton coach (recommandé)' : 'Détail ou ressenti (optionnel)'}
+              </Text>
               <TextInput
                 style={[styles.textInput, { backgroundColor: theme.colors.surfaceLight, color: theme.colors.text, borderColor: theme.colors.border }]}
-                placeholder="Ex: Apparue sur mon dernier 60m..."
+                placeholder={intensity > 5 ? "Dis-lui ce que tu ressens pour qu'il adapte ta séance..." : "Ex: Tiraillement après les accélérations..."}
                 placeholderTextColor={theme.colors.textMuted}
                 value={comment}
                 onChangeText={setComment}
@@ -331,9 +337,8 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
                 <TouchableOpacity 
                   style={[styles.saveBtn, { backgroundColor: theme.colors.accent, flex: 1 }]} 
                   onPress={handleSaveZone}
-                  disabled={intensity > 5 && comment.trim() === ''}
                 >
-                  <Text style={styles.saveBtnText}>Valider</Text>
+                  <Text style={styles.saveBtnText}>Enregistrer cette zone</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
