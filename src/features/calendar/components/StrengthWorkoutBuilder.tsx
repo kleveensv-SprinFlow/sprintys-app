@@ -230,9 +230,31 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
     }
   }, [visible, teams, teamMembers.length, subgroups.length]);
 
-  useEffect(() => {
-    // Keep this effect empty if needed or remove entirely
-  }, [subgroups, approvedMembers]);
+  const getTargetsLabel = (targets?: { subgroups: string[]; athletes: string[] }) => {
+    if (!targets) return null;
+    const names: string[] = [];
+    
+    // Subgroups
+    targets.subgroups?.forEach((id) => {
+      const sg = subgroups.find((s) => s.id === id);
+      if (sg?.name) names.push(sg.name);
+    });
+
+    // Athletes
+    targets.athletes?.forEach((id) => {
+      const mem = teamMembers.find((m) => m.user_id === id);
+      if (mem?.profile?.first_name) {
+        names.push(mem.profile.first_name);
+      } else if (mem?.profile?.full_name) {
+        names.push(mem.profile.full_name.split(' ')[0]);
+      }
+    });
+
+    if (names.length === 0) return null;
+    if (names.length === 1) return names[0];
+    if (names.length === 2) return `${names[0]}, ${names[1]}`;
+    return `${names[0]} +${names.length - 1}`;
+  };
 
   const loadLibrary = async () => {
     if (!user?.id) return;
@@ -755,13 +777,18 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
                     </View>
 
                     {/* Target tag if specific */}
-                    {item.targets && (item.targets.subgroups.length > 0 || item.targets.athletes.length > 0) && (
-                      <View style={[styles.targetBadge, { backgroundColor: theme.colors.accent + '15' }]}>
-                        <Text style={[styles.targetBadgeText, { color: theme.colors.accent }]}>
-                          {item.targets.subgroups.length + item.targets.athletes.length} cible(s)
-                        </Text>
-                      </View>
-                    )}
+                    {(() => {
+                      const targetLabel = getTargetsLabel(item.targets);
+                      if (!targetLabel) return null;
+                      return (
+                        <View style={[styles.targetBadge, { backgroundColor: theme.colors.accent + '15' }]}>
+                          <Feather name="users" size={10} color={theme.colors.accent} style={{ marginRight: 4 }} />
+                          <Text style={[styles.targetBadgeText, { color: theme.colors.accent }]}>
+                            {targetLabel}
+                          </Text>
+                        </View>
+                      );
+                    })()}
                   </View>
 
                   {/* Summary details row */}

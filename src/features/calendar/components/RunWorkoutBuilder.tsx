@@ -319,6 +319,32 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
     return `${blk.repsCount} × ${blk.distance}m  •  ${blk.intensity}%  •  Rép: ${formatRestDisplay(blk.restReps)}  •  Bloc: ${formatRestDisplay(blk.restBlock)}`;
   };
 
+  const getTargetsLabel = (targets?: { subgroups: string[]; athletes: string[] }) => {
+    if (!targets) return null;
+    const names: string[] = [];
+    
+    // Subgroups
+    targets.subgroups?.forEach((id) => {
+      const sg = subgroups.find((s) => s.id === id);
+      if (sg?.name) names.push(sg.name);
+    });
+
+    // Athletes
+    targets.athletes?.forEach((id) => {
+      const mem = teamMembers.find((m) => m.user_id === id);
+      if (mem?.profile?.first_name) {
+        names.push(mem.profile.first_name);
+      } else if (mem?.profile?.full_name) {
+        names.push(mem.profile.full_name.split(' ')[0]);
+      }
+    });
+
+    if (names.length === 0) return null;
+    if (names.length === 1) return names[0];
+    if (names.length === 2) return `${names[0]}, ${names[1]}`;
+    return `${names[0]} +${names.length - 1}`;
+  };
+
   // Open Add Sheet
   const handleOpenAddSheet = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -997,13 +1023,18 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                         <Text style={[styles.blockRowName, { color: theme.colors.text }]} numberOfLines={1}>
                           {item.name}
                         </Text>
-                        {item.targets && (item.targets.subgroups.length > 0 || item.targets.athletes.length > 0) && (
-  <View style={[styles.targetMiniBadge, { backgroundColor: '#0069E8' + '20' }]}>
-    <Text style={[styles.targetMiniBadgeText, { color: '#0069E8' }]}>
-      ${item.targets.subgroups.length + item.targets.athletes.length} cible(s)
-    </Text>
-  </View>
-)}
+                        {(() => {
+                          const targetLabel = getTargetsLabel(item.targets);
+                          if (!targetLabel) return null;
+                          return (
+                            <View style={[styles.targetMiniBadge, { backgroundColor: '#0069E8' + '18' }]}>
+                              <Feather name="users" size={10} color="#0069E8" style={{ marginRight: 4 }} />
+                              <Text style={[styles.targetMiniBadgeText, { color: '#0069E8' }]} numberOfLines={1}>
+                                {targetLabel}
+                              </Text>
+                            </View>
+                          );
+                        })()}
                       </View>
                       <Text style={[styles.blockRowSubtitle, { color: theme.colors.textSecondary }]}>
                         {getBlockSummary(item)}
