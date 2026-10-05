@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../../core/theme';
 import { WorkoutBlock, Exercise } from '../../workout/types';
 import { useAuthStore } from '../../../store/authStore';
+import { useCoachStore } from '../../../store/coach/coachStore';
 import { workoutService } from '../../../services/workoutService';
 import { supabase } from '../../../services/supabase';
 import { AthleteValueKeypadModal } from './AthleteValueKeypadModal';
@@ -34,8 +35,35 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
+  const { subgroups, teamMembers } = useCoachStore();
   const isCoach = user?.role === 'coach' && !readOnlyAthleteId;
   const isReadOnly = !!readOnlyAthleteId;
+
+  const getTargetsLabel = (targets?: { subgroups?: string[]; athletes?: string[] } | any) => {
+    if (!targets) return null;
+    const names: string[] = [];
+    
+    // Subgroups
+    targets.subgroups?.forEach((id: string) => {
+      const sg = subgroups.find((s) => s.id === id);
+      if (sg?.name) names.push(sg.name);
+    });
+
+    // Athletes
+    targets.athletes?.forEach((id: string) => {
+      const mem = teamMembers.find((m) => m.user_id === id);
+      if (mem?.profile?.first_name) {
+        names.push(mem.profile.first_name);
+      } else if (mem?.profile?.full_name) {
+        names.push(mem.profile.full_name.split(' ')[0]);
+      }
+    });
+
+    if (names.length === 0) return null;
+    if (names.length === 1) return names[0];
+    if (names.length === 2) return `${names[0]}, ${names[1]}`;
+    return `${names[0]} +${names.length - 1}`;
+  };
 
   // Athlete data entry state
   // For muscu: { "exerciseId_setIndex": { weight: "80", repsOk: true } }
@@ -589,14 +617,27 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                   <ActivityIndicator size="small" color={theme.colors.accent} />
                 </View>
               )}
-              {blocks.map((block, index) => (
-              <View key={block.id} style={styles.block}>
-                <View style={styles.blockHeader}>
-                  <View style={[styles.blockNumber, { backgroundColor: theme.colors.accent }]}>
-                    <Text style={styles.blockNumberText}>{index + 1}</Text>
-                  </View>
-                  <Text style={[styles.blockName, { color: theme.colors.text }]}>{block.name}</Text>
-                </View>
+              {blocks.map((block, index) => {
+                const blockTargets = (block as any).targets || (block.exercises?.[0] as any)?.targets;
+                const targetLabel = getTargetsLabel(blockTargets);
+
+                return (
+                  <View key={block.id || index} style={styles.block}>
+                    <View style={styles.blockHeader}>
+                      <View style={[styles.blockNumber, { backgroundColor: theme.colors.accent }]}>
+                        <Text style={styles.blockNumberText}>{index + 1}</Text>
+                      </View>
+                      <Text style={[styles.blockName, { color: theme.colors.text }]} numberOfLines={1}>{block.name}</Text>
+                      
+                      {targetLabel && (
+                        <View style={[styles.blockTargetBadge, { backgroundColor: '#0069E8' + '18' }]}>
+                          <Feather name="users" size={11} color="#0069E8" style={{ marginRight: 4 }} />
+                          <Text style={[styles.blockTargetBadgeText, { color: '#0069E8' }]} numberOfLines={1}>
+                            {targetLabel}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
 
                 {(block.exercises || []).map((exercise: Exercise) => (
                   <View key={exercise.id} style={[styles.exerciseCard, { backgroundColor: theme.colors.surface, ...theme.shadows.soft }]}>
@@ -1082,6 +1123,19 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textTransform: 'uppercase',
     letterSpacing: 1,
+    flexShrink: 1,
+  },
+  blockTargetBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginLeft: 'auto',
+  },
+  blockTargetBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   exerciseCard: {
     padding: 20,

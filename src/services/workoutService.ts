@@ -305,16 +305,41 @@ export const workoutService = {
     if (error) throw error;
 
     if (role === 'coach') {
-      const seen = new Set<string>();
-      const deduped: any[] = [];
+      const groupedMap = new Map<string, any>();
       for (const w of (data || [])) {
         const key = w.group_assignment_id || w.id;
-        if (!seen.has(key)) {
-          seen.add(key);
-          deduped.push(w);
+        if (!groupedMap.has(key)) {
+          groupedMap.set(key, {
+            ...w,
+            blocks: Array.isArray(w.blocks) ? [...w.blocks] : [],
+            exercises: Array.isArray(w.exercises) ? [...w.exercises] : [],
+          });
+        } else {
+          const existing = groupedMap.get(key);
+          const existingBlockKeys = new Set(
+            (existing.blocks || []).map((b: any) => b.id || b.name)
+          );
+          for (const blk of (w.blocks || [])) {
+            const blkKey = blk.id || blk.name;
+            if (!existingBlockKeys.has(blkKey)) {
+              existingBlockKeys.add(blkKey);
+              existing.blocks.push(blk);
+            }
+          }
+
+          const existingExKeys = new Set(
+            (existing.exercises || []).map((e: any) => e.id || e.name)
+          );
+          for (const ex of (w.exercises || [])) {
+            const exKey = ex.id || ex.name;
+            if (!existingExKeys.has(exKey)) {
+              existingExKeys.add(exKey);
+              existing.exercises.push(ex);
+            }
+          }
         }
       }
-      return deduped;
+      return Array.from(groupedMap.values());
     }
 
     return data;

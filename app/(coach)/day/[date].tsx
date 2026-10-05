@@ -97,18 +97,9 @@ export default function CoachDayScreen() {
     if (!user?.id) return;
     setIsLoading(true);
     try {
-      // 1. Fetch workouts for the date
+      // 1. Fetch workouts for the date (already intelligently merged per group_assignment_id)
       const data = await workoutService.fetchWorkoutsForDate(user.id, parsedDate, 'coach');
-      const seen = new Set<string>();
-      const dedupedWorkouts: any[] = [];
-      for (const w of (data || [])) {
-        const key = w.group_assignment_id || w.id;
-        if (!seen.has(key)) {
-          seen.add(key);
-          dedupedWorkouts.push(w);
-        }
-      }
-      setWorkouts(dedupedWorkouts);
+      setWorkouts(data || []);
 
       // 2. Fetch coach periods to check if the day is in an active training phase
       const year = parsedDate.getFullYear();
