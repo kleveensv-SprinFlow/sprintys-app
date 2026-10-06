@@ -251,7 +251,7 @@ export const CopyWorkoutModal: React.FC<CopyWorkoutModalProps> = ({
       onRequestClose={onClose}
     >
       <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }]}>
-      <View style={[styles.container, { flex: 0, height: '90%' }]}>
+        <View style={[styles.container, { flex: 0, height: '90%' }]}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Feather name="x" size={24} color={theme.colors.text} />
@@ -336,6 +336,7 @@ export const CopyWorkoutModal: React.FC<CopyWorkoutModalProps> = ({
               <Text style={styles.copyButtonText}>Copier</Text>
             )}
           </TouchableOpacity>
+        </View>
         </View>
       </View>
     </Modal>
