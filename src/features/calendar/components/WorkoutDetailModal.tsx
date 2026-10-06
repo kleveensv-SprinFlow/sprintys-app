@@ -569,7 +569,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
       visible={visible}
       animationType="fade"
       transparent={true}
-      hardwareAccelerated={true}
+
       presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined}
       onRequestClose={onClose}
     >
