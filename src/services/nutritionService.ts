@@ -44,6 +44,7 @@ export const nutritionService = {
     // 2. Recherche Textuelle Mixte
     const results: HybridFoodResult[] = [];
 
+    try {
       // A. CIQUAL (Aliments bruts) - Prioritaires
       const { data: ciqualData, error } = await supabase
         .from('ciqual_foods')
