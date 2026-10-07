@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, FlatList, Image, ActivityIndicator, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, FlatList, Image, ActivityIndicator, KeyboardAvoidingView, Platform, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import { useNutritionStore } from '../../../store/nutrition/nutritionStore';
 import { openFoodFactsService, OFFProduct } from '../../../services/openFoodFactsService';
+import { nutritionService, HybridFoodResult, CiqualFood } from '../../../services/nutritionService';
 import { useDebounce } from '../../../shared/hooks/useDebounce';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
@@ -24,7 +25,7 @@ export const FoodSearchModal: React.FC = () => {
   
   const [searchQuery, setSearchQuery] = useState('');
   const [aiQuery, setAiQuery] = useState('');
-  const [results, setResults] = useState<OFFProduct[]>([]);
+  const [results, setResults] = useState<HybridFoodResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isAILoading, setIsAILoading] = useState(false);
   const [mode, setMode] = useState<'text' | 'barcode' | 'ai-text'>('text');
@@ -33,7 +34,8 @@ export const FoodSearchModal: React.FC = () => {
   const [permission, requestPermission] = useCameraPermissions();
   const debouncedQuery = useDebounce(searchQuery, 500);
 
-  const [selectedProduct, setSelectedProduct] = useState<OFFProduct | null>(null);
+  // We keep selectedProduct as any for now, since FoodDetailSheet will need updates too.
+  const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
 
   useEffect(() => {
     if (isSearchModalOpen) {
@@ -55,7 +57,7 @@ export const FoodSearchModal: React.FC = () => {
 
   const performSearch = async (query: string) => {
     setIsLoading(true);
-    const data = await openFoodFactsService.searchFood(query);
+    const data = await nutritionService.searchFoodHybrid(query);
     setResults(data);
     setIsLoading(false);
   };
@@ -161,29 +163,59 @@ export const FoodSearchModal: React.FC = () => {
     closeSearchModal();
   };
 
-  const renderProductItem = ({ item }: { item: OFFProduct }) => (
-    <TouchableOpacity 
-      style={[styles.resultItem, { borderBottomColor: theme.colors.border }]}
-      onPress={() => setSelectedProduct(item)}
-    >
-      {item.image_url ? (
-        <Image source={{ uri: item.image_url }} style={styles.productImage} />
-      ) : (
-        <View style={[styles.productImagePlaceholder, { backgroundColor: theme.colors.surfaceLight }]}>
-          <Feather name="image" size={24} color={theme.colors.textSecondary} />
+  const renderProductItem = ({ item }: { item: HybridFoodResult | any }) => {
+    let name = '';
+    let sub = '';
+    let imageUrl = null;
+    let calories = 0;
+    let type = 'recent'; // par défaut
+    
+    // Si c'est un résultat de recherche hybride
+    if (item.type === 'ciqual' || item.type === 'off') {
+      type = item.type;
+      const data = item.item;
+      if (item.type === 'ciqual') {
+        const c = data as CiqualFood;
+        name = c.nom;
+        sub = `CIQUAL 🛡️ ${c.etat ? `• ${c.etat}` : ''} • ${Math.round(c.energie_kcal)} kcal / 100g`;
+        calories = c.energie_kcal;
+      } else {
+        const o = data as OFFProduct;
+        name = o.name;
+        sub = `${o.brand || 'Produit industriel'} 🛒 • ${o.macros_100g?.calories ? Math.round(o.macros_100g.calories) : 0} kcal / 100g`;
+        imageUrl = o.image_url;
+      }
+    } else {
+      // Pour l'historique (frequent / recent)
+      name = item.food_name || item.name;
+      sub = `Historique • ${Math.round(item.calories || item.macros_100g?.calories || 0)} kcal`;
+      imageUrl = item.image_url;
+    }
+
+    return (
+      <TouchableOpacity 
+        style={[styles.resultItem, { borderBottomColor: theme.colors.border }]}
+        onPress={() => setSelectedProduct(item.type ? item.item : item)}
+      >
+        {imageUrl ? (
+          <Image source={{ uri: imageUrl }} style={styles.productImage} />
+        ) : (
+          <View style={[styles.productImagePlaceholder, { backgroundColor: type === 'ciqual' ? 'rgba(76, 175, 80, 0.1)' : theme.colors.surfaceLight }]}>
+            <Feather name={type === 'ciqual' ? 'check-circle' : 'image'} size={24} color={type === 'ciqual' ? '#4CAF50' : theme.colors.textSecondary} />
+          </View>
+        )}
+        <View style={styles.productInfo}>
+          <Text style={[styles.productName, { color: theme.colors.text }]} numberOfLines={1}>
+            {name}
+          </Text>
+          <Text style={[styles.productBrand, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+            {sub}
+          </Text>
         </View>
-      )}
-      <View style={styles.productInfo}>
-        <Text style={[styles.productName, { color: theme.colors.text }]} numberOfLines={1}>
-          {item.name}
-        </Text>
-        <Text style={[styles.productBrand, { color: theme.colors.textSecondary }]}>
-          {item.brand || 'Aliment'} • {item.macros_100g?.calories ? Math.round(item.macros_100g.calories) : 0} kcal / 100g
-        </Text>
-      </View>
-      <Feather name="plus-circle" size={24} color={theme.colors.accent} />
-    </TouchableOpacity>
-  );
+        <Feather name="plus-circle" size={24} color={theme.colors.accent} />
+      </TouchableOpacity>
+    );
+  };
 
   if (!isSearchModalOpen) return null;
 
@@ -282,46 +314,51 @@ export const FoodSearchModal: React.FC = () => {
               <View style={{ width: 28 }} />
             </View>
 
-            {/* DEDICATED AI BUTTON ROW */}
-            <View style={styles.aiActionRow}>
-              <TouchableOpacity style={styles.aiActionBtn} onPress={() => setMode('ai-text')}>
-                <LinearGradient colors={['rgba(0,105,232,0.1)', 'rgba(0,220,253,0.1)']} style={styles.aiActionGradient}>
-                  <Feather name="edit-3" size={20} color={theme.colors.accent} />
-                  <Text style={[styles.aiActionText, { color: theme.colors.accent }]}>Décrire un repas</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-              
-              <TouchableOpacity style={styles.aiActionBtn} onPress={handleAIPhoto}>
-                <LinearGradient colors={['rgba(0,105,232,0.1)', 'rgba(0,220,253,0.1)']} style={styles.aiActionGradient}>
-                  <Feather name="camera" size={20} color={theme.colors.accent} />
-                  <Text style={[styles.aiActionText, { color: theme.colors.accent }]}>Photo IA</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-
             {/* STANDARD SEARCH BAR */}
             <View style={styles.searchSection}>
               <View style={[styles.searchInputContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
                 <Feather name="search" size={20} color={theme.colors.textSecondary} />
                 <TextInput
                   style={[styles.searchInput, { color: theme.colors.text }]}
-                  placeholder="Rechercher un aliment précis..."
+                  placeholder="Rechercher un aliment (ex: oeuf, riz)..."
                   placeholderTextColor={theme.colors.textSecondary}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                 />
                 
-                {searchQuery.length > 0 ? (
+                {searchQuery.length > 0 && (
                   <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 4 }}>
                     <Feather name="x-circle" size={18} color={theme.colors.textSecondary} />
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity onPress={openScanner} style={{ padding: 4 }}>
-                    <Feather name="maximize" size={20} color={theme.colors.textSecondary} />
                   </TouchableOpacity>
                 )}
               </View>
             </View>
+
+            {/* QUICK ACTIONS ROW */}
+            {!isSearching && (
+              <View style={styles.aiActionRow}>
+                <TouchableOpacity style={styles.aiActionBtn} onPress={() => setMode('ai-text')}>
+                  <View style={[styles.aiActionGradient, { backgroundColor: theme.colors.surfaceLight }]}>
+                    <Feather name="edit-3" size={16} color={theme.colors.text} />
+                    <Text style={[styles.aiActionText, { color: theme.colors.text }]}>Décrire</Text>
+                  </View>
+                </TouchableOpacity>
+                
+                <TouchableOpacity style={styles.aiActionBtn} onPress={handleAIPhoto}>
+                  <View style={[styles.aiActionGradient, { backgroundColor: theme.colors.surfaceLight }]}>
+                    <Feather name="camera" size={16} color={theme.colors.text} />
+                    <Text style={[styles.aiActionText, { color: theme.colors.text }]}>Photo</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.aiActionBtn} onPress={openScanner}>
+                  <View style={[styles.aiActionGradient, { backgroundColor: theme.colors.surfaceLight }]}>
+                    <Feather name="maximize" size={16} color={theme.colors.text} />
+                    <Text style={[styles.aiActionText, { color: theme.colors.text }]}>Scanner</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* TABS */}
             {!isSearching && (

@@ -1,11 +1,12 @@
--- ciqual_schema.sql
--- Table simplifiée contenant les valeurs nutritionnelles essentielles
--- issue de la base CIQUAL pour la performance athlétique.
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS unaccent;
 
 CREATE TABLE public.ciqual_foods (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code_ciqual VARCHAR(20) UNIQUE NOT NULL, -- Identifiant original dans la base CIQUAL
     nom VARCHAR(255) NOT NULL,
+    etat VARCHAR(50), -- cru, cuit, au plat, etc.
+    synonymes TEXT, -- mots-clés séparés par des virgules
     -- Valeurs pour 100g de produit
     energie_kcal NUMERIC(10, 2) NOT NULL DEFAULT 0,
     proteines NUMERIC(10, 2) NOT NULL DEFAULT 0,
@@ -18,13 +19,28 @@ CREATE TABLE public.ciqual_foods (
     fer NUMERIC(10, 2) DEFAULT 0,
     calcium NUMERIC(10, 2) DEFAULT 0,
     sodium NUMERIC(10, 2) DEFAULT 0,
+    -- Texte normalisé pour la recherche (sans accent, minuscule)
+    search_text TEXT,
     -- Métadonnées
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Index pour la recherche textuelle
-CREATE INDEX idx_ciqual_foods_nom ON public.ciqual_foods USING gin (to_tsvector('french', nom));
+-- Fonction pour mettre à jour le champ search_text
+CREATE OR REPLACE FUNCTION public.update_ciqual_search_text()
+RETURNS trigger AS $$
+BEGIN
+  NEW.search_text := unaccent(lower(NEW.nom || ' ' || COALESCE(NEW.synonymes, '')));
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_ciqual_search_text
+  BEFORE INSERT OR UPDATE ON public.ciqual_foods
+  FOR EACH ROW EXECUTE FUNCTION public.update_ciqual_search_text();
+
+-- Index pour la recherche textuelle performante
+CREATE INDEX idx_ciqual_foods_search_text ON public.ciqual_foods USING gin (search_text gin_trgm_ops);
 
 -- Table pour lier l'historique nutritionnel de l'utilisateur
 CREATE TABLE public.user_nutrition_logs (
