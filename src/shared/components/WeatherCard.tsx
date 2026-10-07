@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Modal, ScrollView, Animated, Easing } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Modal, ScrollView, Animated, Easing, Dimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../core/theme';
 import * as Location from 'expo-location';
@@ -16,6 +16,7 @@ export const WeatherCard = () => {
 
   const spinValue = useRef(new Animated.Value(0)).current;
   const floatValue = useRef(new Animated.Value(0)).current;
+  const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     Animated.loop(
@@ -239,7 +240,7 @@ export const WeatherCard = () => {
                   )}
                 </View>
 
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 4, gap: 10 }}>
+                <ScrollView ref={scrollViewRef} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 4, gap: 10 }}>
                   {displayHourly.length > 0 ? displayHourly.map((h, i) => (
                     <View key={i} style={styles.hourlyCard}>
                       <Text style={styles.hourlyTime}>{h.time}</Text>
