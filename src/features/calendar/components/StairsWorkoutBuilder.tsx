@@ -496,7 +496,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
           restBetweenExercises: ex.restExercise,
           target: ex.target,
           sets: Array.from({ length: ex.setsCount }, (_, idx) => ({
-            id: uuid.v4() as string,
+            id: `${ex.id}_set_${idx}`,
             set_index: idx + 1,
             steps: ex.stairs || undefined,
             reps: ex.stairs || undefined,
@@ -526,6 +526,28 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
         }
 
         const sharedAssignmentId = uuid.v4() as string;
+
+        // --- MASTER COPY FOR COACH ---
+        const masterMappedExercises = mapExercisesToPayload(sessionExercises);
+        payloadsToUpdate.push({
+          type_seance: sessionTitle.trim() || 'Escalier',
+          coach_id: user.id,
+          team_id: activeTeamId,
+          athlete_id: user.id, // Coach ID
+          group_assignment_id: sharedAssignmentId,
+          date_prevue: targetDateIso,
+          description: sessionNotes.trim() ? sessionNotes.trim() : `${sessionExercises.length} exercice${sessionExercises.length > 1 ? 's' : ''} en escalier`,
+          intensity: 8,
+          blocks: [
+            {
+              id: 'stairs_main', // deterministic block ID
+              name: 'Escalier',
+              exercises: masterMappedExercises,
+            },
+          ],
+          measures: { is_master: true },
+          status: 'pending',
+        });
 
         // Filter per athlete so they only see their assigned exercises
         for (const member of approvedMembers) {

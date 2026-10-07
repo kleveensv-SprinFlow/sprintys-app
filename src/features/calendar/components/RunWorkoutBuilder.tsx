@@ -664,7 +664,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
   const mapBlocksToPayload = (items: RunBlockItem[]) => {
     return items.map((blk, idx) => {
       const isLastBlock = idx === items.length - 1;
-      const exerciseId = uuid.v4() as string;
+      const exerciseId = `${blk.id}_ex`;
 
       let sets: any[] = [];
       let summaryName = '';
@@ -674,7 +674,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
         sets = blk.runs.map((r, sIdx) => {
           const isLastRun = sIdx === blk.runs.length - 1;
           return {
-            id: uuid.v4() as string,
+            id: `${blk.id}_set_${sIdx}`,
             distance: r.distance,
             intensity: r.intensity,
             restSeconds: isLastRun ? blk.restBlock : blk.restReps,
@@ -685,7 +685,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
         sets = Array.from({ length: blk.repsCount }).map((_, sIdx) => {
           const isLastRep = sIdx === blk.repsCount - 1;
           return {
-            id: uuid.v4() as string,
+            id: `${blk.id}_set_${sIdx}`,
             distance: blk.distance,
             intensity: blk.intensity,
             restSeconds: isLastRep ? blk.restBlock : blk.restReps,
@@ -751,6 +751,27 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
         }
 
         const sharedAssignmentId = uuid.v4() as string;
+
+        // --- MASTER COPY FOR COACH ---
+        const masterMappedBlocks = mapBlocksToPayload(blocks);
+        const masterFlatExercises = masterMappedBlocks.flatMap((b) => b.exercises);
+        payloadsToUpdate.push({
+          type_seance: sessionTypeSeance,
+          coach_id: user.id,
+          team_id: activeTeamId,
+          athlete_id: user.id, // Coach ID so the coach can always see the full session
+          group_assignment_id: sharedAssignmentId,
+          date_prevue: targetDateIso,
+          description: finalDescription,
+          exercises: masterFlatExercises,
+          blocks: masterMappedBlocks,
+          measures: {
+            surface,
+            equipment,
+            is_master: true,
+          },
+          status: 'pending',
+        });
 
         for (const member of approvedMembers) {
           const athleteFilteredBlocks = blocks.filter((blk) => {

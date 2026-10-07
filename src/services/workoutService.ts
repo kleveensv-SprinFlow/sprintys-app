@@ -243,7 +243,7 @@ export const workoutService = {
     
     let query = supabase
       .from('workouts')
-      .select('id, date_prevue, type_seance, status, athlete_id, group_assignment_id')
+      .select('id, date_prevue, type_seance, status, athlete_id, group_assignment_id, measures')
       .gte('date_prevue', startDate.toISOString())
       .lte('date_prevue', endDate.toISOString());
 
@@ -272,7 +272,7 @@ export const workoutService = {
       return deduped;
     }
 
-    return data;
+    return (data || []).filter((w: any) => !w.measures?.is_master);
   },
 
   fetchWorkoutsForDate: async (userId: string, date: Date, role: 'athlete' | 'coach', teamId?: string) => {
@@ -342,7 +342,7 @@ export const workoutService = {
       return Array.from(groupedMap.values());
     }
 
-    return data;
+    return (data || []).filter((w: any) => !w.measures?.is_master);
   },
 
   submitWorkoutResults: async (workoutId: string, efforts: any[], measures?: any) => {

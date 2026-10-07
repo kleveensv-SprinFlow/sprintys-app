@@ -578,7 +578,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
           rest_between_sets_s: ex.restSets,
           targets: ex.targets,
           sets: ex.sets.map((s, idx) => ({
-            id: s.id || uuid.v4() as string,
+            id: s.id || `${ex.id}_set_${idx}`,
             set_index: idx + 1,
             reps: s.reps,
             weight: s.weight || undefined,
@@ -610,6 +610,28 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
       }
 
       const sharedAssignmentId = uuid.v4() as string;
+
+      // --- MASTER COPY FOR COACH ---
+      const masterMappedExercises = mapExercisesToPayload(sessionExercises);
+      payloadsToUpdate.push({
+        type_seance: sessionTitle.trim() || 'Musculation',
+        coach_id: user.id,
+        team_id: activeTeamId,
+        athlete_id: user.id, // Coach acts as athlete
+        group_assignment_id: sharedAssignmentId,
+        date_prevue: targetDateIso,
+        description: sessionNotes.trim() ? sessionNotes.trim() : `${sessionExercises.length} exercice${sessionExercises.length > 1 ? 's' : ''} de musculation`,
+        intensity: 7,
+        blocks: [
+          {
+            id: 'strength_main', // deterministic
+            name: 'Musculation',
+            exercises: masterMappedExercises,
+          },
+        ],
+        measures: { is_master: true },
+        status: 'pending',
+      });
 
       // Filter per athlete so they only receive the exercises assigned to them
       for (const member of approvedMembers) {
