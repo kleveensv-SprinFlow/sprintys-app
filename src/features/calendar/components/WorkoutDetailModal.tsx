@@ -485,7 +485,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
   }, [workout, isCoach, isReadOnly, user?.id, teamMembers]);
 
   const rawTitle = workout?.type_seance || workout?.name;
-  const sessionTitle = typeof rawTitle === 'string' ? rawTitle : 'Séance';
+  const sessionTitle = typeof rawTitle === 'string' ? rawTitle : String(rawTitle || 'Séance');
   const isRestDay = sessionTitle.toLowerCase().includes('repos');
   const isTechnical = sessionTitle.toLowerCase().includes('technique');
   const isCompetition = sessionTitle.toLowerCase().includes('compétition') || sessionTitle.toLowerCase().includes('competition');
@@ -522,7 +522,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
     const distText = item.distance ? `${item.distance}m` : '';
     const setLabel = `Série ${item.setIndex + 1}/${(item.exercise.sets || []).length}`;
     const title = `${setLabel}${distText ? ` · ${distText}` : ''}`;
-    const subtitle = item.exercise.name;
+    const subtitle = typeof item.exercise.name === 'string' ? item.exercise.name : 'Exercice';
 
     setActiveKeypad({
       exerciseId: item.exercise.id,
@@ -699,7 +699,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                   <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
                     <Ionicons name="location-outline" size={18} color={theme.colors.textSecondary} style={{ marginRight: 6, marginTop: 1 }} />
                     <Text style={{ color: theme.colors.textSecondary, flex: 1, fontSize: 14 }}>
-                      {parsedMeasures.location}
+                      {typeof parsedMeasures.location === 'string' ? parsedMeasures.location : String(parsedMeasures.location)}
                     </Text>
                   </View>
                 ) : null}
@@ -713,7 +713,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                          // A real app might open the URL here using Linking.openURL
                       }}
                     >
-                      {parsedMeasures.attachmentUrl}
+                      {typeof parsedMeasures.attachmentUrl === 'string' ? parsedMeasures.attachmentUrl : String(parsedMeasures.attachmentUrl)}
                     </Text>
                   </View>
                 ) : null}
@@ -754,7 +754,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                         <View style={[styles.technicalBadge, { backgroundColor: badgeBg }]}>
                           <Ionicons name={badgeIcon as any} size={12} color={badgeText} />
                           <Text style={[styles.technicalBadgeText, { color: badgeText }]}>
-                            {targetLabel}
+                            {typeof targetLabel === 'string' ? targetLabel : String(targetLabel)}
                           </Text>
                         </View>
                         <Text style={[styles.technicalIndex, { color: theme.colors.textSecondary }]}>
@@ -764,12 +764,12 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
 
                       {note.title ? (
                         <Text style={[styles.technicalNoteTitle, { color: theme.colors.text }]}>
-                          {note.title}
+                          {typeof note.title === 'string' ? note.title : String(note.title)}
                         </Text>
                       ) : null}
 
                       <Text style={[styles.technicalNoteContent, { color: theme.colors.text }]}>
-                        {note.content}
+                        {typeof note.content === 'string' ? note.content : String(note.content || '')}
                       </Text>
                     </View>
                   );
@@ -801,13 +801,13 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                       <View style={[styles.blockNumber, { backgroundColor: theme.colors.accent }]}>
                         <Text style={styles.blockNumberText}>{index + 1}</Text>
                       </View>
-                      <Text style={[styles.blockName, { color: theme.colors.text }]} numberOfLines={1}>{block.name || `Bloc ${index + 1}`}</Text>
+                      <Text style={[styles.blockName, { color: theme.colors.text }]} numberOfLines={1}>{typeof block.name === 'string' ? block.name : `Bloc ${index + 1}`}</Text>
                       
                       {targetLabel && (
                         <View style={[styles.blockTargetBadge, { backgroundColor: 'rgba(0, 105, 232, 0.09)' }]}>
                           <Feather name="users" size={11} color="#0069E8" style={{ marginRight: 4 }} />
                           <Text style={[styles.blockTargetBadgeText, { color: '#0069E8' }]} numberOfLines={1}>
-                            {targetLabel}
+                            {typeof targetLabel === 'string' ? targetLabel : String(targetLabel)}
                           </Text>
                         </View>
                       )}
@@ -818,20 +818,20 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                   const exerciseSets = Array.isArray(exercise.sets) ? exercise.sets : [];
                   return (
                   <View key={exercise.id || `ex-${exIdx}`} style={[styles.exerciseCard, { backgroundColor: theme.colors.surface, ...theme.shadows.soft }]}>
-                    <Text style={[styles.exerciseName, { color: theme.colors.text }]}>{exercise.name || 'Exercice'}</Text>
+                    <Text style={[styles.exerciseName, { color: theme.colors.text }]}>{typeof exercise.name === 'string' ? exercise.name : 'Exercice'}</Text>
                     
                     {!!(exercise as any).target && typeof (exercise as any).target === 'object' && (exercise as any).target.type !== 'all' && (
                       <View style={styles.targetBadge}>
                         <Feather name="user" size={11} color={theme.colors.accent} />
                         <Text style={[styles.targetBadgeText, { color: theme.colors.accent }]}>
-                          {(exercise as any).target.name || 'Cible spécifique'}
+                          {typeof (exercise as any).target.name === 'string' ? (exercise as any).target.name : 'Cible spécifique'}
                         </Text>
                       </View>
                     )}
 
                     {!!exercise.notes && (
                       <Text style={[styles.exerciseNotes, { color: theme.colors.textSecondary }]}>
-                        {exercise.notes}
+                        {typeof exercise.notes === 'string' ? exercise.notes : JSON.stringify(exercise.notes)}
                       </Text>
                     )}
 
@@ -861,7 +861,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                         }
                         if (set.distance) setDetails.push(`${set.distance}m`);
                         if ((set as any).intensity) setDetails.push(`${(set as any).intensity}%`);
-                        if (set.duration) setDetails.push(set.duration);
+                        if (set.duration && typeof set.duration === 'string') setDetails.push(set.duration); else if (set.duration) setDetails.push(String(set.duration));
                         if (set.weight !== undefined && set.weight !== null) {
                           const wType = (set as any).weight_type || (set as any).weightType;
                           if (wType === 'percent_1rm' || String(set.weight).includes('%')) {
