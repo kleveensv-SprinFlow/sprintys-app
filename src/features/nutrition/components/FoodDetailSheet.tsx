@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, Image, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
-import { OFFProduct } from '../../../services/openFoodFactsService';
 
 interface FoodDetailSheetProps {
-  product: OFFProduct | null;
+  product: any | null; // CiqualFood | OFFProduct
   visible: boolean;
   onClose: () => void;
   onAdd: (totalGrams: number, calories: number, pro: number, glu: number, lip: number) => void;
@@ -14,7 +13,7 @@ interface FoodDetailSheetProps {
 export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visible, onClose, onAdd }) => {
   const theme = useTheme();
   const [inputValue, setInputValue] = useState('100');
-  const [unit, setUnit] = useState<'g' | 'serving'>('g');
+  const [unit, setUnit] = useState<'g' | 'serving' | 'piece'>('g');
   
   useEffect(() => {
     // Reset when product changes
@@ -36,18 +35,26 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
   let totalGrams = 0;
   if (unit === 'g') {
     totalGrams = numericValue;
-  } else {
-    // serving
+  } else if (unit === 'serving') {
     totalGrams = numericValue * (product.serving_quantity || 100);
+  } else if (unit === 'piece') {
+    // 60g par oeuf/fruit par défaut si on choisit pièce (à améliorer avec table des portions)
+    totalGrams = numericValue * 60; 
   }
 
   const multiplier = totalGrams / 100;
   
+  // Extract macros safely depending on CIQUAL or OFF format
+  const baseKcal = product.energie_kcal ?? product.macros_100g?.calories ?? 0;
+  const basePro = product.proteines ?? product.macros_100g?.proteines ?? 0;
+  const baseGlu = product.glucides ?? product.macros_100g?.glucides ?? 0;
+  const baseLip = product.lipides ?? product.macros_100g?.lipides ?? 0;
+
   const currentMacros = {
-    calories: Math.round(product.macros_100g.calories * multiplier),
-    proteines: Math.round(product.macros_100g.proteines * multiplier),
-    glucides: Math.round(product.macros_100g.glucides * multiplier),
-    lipides: Math.round(product.macros_100g.lipides * multiplier),
+    calories: Math.round(baseKcal * multiplier),
+    proteines: Math.round(basePro * multiplier),
+    glucides: Math.round(baseGlu * multiplier),
+    lipides: Math.round(baseLip * multiplier),
   };
 
   const handleAdd = () => {
@@ -74,16 +81,16 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
             {product.image_url ? (
               <Image source={{ uri: product.image_url }} style={styles.productImage} />
             ) : (
-              <View style={[styles.placeholderImage, { backgroundColor: theme.colors.surface }]}>
-                <Feather name="image" size={30} color={theme.colors.textSecondary} />
+              <View style={[styles.placeholderImage, { backgroundColor: product.nom ? 'rgba(76, 175, 80, 0.1)' : theme.colors.surface }]}>
+                <Feather name={product.nom ? 'check-circle' : 'image'} size={30} color={product.nom ? '#4CAF50' : theme.colors.textSecondary} />
               </View>
             )}
             <View style={styles.productInfo}>
               <Text style={[styles.productName, { color: theme.colors.text }]} numberOfLines={2}>
-                {product.name}
+                {product.nom || product.name}
               </Text>
               <Text style={[styles.productBrand, { color: theme.colors.textSecondary }]}>
-                {product.brand || 'Marque inconnue'}
+                {product.nom ? `CIQUAL 🛡️ ${product.etat ? `• ${product.etat}` : ''}` : (product.brand || 'Produit industriel 🛒')}
               </Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
@@ -112,6 +119,13 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
                 <Text style={[styles.unitText, { color: unit === 'g' ? '#FFF' : theme.colors.text }]}>g / ml</Text>
               </TouchableOpacity>
               
+              <TouchableOpacity 
+                style={[styles.unitBtn, unit === 'piece' && { backgroundColor: theme.colors.accent }]}
+                onPress={() => setUnit('piece')}
+              >
+                <Text style={[styles.unitText, { color: unit === 'piece' ? '#FFF' : theme.colors.text }]}>1 Pièce</Text>
+              </TouchableOpacity>
+
               {product.serving_quantity ? (
                 <TouchableOpacity 
                   style={[styles.unitBtn, unit === 'serving' && { backgroundColor: theme.colors.accent }]}
