@@ -32,7 +32,7 @@ export const RegisterMultiStep: React.FC<RegisterMultiStepProps> = ({ onSwitchTo
   const router = useRouter();
 
   const isCoach = formData.role === 'coach';
-  const totalSteps = isCoach ? 4 : 6;
+  const totalSteps = 4;
 
   const updateData = (newData: Partial<SignupData>) => {
     if (newData.role && newData.role !== formData.role) {
