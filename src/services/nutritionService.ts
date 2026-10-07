@@ -47,10 +47,11 @@ export const nutritionService = {
     // A. CIQUAL (Aliments bruts) - Prioritaires
     // Recherche simple avec ILIKE pour la flexibilité (pg_trgm en DB gère la perfo)
     try {
+      // On cherche soit en début de chaîne (ex: "oeuf..."), soit après un espace (ex: "... oeuf...")
       const { data: ciqualData, error } = await supabase
         .from('ciqual_foods')
         .select('*')
-        .or(`search_text.ilike.%${q}%,nom.ilike.%${q}%,synonymes.ilike.%${q}%`)
+        .or(`search_text.ilike.${q}%,search_text.ilike.% ${q}%,nom.ilike.${q}%,nom.ilike.% ${q}%`)
         .order('nom', { ascending: true })
         .limit(10);
 

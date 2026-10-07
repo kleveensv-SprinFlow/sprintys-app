@@ -69,24 +69,37 @@ async function run() {
     const batch = records.slice(i, i + batchSize);
     
     const payload = batch.map((r: any) => {
-      const nom = r['alim_nom_fr'] || r['alim_nom'] || r['Nom français'] || '';
-      const code = r['alim_code'] || r['Code'] || '';
+      // Normaliser les clés (retirer les \r\n et espaces multiples)
+      const normRow: any = {};
+      for (const k of Object.keys(r)) {
+        const cleanKey = k.replace(/[\r\n]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+        normRow[cleanKey] = r[k];
+      }
+
+      // Fonction utilitaire pour trouver une valeur selon un mot-clé dans la colonne
+      const findVal = (keywords: string[]) => {
+        const key = Object.keys(normRow).find(k => keywords.every(kw => k.includes(kw.toLowerCase())));
+        return key ? normRow[key] : null;
+      };
+
+      const nom = findVal(['alim_nom_fr']) || findVal(['nom français']) || '';
+      const code = findVal(['alim_code']) || findVal(['code']) || '';
       
       return {
         code_ciqual: String(code),
         nom: nom,
         etat: deriveEtat(nom),
         synonymes: deriveSynonymes(nom),
-        energie_kcal: parseNumber(r['Energie, Règlement UE N° 1169/2011 (kcal/100 g)'] || r['Energie (kcal/100g)']),
-        proteines: parseNumber(r['Protéines, N x facteur de Jones (g/100 g)'] || r['Protéines (g/100g)']),
-        glucides: parseNumber(r['Glucides (g/100 g)'] || r['Glucides (g/100g)']),
-        lipides: parseNumber(r['Lipides (g/100 g)'] || r['Lipides (g/100g)']),
-        fibres: parseNumber(r['Fibres alimentaires (g/100 g)'] || r['Fibres (g/100g)']),
-        eau: parseNumber(r['Eau (g/100 g)']),
-        vitamine_c: parseNumber(r['Vitamine C (mg/100 g)']),
-        fer: parseNumber(r['Fer (mg/100 g)']),
-        calcium: parseNumber(r['Calcium (mg/100 g)']),
-        sodium: parseNumber(r['Sodium (mg/100 g)']),
+        energie_kcal: parseNumber(findVal(['energie', 'kcal'])),
+        proteines: parseNumber(findVal(['protéines', 'jones', 'g'])),
+        glucides: parseNumber(findVal(['glucides', 'g'])),
+        lipides: parseNumber(findVal(['lipides', 'g'])),
+        fibres: parseNumber(findVal(['fibres', 'g'])),
+        eau: parseNumber(findVal(['eau', 'g'])),
+        vitamine_c: parseNumber(findVal(['vitamine c'])),
+        fer: parseNumber(findVal(['fer', 'mg'])),
+        calcium: parseNumber(findVal(['calcium', 'mg'])),
+        sodium: parseNumber(findVal(['sodium', 'mg'])),
       };
     }).filter((item) => item.nom && item.code_ciqual);
 
