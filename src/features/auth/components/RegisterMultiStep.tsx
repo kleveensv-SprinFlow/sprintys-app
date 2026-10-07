@@ -7,9 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { StepRole } from './steps/StepRole';
 import { StepIdentity } from './steps/StepIdentity';
-import { StepDiscipline } from './steps/StepDiscipline';
 import { StepPhysical } from './steps/StepPhysical';
-import { StepObjective } from './steps/StepObjective';
 import { StepCoachGroup } from './steps/StepCoachGroup';
 import { StepAccount } from './steps/StepAccount';
 
@@ -24,7 +22,6 @@ export const RegisterMultiStep: React.FC<RegisterMultiStepProps> = ({ onSwitchTo
     role: 'athlete',
     firstName: '',
     lastName: '',
-    disciplines: [],
     subgroups: [],
   });
 
@@ -83,48 +80,27 @@ export const RegisterMultiStep: React.FC<RegisterMultiStepProps> = ({ onSwitchTo
   };
 
   const renderStep = () => {
-    if (isCoach) {
-      switch (step) {
-        case 1:
-          return <StepRole data={formData} updateData={updateData} onNext={handleNext} />;
-        case 2:
-          return <StepIdentity data={formData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
-        case 3:
+    switch (step) {
+      case 1:
+        return <StepRole data={formData} updateData={updateData} onNext={handleNext} />;
+      case 2:
+        return <StepIdentity data={formData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
+      case 3:
+        if (isCoach) {
           return <StepCoachGroup data={formData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
-        case 4:
-          return <StepAccount
-                    data={formData}
-                    updateData={updateData}
-                    onSubmit={handleSignup}
-                    onBack={handleBack}
-                    isLoading={isLoading}
-                 />;
-        default:
-          return null;
-      }
-    } else {
-      switch (step) {
-        case 1:
-          return <StepRole data={formData} updateData={updateData} onNext={handleNext} />;
-        case 2:
-          return <StepIdentity data={formData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
-        case 3:
-          return <StepDiscipline data={formData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
-        case 4:
+        } else {
           return <StepPhysical data={formData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
-        case 5:
-          return <StepObjective data={formData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
-        case 6:
-          return <StepAccount
-                    data={formData}
-                    updateData={updateData}
-                    onSubmit={handleSignup}
-                    onBack={handleBack}
-                    isLoading={isLoading}
-                 />;
-        default:
-          return null;
-      }
+        }
+      case 4:
+        return <StepAccount
+                  data={formData}
+                  updateData={updateData}
+                  onSubmit={handleSignup}
+                  onBack={handleBack}
+                  isLoading={isLoading}
+               />;
+      default:
+        return null;
     }
   };
 
