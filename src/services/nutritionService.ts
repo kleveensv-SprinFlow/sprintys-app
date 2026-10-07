@@ -44,28 +44,55 @@ export const nutritionService = {
     // 2. Recherche Textuelle Mixte
     const results: HybridFoodResult[] = [];
 
-    // A. CIQUAL (Aliments bruts) - Prioritaires
-    // Recherche simple avec ILIKE pour la flexibilité (pg_trgm en DB gère la perfo)
-    try {
-      // On cherche soit en début de chaîne (ex: "oeuf..."), soit après un espace (ex: "... oeuf...")
+      // A. CIQUAL (Aliments bruts) - Prioritaires
       const { data: ciqualData, error } = await supabase
         .from('ciqual_foods')
         .select('*')
-        .or(`search_text.ilike.${q}%,search_text.ilike.% ${q}%,nom.ilike.${q}%,nom.ilike.% ${q}%`)
-        .order('nom', { ascending: true })
-        .limit(10);
+        .ilike('search_text', `%${q}%`)
+        .limit(50); // Fetch a larger pool to score in JS
 
       if (error) {
         console.error('CIQUAL search error:', error);
-      } else if (ciqualData) {
-        // Boost : si ça commence par le mot exact, on le met en haut
-        ciqualData.sort((a, b) => {
-          const aStarts = a.search_text?.startsWith(q) ? -1 : 0;
-          const bStarts = b.search_text?.startsWith(q) ? -1 : 0;
-          return aStarts - bStarts;
+      } else if (ciqualData && ciqualData.length > 0) {
+        const scoredData = ciqualData.map((item) => {
+          let score = 0;
+          const nameLower = item.nom.toLowerCase();
+          const searchLower = item.search_text?.toLowerCase() || '';
+
+          // 1. Exact first word match
+          if (nameLower === q || nameLower.startsWith(q + ',') || nameLower.startsWith(q + ' ') || nameLower.startsWith(q + '-')) {
+            score += 1000;
+          } else if (nameLower.startsWith(q)) {
+            score += 500;
+          } else if (new RegExp(`\\b${q}\\b`).test(searchLower)) {
+            score += 200;
+          }
+
+          // 2. Malus pour "pomme de terre" si on cherche juste "pomme"
+          if (q === 'pomme' && searchLower.includes('pomme de terre')) {
+            score -= 800;
+          }
+          
+          // Malus si le mot-clé apparait loin dans le nom
+          const idx = searchLower.indexOf(q);
+          if (idx !== -1) {
+            score -= idx;
+          }
+
+          // 3. Aliment simple > plat complexe (plus le nom est court, plus il est simple)
+          score -= nameLower.length;
+
+          return { item, score };
         });
 
-        results.push(...ciqualData.map(c => ({ type: 'ciqual' as const, item: c as CiqualFood })));
+        // 4. Tri par score puis par ordre alphabétique
+        scoredData.sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          return a.item.nom.localeCompare(b.item.nom);
+        });
+
+        // On prend les 10 meilleurs
+        results.push(...scoredData.slice(0, 10).map(c => ({ type: 'ciqual' as const, item: c.item as CiqualFood })));
       }
     } catch (err) {
       console.error('Supabase fetch error:', err);
