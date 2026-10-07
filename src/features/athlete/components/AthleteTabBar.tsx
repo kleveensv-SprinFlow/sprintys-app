@@ -1,4 +1,4 @@
-﻿import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Platform } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -225,7 +225,7 @@ export const AthleteTabBar: React.FC<BottomTabBarProps> = ({
       ]}
     >
       <View style={styles.tabList}>
-        {state.routes.map((route, index) => {
+        {state.routes.map((route: any, index: number) => {
           const tabConfig = ATHLETE_TABS[route.name];
           if (!tabConfig) return null; // Ignore hidden screens
 
@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   activePill: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: 16,
   },
   tabLabel: {

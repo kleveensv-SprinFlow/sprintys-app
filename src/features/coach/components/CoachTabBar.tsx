@@ -146,8 +146,8 @@ export const CoachTabBar: React.FC<BottomTabBarProps> = ({
   const activeRoute = state.routes[state.index];
   const isPrimaryTab = PRIMARY_COACH_TABS.includes(activeRoute?.name);
 
-  const visibleRoutes = state.routes.filter((route) => COACH_TABS[route.name]);
-  const activeVisibleIndex = visibleRoutes.findIndex((r) => r.name === activeRoute?.name);
+  const visibleRoutes = state.routes.filter((route: any) => COACH_TABS[route.name]);
+  const activeVisibleIndex = visibleRoutes.findIndex((r: any) => r.name === activeRoute?.name);
 
   const tabWidth = containerWidth > 0 ? (containerWidth - 16) / Math.max(1, visibleRoutes.length) : 0;
 
@@ -199,7 +199,7 @@ export const CoachTabBar: React.FC<BottomTabBarProps> = ({
           />
         )}
 
-        {state.routes.map((route) => {
+        {state.routes.map((route: any) => {
           const tabConfig = COACH_TABS[route.name];
           if (!tabConfig) return null;
 

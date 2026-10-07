@@ -59,7 +59,7 @@ export default function RootLayout() {
     <View style={styles.container}>
       <LinearGradient
         colors={['#F8FAFC', '#F1F5F9', '#E2E8F0']}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
       />
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>

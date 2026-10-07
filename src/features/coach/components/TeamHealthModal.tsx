@@ -160,7 +160,7 @@ export const TeamHealthModal = ({ visible, onClose }: Props) => {
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
         {/* Backdrop touch to close */}
-        <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={onClose} activeOpacity={1} />
+        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} activeOpacity={1} />
 
         <View style={styles.sheetContainer}>
           {/* Sheet Handle */}

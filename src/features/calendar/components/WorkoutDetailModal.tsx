@@ -794,7 +794,8 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                   </View>
                 ))}
               </View>
-            ))}
+            );
+          })}
           </View>
         )}
 
