@@ -10,7 +10,7 @@ import { useDebounce } from '../../../shared/hooks/useDebounce';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { FoodDetailSheet } from './FoodDetailSheet';
-import { aiNutritionService } from '../../../services/aiNutritionService';
+import { aiNutritionService, ParsedFoodItem } from '../../../services/aiNutritionService';
 import { LinearGradient } from 'expo-linear-gradient';
 
 type TabType = 'recents' | 'frequents' | 'repas';
@@ -28,7 +28,8 @@ export const FoodSearchModal: React.FC = () => {
   const [results, setResults] = useState<HybridFoodResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isAILoading, setIsAILoading] = useState(false);
-  const [mode, setMode] = useState<'text' | 'barcode' | 'ai-text'>('text');
+  const [mode, setMode] = useState<'text' | 'barcode' | 'ai-text' | 'ai-review'>('text');
+  const [aiParsedMeal, setAiParsedMeal] = useState<(ParsedFoodItem & { matchedItem?: HybridFoodResult })[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('recents');
   
   const [permission, requestPermission] = useCameraPermissions();
