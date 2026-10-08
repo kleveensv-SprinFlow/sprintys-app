@@ -25,10 +25,10 @@ interface Props {
 }
 
 const OBJECTIVES = [
-  { id: 'Perte de poids', label: 'Alléger' },
-  { id: 'Prendre du poids', label: 'Prendre' },
-  { id: 'Se muscler', label: 'Muscle' },
-  { id: 'Stabiliser', label: 'Tenir' },
+  { id: 'Perte de poids', label: 'Perte de gras', desc: 'Déficit contrôlé' },
+  { id: 'Prendre du poids', label: 'Prise de masse', desc: 'Surplus calorique' },
+  { id: 'Se muscler', label: 'Muscle & Force', desc: 'Recomposition' },
+  { id: 'Stabiliser', label: 'Maintien', desc: 'Stabilisation' },
 ];
 
 const ACTIVITY_LEVELS = [
@@ -222,7 +222,7 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
           {activeTab === 0 ? (
             <>
               <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>DIRECTION</Text>
-              <View style={styles.goalRow}>
+              <View style={styles.loadGrid}>
                 {OBJECTIVES.map((obj) => {
                   const on = matchesObjective(objective, obj.id);
                   return (
@@ -234,11 +234,15 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
                         else if (weeklyGoal === '0') setWeeklyGoal('0.5');
                       }}
                       style={[
-                        styles.goalChip,
-                        { backgroundColor: on ? theme.colors.accent : theme.colors.surface, borderColor: on ? theme.colors.accent : theme.colors.border },
+                        styles.loadCell,
+                        {
+                          backgroundColor: on ? theme.colors.accent : theme.colors.surface,
+                          borderColor: on ? theme.colors.accent : theme.colors.border,
+                        },
                       ]}
                     >
-                      <Text style={[styles.goalText, { color: on ? '#FFF' : theme.colors.text }]}>{obj.label}</Text>
+                      <Text style={[styles.loadTitle, { color: on ? '#FFF' : theme.colors.text }]}>{obj.label}</Text>
+                      <Text style={[styles.loadDesc, { color: on ? 'rgba(255,255,255,0.7)' : theme.colors.textSecondary }]}>{obj.desc}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -263,7 +267,7 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
 
               <Text style={[styles.kicker, { color: theme.colors.textMuted, marginTop: 22 }]}>POIDS</Text>
               <View style={styles.weightRow}>
-                <WeightField label="Départ" value={startWeight} onChange={setStartWeight} theme={theme} />
+                <WeightField label="Actuel" value={startWeight} onChange={setStartWeight} theme={theme} />
                 <WeightField label="Cible" value={targetWeight} onChange={setTargetWeight} theme={theme} />
               </View>
 
@@ -271,7 +275,7 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
                 <>
                   <Text style={[styles.kicker, { color: theme.colors.textMuted, marginTop: 22 }]}>RYTHME</Text>
                   <Text style={[styles.hint, { color: theme.colors.textSecondary }]}>kg par semaine, pas plus de 1</Text>
-                  <View style={styles.goalRow}>
+                  <View style={styles.paceRow}>
                     {PACES.map((pace) => {
                       const on = Math.abs(parseFloat(weeklyGoal) - parseFloat(pace)) < 0.01;
                       return (
@@ -279,11 +283,14 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
                           key={pace}
                           onPress={() => setWeeklyGoal(pace)}
                           style={[
-                            styles.goalChip,
-                            { backgroundColor: on ? theme.colors.accent : theme.colors.surface, borderColor: on ? theme.colors.accent : theme.colors.border },
+                            styles.paceChip,
+                            {
+                              backgroundColor: on ? theme.colors.accent : theme.colors.surface,
+                              borderColor: on ? theme.colors.accent : theme.colors.border,
+                            },
                           ]}
                         >
-                          <Text style={[styles.goalText, { color: on ? '#FFF' : theme.colors.text }]}>{pace.replace('.', ',')}</Text>
+                          <Text style={[styles.paceText, { color: on ? '#FFF' : theme.colors.text }]}>{pace.replace('.', ',')}</Text>
                         </TouchableOpacity>
                       );
                     })}
@@ -301,11 +308,14 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
                       onPress={() => setActivityLevel(lvl.id)}
                       style={[
                         styles.loadCell,
-                        { backgroundColor: theme.colors.surface, borderColor: on ? theme.colors.accent : theme.colors.border },
+                        {
+                          backgroundColor: on ? theme.colors.accent : theme.colors.surface,
+                          borderColor: on ? theme.colors.accent : theme.colors.border,
+                        },
                       ]}
                     >
-                      <Text style={[styles.loadTitle, { color: theme.colors.text }]}>{lvl.label}</Text>
-                      <Text style={[styles.loadDesc, { color: theme.colors.textSecondary }]}>{lvl.desc}</Text>
+                      <Text style={[styles.loadTitle, { color: on ? '#FFF' : theme.colors.text }]}>{lvl.label}</Text>
+                      <Text style={[styles.loadDesc, { color: on ? 'rgba(255,255,255,0.7)' : theme.colors.textSecondary }]}>{lvl.desc}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -314,10 +324,23 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
           ) : (
             <>
               <View style={styles.splitHead}>
-                <Text style={[styles.splitTotal, { color: totalDist === 100 ? theme.colors.text : theme.colors.error }]}>
-                  {totalDist}
-                  <Text style={styles.splitPct}> %</Text>
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={[styles.splitTotal, { color: totalDist === 100 ? theme.colors.text : theme.colors.error }]}>
+                    {totalDist}
+                    <Text style={styles.splitPct}> %</Text>
+                  </Text>
+                  {totalDist === 100 ? (
+                    <View style={styles.balancedBadge}>
+                      <Text style={styles.balancedBadgeText}>Équilibré ✓</Text>
+                    </View>
+                  ) : (
+                    <View style={[styles.balancedBadge, { backgroundColor: '#FEE2E2' }]}>
+                      <Text style={[styles.balancedBadgeText, { color: '#EF4444' }]}>
+                        {totalDist > 100 ? `+${totalDist - 100} %` : `-${100 - totalDist} %`}
+                      </Text>
+                    </View>
+                  )}
+                </View>
                 <TouchableOpacity onPress={() => setDistribution(DEFAULT_DISTRIBUTION)}>
                   <Text style={[styles.estimateText, { color: theme.colors.sprintyBlue }]}>Remettre 25 · 35 · 30 · 10</Text>
                 </TouchableOpacity>
@@ -349,7 +372,7 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
                     >
                       <Feather name="minus" size={16} color={theme.colors.text} />
                     </TouchableOpacity>
-                    <Text style={[styles.mealPct, { color: theme.colors.text }]}>{pct}</Text>
+                    <Text style={[styles.mealPct, { color: theme.colors.text }]}>{pct} %</Text>
                     <TouchableOpacity
                       onPress={() => handleStepMeal(meal.key, 5)}
                       style={[styles.step, { backgroundColor: theme.colors.surfaceLight }]}
@@ -451,6 +474,28 @@ const styles = StyleSheet.create({
   weightRow: { flexDirection: 'row', gap: 10 },
   weightCell: { flex: 1, borderRadius: 16, borderWidth: 1, padding: 14 },
   weightInput: { fontSize: 28, fontWeight: '800', minWidth: 48, padding: 0 },
+  paceRow: { flexDirection: 'row', gap: 8 },
+  paceChip: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  paceText: { fontSize: 15, fontWeight: '700' },
+  balancedBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: '#E8F7F3',
+    marginLeft: 10,
+  },
+  balancedBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#00C9A7',
+  },
   loadGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   loadCell: { width: '48%', flexGrow: 1, borderRadius: 16, borderWidth: 1.5, padding: 14 },
   loadTitle: { fontSize: 16, fontWeight: '800' },
@@ -472,7 +517,7 @@ const styles = StyleSheet.create({
   mealTick: { width: 4, alignSelf: 'stretch', marginRight: 14 },
   mealName: { fontSize: 16, fontWeight: '700' },
   mealMeta: { fontSize: 12, marginTop: 2 },
-  mealPct: { width: 36, textAlign: 'center', fontSize: 18, fontWeight: '800' },
+  mealPct: { minWidth: 50, textAlign: 'center', fontSize: 16, fontWeight: '800' },
   step: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   bottomBar: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 8 },
   saveButton: { borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
