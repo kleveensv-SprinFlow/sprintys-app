@@ -35,35 +35,58 @@ USING (
     )
 );
 
+CREATE OR REPLACE FUNCTION public.is_coach_of_team(p_team_id uuid, p_coach_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+  SELECT EXISTS (SELECT 1 FROM public.teams WHERE id = p_team_id AND coach_id = p_coach_id);
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_member_of_team(p_team_id uuid, p_user_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+  SELECT EXISTS (SELECT 1 FROM public.team_members WHERE team_id = p_team_id AND user_id = p_user_id);
+$$;
+
 DROP POLICY IF EXISTS "teams_select_policy" ON public.teams;
 CREATE POLICY "teams_select_policy" ON public.teams FOR SELECT
 USING (
     coach_id = auth.uid() OR
-    EXISTS (
-        SELECT 1 FROM public.team_members
-        WHERE team_id = teams.id AND user_id = auth.uid()
-    )
+    public.is_member_of_team(id, auth.uid())
 );
 
 DROP POLICY IF EXISTS "team_members_select_policy" ON public.team_members;
 CREATE POLICY "team_members_select_policy" ON public.team_members FOR SELECT
 USING (
     user_id = auth.uid() OR
-    EXISTS (SELECT 1 FROM public.teams WHERE id = team_members.team_id AND coach_id = auth.uid())
+    public.is_coach_of_team(team_id, auth.uid())
 );
 
 DROP POLICY IF EXISTS "team_members_delete_policy" ON public.team_members;
 CREATE POLICY "team_members_delete_policy" ON public.team_members FOR DELETE
 USING (
     user_id = auth.uid() OR
-    EXISTS (SELECT 1 FROM public.teams WHERE id = team_members.team_id AND coach_id = auth.uid())
+    public.is_coach_of_team(team_id, auth.uid())
+);
+
+DROP POLICY IF EXISTS "team_members_update_policy" ON public.team_members;
+CREATE POLICY "team_members_update_policy" ON public.team_members FOR UPDATE
+USING (
+    public.is_coach_of_team(team_id, auth.uid())
 );
 
 DROP POLICY IF EXISTS "subgroups_select_policy" ON public.subgroups;
 CREATE POLICY "subgroups_select_policy" ON public.subgroups FOR SELECT
 USING (
-    EXISTS (SELECT 1 FROM public.teams WHERE id = subgroups.team_id AND coach_id = auth.uid()) OR
-    EXISTS (SELECT 1 FROM public.team_members WHERE team_id = subgroups.team_id AND user_id = auth.uid())
+    public.is_coach_of_team(team_id, auth.uid()) OR
+    public.is_member_of_team(team_id, auth.uid())
 );
 
 DROP POLICY IF EXISTS "checkins_select_policy" ON public.check_ins;
@@ -201,6 +224,61 @@ FOR INSERT WITH CHECK (reporter_id = auth.uid());
 DROP POLICY IF EXISTS "user_reports_select_own" ON public.user_reports;
 CREATE POLICY "user_reports_select_own" ON public.user_reports
 FOR SELECT USING (reporter_id = auth.uid());
+
+-- SAVED MEALS
+DROP POLICY IF EXISTS "saved_meals_select_policy" ON public.saved_meals;
+CREATE POLICY "saved_meals_select_policy" ON public.saved_meals FOR SELECT
+USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "saved_meals_insert_policy" ON public.saved_meals;
+CREATE POLICY "saved_meals_insert_policy" ON public.saved_meals FOR INSERT
+WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "saved_meals_update_policy" ON public.saved_meals;
+CREATE POLICY "saved_meals_update_policy" ON public.saved_meals FOR UPDATE
+USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "saved_meals_delete_policy" ON public.saved_meals;
+CREATE POLICY "saved_meals_delete_policy" ON public.saved_meals FOR DELETE
+USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "saved_meal_items_select_policy" ON public.saved_meal_items;
+CREATE POLICY "saved_meal_items_select_policy" ON public.saved_meal_items FOR SELECT
+USING (EXISTS (SELECT 1 FROM public.saved_meals WHERE id = saved_meal_items.saved_meal_id AND user_id = auth.uid()));
+
+DROP POLICY IF EXISTS "saved_meal_items_insert_policy" ON public.saved_meal_items;
+CREATE POLICY "saved_meal_items_insert_policy" ON public.saved_meal_items FOR INSERT
+WITH CHECK (EXISTS (SELECT 1 FROM public.saved_meals WHERE id = saved_meal_items.saved_meal_id AND user_id = auth.uid()));
+
+DROP POLICY IF EXISTS "saved_meal_items_delete_policy" ON public.saved_meal_items;
+CREATE POLICY "saved_meal_items_delete_policy" ON public.saved_meal_items FOR DELETE
+USING (EXISTS (SELECT 1 FROM public.saved_meals WHERE id = saved_meal_items.saved_meal_id AND user_id = auth.uid()));
+
+-- BODY METRICS
+DROP POLICY IF EXISTS "body_metrics_select_policy" ON public.body_metrics;
+CREATE POLICY "body_metrics_select_policy" ON public.body_metrics FOR SELECT
+USING (
+    athlete_id = auth.uid() OR
+    EXISTS (
+        SELECT 1 FROM public.team_members tm
+        JOIN public.teams t ON tm.team_id = t.id
+        WHERE tm.user_id = body_metrics.athlete_id
+        AND tm.status = 'approved'
+        AND t.coach_id = auth.uid()
+    )
+);
+
+DROP POLICY IF EXISTS "body_metrics_insert_policy" ON public.body_metrics;
+CREATE POLICY "body_metrics_insert_policy" ON public.body_metrics FOR INSERT
+WITH CHECK (athlete_id = auth.uid());
+
+DROP POLICY IF EXISTS "body_metrics_update_policy" ON public.body_metrics;
+CREATE POLICY "body_metrics_update_policy" ON public.body_metrics FOR UPDATE
+USING (athlete_id = auth.uid());
+
+DROP POLICY IF EXISTS "body_metrics_delete_policy" ON public.body_metrics;
+CREATE POLICY "body_metrics_delete_policy" ON public.body_metrics FOR DELETE
+USING (athlete_id = auth.uid());
 
 -- Recopie le chrono déjà saisi vers la colonne lue par le coach.
 -- Uniquement quand la colonne est vide. N'écrase rien.
