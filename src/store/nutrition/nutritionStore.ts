@@ -25,6 +25,7 @@ interface NutritionState {
   fetchHistory: (athleteId?: string) => Promise<void>;
   addMealLog: (log: Omit<MealLog, 'id' | 'created_at' | 'user_id'>) => Promise<void>;
   deleteMealLog: (id: string) => Promise<void>;
+  updateMealLog: (id: string, updates: Partial<MealLog>) => Promise<void>;
   updateNutritionProfile: (data: Partial<{
     activity_level: string;
     start_weight: number;
