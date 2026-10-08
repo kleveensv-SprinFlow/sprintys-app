@@ -212,7 +212,7 @@ export const FoodSearchModal: React.FC = () => {
       meal_type: activeSearchMealType,
       consumed_at: currentDate,
       food_id: selectedProduct.id,
-      custom_food_name: selectedProduct.name,
+      custom_food_name: selectedProduct.nom || selectedProduct.name || 'Aliment',
       quantity_g: totalGrams,
       calories,
       proteines: pro,

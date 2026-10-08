@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Pressable, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import { useNutritionStore } from '../../../store/nutrition/nutritionStore';
-import { MealType } from '../types';
+import { MealType, MealLog } from '../types';
 import { useAuthStore } from '../../../store/authStore';
 import { useRouter } from 'expo-router';
 
@@ -14,7 +14,7 @@ interface MealSectionProps {
 export const MealSection: React.FC<MealSectionProps> = ({ readonly = false }) => {
   const theme = useTheme();
   const router = useRouter();
-  const { mealLogs, openSearchModal } = useNutritionStore();
+  const { mealLogs, openSearchModal, deleteMealLog } = useNutritionStore();
   const user = useAuthStore((state) => state.user);
 
   const mealDistribution = user?.mealDistribution || {
@@ -37,6 +37,21 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false }) =>
     router.push(`/meal/${type}`);
   };
 
+  const handleDeleteFood = (log: MealLog) => {
+    Alert.alert(
+      'Supprimer l\'aliment',
+      `Voulez-vous retirer "${log.custom_food_name || 'cet aliment'}" de votre repas ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { 
+          text: 'Supprimer', 
+          style: 'destructive',
+          onPress: () => deleteMealLog(log.id)
+        }
+      ]
+    );
+  };
+
   return (
     <View style={styles.container}>
       {meals.map((meal) => {
@@ -50,48 +65,91 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false }) =>
             style={({ pressed }) => [
               styles.mealCard, 
               { backgroundColor: theme.colors.surface },
-              pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }
+              pressed && { opacity: 0.96 }
             ]}
             onPress={() => navigateToMealDetail(meal.type)}
           >
+            {/* Header avec Titre, Calories et Bouton '+' moderne */}
             <View style={styles.mealHeader}>
               <View style={styles.mealTitleRow}>
-                <Feather name={meal.icon} size={20} color={theme.colors.text} style={styles.icon} />
-                <Text style={[styles.mealTitle, { color: theme.colors.text }]}>{meal.label}</Text>
+                <View style={[styles.iconBadge, { backgroundColor: theme.colors.surfaceLight }]}>
+                  <Feather name={meal.icon} size={18} color={theme.colors.accent} />
+                </View>
+                <View>
+                  <Text style={[styles.mealTitle, { color: theme.colors.text }]}>{meal.label}</Text>
+                  <Text style={[styles.kcalText, { color: theme.colors.textSecondary }]}>
+                    {Math.round(consumedKcal)} <Text style={{ color: theme.colors.textMuted }}>/ {targetKcal} kcal</Text>
+                  </Text>
+                </View>
               </View>
-              <Text style={[styles.kcalText, { color: theme.colors.textSecondary }]}>
-                {Math.round(consumedKcal)} / {targetKcal} kcal
-              </Text>
+
+              {/* Bouton d'ajout compact '+' élégant en haut à droite */}
+              {!readonly && (
+                <TouchableOpacity
+                  style={[styles.addCircleButton, { backgroundColor: theme.colors.accent }]}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleAddFood(meal.type);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Feather name="plus" size={18} color="#FFF" />
+                </TouchableOpacity>
+              )}
             </View>
 
+            {/* Liste des aliments enregistrés */}
             {logs.length > 0 ? (
               <View style={styles.foodList}>
-                {logs.map((log) => (
-                  <View key={log.id} style={styles.foodItem}>
-                    <Text style={[styles.foodName, { color: theme.colors.text }]} numberOfLines={1}>
-                      {log.custom_food_name || log.food_id || 'Aliment inconnu'}
-                    </Text>
-                    <Text style={[styles.foodKcal, { color: theme.colors.textSecondary }]}>
-                      {Math.round(log.calories)} kcal
-                    </Text>
-                  </View>
-                ))}
+                {logs.map((log) => {
+                  const displayName = log.custom_food_name || 'Aliment sans nom';
+                  const p = Math.round(Number(log.proteines) || 0);
+                  const g = Math.round(Number(log.glucides) || 0);
+                  const l = Math.round(Number(log.lipides) || 0);
+
+                  return (
+                    <View key={log.id} style={[styles.foodItem, { borderTopColor: theme.colors.border }]}>
+                      <View style={{ flex: 1, paddingRight: 8 }}>
+                        <Text style={[styles.foodName, { color: theme.colors.text }]} numberOfLines={1}>
+                          {displayName}
+                        </Text>
+                        <View style={styles.macroPillRow}>
+                          <Text style={[styles.macroPill, { color: '#FF5252' }]}>P {p}g</Text>
+                          <Text style={[styles.macroDotSeparator, { color: theme.colors.border }]}>•</Text>
+                          <Text style={[styles.macroPill, { color: '#00C9A7' }]}>G {g}g</Text>
+                          <Text style={[styles.macroDotSeparator, { color: theme.colors.border }]}>•</Text>
+                          <Text style={[styles.macroPill, { color: '#FFB703' }]}>L {l}g</Text>
+                          {log.quantity_g ? (
+                            <>
+                              <Text style={[styles.macroDotSeparator, { color: theme.colors.border }]}>•</Text>
+                              <Text style={[styles.macroPill, { color: theme.colors.textMuted }]}>{log.quantity_g}g</Text>
+                            </>
+                          ) : null}
+                        </View>
+                      </View>
+
+                      <View style={styles.foodActionRow}>
+                        <Text style={[styles.foodKcal, { color: theme.colors.text }]}>
+                          {Math.round(log.calories)} <Text style={{ fontSize: 11, color: theme.colors.textSecondary }}>kcal</Text>
+                        </Text>
+                        {!readonly && (
+                          <TouchableOpacity 
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              handleDeleteFood(log);
+                            }}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            style={styles.deleteFoodBtn}
+                          >
+                            <Feather name="trash-2" size={14} color={theme.colors.textMuted} />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+                  );
+                })}
               </View>
             ) : null}
-
-            {/* Stop propagation on the add button so it doesn't navigate to detail page */}
-            {!readonly && (
-              <Pressable
-                style={[styles.addButton, { backgroundColor: theme.colors.background }]}
-                onPress={(e) => {
-                  e.stopPropagation(); // Empêche le clic de se propager à la carte
-                  handleAddFood(meal.type);
-                }}
-              >
-                <Feather name="plus" size={16} color={theme.colors.accent} />
-                <Text style={[styles.addButtonText, { color: theme.colors.accent }]}>Ajouter un aliment</Text>
-              </Pressable>
-            )}
           </Pressable>
         );
       })}
@@ -101,63 +159,95 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false }) =>
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 20,
-    paddingBottom: 30, // Espace propre
-    gap: 15,
+    paddingHorizontal: 16,
+    paddingBottom: 40,
+    gap: 12,
   },
   mealCard: {
-    padding: 15,
-    borderRadius: 15,
+    padding: 16,
+    borderRadius: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
     elevation: 2,
   },
   mealHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
   },
   mealTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
   },
-  icon: {
-    marginRight: 10,
+  iconBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   mealTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
   kcalText: {
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  addCircleButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0069E8',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
   },
   foodList: {
-    marginBottom: 15,
-    gap: 8,
+    marginTop: 12,
   },
   foodItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderTopWidth: 1,
   },
   foodName: {
     fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 3,
   },
-  foodKcal: {
-    fontSize: 14,
-  },
-  addButton: {
+  macroPillRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 10,
-    borderRadius: 10,
-    gap: 5,
+    gap: 4,
   },
-  addButtonText: {
+  macroPill: {
+    fontSize: 11,
     fontWeight: '600',
-    fontSize: 14,
+  },
+  macroDotSeparator: {
+    fontSize: 10,
+  },
+  foodActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  foodKcal: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  deleteFoodBtn: {
+    padding: 4,
   }
 });
