@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import { useAuthStore } from '../../../store/authStore';
+import { supabase } from '../../../services/supabase';
 import { useNutritionStore } from '../../../store/nutrition/nutritionStore';
 import { MealDistribution } from '../types';
 
@@ -86,6 +87,7 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
     user?.mealDistribution || DEFAULT_DISTRIBUTION
   );
   const [isSaving, setIsSaving] = useState(false);
+  const [piste, setPiste] = useState<number | null>(null);
 
   useEffect(() => {
     if (visible && user) {
@@ -116,29 +118,38 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
   const isFormValid = totalDist === 100 && isWeeklyValid && isKcalValid;
   const totalKcal = parseInt(kcalGoal, 10) || 0;
 
-  const handleRecalculateKcal = () => {
-    const weight = user?.weight || parseFloat(startWeight) || 70;
-    const height = user?.height || 170;
-    const age = 25;
+  const handleRecalculateKcal = async () => {
+    const weight = user?.weight || parseFloat(startWeight) || 0;
+    const height = user?.height || 0;
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const birth = authUser?.user_metadata?.date_of_birth;
+    let age = 0;
+    if (birth) {
+      const born = new Date(birth);
+      if (!isNaN(born.getTime())) {
+        age = Math.floor((Date.now() - born.getTime()) / (365.25 * 24 * 3600 * 1000));
+      }
+    }
+    if (!weight || !height || age < 15 || age > 90) {
+      setPiste(-1);
+      return;
+    }
     const isMale = user?.gender !== 'femme';
     const bmr = 10 * weight + 6.25 * height - 5 * age + (isMale ? 5 : -161);
-
     let activityMultiplier = 1.55;
     if (activityLevel === 'faible') activityMultiplier = 1.375;
     if (activityLevel === 'moyen') activityMultiplier = 1.55;
     if (activityLevel === 'élevé') activityMultiplier = 1.725;
     if (activityLevel === 'très élevé') activityMultiplier = 1.9;
-
     let tdee = bmr * activityMultiplier;
     const dailyAdjustment = (Math.abs(parsedWeekly) || 0) * 1100;
     const lowerObj = objective.toLowerCase();
-    if (lowerObj.includes('perte') || lowerObj.includes('allég') || lowerObj.includes('alleg')) {
+    if (lowerObj.includes('perte') || lowerObj.includes('gras') || lowerObj.includes('allég') || lowerObj.includes('alleg')) {
       tdee -= dailyAdjustment;
     } else if (lowerObj.includes('prend') || lowerObj.includes('muscle')) {
       tdee += dailyAdjustment;
     }
-
-    setKcalGoal(String(Math.round(Math.max(1200, tdee))));
+    setPiste(Math.round(tdee));
   };
 
   const handleStepMeal = (mealKey: keyof MealDistribution, delta: number) => {
@@ -261,8 +272,23 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
                   <Text style={[styles.kcalUnit, { color: theme.colors.textSecondary }]}>kcal</Text>
                 </View>
                 <TouchableOpacity onPress={handleRecalculateKcal} style={styles.estimateHit}>
-                  <Text style={[styles.estimateText, { color: theme.colors.sprintyBlue }]}>Estimer depuis le poids et la charge</Text>
+                  <Text style={[styles.estimateText, { color: theme.colors.sprintyBlue }]}>Voir une piste, sans l’enregistrer</Text>
                 </TouchableOpacity>
+                {piste === -1 && (
+                  <Text style={[styles.hint, { color: theme.colors.textSecondary, marginTop: 8 }]}>
+                    La piste a besoin d’un poids, d’une taille et d’une date de naissance. Rien n’a été modifié.
+                  </Text>
+                )}
+                {piste !== null && piste > 0 && (
+                  <View style={{ marginTop: 10 }}>
+                    <Text style={[styles.hint, { color: theme.colors.textSecondary }]}>
+                      Piste : {piste} kcal. Ce n’est pas un avis diététique. Rien n’est enregistré tant que tu ne le choisis pas.
+                    </Text>
+                    <TouchableOpacity onPress={() => setKcalGoal(String(piste))} style={{ marginTop: 8 }}>
+                      <Text style={[styles.estimateText, { color: theme.colors.text }]}>Utiliser {piste}</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
 
               <Text style={[styles.kicker, { color: theme.colors.textMuted, marginTop: 22 }]}>POIDS</Text>

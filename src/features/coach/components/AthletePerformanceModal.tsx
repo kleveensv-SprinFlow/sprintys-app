@@ -249,7 +249,7 @@ export const AthletePerformanceModal: React.FC<AthletePerformanceModalProps> = (
                       </Text>
                       {efforts.map((effort: any, idx: number) => {
                         const plannedTime = formatTime(effort.planned_time_ms);
-                        const actualTime = formatTime(effort.actual_time_ms);
+                        const actualTime = formatTime(effort.actual_time_ms) || effort.actual_extra?.chrono || null;
                         const plannedW = effort.planned_weight_kg ? `${effort.planned_weight_kg}kg` : null;
                         const actualW = effort.actual_weight_kg ? `${effort.actual_weight_kg}kg` : null;
                         const plannedReps = effort.planned_reps ? `${effort.planned_reps} reps` : null;

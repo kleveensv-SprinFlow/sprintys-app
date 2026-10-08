@@ -53,7 +53,6 @@ export const checkInService = {
         stress_level: data.stress_level,
         fatigue_level: data.fatigue_level,
         motivation_level: data.motivation_level,
-        menstruation: data.menstruation || false,
         weight: data.weight,
         health_score: data.health_score,
         sleep_score: data.sleep_score,

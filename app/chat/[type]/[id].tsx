@@ -159,8 +159,16 @@ export default function ChatScreen() {
               "Options",
               "Sélectionnez une action :",
               [
-                { text: "Signaler", onPress: () => Alert.alert("Signalé", "Le contenu a été signalé aux administrateurs.") },
-                { text: "Bloquer", style: "destructive", onPress: () => Alert.alert("Bloqué", "Vous avez bloqué cet utilisateur/groupe.") },
+                { text: "Signaler", onPress: async () => {
+                  const { data: { user } } = await supabase.auth.getUser();
+                  if (!user) return;
+                  const { error } = await supabase.from('user_reports').insert({
+                    reporter_id: user.id,
+                    conversation_id: id,
+                    reason: 'Signalement depuis la conversation',
+                  });
+                  Alert.alert(error ? 'Signalement' : 'Signalement envoyé', error ? 'Impossible de l’enregistrer pour le moment.' : 'C’est noté. Il n’y a pas encore de blocage.');
+                } },
                 { text: "Annuler", style: "cancel" }
               ]
             );

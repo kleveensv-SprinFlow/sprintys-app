@@ -1,4 +1,4 @@
-﻿import { Stack, useRouter, useSegments } from 'expo-router';
+﻿import { Stack, useRouter, useSegments, useGlobalSearchParams } from 'expo-router';
 import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { useAuthStore } from '../src/store/authStore';
@@ -12,6 +12,7 @@ export default function RootLayout() {
   const isDark = theme.isDark;
   const { user, pendingEmail, isLoading, isInitialized, initializeAuth } = useAuthStore();
   const segments = useSegments();
+  const params = useGlobalSearchParams<{ readonly?: string }>();
   const router = useRouter();
 
   useEffect(() => {
@@ -49,11 +50,11 @@ export default function RootLayout() {
         // Prevent athlete from accessing coach routes
         router.replace('/(athlete)');
       } else if (user.role === 'coach' && isAthleteRoute) {
-        // Prevent coach from accessing athlete routes
-        router.replace('/(coach)');
+        const readingNutrition = segments[1] === 'nutrition' && params.readonly === 'true';
+        if (!readingNutrition) router.replace('/(coach)');
       }
     }
-  }, [user, pendingEmail, segments, isLoading, isInitialized]);
+  }, [user, pendingEmail, segments, params.readonly, isLoading, isInitialized]);
 
   return (
     <View style={styles.container}>

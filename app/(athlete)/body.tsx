@@ -36,11 +36,10 @@ export default function BodyCompositionScreen() {
   }, [user]);
 
   const formatSmartDecimal = (text: string) => {
-    const digits = text.replace(/\D/g, '');
-    if (!digits) return '';
-    if (digits.length <= 2) return digits;
-    if (digits.length === 3) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
-    return `${digits.slice(0, digits.length - 1)}.${digits.slice(digits.length - 1)}`;
+    const cleaned = text.replace(',', '.').replace(/[^0-9.]/g, '');
+    const parts = cleaned.split('.');
+    if (parts.length <= 1) return cleaned;
+    return `${parts[0]}.${parts.slice(1).join('').slice(0, 1)}`;
   };
 
   const handleSave = async () => {

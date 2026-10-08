@@ -181,7 +181,7 @@ export async function fetchAthleteData(athleteId: string): Promise<AthleteData> 
     fetchAll((from, to) =>
       supabase
         .from('check_ins')
-        .select('date, sleep_hours, sleep_quality, fatigue_level, stress_level, motivation_level, physical_score, mental_score, sleep_score, health_score, pains, menstruation')
+        .select('date, sleep_hours, sleep_quality, fatigue_level, stress_level, motivation_level, physical_score, mental_score, sleep_score, health_score, pains')
         .eq('athlete_id', athleteId)
         .order('date', { ascending: false })
         .range(from, to)
@@ -478,7 +478,7 @@ function buildWellnessSection(checkins: any[]) {
     }
     const pains = formatPains(c.pains);
     lines.push(
-      `- ${day} · Forme ${fmt(num(c.health_score), '%', 0)} · Sommeil ${fmt(num(c.sleep_hours), 'h')} (qualité ${c.sleep_quality ?? '-'}/5) · Fatigue ${c.fatigue_level ?? '-'}/5 · Stress ${c.stress_level ?? '-'}/5 · Motivation ${c.motivation_level ?? '-'}/10 · Physique ${fmt(num(c.physical_score), '%', 0)} · Mental ${fmt(num(c.mental_score), '%', 0)}${c.menstruation ? ' · règles' : ''} · Douleurs : ${pains || 'aucune'}`
+      `- ${day} · Forme ${fmt(num(c.health_score), '%', 0)} · Sommeil ${fmt(num(c.sleep_hours), 'h')} (qualité ${c.sleep_quality ?? '-'}/5) · Fatigue ${c.fatigue_level ?? '-'}/5 · Stress ${c.stress_level ?? '-'}/5 · Motivation ${c.motivation_level ?? '-'}/10 · Physique ${fmt(num(c.physical_score), '%', 0)} · Mental ${fmt(num(c.mental_score), '%', 0)} · Douleurs : ${pains || 'aucune'}`
     );
   });
   Array.from(weekly.entries()).forEach(([wk, list]) => {

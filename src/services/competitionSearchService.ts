@@ -273,8 +273,8 @@ export const searchCompetitionsOnWeb = async (
     // Edge function non encore déployée sur Supabase remote, bascule directe
   }
 
-  // 2. Recherche web Tavily directe (clé de fallback sécurisée pour exécution mobile directe)
-  const apiKey = process.env.EXPO_PUBLIC_TAVILY_API_KEY || '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';
+  // 2. Recherche directe seulement si une clé est fournie par l'environnement. Jamais de clé dans le code.
+  const apiKey = process.env.EXPO_PUBLIC_TAVILY_API_KEY;
   if (apiKey) {
     try {
       const regionKeywords: Record<string, string> = {

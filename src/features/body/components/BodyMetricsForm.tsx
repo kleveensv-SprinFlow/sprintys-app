@@ -18,22 +18,10 @@ export const BodyMetricsForm: React.FC = () => {
   const runAnalysis = useInsightStore((state) => state.runAnalysis);
 
   const formatSmartDecimal = (text: string) => {
-    // Supprimer tout ce qui n'est pas un chiffre
-    const digits = text.replace(/\D/g, '');
-    if (!digits) return '';
-
-    // Si 1 ou 2 chiffres : ex "7" -> "7", "79" -> "79"
-    if (digits.length <= 2) {
-      return digits;
-    }
-
-    // Si 3 chiffres : ex "794" -> "79.4"
-    if (digits.length === 3) {
-      return `${digits.slice(0, 2)}.${digits.slice(2)}`;
-    }
-
-    // Si 4 chiffres ou plus : ex "1052" -> "105.2" (support des > 100 kg)
-    return `${digits.slice(0, digits.length - 1)}.${digits.slice(digits.length - 1)}`;
+    const cleaned = text.replace(',', '.').replace(/[^0-9.]/g, '');
+    const parts = cleaned.split('.');
+    if (parts.length <= 1) return cleaned;
+    return `${parts[0]}.${parts.slice(1).join('').slice(0, 1)}`;
   };
 
   const handleSubmit = async () => {

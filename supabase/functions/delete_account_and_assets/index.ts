@@ -48,8 +48,10 @@ serve(async (req) => {
       // Extract the filename/path from the URL
       const pathParts = profile.avatar_url.split('/avatars/');
       if (pathParts.length > 1) {
-        const filePath = pathParts[1];
-        await adminSupabase.storage.from('avatars').remove([filePath]);
+        const filePath = pathParts[1].split('?')[0];
+        if (filePath && !filePath.includes('..') && filePath.startsWith(`${userId}/`)) {
+          await adminSupabase.storage.from('avatars').remove([filePath]);
+        }
       }
     }
 

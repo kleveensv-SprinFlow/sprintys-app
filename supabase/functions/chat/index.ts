@@ -23,25 +23,18 @@ serve(async (req) => {
 
     const token = authHeader.replace(/^Bearer\s+/i, '');
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      supabaseAnonKey,
+      { global: { headers: { Authorization: authHeader } } }
+    );
 
-    // If token is anon key, allow execution for anonymous/demo testing
-    if (token !== supabaseAnonKey) {
-      const supabase = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        supabaseAnonKey,
-        { global: { headers: { Authorization: authHeader } } }
-      );
-
-      const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-      if (userError || !user) {
-        console.warn('Auth getUser failed:', userError?.message);
-        // Fallback: If JWT verification fails, verify if it's a valid session token format
-        // or check error details
-        return new Response(JSON.stringify({ error: `Non autorise: ${userError?.message || 'Token invalide'}` }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'Non autorise' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const { messages, systemPrompt, model = 'gpt-4o-mini' } = await req.json();
@@ -54,19 +47,27 @@ serve(async (req) => {
       throw new Error('OPENAI_API_KEY is not set in Edge Function secrets');
     }
 
-    // RGPD: Data Minimization
-    const anonymizeContent = (text: string): string => {
-      if (!text) return text;
+    const sanitizeText = (text: string): string => {
       let safeText = text.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[EMAIL MASQUE]');
-      const healthKeywords = ['blessure', 'douleur', 'menstruation', 'règles', 'malade', 'sang', 'médecin', 'hôpital', 'entorse', 'fracture'];
-      const regex = new RegExp(`\\b(${healthKeywords.join('|')})\\b`, 'gi');
-      safeText = safeText.replace(regex, '[DONNEE SANTE MASQUEE]');
       return safeText;
     };
 
-    const sanitizedMessages = messages.map((msg: any) => ({
-      role: msg.role,
-      content: anonymizeContent(msg.content)
+    const sanitizeContent = (content: any): any => {
+      if (typeof content === 'string') return sanitizeText(content);
+      if (Array.isArray(content)) {
+        return content.map((part) => {
+          if (part && typeof part.text === 'string') {
+            return { ...part, text: sanitizeText(part.text) };
+          }
+          return part;
+        });
+      }
+      return content;
+    };
+
+    const sanitizedMessages = (Array.isArray(messages) ? messages : []).map((msg: any) => ({
+      role: msg.role === 'assistant' ? 'assistant' : 'user',
+      content: sanitizeContent(msg.content)
     }));
 
     const formattedMessages = [

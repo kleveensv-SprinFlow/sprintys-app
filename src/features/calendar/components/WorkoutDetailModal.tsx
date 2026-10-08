@@ -23,6 +23,21 @@ interface WorkoutDetailModalProps {
   readOnlyAthleteId?: string;
 }
 
+function chronoToMs(value: string, distance?: number | string | null): number | null {
+  const v = String(value || '').trim().replace(',', '.');
+  if (!v) return null;
+  if (v.includes(':')) {
+    const [minutes, seconds] = v.split(':');
+    const ms = (parseFloat(minutes) || 0) * 60000 + (parseFloat(seconds) || 0) * 1000;
+    return Number.isFinite(ms) ? Math.round(ms) : null;
+  }
+  const n = parseFloat(v);
+  if (!Number.isFinite(n)) return null;
+  const meters = typeof distance === 'number' ? distance : parseFloat(String(distance || '0'));
+  if (meters >= 800) return Math.round(n * 60000);
+  return Math.round(n * 1000);
+}
+
 // Determine the "category" of the session for athlete data entry
 const getSessionCategory = (typeSeance: string): 'muscu' | 'course' | 'other' => {
   const t = (typeSeance || '').toLowerCase();
@@ -274,6 +289,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                 effort.actual_extra = {
                   chrono: data.chrono || '',
                 };
+                effort.actual_time_ms = chronoToMs(data.chrono || '', set?.distance);
               }
             }
 

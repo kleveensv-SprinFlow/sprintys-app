@@ -137,7 +137,7 @@ export default function CoachDashboardScreen() {
               <View style={styles.sessionCardHeader}>
                 <View style={[styles.sessionBadge, { backgroundColor: workout.type_seance === 'musculation' ? 'rgba(0, 105, 232, 0.08)' : 'rgba(245, 158, 11, 0.1)' }]}>
                   <Text style={[styles.sessionBadgeText, { color: workout.type_seance === 'musculation' ? ((theme.colors as any).sprintyBlue || '#0069E8') : '#F59E0B' }]}>
-                    {workout.type_seance.toUpperCase()}
+                    {(workout.type_seance || 'Séance').toUpperCase()}
                   </Text>
                 </View>
                 <Text style={styles.sessionDuration}>

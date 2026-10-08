@@ -50,6 +50,9 @@ export interface SignupData {
   objective?: string;
   groupName?: string;
   subgroups?: string[];
+  dateOfBirth?: string;
+  acceptedTerms?: boolean;
+  dob?: Date;
 }
 
 interface AuthState {
@@ -364,6 +367,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         objective: role === 'athlete' ? (objective || null) : null,
         group_name: role === 'coach' ? (groupName || null) : null,
         subgroups: role === 'coach' ? (subgroups || null) : null,
+        date_of_birth: signupData.dateOfBirth || null,
       };
 
       // Store in options.data so handle_new_user trigger populates profiles immediately

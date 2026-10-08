@@ -195,7 +195,7 @@ RETURNS text
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
-AS $
+AS $$
 DECLARE
     v_team_name text;
     v_count int;
@@ -225,7 +225,7 @@ BEGIN
     
     RETURN v_team_name;
 END;
-$;
+$$;
 REVOKE EXECUTE ON FUNCTION public.preview_team_by_code(text) FROM public;
 REVOKE EXECUTE ON FUNCTION public.preview_team_by_code(text) FROM anon;
 GRANT EXECUTE ON FUNCTION public.preview_team_by_code(text) TO authenticated;
@@ -238,7 +238,7 @@ RETURNS json
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
-AS $
+AS $$
 DECLARE
     v_team_id uuid;
     v_team_name text;
@@ -282,7 +282,7 @@ BEGIN
 
     RETURN json_build_object('success', true, 'team_id', v_team_id, 'team_name', v_team_name);
 END;
-$;
+$$;
 REVOKE EXECUTE ON FUNCTION public.join_team_by_code(text) FROM public;
 REVOKE EXECUTE ON FUNCTION public.join_team_by_code(text) FROM anon;
 GRANT EXECUTE ON FUNCTION public.join_team_by_code(text) TO authenticated;

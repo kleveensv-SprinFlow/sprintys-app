@@ -60,7 +60,7 @@ const FAQ_ITEMS: FaqItem[] = [
     id: '6',
     category: 'general',
     question: 'Où sont stockées mes données personnelles et de santé ?',
-    answer: 'Tes données sont chiffrées et hébergées en conformité stricte avec le RGPD. Tu disposes d\'un droit d\'accès, de modification et d\'export complet dans les réglages de ton compte.',
+    answer: 'Tes données sont hébergées chez Supabase. Tu peux exporter une copie depuis les réglages, et supprimer ton compte. Les mentions dans les réglages disent ce qui part chez l’assistant, et ce qui ne l’est pas encore (l’éditeur n’est pas une société).',
   },
 ];
 

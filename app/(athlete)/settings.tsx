@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal, Image, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal, Image, ActivityIndicator, Linking, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -10,6 +10,8 @@ import { supabase } from '../../src/services/supabase';
 import { useRouter } from 'expo-router';
 import { EditProfileModal } from '../../src/shared/components/EditProfileModal';
 import { FaqModal } from '../../src/shared/components/FaqModal';
+import { LegalNoticeModal } from '../../src/features/auth/components/LegalNoticeModal';
+import { healthConsent } from '../../src/services/healthConsent';
 
 // Helper to convert base64 to Uint8Array for binary upload
 function base64ToUint8Array(base64: string): Uint8Array {
@@ -53,6 +55,7 @@ export default function SettingsScreen() {
   
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isFaqModalVisible, setIsFaqModalVisible] = useState(false);
+  const [isLegalVisible, setIsLegalVisible] = useState(false);
   const [isPhotoSheetVisible, setIsPhotoSheetVisible] = useState(false);
   const [pendingImage, setPendingImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [isConfirmModalVisible, setIsConfirmModalVisible] = useState(false);
@@ -78,11 +81,29 @@ export default function SettingsScreen() {
       Alert.alert('Export', 'Génération des données en cours...');
       const { data, error } = await supabase.functions.invoke('export_data');
       if (error) throw error;
-      Alert.alert('Succès', 'Tes données ont été exportées avec succès.');
-      console.log('EXPORT DATA:', data);
+      const json = JSON.stringify(data, null, 2);
+      await Share.share({ title: 'Mes données Sprintflow', message: json });
     } catch(err) {
       Alert.alert('Erreur', "Impossible d'exporter les données.");
     }
+  };
+
+  const handleRevokeHealth = () => {
+    Alert.alert(
+      'Retirer l’accord',
+      'Les prochaines douleurs ne seront plus enregistrées. Celles déjà notées restent.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Retirer',
+          style: 'destructive',
+          onPress: async () => {
+            const ok = await healthConsent.revoke();
+            Alert.alert(ok ? 'Accord retiré' : 'Erreur', ok ? 'C’est enregistré.' : 'Réessaie dans un instant.');
+          },
+        },
+      ]
+    );
   };
 
   const handleLogout = async () => {
@@ -361,6 +382,8 @@ export default function SettingsScreen() {
         <Text style={styles.sectionTitle}>Application</Text>
         <View style={styles.card}>
           <SettingsItem icon="help-circle" title="FAQ & Centre d'aide" onPress={() => setIsFaqModalVisible(true)} />
+          <SettingsItem icon="file-text" title="Mentions et conditions" onPress={() => setIsLegalVisible(true)} />
+          <SettingsItem icon="shield" title="Retirer l’accord sur les douleurs" onPress={handleRevokeHealth} />
           <SettingsItem icon="download" title="Exporter mes données" onPress={handleExportData} />
           <SettingsItem icon="mail" title="Nous contacter" onPress={handleContactSupport} />
         </View>
@@ -507,6 +530,7 @@ export default function SettingsScreen() {
         visible={isFaqModalVisible}
         onClose={() => setIsFaqModalVisible(false)}
       />
+      <LegalNoticeModal visible={isLegalVisible} onClose={() => setIsLegalVisible(false)} />
     </SafeAreaView>
   );
 }

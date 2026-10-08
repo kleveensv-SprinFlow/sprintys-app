@@ -52,7 +52,7 @@ export default function CoachAthleteCalendarScreen() {
 
   const handleOpenDate = useCallback((date: Date) => {
     // Navigate to the day view for this specific athlete
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     router.push(`/(coach)/athlete/${id}/day/${dateStr}`);
   }, [id, router]);
 

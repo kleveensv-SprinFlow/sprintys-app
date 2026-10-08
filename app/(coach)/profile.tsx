@@ -19,6 +19,7 @@ import { useAuthStore } from '../../src/store/authStore';
 import { useRouter } from 'expo-router';
 import { EditProfileModal } from '../../src/shared/components/EditProfileModal';
 import { FaqModal } from '../../src/shared/components/FaqModal';
+import { LegalNoticeModal } from '../../src/features/auth/components/LegalNoticeModal';
 import { supabase } from '../../src/services/supabase';
 
 function base64ToUint8Array(base64: string): Uint8Array {
@@ -61,6 +62,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isFaqModalVisible, setIsFaqModalVisible] = useState(false);
+  const [isLegalVisible, setIsLegalVisible] = useState(false);
   const [isPhotoSheetVisible, setIsPhotoSheetVisible] = useState(false);
   const [isConfirmModalVisible, setIsConfirmModalVisible] = useState(false);
   const [pendingImage, setPendingImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
@@ -296,6 +298,11 @@ export default function ProfileScreen() {
             onPress={() => setIsFaqModalVisible(true)}
           />
           <SettingsItem
+            icon="file-text"
+            title="Mentions et conditions"
+            onPress={() => setIsLegalVisible(true)}
+          />
+          <SettingsItem
             icon="mail"
             title="Nous contacter"
             onPress={handleContactSupport}
@@ -392,6 +399,7 @@ export default function ProfileScreen() {
 
       <EditProfileModal visible={isEditModalVisible} onClose={() => setIsEditModalVisible(false)} />
       <FaqModal visible={isFaqModalVisible} onClose={() => setIsFaqModalVisible(false)} />
+      <LegalNoticeModal visible={isLegalVisible} onClose={() => setIsLegalVisible(false)} />
     </SafeAreaView>
   );
 }

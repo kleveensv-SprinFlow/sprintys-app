@@ -73,7 +73,9 @@ export default function AthleteDetailScreen() {
         
         {/* PROFILE INFO */}
         <View style={styles.profileSection}>
-          <View style={styles.avatarPlaceholder}>\n              <Text style={styles.avatarLetter}>{profile.full_name?.charAt(0) || 'A'}</Text>\n            </View>
+          <View style={styles.avatarPlaceholder}>
+              <Text style={styles.avatarLetter}>{profile.full_name?.charAt(0) || 'A'}</Text>
+            </View>
           <Text style={styles.profileName}>{profile.full_name || 'Athlète'}</Text>
           <Text style={styles.profileGroup}>{profile.subgroups?.join(', ') || 'Aucun sous-groupe'}</Text>
         </View>
@@ -92,7 +94,7 @@ export default function AthleteDetailScreen() {
 
           <TouchableOpacity 
             style={styles.actionGridItem}
-            onPress={() => router.push("/(coach)/athlete/$/calendar")}
+            onPress={() => router.push(`/(coach)/athlete/${id}/calendar`)}
           >
             <View style={[styles.actionIconBg, { backgroundColor: theme.colors.accent + '20' }]}>
               <Feather name="calendar" size={24} color={theme.colors.accent} />
@@ -102,7 +104,7 @@ export default function AthleteDetailScreen() {
 
           <TouchableOpacity 
             style={styles.actionGridItem}
-            onPress={() => router.push(`/(athlete)/calendar?athleteId=${id}&readonly=true`)}
+            onPress={() => router.push(`/(coach)/athlete/${id}/calendar`)}
           >
             <View style={[styles.actionIconBg, { backgroundColor: theme.colors.success + '20' }]}>
               <Feather name="calendar" size={24} color={theme.colors.success} />
@@ -112,10 +114,19 @@ export default function AthleteDetailScreen() {
 
           <TouchableOpacity 
             style={styles.actionGridItem}
-            onPress={() => router.push(`/chat/sprinty?athleteId=${id}`)}
+            onPress={() => router.push({
+              pathname: '/(coach)/chat',
+              params: {
+                athleteId: id,
+                athleteName: profile.full_name || 'Athlète',
+                avatarUrl: profile.avatar_url || '',
+                domains: 'training,nutrition,wellness,body',
+                ts: String(Date.now()),
+              },
+            })}
           >
             <View style={[styles.actionIconBg, { backgroundColor: theme.colors.accent + '20' }]}>
-              <Text style={{ fontSize: 22 }}>âš¡</Text>
+              <Feather name="zap" size={22} color={theme.colors.accent} />
             </View>
             <Text style={styles.actionGridText}>Sprinty IA</Text>
           </TouchableOpacity>
@@ -165,14 +176,6 @@ export default function AthleteDetailScreen() {
                     {pain.comment && <Text style={styles.painComment}>"{pain.comment}"</Text>}
                   </View>
                 ))}
-              </View>
-            )}
-            
-            {/* Cycle menstruel */}
-            {latestCheckIn.menstruation && (
-              <View style={styles.menstruationAlert}>
-                <Feather name="droplet" size={16} color={theme.colors.error} />
-                <Text style={styles.menstruationText}>En période de règles</Text>
               </View>
             )}
           </View>

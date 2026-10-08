@@ -65,6 +65,7 @@ export const RegisterMultiStep: React.FC<RegisterMultiStepProps> = ({ onSwitchTo
       objective: formData.objective,
       groupName: formData.groupName,
       subgroups: formData.subgroups,
+      dateOfBirth: formData.dob ? formData.dob.toISOString().slice(0, 10) : undefined,
     });
 
     if (res.success) {

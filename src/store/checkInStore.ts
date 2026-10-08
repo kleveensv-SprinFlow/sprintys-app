@@ -3,6 +3,11 @@ import { checkInService, CheckInData, PainInfo } from '../services/checkInServic
 import { useSprintyStore } from './sprintyStore';
 import { useAuthStore } from './authStore';
 import { Alert } from 'react-native';
+const localDay = () => {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+};
 
 interface CheckInState {
   currentCheckIn: Partial<CheckInData> | null;
@@ -31,10 +36,7 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
   isLoading: false,
 
   startCheckIn: (athleteId) => {
-    const today = new Date().toISOString().split('T')[0];
-    const user = useAuthStore.getState().user;
-    const isFemale = user?.gender === 'femme' || (user as any)?.gender === 'female';
-    
+    const today = localDay();
     set({
       currentCheckIn: {
         athlete_id: athleteId,
@@ -42,19 +44,18 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
         bedtime: '23:00',
         wakeup_time: '07:00',
         sleep_hours: 8,
-        sleep_quality: 3, // Défaut : Moyen
+        sleep_quality: 3,
         stress_level: 5,
         fatigue_level: 5,
         motivation_level: 5,
         pains: [],
-        menstruation: isFemale ? false : undefined, // Défini seulement si femme
       }
     });
   },
 
   editTodayCheckIn: (athleteId) => {
     const { history } = get();
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDay();
     const todayCheckIn = history.find(c => c.date === today);
     
     if (todayCheckIn) {
@@ -141,7 +142,7 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
         ...state.currentCheckIn,
         bedtime: state.currentCheckIn.bedtime || '23:00',
         wakeup_time: state.currentCheckIn.wakeup_time || '07:00',
-        sleep_hours: state.currentCheckIn.sleep_hours || 8,
+        sleep_hours: state.currentCheckIn.sleep_hours ?? 8,
         sleep_quality: state.currentCheckIn.sleep_quality || 3,
         stress_level: state.currentCheckIn.stress_level || 5,
         fatigue_level: state.currentCheckIn.fatigue_level || 5,
@@ -181,9 +182,7 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
       return true;
     } catch (error) {
       console.error(error);
-      const errorMsg = error instanceof Error ? error.message : ((error as any)?.message || "Échec de l'enregistrement du Check-In.");
-      
-      Alert.alert("Erreur Check-in", JSON.stringify(error) + " | " + errorMsg);
+      Alert.alert('Check-in', 'Impossible d’enregistrer pour le moment.');
       set({ isLoading: false });
       return false;
     }
@@ -193,7 +192,7 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
     set({ isLoading: true });
     try {
       const history = await checkInService.fetchRecentCheckIns(athleteId, 6);
-      const today = new Date().toISOString().split('T')[0];
+      const today = localDay();
       const todayCheckIn = history.find(h => h.date === today);
       
       set({ 
