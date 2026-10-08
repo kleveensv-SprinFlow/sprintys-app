@@ -4,7 +4,11 @@ import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import { useNutritionStore, getLocalDateString } from '../../../store/nutrition/nutritionStore';
 
-export const DateSelector: React.FC = () => {
+interface DateSelectorProps {
+  athleteId?: string;
+}
+
+export const DateSelector: React.FC<DateSelectorProps> = ({ athleteId }) => {
   const theme = useTheme();
   const { currentDate, setCurrentDate } = useNutritionStore();
 
@@ -12,14 +16,14 @@ export const DateSelector: React.FC = () => {
     const parts = currentDate.split('-').map(Number);
     const d = new Date(parts[0], parts[1] - 1, parts[2]);
     d.setDate(d.getDate() - 1);
-    setCurrentDate(getLocalDateString(d));
+    setCurrentDate(getLocalDateString(d), athleteId);
   };
 
   const handleNextDay = () => {
     const parts = currentDate.split('-').map(Number);
     const d = new Date(parts[0], parts[1] - 1, parts[2]);
     d.setDate(d.getDate() + 1);
-    setCurrentDate(getLocalDateString(d));
+    setCurrentDate(getLocalDateString(d), athleteId);
   };
 
   const formatDateLabel = (dateStr: string) => {

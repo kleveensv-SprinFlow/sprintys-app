@@ -8,12 +8,17 @@ import Animated, { useSharedValue, useAnimatedProps, withRepeat, withTiming, Eas
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
-export const NutritionSummary: React.FC = () => {
+interface NutritionSummaryProps {
+  athleteProfile?: any;
+}
+
+export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ athleteProfile }) => {
   const theme = useTheme();
   const mealLogs = useNutritionStore((state) => state.mealLogs);
   const user = useAuthStore((state) => state.user);
 
-  const kcalGoal = user?.manualKcalGoal || 2000;
+  const activeProfile = athleteProfile || user;
+  const kcalGoal = activeProfile?.manualKcalGoal || activeProfile?.manual_kcal_goal || 2000;
 
   const consumedKcal = mealLogs.reduce((sum, log) => sum + Number(log.calories), 0);
   const consumedPro = mealLogs.reduce((sum, log) => sum + Number(log.proteines), 0);

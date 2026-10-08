@@ -28,7 +28,7 @@ interface NutritionState {
   activeSearchMealType: MealType | null;
 
   // Actions
-  setCurrentDate: (date: string) => void;
+  setCurrentDate: (date: string, athleteId?: string) => void;
   fetchMealLogs: (date: string, athleteId?: string) => Promise<void>;
   fetchHistory: (athleteId?: string) => Promise<void>;
   addMealLog: (log: Omit<MealLog, 'id' | 'created_at' | 'user_id'>) => Promise<void>;
@@ -65,9 +65,9 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
   openSearchModal: (mealType) => set({ isSearchModalOpen: true, activeSearchMealType: mealType }),
   closeSearchModal: () => set({ isSearchModalOpen: false, activeSearchMealType: null }),
 
-  setCurrentDate: (date: string) => {
+  setCurrentDate: (date: string, athleteId?: string) => {
     set({ currentDate: date });
-    get().fetchMealLogs(date);
+    get().fetchMealLogs(date, athleteId);
   },
 
   fetchMealLogs: async (date: string, athleteId?: string) => {
@@ -163,7 +163,8 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
 
   addMealLog: async (log) => {
     set({ isLoading: true, error: null });
-    const user = useAuthStore.getState().user;
+    const authStore = useAuthStore.getState();
+    const user = authStore.user;
     if (!user) {
       set({ isLoading: false, error: 'User not logged in' });
       return;
@@ -182,6 +183,32 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
         mealLogs: [...state.mealLogs, data as MealLog],
         isLoading: false
       }));
+
+      // --- LOGIQUE STREAK (SÉRIE) ---
+      const todayStr = getLocalDateString();
+      if (log.consumed_at === todayStr && user.lastFlowDate !== todayStr) {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = getLocalDateString(yesterday);
+
+        let newStreak = 1;
+        if (user.lastFlowDate === yesterdayStr) {
+          newStreak = (user.currentFlowStreak || 0) + 1;
+        }
+
+        // Mettre à jour en base et dans le store
+        await authStore.updateProfile({
+          currentFlowStreak: newStreak,
+          lastFlowDate: todayStr,
+        });
+
+        // Déclencher la célébration
+        set({
+          showStreakCelebration: true,
+          currentStreakVal: newStreak,
+        });
+      }
+
     } catch (err: any) {
       set({ error: err.message, isLoading: false });
       Alert.alert('Erreur', "Impossible d'enregistrer cet aliment : " + (err.message || 'Erreur réseau'));

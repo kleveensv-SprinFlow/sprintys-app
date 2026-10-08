@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -20,6 +20,7 @@ import { useNutritionStore } from '../../../src/store/nutrition/nutritionStore';
 import { MealType, MealLog } from '../../../src/features/nutrition/types';
 import { useAuthStore } from '../../../src/store/authStore';
 import { FoodSearchModal } from '../../../src/features/nutrition/components/FoodSearchModal';
+import { supabase } from '../../../src/services/supabase';
 
 const mealInfo = {
   petit_dejeuner: { label: 'Petit déjeuner', icon: 'coffee', color: '#00C9A7', bg: '#E8FBF7' },
@@ -29,16 +30,35 @@ const mealInfo = {
 };
 
 export default function MealDetailScreen() {
-  const { type } = useLocalSearchParams<{ type: MealType }>();
+  const params = useLocalSearchParams<{ type: MealType; athleteId?: string; readonly?: string }>();
+  const type = params.type;
+  const athleteId = params.athleteId;
+  const readonly = params.readonly === 'true';
+
   const router = useRouter();
   const theme = useTheme();
   const user = useAuthStore(state => state.user);
   
+  const [athleteProfile, setAthleteProfile] = useState<any>(null);
   const { mealLogs, openSearchModal, deleteMealLog, updateMealLog } = useNutritionStore();
 
-  // State pour la modification de quantité d'un aliment
   const [editingLog, setEditingLog] = useState<MealLog | null>(null);
   const [editGrams, setEditGrams] = useState<string>('');
+
+  useEffect(() => {
+    if (athleteId) {
+      supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', athleteId)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) setAthleteProfile(data);
+        });
+    } else {
+      setAthleteProfile(null);
+    }
+  }, [athleteId]);
 
   if (!type || !mealInfo[type]) {
     return (
@@ -57,10 +77,11 @@ export default function MealDetailScreen() {
   const consumedGlu = logs.reduce((sum, log) => sum + Number(log.glucides), 0);
   const consumedLip = logs.reduce((sum, log) => sum + Number(log.lipides), 0);
 
-  const mealDistribution = user?.mealDistribution || {
+  const activeProfile = athleteProfile || user;
+  const mealDistribution = activeProfile?.mealDistribution || activeProfile?.meal_distribution || {
     petit_dejeuner: 25, dejeuner: 35, diner: 30, collation: 10
   };
-  const kcalGoal = user?.manualKcalGoal || 2000;
+  const kcalGoal = activeProfile?.manualKcalGoal || activeProfile?.manual_kcal_goal || 2000;
   const targetKcal = Math.round((kcalGoal * mealDistribution[type]) / 100);
 
   // Objectifs macros proportionnels au repas
@@ -69,6 +90,7 @@ export default function MealDetailScreen() {
   const targetLip = Math.round((targetKcal * 0.3) / 9);
 
   const handleDeleteFood = (log: MealLog) => {
+    if (readonly) return;
     Alert.alert(
       'Supprimer l\'aliment',
       `Voulez-vous retirer "${log.custom_food_name || 'cet aliment'}" de votre repas ?`,
@@ -84,12 +106,13 @@ export default function MealDetailScreen() {
   };
 
   const handleOpenEdit = (log: MealLog) => {
+    if (readonly) return;
     setEditingLog(log);
     setEditGrams(String(log.quantity_g || 100));
   };
 
   const handleSaveEdit = async () => {
-    if (!editingLog) return;
+    if (!editingLog || readonly) return;
     const newGrams = parseFloat(editGrams.replace(',', '.')) || 0;
     if (newGrams <= 0) return;
 
@@ -168,7 +191,7 @@ export default function MealDetailScreen() {
           </View>
         </View>
 
-        {/* LISTE DES ALIMENTS DU REPAS (STYLE YAZIO AVEC ÉDITION ET SUPPRESSION) */}
+        {/* LISTE DES ALIMENTS DU REPAS */}
         {logs.length > 0 && (
           <View style={[styles.foodCardContainer, { backgroundColor: theme.colors.surface }]}>
             {logs.map((log, index) => {
@@ -183,7 +206,8 @@ export default function MealDetailScreen() {
                     !isLast && { borderBottomWidth: 1, borderBottomColor: theme.colors.border }
                   ]}
                   onPress={() => handleOpenEdit(log)}
-                  activeOpacity={0.7}
+                  activeOpacity={readonly ? 1 : 0.7}
+                  disabled={readonly}
                 >
                   <View style={styles.foodInfo}>
                     <Text style={[styles.foodName, { color: theme.colors.text }]} numberOfLines={1}>
@@ -198,16 +222,18 @@ export default function MealDetailScreen() {
                     <Text style={[styles.foodCalories, { color: theme.colors.text }]}>
                       {Math.round(log.calories)} kcal
                     </Text>
-                    <TouchableOpacity 
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        handleDeleteFood(log);
-                      }}
-                      style={styles.trashBtn}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    >
-                      <Feather name="trash-2" size={15} color={theme.colors.textMuted} />
-                    </TouchableOpacity>
+                    {!readonly && (
+                      <TouchableOpacity 
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleDeleteFood(log);
+                        }}
+                        style={styles.trashBtn}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
+                        <Feather name="trash-2" size={15} color={theme.colors.textMuted} />
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </TouchableOpacity>
               );
@@ -229,17 +255,19 @@ export default function MealDetailScreen() {
 
       </ScrollView>
 
-      {/* BOUTON NOIR PILL FIXÉ EN BAS */}
-      <View style={[styles.bottomBar, { backgroundColor: theme.colors.background }]}>
-        <TouchableOpacity 
-          style={styles.pillAddBtn}
-          onPress={() => openSearchModal(type)}
-          activeOpacity={0.85}
-        >
-          <Feather name="plus" size={18} color="#FFF" />
-          <Text style={styles.pillAddBtnText}>Ajouter plus</Text>
-        </TouchableOpacity>
-      </View>
+      {/* BOUTON NOIR PILL FIXÉ EN BAS (Masqué si readonly / coach) */}
+      {!readonly && (
+        <View style={[styles.bottomBar, { backgroundColor: theme.colors.background }]}>
+          <TouchableOpacity 
+            style={styles.pillAddBtn}
+            onPress={() => openSearchModal(type)}
+            activeOpacity={0.85}
+          >
+            <Feather name="plus" size={18} color="#FFF" />
+            <Text style={styles.pillAddBtnText}>Ajouter plus</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* MODAL D'ÉDITION DE PORTION */}
       <Modal visible={!!editingLog} transparent animationType="fade">
@@ -289,8 +317,8 @@ export default function MealDetailScreen() {
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* MODAL DE RECHERCHE D'ALIMENT */}
-      <FoodSearchModal />
+      {/* MODAL DE RECHERCHE D'ALIMENT (si non readonly) */}
+      {!readonly && <FoodSearchModal />}
     </SafeAreaView>
   );
 }

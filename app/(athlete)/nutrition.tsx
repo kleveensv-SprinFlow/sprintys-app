@@ -9,9 +9,9 @@ import { MealSection } from '../../src/features/nutrition/components/MealSection
 import { FoodSearchModal } from '../../src/features/nutrition/components/FoodSearchModal';
 import { NutritionSettingsModal } from '../../src/features/nutrition/components/NutritionSettingsModal';
 import { StreakCelebrationModal } from '../../src/features/nutrition/components/StreakCelebrationModal';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../src/store/authStore';
 import { useLocalSearchParams } from 'expo-router';
+import { supabase } from '../../src/services/supabase';
 
 export default function NutritionScreen() {
   const params = useLocalSearchParams();
@@ -20,8 +20,25 @@ export default function NutritionScreen() {
 
   const theme = useTheme();
   const [settingsVisible, setSettingsVisible] = useState(false);
+  const [athleteProfile, setAthleteProfile] = useState<any>(null);
   const { currentDate, fetchMealLogs } = useNutritionStore();
   const user = useAuthStore(state => state.user);
+
+  // Charger le profil spécifique de l'athlète consulté si mode coach
+  useEffect(() => {
+    if (athleteId) {
+      supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', athleteId)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) setAthleteProfile(data);
+        });
+    } else {
+      setAthleteProfile(null);
+    }
+  }, [athleteId]);
 
   useEffect(() => {
     if (user) {
@@ -31,20 +48,25 @@ export default function NutritionScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <NutritionHeader onSettingsPress={() => { if (!readonly) setSettingsVisible(true); }} />
+      <NutritionHeader 
+        onSettingsPress={() => { if (!readonly) setSettingsVisible(true); }}
+        athleteProfile={athleteProfile}
+      />
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        <DateSelector />
-        <NutritionSummary />
-        <MealSection readonly={readonly} />
+        <DateSelector athleteId={athleteId} />
+        <NutritionSummary athleteProfile={athleteProfile} />
+        <MealSection readonly={readonly} athleteId={athleteId} athleteProfile={athleteProfile} />
       </ScrollView>
 
-      <FoodSearchModal />
+      {!readonly && <FoodSearchModal />}
 
-      <NutritionSettingsModal
-        visible={settingsVisible}
-        onClose={() => setSettingsVisible(false)}
-      />
+      {!readonly && (
+        <NutritionSettingsModal
+          visible={settingsVisible}
+          onClose={() => setSettingsVisible(false)}
+        />
+      )}
       <StreakCelebrationModal />
     </View>
   );

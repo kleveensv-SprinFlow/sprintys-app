@@ -558,6 +558,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (updates.disciplines !== undefined) dbUpdates.disciplines = updates.disciplines;
     if (updates.groupName !== undefined) dbUpdates.group_name = updates.groupName;
     if (updates.subgroups !== undefined) dbUpdates.subgroups = updates.subgroups;
+      if (updates.currentFlowStreak !== undefined) dbUpdates.current_flow_streak = updates.currentFlowStreak;
+      if (updates.lastFlowDate !== undefined) dbUpdates.last_flow_date = updates.lastFlowDate;
 
     if (Object.keys(dbUpdates).length === 0) return true;
 

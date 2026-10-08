@@ -10,18 +10,21 @@ import Svg, { Circle } from 'react-native-svg';
 
 interface MealSectionProps {
   readonly?: boolean;
+  athleteId?: string;
+  athleteProfile?: any;
 }
 
-export const MealSection: React.FC<MealSectionProps> = ({ readonly = false }) => {
+export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athleteId, athleteProfile }) => {
   const theme = useTheme();
   const router = useRouter();
   const { mealLogs, openSearchModal } = useNutritionStore();
   const user = useAuthStore((state) => state.user);
 
-  const mealDistribution = user?.mealDistribution || {
+  const activeProfile = athleteProfile || user;
+  const mealDistribution = activeProfile?.mealDistribution || activeProfile?.meal_distribution || {
     petit_dejeuner: 25, dejeuner: 35, diner: 30, collation: 10
   };
-  const kcalGoal = user?.manualKcalGoal || 2000;
+  const kcalGoal = activeProfile?.manualKcalGoal || activeProfile?.manual_kcal_goal || 2000;
 
   const meals: { type: MealType; label: string; icon: any; color: string }[] = [
     { type: 'petit_dejeuner', label: 'Petit déjeuner', icon: 'coffee', color: '#00C9A7' },
@@ -35,7 +38,11 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false }) =>
   };
 
   const navigateToMealDetail = (type: MealType) => {
-    router.push(`/meal/${type}`);
+    const query = [
+      athleteId ? `athleteId=${athleteId}` : '',
+      readonly ? 'readonly=true' : ''
+    ].filter(Boolean).join('&');
+    router.push(`/meal/${type}${query ? `?${query}` : ''}`);
   };
 
   const ICON_RING_SIZE = 46;

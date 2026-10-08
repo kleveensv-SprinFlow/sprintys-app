@@ -7,14 +7,16 @@ import { useAuthStore } from '../../../store/authStore';
 
 interface Props {
   onSettingsPress: () => void;
+  athleteProfile?: any;
 }
 
-export const NutritionHeader: React.FC<Props> = ({ onSettingsPress }) => {
+export const NutritionHeader: React.FC<Props> = ({ onSettingsPress, athleteProfile }) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
 
-  const currentStreak = user?.currentFlowStreak || 0;
+  const activeProfile = athleteProfile || user;
+  const currentStreak = activeProfile?.currentFlowStreak || activeProfile?.current_flow_streak || 0;
 
   return (
     <View style={[styles.container, {
