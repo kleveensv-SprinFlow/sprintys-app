@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import { useNutritionStore } from '../../../store/nutrition/nutritionStore';
 import { MealType } from '../types';
@@ -26,11 +26,11 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
   };
   const kcalGoal = activeProfile?.manualKcalGoal || activeProfile?.manual_kcal_goal || 2000;
 
-  const meals: { type: MealType; label: string; icon: any; color: string }[] = [
-    { type: 'petit_dejeuner', label: 'Petit déjeuner', icon: 'coffee', color: '#00C9A7' },
-    { type: 'dejeuner', label: 'Déjeuner', icon: 'sun', color: '#FFB703' },
-    { type: 'diner', label: 'Dîner', icon: 'moon', color: '#0069E8' },
-    { type: 'collation', label: 'Collation', icon: 'smile', color: '#FF5252' },
+  const meals: { type: MealType; label: string; icon: keyof typeof Ionicons.glyphMap; color: string }[] = [
+    { type: 'petit_dejeuner', label: 'Petit déjeuner', icon: 'cafe-outline', color: '#F59E0B' },
+    { type: 'dejeuner', label: 'Déjeuner', icon: 'restaurant-outline', color: '#10B981' },
+    { type: 'diner', label: 'Dîner', icon: 'moon-outline', color: '#6366F1' },
+    { type: 'collation', label: 'Collation', icon: 'nutrition-outline', color: '#EC4899' },
   ];
 
   const handleAddFood = (type: MealType) => {
@@ -45,8 +45,8 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
     router.push(`/meal/${type}${query ? `?${query}` : ''}`);
   };
 
-  const ICON_RING_SIZE = 46;
-  const STROKE_WIDTH = 3.5;
+  const ICON_RING_SIZE = 44;
+  const STROKE_WIDTH = 3;
   const RADIUS = (ICON_RING_SIZE - STROKE_WIDTH) / 2;
   const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
@@ -91,7 +91,7 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
                     r={RADIUS}
                     stroke={theme.colors.border}
                     strokeWidth={STROKE_WIDTH}
-                    strokeOpacity={0.6}
+                    strokeOpacity={0.35}
                     fill="none"
                   />
                   {/* Anneau de progression actif */}
@@ -112,7 +112,7 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
                 </Svg>
 
                 <View style={styles.centerIconWrap}>
-                  <Feather 
+                  <Ionicons 
                     name={meal.icon} 
                     size={18} 
                     color={progressPercent > 0 ? meal.color : theme.colors.textSecondary} 
@@ -126,11 +126,11 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
                   <Text style={[styles.mealTitle, { color: theme.colors.text }]}>
                     {meal.label}
                   </Text>
-                  <Feather name="arrow-right" size={14} color={theme.colors.textSecondary} style={{ marginLeft: 6 }} />
+                  <Feather name="chevron-right" size={14} color={theme.colors.textMuted} style={{ marginLeft: 4 }} />
                 </View>
 
                 <Text style={[styles.kcalText, { color: theme.colors.textSecondary }]}>
-                  {Math.round(consumedKcal)} / {targetKcal} kcal
+                  {Math.round(consumedKcal)} <Text style={{ color: theme.colors.textMuted }}>/ {targetKcal} kcal</Text>
                 </Text>
 
                 {foodsSummary.length > 0 && (
@@ -140,17 +140,23 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
                 )}
               </View>
 
-              {/* Gros bouton '+' circulaire noir style Yazio */}
+              {/* Bouton '+' compact et cerclé assorti à la couleur du repas */}
               {!readonly && (
                 <TouchableOpacity
-                  style={[styles.addButtonPill, { backgroundColor: '#111827' }]}
+                  style={[
+                    styles.addButtonCompact,
+                    {
+                      backgroundColor: `${meal.color}15`,
+                      borderColor: `${meal.color}35`,
+                    }
+                  ]}
                   onPress={(e) => {
                     e.stopPropagation();
                     handleAddFood(meal.type);
                   }}
-                  activeOpacity={0.8}
+                  activeOpacity={0.7}
                 >
-                  <Feather name="plus" size={20} color="#FFFFFF" />
+                  <Feather name="plus" size={17} color={meal.color} />
                 </TouchableOpacity>
               )}
             </Pressable>
@@ -174,7 +180,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
     letterSpacing: -0.3,
   },
@@ -184,7 +190,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
     shadowRadius: 12,
-    elevation: 3,
+    elevation: 2,
     overflow: 'hidden',
   },
   mealRow: {
@@ -194,8 +200,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   iconRingContainer: {
-    width: 46,
-    height: 46,
+    width: 44,
+    height: 44,
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
@@ -215,7 +221,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   mealTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     letterSpacing: -0.2,
   },
@@ -229,16 +235,12 @@ const styles = StyleSheet.create({
     marginTop: 3,
     fontWeight: '500',
   },
-  addButtonPill: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  addButtonCompact: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
   },
 });

@@ -1,12 +1,9 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../../../core/theme';
 import { useNutritionStore } from '../../../store/nutrition/nutritionStore';
 import { useAuthStore } from '../../../store/authStore';
-import Svg, { Circle, ClipPath, Defs, LinearGradient as SvgGradient, Stop, Path } from 'react-native-svg';
-import Animated, { useSharedValue, useAnimatedProps, withRepeat, withTiming, Easing, withSpring } from 'react-native-reanimated';
-
-const AnimatedPath = Animated.createAnimatedComponent(Path);
+import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 
 interface NutritionSummaryProps {
   athleteProfile?: any;
@@ -30,140 +27,149 @@ export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ athleteProfi
   const lipGoal = Math.round((kcalGoal * 0.3) / 9);
 
   const remainingKcal = Math.max(0, kcalGoal - consumedKcal);
-  const fillPercentage = Math.min(1, consumedKcal / kcalGoal);
+  const fillPercentage = Math.min(1, kcalGoal > 0 ? consumedKcal / kcalGoal : 0);
 
-  // Animation values
-  const waveOffset = useSharedValue(0);
-  const heightAnim = useSharedValue(0);
-
-  useEffect(() => {
-    waveOffset.value = withRepeat(
-      withTiming(2 * Math.PI, { duration: 3200, easing: Easing.linear }),
-      -1,
-      false
-    );
-    heightAnim.value = withSpring(fillPercentage, { damping: 15 });
-  }, [fillPercentage]);
-
-  const SIZE = 170;
-  const STROKE_WIDTH = 10;
+  const SIZE = 156;
+  const STROKE_WIDTH = 8;
   const RADIUS = (SIZE - STROKE_WIDTH) / 2;
+  const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+  const strokeDashoffset = CIRCUMFERENCE * (1 - fillPercentage);
 
-  const animatedProps = useAnimatedProps(() => {
-    const amplitude = 6;
-    const frequency = 0.045;
-    // Map liquid level from bottom (SIZE) up to a max of 75% height to prevent overlapping the central text
-    const maxLiquidHeight = SIZE * 0.72;
-    const liquidHeight = SIZE - (heightAnim.value * maxLiquidHeight);
-    
-    let path = `M 0 ${SIZE} L 0 ${liquidHeight}`;
-    for (let x = 0; x <= SIZE; x += 5) {
-      const y = liquidHeight + Math.sin(x * frequency + waveOffset.value) * amplitude;
-      path += ` L ${x} ${y}`;
-    }
-    path += ` L ${SIZE} ${SIZE} Z`;
-    
-    return {
-      d: path
-    };
-  });
-
-  const renderProgressBar = (label: string, current: number, max: number, color: string) => {
-    const percent = Math.min(100, max > 0 ? (current / max) * 100 : 0);
-    return (
-      <View style={styles.macroRow} key={label}>
-        <View style={styles.macroHeader}>
-          <View style={styles.macroTitleGroup}>
-            <View style={[styles.macroDot, { backgroundColor: color }]} />
-            <Text style={[styles.macroLabel, { color: theme.colors.text }]}>{label}</Text>
-          </View>
-          <View style={styles.macroValueGroup}>
-            <Text style={[styles.macroValue, { color: theme.colors.text }]}>
-              {Math.round(current)} <Text style={[styles.macroMax, { color: theme.colors.textSecondary }]}>/ {max}g</Text>
-            </Text>
-            <Text style={[styles.macroPercent, { color: theme.colors.textSecondary }]}>
-              {Math.round(percent)}%
-            </Text>
-          </View>
-        </View>
-        <View style={[styles.progressTrack, { backgroundColor: theme.colors.border }]}>
-          <View style={[styles.progressFill, { width: `${percent}%`, backgroundColor: color }]} />
-        </View>
-      </View>
-    );
-  };
+  const MACROS = [
+    {
+      key: 'pro',
+      label: 'Protéines',
+      current: consumedPro,
+      goal: proGoal,
+      color: '#F43F5E', // Corail / Rose doux
+      bgColor: 'rgba(244, 63, 94, 0.08)',
+    },
+    {
+      key: 'glu',
+      label: 'Glucides',
+      current: consumedGlu,
+      goal: gluGoal,
+      color: '#10B981', // Émeraude / Menthe fraîche
+      bgColor: 'rgba(16, 185, 129, 0.08)',
+    },
+    {
+      key: 'lip',
+      label: 'Lipides',
+      current: consumedLip,
+      goal: lipGoal,
+      color: '#F59E0B', // Ambre chaud
+      bgColor: 'rgba(245, 158, 11, 0.08)',
+    },
+  ];
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
-      
-      {/* JAUGE CENTRALE LUMINEUSE AVEC VAGUE DOUCE */}
+      {/* JAUGE CENTRALE ÉPURÉE SANS GADGET */}
       <View style={styles.gaugeContainer}>
         <View style={{ width: SIZE, height: SIZE, position: 'relative' }}>
           <Svg width={SIZE} height={SIZE}>
             <Defs>
-              <ClipPath id="circleClip">
-                <Circle cx={SIZE/2} cy={SIZE/2} r={RADIUS - 4} />
-              </ClipPath>
-              <SvgGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <Stop offset="0%" stopColor="#0069E8" />
-                <Stop offset="50%" stopColor="#00D2FF" />
-                <Stop offset="100%" stopColor="#00E5A3" />
-              </SvgGradient>
-              <SvgGradient id="waveGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                <Stop offset="0%" stopColor="#0069E8" stopOpacity={0.25} />
-                <Stop offset="100%" stopColor="#00D2FF" stopOpacity={0.12} />
+              <SvgGradient id="cleanRingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <Stop offset="0%" stopColor="#0284C7" />
+                <Stop offset="60%" stopColor="#0EA5E9" />
+                <Stop offset="100%" stopColor="#38BDF8" />
               </SvgGradient>
             </Defs>
 
-            {/* Anneau de fond */}
-            <Circle 
-              cx={SIZE/2} cy={SIZE/2} r={RADIUS} 
-              stroke={theme.colors.border} 
-              strokeWidth={STROKE_WIDTH} 
-              strokeOpacity={0.5}
-              fill="none" 
-            />
-            
-            {/* Vague Liquide Translucide */}
-            <AnimatedPath
-              animatedProps={animatedProps}
-              fill="url(#waveGradient)"
-              clipPath="url(#circleClip)"
+            {/* Piste de fond douce */}
+            <Circle
+              cx={SIZE / 2}
+              cy={SIZE / 2}
+              r={RADIUS}
+              stroke={theme.colors.border}
+              strokeWidth={STROKE_WIDTH}
+              strokeOpacity={0.4}
+              fill="none"
             />
 
-            {/* Anneau Lumineux Extérieur */}
-            <Circle 
-              cx={SIZE/2} cy={SIZE/2} r={RADIUS} 
-              stroke="url(#ringGradient)" 
-              strokeWidth={STROKE_WIDTH} 
-              strokeDasharray={`${2 * Math.PI * RADIUS}`}
-              strokeDashoffset={`${2 * Math.PI * RADIUS * (1 - fillPercentage)}`}
+            {/* Anneau de progression actif */}
+            <Circle
+              cx={SIZE / 2}
+              cy={SIZE / 2}
+              r={RADIUS}
+              stroke="url(#cleanRingGradient)"
+              strokeWidth={STROKE_WIDTH}
+              strokeDasharray={`${CIRCUMFERENCE}`}
+              strokeDashoffset={`${strokeDashoffset}`}
               strokeLinecap="round"
-              transform={`rotate(-90 ${SIZE/2} ${SIZE/2})`}
-              fill="none" 
+              transform={`rotate(-90 ${SIZE / 2} ${SIZE / 2})`}
+              fill="none"
             />
           </Svg>
 
-          {/* Texte central haute lisibilité */}
+          {/* Chiffres au centre */}
           <View style={styles.centerTextContainer}>
             <Text style={[styles.remainingValue, { color: theme.colors.text }]}>
               {Math.round(remainingKcal)}
             </Text>
             <Text style={[styles.remainingLabel, { color: theme.colors.textSecondary }]}>
-              KCAL RESTANTS
+              KCAL RESTANTES
             </Text>
             <Text style={[styles.consumedSub, { color: theme.colors.textMuted }]}>
-              {Math.round(consumedKcal)} / {kcalGoal} consommés
+              {Math.round(consumedKcal)} / {kcalGoal} consommées
             </Text>
           </View>
         </View>
       </View>
 
-      {/* MACROS REVISITÉS */}
-      <View style={styles.macrosContainer}>
-        {renderProgressBar('Protéines', consumedPro, proGoal, '#FF5252')}
-        {renderProgressBar('Glucides', consumedGlu, gluGoal, '#00C9A7')}
-        {renderProgressBar('Lipides', consumedLip, lipGoal, '#FFB703')}
+      {/* 3 MACROS EN 3 COLONNES CÔTE À CÔTE */}
+      <View style={styles.macrosRow}>
+        {MACROS.map((macro) => {
+          const percent = Math.min(100, macro.goal > 0 ? (macro.current / macro.goal) * 100 : 0);
+          return (
+            <View
+              key={macro.key}
+              style={[
+                styles.macroCard,
+                {
+                  backgroundColor: theme.colors.background || '#F8FAFC',
+                  borderColor: theme.colors.border,
+                },
+              ]}
+            >
+              {/* En-tête : Dot + Nom */}
+              <View style={styles.macroHeader}>
+                <View style={[styles.macroDot, { backgroundColor: macro.color }]} />
+                <Text style={[styles.macroLabel, { color: theme.colors.text }]}>
+                  {macro.label}
+                </Text>
+              </View>
+
+              {/* Valeurs : Consommé / Objectif */}
+              <View style={styles.macroValueRow}>
+                <Text style={[styles.macroCurrentValue, { color: theme.colors.text }]}>
+                  {Math.round(macro.current)}
+                </Text>
+                <Text style={[styles.macroGoalValue, { color: theme.colors.textSecondary }]}>
+                  /{macro.goal}g
+                </Text>
+              </View>
+
+              {/* Barre de progression fine et arrondie */}
+              <View style={[styles.macroTrack, { backgroundColor: theme.colors.border }]}>
+                <View
+                  style={[
+                    styles.macroFill,
+                    {
+                      width: `${percent}%`,
+                      backgroundColor: macro.color,
+                    },
+                  ]}
+                />
+              </View>
+
+              {/* Pourcentage */}
+              <Text style={[styles.macroPercentText, { color: theme.colors.textMuted }]}>
+                {Math.round(percent)}%
+              </Text>
+            </View>
+          );
+        })}
       </View>
     </View>
   );
@@ -173,93 +179,98 @@ const styles = StyleSheet.create({
   container: {
     marginHorizontal: 16,
     marginVertical: 12,
-    padding: 20,
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 16,
     borderRadius: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 2,
   },
   gaugeContainer: {
     alignItems: 'center',
-    marginBottom: 24,
-    marginTop: 6,
+    marginBottom: 20,
+    marginTop: 2,
   },
   centerTextContainer: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
   },
   remainingValue: {
-    fontSize: 34,
+    fontSize: 36,
     fontWeight: '900',
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
   },
   remainingLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
-    letterSpacing: 1.2,
+    letterSpacing: 1.1,
     marginTop: 2,
   },
   consumedSub: {
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '500',
     marginTop: 4,
   },
-  macrosContainer: {
-    gap: 14,
+  macrosRow: {
+    flexDirection: 'row',
+    gap: 8,
   },
-  macroRow: {
-    gap: 6,
+  macroCard: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
   },
   macroHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  macroTitleGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    gap: 5,
+    marginBottom: 6,
   },
   macroDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   macroLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  macroValueGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  macroValue: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  macroMax: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  macroPercent: {
     fontSize: 11,
-    fontWeight: '600',
-    minWidth: 28,
-    textAlign: 'right',
+    fontWeight: '700',
+    letterSpacing: 0.1,
   },
-  progressTrack: {
-    height: 7,
-    borderRadius: 4,
+  macroValueRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 8,
+  },
+  macroCurrentValue: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  macroGoalValue: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginLeft: 1,
+  },
+  macroTrack: {
+    height: 4,
+    borderRadius: 2,
     width: '100%',
     overflow: 'hidden',
+    marginBottom: 6,
   },
-  progressFill: {
+  macroFill: {
     height: '100%',
-    borderRadius: 4,
-  }
+    borderRadius: 2,
+  },
+  macroPercentText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
 });
