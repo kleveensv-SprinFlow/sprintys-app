@@ -1,4 +1,4 @@
-﻿import { Stack, useRouter, useSegments, useGlobalSearchParams } from 'expo-router';
+import { Stack, useRouter, useSegments, useGlobalSearchParams } from 'expo-router';
 import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { useAuthStore } from '../src/store/authStore';
@@ -50,7 +50,7 @@ export default function RootLayout() {
         // Prevent athlete from accessing coach routes
         router.replace('/(athlete)');
       } else if (user.role === 'coach' && isAthleteRoute) {
-        const readingNutrition = segments[1] === 'nutrition' && params.readonly === 'true';
+        const readingNutrition = (segments as string[])[1] === 'nutrition' && params.readonly === 'true';
         if (!readingNutrition) router.replace('/(coach)');
       }
     }

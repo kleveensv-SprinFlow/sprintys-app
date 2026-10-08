@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   activePill: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     borderRadius: 16,
   },
   tabLabel: {

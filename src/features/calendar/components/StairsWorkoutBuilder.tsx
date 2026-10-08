@@ -530,7 +530,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
         // --- MASTER COPY FOR COACH ---
         const masterMappedExercises = mapExercisesToPayload(sessionExercises);
         payloadsToUpdate.push({
-          type_seance: sessionTitle.trim() || 'Escalier',
+          type_seance: 'Escalier',
           coach_id: user.id,
           team_id: activeTeamId,
           athlete_id: user.id, // Coach ID

@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   centerTextContainer: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 10,
