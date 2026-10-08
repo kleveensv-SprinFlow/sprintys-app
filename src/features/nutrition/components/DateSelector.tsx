@@ -1,30 +1,33 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
-import { useNutritionStore } from '../../../store/nutrition/nutritionStore';
+import { useNutritionStore, getLocalDateString } from '../../../store/nutrition/nutritionStore';
 
 export const DateSelector: React.FC = () => {
   const theme = useTheme();
   const { currentDate, setCurrentDate } = useNutritionStore();
 
   const handlePrevDay = () => {
-    const d = new Date(currentDate);
+    const parts = currentDate.split('-').map(Number);
+    const d = new Date(parts[0], parts[1] - 1, parts[2]);
     d.setDate(d.getDate() - 1);
-    setCurrentDate(d.toISOString().split('T')[0]);
+    setCurrentDate(getLocalDateString(d));
   };
 
   const handleNextDay = () => {
-    const d = new Date(currentDate);
+    const parts = currentDate.split('-').map(Number);
+    const d = new Date(parts[0], parts[1] - 1, parts[2]);
     d.setDate(d.getDate() + 1);
-    setCurrentDate(d.toISOString().split('T')[0]);
+    setCurrentDate(getLocalDateString(d));
   };
 
   const formatDateLabel = (dateStr: string) => {
-    const d = new Date(dateStr);
+    const parts = dateStr.split('-').map(Number);
+    const targetDate = new Date(parts[0], parts[1] - 1, parts[2]);
+    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const targetDate = new Date(d);
     targetDate.setHours(0, 0, 0, 0);
 
     const diffTime = targetDate.getTime() - today.getTime();

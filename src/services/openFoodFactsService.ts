@@ -19,7 +19,11 @@ const formatProduct = (product: any): OFFProduct | null => {
   const nutriments = product.nutriments || {};
   
   // Extraire les macros, avec fallback à 0 pour éviter les valeurs undefined (crash proof)
-  const calories = nutriments['energy-kcal_100g'] || nutriments['energy_100g'] || 0;
+  let calories = nutriments['energy-kcal_100g'];
+    if (calories === undefined && nutriments['energy_100g'] !== undefined) {
+      calories = nutriments['energy_100g'] / 4.184;
+    }
+    calories = Number(calories) || 0;
   const proteines = nutriments['proteins_100g'] || 0;
   const glucides = nutriments['carbohydrates_100g'] || 0;
   const lipides = nutriments['fat_100g'] || 0;

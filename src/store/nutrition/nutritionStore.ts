@@ -1,7 +1,15 @@
 import { create } from 'zustand';
+import { Alert } from 'react-native';
 import { supabase } from '../../services/supabase';
 import { MealLog, MealType, MealDistribution } from '../../features/nutrition/types';
 import { useAuthStore } from '../authStore';
+
+export const getLocalDateString = (d: Date = new Date()): string => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 interface NutritionState {
   currentDate: string;
@@ -33,14 +41,14 @@ interface NutritionState {
     weekly_weight_goal: number;
     manual_kcal_goal: number;
     meal_distribution: MealDistribution;
-  }>) => Promise<void>;
+  }>) => Promise<boolean>;
 
   openSearchModal: (mealType: MealType) => void;
   closeSearchModal: () => void;
 }
 
 export const useNutritionStore = create<NutritionState>((set, get) => ({
-  currentDate: new Date().toISOString().split('T')[0],
+  currentDate: getLocalDateString(),
   mealLogs: [],
   recentFoods: [],
   frequentFoods: [],
@@ -90,7 +98,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
     if (!user) return;
 
     try {
-      // 1. Fetch Recents (last 50 logs, distinct by food_id)
+      // 1. Fetch Recents (last 50 logs)
       const { data: recentData } = await supabase
         .from('meal_logs')
         .select('*')
@@ -111,21 +119,19 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
         .order('created_at', { ascending: false });
 
       if (recentData) {
-        // Transform into fake OFFProduct for FoodDetailSheet compatibility
         const uniqueRecents = new Map<string, any>();
         const frequentCounts = new Map<string, number>();
 
         recentData.forEach(log => {
-          if (!log.food_id) return;
+          const key = log.food_id || log.custom_food_name;
+          if (!key) return;
           
-          // Count frequency
-          frequentCounts.set(log.food_id, (frequentCounts.get(log.food_id) || 0) + 1);
+          frequentCounts.set(key, (frequentCounts.get(key) || 0) + 1);
 
-          // Add to recents if not already there
-          if (!uniqueRecents.has(log.food_id)) {
+          if (!uniqueRecents.has(key)) {
             const multiplier = 100 / (log.quantity_g || 100);
-            uniqueRecents.set(log.food_id, {
-              id: log.food_id,
+            uniqueRecents.set(key, {
+              id: log.food_id || key,
               name: log.custom_food_name || 'Aliment',
               macros_100g: {
                 calories: log.calories * multiplier,
@@ -139,7 +145,6 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
 
         const recentsArray = Array.from(uniqueRecents.values()).slice(0, 15);
         
-        // Sort frequents
         const sortedFrequents = Array.from(uniqueRecents.values())
           .sort((a, b) => (frequentCounts.get(b.id) || 0) - (frequentCounts.get(a.id) || 0))
           .slice(0, 15);
@@ -179,6 +184,38 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
       }));
     } catch (err: any) {
       set({ error: err.message, isLoading: false });
+      Alert.alert('Erreur', "Impossible d'enregistrer cet aliment : " + (err.message || 'Erreur réseau'));
+    }
+  },
+
+  deleteMealLog: async (id: string) => {
+    try {
+      const { error } = await supabase.from('meal_logs').delete().eq('id', id);
+      if (error) throw error;
+      set((state) => ({
+        mealLogs: state.mealLogs.filter((l) => l.id !== id)
+      }));
+    } catch (err: any) {
+      set({ error: err.message });
+      Alert.alert('Erreur', "Impossible de supprimer cet aliment : " + (err.message || 'Erreur réseau'));
+    }
+  },
+
+  updateMealLog: async (id: string, updates: Partial<MealLog>) => {
+    try {
+      const { data, error } = await supabase
+        .from('meal_logs')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      set((state) => ({
+        mealLogs: state.mealLogs.map((l) => (l.id === id ? { ...l, ...data } : l))
+      }));
+    } catch (err: any) {
+      set({ error: err.message });
+      Alert.alert('Erreur', "Impossible de modifier cet aliment : " + (err.message || 'Erreur réseau'));
     }
   },
 
@@ -187,7 +224,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
     const user = useAuthStore.getState().user;
     if (!user) {
       set({ isLoading: false, error: 'User not logged in' });
-      return;
+      return false;
     }
 
     try {
@@ -198,13 +235,11 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
 
       if (error) throw error;
 
-      // Mettre à jour manuellement l'état authStore si nécessaire,
-      // ou re-fetch le profil, mais pour rester simple on garde l'état tel quel.
-      // Une reconnexion ou un refetch global serait idéal.
-
       set({ isLoading: false });
+      return true;
     } catch (err: any) {
       set({ error: err.message, isLoading: false });
+      return false;
     }
   }
 }));
