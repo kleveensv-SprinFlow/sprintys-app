@@ -26,14 +26,55 @@ export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ athleteProfi
   const gluGoal = Math.round((kcalGoal * 0.4) / 4);
   const lipGoal = Math.round((kcalGoal * 0.3) / 9);
 
-  const remainingKcal = Math.max(0, kcalGoal - consumedKcal);
+  const isExceeded = consumedKcal > kcalGoal;
+  const remainingKcal = isExceeded ? consumedKcal - kcalGoal : Math.max(0, kcalGoal - consumedKcal);
   const fillPercentage = Math.min(1, kcalGoal > 0 ? consumedKcal / kcalGoal : 0);
 
-  const SIZE = 156;
-  const STROKE_WIDTH = 8;
+  // Configuration géométrique aérée (180px pour un espace intérieur confortable)
+  const SIZE = 180;
+  const STROKE_WIDTH = 10;
   const RADIUS = (SIZE - STROKE_WIDTH) / 2;
   const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
   const strokeDashoffset = CIRCUMFERENCE * (1 - fillPercentage);
+
+  // Palette dynamique inspirée de l'image de référence
+  const getStatusConfig = () => {
+    if (isExceeded) {
+      return {
+        startColor: '#EF4444',
+        endColor: '#F43F5E',
+        knobColor: '#F43F5E',
+        badgeBg: 'rgba(244, 63, 94, 0.12)',
+        badgeText: '#E11D48',
+        badgeLabel: 'DÉPASSÉ',
+      };
+    }
+    if (fillPercentage >= 0.85 || remainingKcal <= 250) {
+      return {
+        startColor: '#F59E0B',
+        endColor: '#FB923C',
+        knobColor: '#FB923C',
+        badgeBg: 'rgba(245, 158, 11, 0.12)',
+        badgeText: '#D97706',
+        badgeLabel: 'RESTANTES',
+      };
+    }
+    return {
+      startColor: '#059669',
+      endColor: '#06B6D4',
+      knobColor: '#06B6D4',
+      badgeBg: 'rgba(6, 182, 212, 0.12)',
+      badgeText: '#0891B2',
+      badgeLabel: 'RESTANTES',
+    };
+  };
+
+  const statusConfig = getStatusConfig();
+
+  // Position du curseur (knob) signature à l'extrémité de l'arc
+  const knobAngle = -Math.PI / 2 + fillPercentage * 2 * Math.PI;
+  const knobX = SIZE / 2 + RADIUS * Math.cos(knobAngle);
+  const knobY = SIZE / 2 + RADIUS * Math.sin(knobAngle);
 
   const MACROS = [
     {
@@ -41,77 +82,100 @@ export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ athleteProfi
       label: 'Protéines',
       current: consumedPro,
       goal: proGoal,
-      color: '#F43F5E', // Corail / Rose doux
-      bgColor: 'rgba(244, 63, 94, 0.08)',
+      color: '#F43F5E',
     },
     {
       key: 'glu',
       label: 'Glucides',
       current: consumedGlu,
       goal: gluGoal,
-      color: '#10B981', // Émeraude / Menthe fraîche
-      bgColor: 'rgba(16, 185, 129, 0.08)',
+      color: '#10B981',
     },
     {
       key: 'lip',
       label: 'Lipides',
       current: consumedLip,
       goal: lipGoal,
-      color: '#F59E0B', // Ambre chaud
-      bgColor: 'rgba(245, 158, 11, 0.08)',
+      color: '#F59E0B',
     },
   ];
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
-      {/* JAUGE CENTRALE ÉPURÉE SANS GADGET */}
+      {/* JAUGE CIRCULAIRE STYLE INSTRUMENT DE PRÉCISION */}
       <View style={styles.gaugeContainer}>
         <View style={{ width: SIZE, height: SIZE, position: 'relative' }}>
           <Svg width={SIZE} height={SIZE}>
             <Defs>
-              <SvgGradient id="cleanRingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <Stop offset="0%" stopColor="#0284C7" />
-                <Stop offset="60%" stopColor="#0EA5E9" />
-                <Stop offset="100%" stopColor="#38BDF8" />
+              <SvgGradient id="dynamicArcGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <Stop offset="0%" stopColor={statusConfig.startColor} />
+                <Stop offset="100%" stopColor={statusConfig.endColor} />
               </SvgGradient>
             </Defs>
 
-            {/* Piste de fond douce */}
+            {/* Piste de fond ultra-fine (comme l'image de référence) */}
             <Circle
               cx={SIZE / 2}
               cy={SIZE / 2}
               r={RADIUS}
               stroke={theme.colors.border}
-              strokeWidth={STROKE_WIDTH}
-              strokeOpacity={0.4}
+              strokeWidth={2.5}
+              strokeOpacity={0.45}
               fill="none"
             />
 
-            {/* Anneau de progression actif */}
-            <Circle
-              cx={SIZE / 2}
-              cy={SIZE / 2}
-              r={RADIUS}
-              stroke="url(#cleanRingGradient)"
-              strokeWidth={STROKE_WIDTH}
-              strokeDasharray={`${CIRCUMFERENCE}`}
-              strokeDashoffset={`${strokeDashoffset}`}
-              strokeLinecap="round"
-              transform={`rotate(-90 ${SIZE / 2} ${SIZE / 2})`}
-              fill="none"
-            />
+            {/* Arc de progression avec bouts arrondis */}
+            {fillPercentage > 0 && (
+              <Circle
+                cx={SIZE / 2}
+                cy={SIZE / 2}
+                r={RADIUS}
+                stroke="url(#dynamicArcGradient)"
+                strokeWidth={STROKE_WIDTH}
+                strokeDasharray={`${CIRCUMFERENCE}`}
+                strokeDashoffset={`${strokeDashoffset}`}
+                strokeLinecap="round"
+                transform={`rotate(-90 ${SIZE / 2} ${SIZE / 2})`}
+                fill="none"
+              />
+            )}
+
+            {/* Curseur signature rond avec centre blanc à l'extrémité de l'arc */}
+            {fillPercentage > 0.02 && (
+              <>
+                <Circle
+                  cx={knobX}
+                  cy={knobY}
+                  r={7.5}
+                  fill={statusConfig.knobColor}
+                />
+                <Circle
+                  cx={knobX}
+                  cy={knobY}
+                  r={3.5}
+                  fill="#FFFFFF"
+                />
+              </>
+            )}
           </Svg>
 
-          {/* Chiffres au centre */}
+          {/* Textes intérieurs parfaitement aérés et centrés */}
           <View style={styles.centerTextContainer}>
+            {/* Badge pilule discret inspiré de l'image */}
+            <View style={[styles.statusBadge, { backgroundColor: statusConfig.badgeBg }]}>
+              <Text style={[styles.statusBadgeText, { color: statusConfig.badgeText }]}>
+                {statusConfig.badgeLabel}
+              </Text>
+            </View>
+
+            {/* Grand chiffre héros net */}
             <Text style={[styles.remainingValue, { color: theme.colors.text }]}>
               {Math.round(remainingKcal)}
             </Text>
-            <Text style={[styles.remainingLabel, { color: theme.colors.textSecondary }]}>
-              KCAL RESTANTES
-            </Text>
-            <Text style={[styles.consumedSub, { color: theme.colors.textMuted }]}>
-              {Math.round(consumedKcal)} / {kcalGoal} consommées
+
+            {/* Sous-titre propre sans aucun débordement */}
+            <Text style={[styles.consumedSub, { color: theme.colors.textSecondary }]}>
+              sur {kcalGoal.toLocaleString('fr-FR')} kcal
             </Text>
           </View>
         </View>
@@ -180,7 +244,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginVertical: 12,
     paddingHorizontal: 16,
-    paddingTop: 20,
+    paddingTop: 18,
     paddingBottom: 16,
     borderRadius: 24,
     shadowColor: '#000',
@@ -198,23 +262,29 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  statusBadge: {
     paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    marginBottom: 4,
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.8,
   },
   remainingValue: {
-    fontSize: 36,
+    fontSize: 38,
     fontWeight: '900',
-    letterSpacing: -0.8,
-  },
-  remainingLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.1,
-    marginTop: 2,
+    letterSpacing: -1,
+    lineHeight: 44,
   },
   consumedSub: {
     fontSize: 11,
-    fontWeight: '500',
-    marginTop: 4,
+    fontWeight: '600',
+    marginTop: 2,
   },
   macrosRow: {
     flexDirection: 'row',
