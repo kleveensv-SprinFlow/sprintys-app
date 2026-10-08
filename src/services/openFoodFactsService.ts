@@ -53,7 +53,7 @@ export const openFoodFactsService = {
     
     try {
       // API OFF v2 pour la recherche. fields permet d'alléger drastiquement la requête.
-      const url = `https://fr.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page=${page}&page_size=20&lc=fr&cc=fr&fields=code,product_name,product_name_fr,brands,image_front_small_url,nutriments,serving_size,serving_quantity`;
+      const url = `https://fr.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page=${page}&page_size=8&lc=fr&cc=fr&fields=code,product_name,product_name_fr,brands,nutriments,serving_size,serving_quantity`;
       
       const response = await fetch(url);
       if (!response.ok) throw new Error('Erreur réseau OFF');

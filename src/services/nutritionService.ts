@@ -1,5 +1,8 @@
 import { supabase } from './supabase';
 import { openFoodFactsService, OFFProduct } from './openFoodFactsService';
+import { matchScore, searchTokens, typoVariants, normalizeSearchText } from './foodSearchRank';
+
+export { normalizeSearchText };
 
 export interface CiqualFood {
   id: string;
@@ -19,129 +22,93 @@ export type HybridFoodResult =
   | { type: 'ciqual'; item: CiqualFood }
   | { type: 'off'; item: OFFProduct };
 
-export const normalizeSearchText = (text: string): string => {
-  return text
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/œ/g, 'oe')
-    .replace(/æ/g, 'ae')
-    .trim();
-};
-
-const escapeRegex = (str: string): string => {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-};
-
 const escapeIlike = (str: string): string => {
   return str.replace(/[%_\\]/g, '\\$&');
 };
 
+const CIQUAL_COLUMNS = 'id, code_ciqual, nom, etat, synonymes, energie_kcal, proteines, glucides, lipides, fibres, sodium, search_text';
+
+async function searchCiqual(rawQ: string): Promise<HybridFoodResult[]> {
+  const tokens = searchTokens(rawQ);
+  if (tokens.length === 0) return [];
+
+  const patterns = [...new Set(tokens.flatMap(typoVariants))].slice(0, 8);
+  const likeFilters = (column: string) => patterns.map((token) => `${column}.ilike.%${escapeIlike(token)}%`).join(',');
+
+  let { data, error } = await supabase
+    .from('ciqual_foods')
+    .select(CIQUAL_COLUMNS)
+    .or(`${likeFilters('search_text')},${likeFilters('nom')}`)
+    .limit(80);
+
+  if (error) {
+    const retry = await supabase
+      .from('ciqual_foods')
+      .select('id, code_ciqual, nom, etat, synonymes, energie_kcal, proteines, glucides, lipides, fibres, sodium')
+      .or(likeFilters('nom'))
+      .limit(80);
+    data = retry.data as typeof data;
+    error = retry.error;
+  }
+
+  if (error || !data) {
+    if (error) console.error('CIQUAL search error:', error);
+    return [];
+  }
+
+  return data
+    .map((item) => ({ item: item as CiqualFood, score: matchScore(tokens, item.nom, `${item.etat || ''} ${item.synonymes || ''}`) }))
+    .filter((row) => row.score >= 180)
+    .sort((a, b) => b.score - a.score || a.item.nom.localeCompare(b.item.nom, 'fr'))
+    .slice(0, 12)
+    .map((row) => ({ type: 'ciqual' as const, item: row.item }));
+}
+
+async function searchPackaged(rawQ: string): Promise<HybridFoodResult[]> {
+  const tokens = searchTokens(rawQ);
+  try {
+    const products = await Promise.race([
+      openFoodFactsService.searchFood(rawQ),
+      new Promise<OFFProduct[]>((resolve) => setTimeout(() => resolve([]), 1600)),
+    ]);
+    return products
+      .map((item) => ({ item, score: matchScore(tokens, item.name, item.brand || '') }))
+      .filter((row) => row.score > 80 && row.item.name && row.item.name !== 'Produit inconnu')
+      .sort((a, b) => {
+        const kcalBias = (row: { item: OFFProduct }) => (row.item.macros_100g.calories > 0 ? 0 : -80);
+        return (b.score + kcalBias(b)) - (a.score + kcalBias(a));
+      })
+      .slice(0, 6)
+      .map((row) => ({ type: 'off' as const, item: row.item }));
+  } catch (err) {
+    console.error('OFF search error:', err);
+    return [];
+  }
+}
+
 export const nutritionService = {
+  searchCiqual,
+  searchPackaged,
+
   /**
-   * Recherche hybride unifiée : CIQUAL (produits bruts) prioritaire + OFF (industriels)
+   * Aliments génériques d'abord, produits emballés ensuite.
+   * Les mots peuvent être dans le désordre, au pluriel, ou avec une lettre échangée.
    */
   searchFoodHybrid: async (query: string): Promise<HybridFoodResult[]> => {
     const rawQ = query.trim();
     if (!rawQ) return [];
 
-    // 1. Détection de code-barres (EAN-8 ou EAN-13)
     if (/^\d{8,13}$/.test(rawQ)) {
       try {
         const product = await openFoodFactsService.getFoodByBarcode(rawQ);
-        if (product) return [{ type: 'off', item: product }];
-        return [];
+        return product ? [{ type: 'off', item: product }] : [];
       } catch (err) {
         console.error('Barcode fetch error:', err);
         return [];
       }
     }
 
-    const q = normalizeSearchText(rawQ);
-    if (!q) return [];
-
-    const results: HybridFoodResult[] = [];
-    const escapedIlikeQ = escapeIlike(q);
-
-    // Lancer CIQUAL et OpenFoodFacts en parallèle avec promesses pour la rapidité
-    const ciqualPromise = (async () => {
-      try {
-        const { data: ciqualData, error } = await supabase
-          .from('ciqual_foods')
-          .select('*')
-          .ilike('search_text', `%${escapedIlikeQ}%`)
-          .limit(100);
-
-        if (error) {
-          console.error('CIQUAL search error:', error);
-          return [];
-        }
-
-        if (!ciqualData || ciqualData.length === 0) return [];
-
-        const escapedQRegex = escapeRegex(q);
-        const wordRegex = new RegExp(`(^|[^a-z0-9])${escapedQRegex}([^a-z0-9]|$)`, 'i');
-
-        const scoredData = ciqualData.map((item) => {
-          let score = 0;
-          const nameNorm = normalizeSearchText(item.nom);
-          const searchNorm = normalizeSearchText(item.search_text || item.nom);
-
-          // 1. Match exact ou premier mot
-          if (nameNorm === q) {
-            score += 2000;
-          } else if (nameNorm.startsWith(q + ',') || nameNorm.startsWith(q + ' ') || nameNorm.startsWith(q + '-')) {
-            score += 1200;
-          } else if (nameNorm.startsWith(q)) {
-            score += 800;
-          } else if (wordRegex.test(searchNorm)) {
-            score += 400;
-          }
-
-          // 2. Pénalités de contexte pour requêtes mono-mot (ex: "pomme" vs "pomme de terre")
-          if (q.split(' ').length === 1) {
-            if (q === 'pomme' && searchNorm.includes('pomme de terre')) {
-              score -= 900;
-            }
-          }
-          
-          // Malus si le mot apparaît loin dans le nom
-          const idx = searchNorm.indexOf(q);
-          if (idx !== -1) {
-            score -= Math.min(100, idx * 2);
-          }
-
-          // 3. Favoriser les aliments simples et courts face aux plats cuisinés complexes
-          score -= Math.min(200, nameNorm.length);
-
-          return { item, score };
-        });
-
-        scoredData.sort((a, b) => {
-          if (b.score !== a.score) return b.score - a.score;
-          return a.item.nom.localeCompare(b.item.nom, 'fr');
-        });
-
-        return scoredData.slice(0, 10).map(c => ({ type: 'ciqual' as const, item: c.item as CiqualFood }));
-      } catch (err) {
-        console.error('CIQUAL processing error:', err);
-        return [];
-      }
-    })();
-
-    const offPromise = (async () => {
-      try {
-        const offProducts = await openFoodFactsService.searchFood(rawQ);
-        return offProducts.slice(0, 10).map(p => ({ type: 'off' as const, item: p }));
-      } catch (err) {
-        console.error('OFF search error:', err);
-        return [];
-      }
-    })();
-
-    const [ciqualResults, offResults] = await Promise.all([ciqualPromise, offPromise]);
-    results.push(...ciqualResults, ...offResults);
-
-    return results;
-  }
+    const [generic, packaged] = await Promise.all([searchCiqual(rawQ), searchPackaged(rawQ)]);
+    return [...generic, ...packaged];
+  },
 };

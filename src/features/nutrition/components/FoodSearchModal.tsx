@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, FlatList, Image, ActivityIndicator, KeyboardAvoidingView, Platform, Alert, ScrollView } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
@@ -10,7 +10,8 @@ import { useDebounce } from '../../../shared/hooks/useDebounce';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { FoodDetailSheet, FoodAddPayload } from './FoodDetailSheet';
-import { formatRecentSubtitle, pluralizeLabel, quantityFromAiItem } from '../data/portionDictionary';
+import { formatRecentSubtitle, pluralizeLabel, quantityFromAiItem, resolveFoodPortion } from '../data/portionDictionary';
+import { friendlyFoodTitle } from '../../../services/foodSearchRank';
 import { aiNutritionService, ParsedFoodItem } from '../../../services/aiNutritionService';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -43,6 +44,7 @@ export const FoodSearchModal: React.FC = () => {
 
   // We keep selectedProduct as any for now, since FoodDetailSheet will need updates too.
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
+  const searchSeq = useRef(0);
 
   useEffect(() => {
     if (isSearchModalOpen) {
@@ -100,10 +102,15 @@ export const FoodSearchModal: React.FC = () => {
   };
 
   const performSearch = async (query: string) => {
+    const seq = ++searchSeq.current;
     setIsLoading(true);
-    const data = await nutritionService.searchFoodHybrid(query);
-    setResults(data);
+    const generic = await nutritionService.searchCiqual(query);
+    if (seq !== searchSeq.current) return;
+    setResults(generic);
     setIsLoading(false);
+    const packaged = await nutritionService.searchPackaged(query);
+    if (seq !== searchSeq.current) return;
+    if (packaged.length > 0) setResults([...generic, ...packaged]);
   };
 
   const handleBarcodeScanned = async ({ data }: { data: string }) => {
@@ -318,55 +325,72 @@ export const FoodSearchModal: React.FC = () => {
 
   const renderProductItem = ({ item }: { item: HybridFoodResult | any }) => {
     let name = '';
-    let sub = '';
-    let imageUrl = null;
-    let calories = 0;
-    let type = 'recent'; // par défaut
-    
-    // Si c'est un résultat de recherche hybride
+    let detail = '';
+    let kcalLabel = '';
+    let macros = '';
+    let kind: 'ciqual' | 'off' | 'recent' = 'recent';
+
     if (item.type === 'ciqual' || item.type === 'off') {
-      type = item.type;
-      const data = item.item;
+      kind = item.type;
       if (item.type === 'ciqual') {
-        const c = data as CiqualFood;
-        name = c.nom;
-        sub = `CIQUAL 🛡️ ${c.etat ? `• ${c.etat}` : ''} • ${Math.round(c.energie_kcal)} kcal / 100g`;
-        calories = c.energie_kcal;
+        const c = item.item as CiqualFood;
+        name = friendlyFoodTitle(c.nom);
+        const portion = resolveFoodPortion({ nom: c.nom });
+        const grams = portion.defaultUnit === 'piece' && portion.pieceWeight
+          ? Math.round(portion.pieceWeight)
+          : portion.defaultUnit === 'ml'
+            ? portion.defaultQty
+            : 100;
+        const factor = grams / 100;
+        const round1 = (n: number) => (Math.round(n * factor * 10) / 10).toLocaleString('fr-FR');
+        kcalLabel = `${Math.round((c.energie_kcal || 0) * factor)} kcal`;
+        detail = portion.defaultUnit === 'piece'
+          ? `Aliment · 1 ${portion.pieceLabel} · ${grams} g`
+          : portion.defaultUnit === 'ml'
+            ? `Aliment · ${grams} ml`
+            : `Aliment · ${c.etat ? `${c.etat} · ` : ''}100 g`;
+        macros = `${round1(c.glucides || 0)} g G   ${round1(c.proteines || 0)} g P   ${round1(c.lipides || 0)} g L`;
       } else {
-        const o = data as OFFProduct;
+        const o = item.item as OFFProduct;
         name = o.name;
-        sub = `${o.brand || 'Produit industriel'} 🛒 • ${o.macros_100g?.calories ? Math.round(o.macros_100g.calories) : 0} kcal / 100g`;
-        imageUrl = o.image_url;
+        const kcal = o.macros_100g?.calories ? Math.round(o.macros_100g.calories) : 0;
+        kcalLabel = kcal ? `${kcal} kcal` : '';
+        detail = `${o.brand || 'Produit'} · 100 g`;
+        macros = `${o.macros_100g.glucides || 0} g G   ${o.macros_100g.proteines || 0} g P   ${o.macros_100g.lipides || 0} g L`;
       }
     } else {
-      // Pour l'historique (frequent / recent)
       name = item.food_name || item.name;
-      sub = (item.last_calories != null || item.last_quantity_g != null)
+      detail = (item.last_calories != null || item.last_quantity_g != null)
         ? formatRecentSubtitle(item)
-        : `Historique • ${Math.round(item.macros_100g?.calories || 0)} kcal / 100 g`;
-      imageUrl = item.image_url;
+        : `Déjà ajouté · ${Math.round(item.macros_100g?.calories || 0)} kcal / 100 g`;
     }
 
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[styles.resultItem, { borderBottomColor: theme.colors.border }]}
         onPress={() => setSelectedProduct(item.type ? item.item : item)}
       >
-        {imageUrl ? (
-          <Image source={{ uri: imageUrl }} style={styles.productImage} />
-        ) : (
-          <View style={[styles.productImagePlaceholder, { backgroundColor: type === 'ciqual' ? 'rgba(76, 175, 80, 0.1)' : theme.colors.surfaceLight }]}>
-            <Feather name={type === 'ciqual' ? 'check-circle' : 'image'} size={24} color={type === 'ciqual' ? '#4CAF50' : theme.colors.textSecondary} />
-          </View>
-        )}
+        <View style={[styles.productImagePlaceholder, { backgroundColor: kind === 'ciqual' ? 'rgba(0,105,232,0.10)' : theme.colors.surfaceLight }]}>
+          <Text style={{ fontWeight: '800', fontSize: 16, color: kind === 'ciqual' ? theme.colors.accent : theme.colors.textSecondary }}>
+            {(name.trim()[0] || '?').toUpperCase()}
+          </Text>
+        </View>
         <View style={styles.productInfo}>
           <Text style={[styles.productName, { color: theme.colors.text }]} numberOfLines={1}>
             {name}
           </Text>
           <Text style={[styles.productBrand, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-            {sub}
+            {detail}
           </Text>
+          {macros ? (
+            <Text style={{ color: theme.colors.textMuted || theme.colors.textSecondary, fontSize: 12, marginTop: 2 }} numberOfLines={1}>
+              {macros}
+            </Text>
+          ) : null}
         </View>
+        {kcalLabel ? (
+          <Text style={{ color: theme.colors.text, fontWeight: '700', marginRight: 10 }}>{kcalLabel}</Text>
+        ) : null}
         <Feather name="plus-circle" size={24} color={theme.colors.accent} />
       </TouchableOpacity>
     );
