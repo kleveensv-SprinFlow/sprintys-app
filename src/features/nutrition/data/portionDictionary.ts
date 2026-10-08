@@ -1,15 +1,24 @@
 /**
- * Dictionnaire de portions naturelles et conversion des unités.
- * Zéro latence, fonctionne hors-ligne.
+ * Dictionnaire de portions naturelles et de densités.
+ * Hors-ligne. Le mot le plus long gagne, pour ne pas prendre
+ * « pain » à la place de « pain au chocolat », ni « pomme » pour « pomme de terre ».
  */
+
+export type InputUnit = 'g' | 'ml' | 'piece' | 'serving';
 
 export interface PortionRule {
   keywords: string[];
-  pieceWeight: number; // en grammes
-  pieceLabel: string;  // ex: 'œuf', 'pomme', 'tranche', 'pot'
+  pieceWeight: number;
+  pieceLabel: string;
 }
 
-// Aliments en vrac, liquides ou féculents qui n'ont JAMAIS d'unité naturelle "pièce"
+interface LiquidRule {
+  keywords: string[];
+  /** Grammes pour 1 ml. 1 pour l'eau, le lait, les jus. */
+  density: number;
+  defaultQty: number;
+}
+
 const NO_PIECE_KEYWORDS = [
   'riz', 'pate', 'pâte', 'spaghetti', 'coquillette', 'penne', 'semoule', 'quinoa',
   'lentille', 'boulgour', 'avoine', 'flocon', 'huile', 'beurre', 'vinaigre',
@@ -17,13 +26,22 @@ const NO_PIECE_KEYWORDS = [
   'miel', 'confiture', 'puree', 'purée', 'sirop'
 ];
 
+/** Un mot court inclus dans une de ces expressions ne doit pas créer de pièce. */
+const PIECE_BLOCKLIST = [
+  'pomme de terre',
+  'oeuf de lump',
+  'oeuf de lompe',
+  'oeuf de cabillaud',
+  'oeuf de poisson',
+  'oeuf de truite',
+  'oeuf de saumon',
+];
+
 export const PIECE_RULES: PortionRule[] = [
-  // Œufs
-  { keywords: ['oeuf', 'œuf'], pieceWeight: 60, pieceLabel: 'œuf' },
   { keywords: ['blanc d\'oeuf', 'blanc d\'œuf'], pieceWeight: 35, pieceLabel: 'blanc' },
   { keywords: ['jaune d\'oeuf', 'jaune d\'œuf'], pieceWeight: 20, pieceLabel: 'jaune' },
+  { keywords: ['oeuf', 'œuf'], pieceWeight: 60, pieceLabel: 'œuf' },
 
-  // Fruits
   { keywords: ['pomme'], pieceWeight: 150, pieceLabel: 'pomme' },
   { keywords: ['banane'], pieceWeight: 120, pieceLabel: 'banane' },
   { keywords: ['poire'], pieceWeight: 160, pieceLabel: 'poire' },
@@ -35,7 +53,6 @@ export const PIECE_RULES: PortionRule[] = [
   { keywords: ['avocat'], pieceWeight: 150, pieceLabel: 'avocat' },
   { keywords: ['citron'], pieceWeight: 100, pieceLabel: 'citron' },
 
-  // Légumes individuels
   { keywords: ['tomate'], pieceWeight: 120, pieceLabel: 'tomate' },
   { keywords: ['carotte'], pieceWeight: 100, pieceLabel: 'carotte' },
   { keywords: ['oignon'], pieceWeight: 100, pieceLabel: 'oignon' },
@@ -43,26 +60,33 @@ export const PIECE_RULES: PortionRule[] = [
   { keywords: ['poivron'], pieceWeight: 160, pieceLabel: 'poivron' },
   { keywords: ['concombre'], pieceWeight: 300, pieceLabel: 'concombre' },
 
-  // Produits laitiers & desserts
   { keywords: ['yaourt', 'yogourt'], pieceWeight: 125, pieceLabel: 'pot' },
   { keywords: ['petit suisse', 'petit-suisse'], pieceWeight: 60, pieceLabel: 'pot' },
-  { keywords: ['compote'], pieceWeight: 90, pieceLabel: 'pot/gourde' },
+  { keywords: ['compote'], pieceWeight: 90, pieceLabel: 'pot' },
 
-  // Pains, tranches & féculents portionnés
-  { keywords: ['pain', 'baguette'], pieceWeight: 35, pieceLabel: 'tranche' },
+  { keywords: ['pain au chocolat', 'chocolatine'], pieceWeight: 65, pieceLabel: 'pièce' },
   { keywords: ['pain de mie'], pieceWeight: 35, pieceLabel: 'tranche' },
+  { keywords: ['pain', 'baguette'], pieceWeight: 35, pieceLabel: 'tranche' },
   { keywords: ['biscotte'], pieceWeight: 10, pieceLabel: 'biscotte' },
   { keywords: ['tortilla', 'wrap', 'galette'], pieceWeight: 60, pieceLabel: 'galette' },
   { keywords: ['crepe', 'crêpe'], pieceWeight: 40, pieceLabel: 'crêpe' },
   { keywords: ['gaufre'], pieceWeight: 50, pieceLabel: 'gaufre' },
   { keywords: ['croissant'], pieceWeight: 50, pieceLabel: 'croissant' },
-  { keywords: ['pain au chocolat', 'chocolatine'], pieceWeight: 65, pieceLabel: 'pièce' },
   { keywords: ['cookie'], pieceWeight: 30, pieceLabel: 'cookie' },
 
-  // Viandes / charcuteries découpées
   { keywords: ['tranche de jambon', 'jambon cuit', 'jambon blanc', 'blanc de poulet', 'blanc de dinde'], pieceWeight: 40, pieceLabel: 'tranche' },
   { keywords: ['steak hache', 'steak haché'], pieceWeight: 100, pieceLabel: 'steak' },
   { keywords: ['saucisse'], pieceWeight: 60, pieceLabel: 'saucisse' },
+];
+
+const LIQUID_RULES: LiquidRule[] = [
+  { keywords: ['huile'], density: 0.92, defaultQty: 15 },
+  { keywords: ['miel'], density: 1.4, defaultQty: 15 },
+  { keywords: ['sirop'], density: 1.33, defaultQty: 15 },
+  { keywords: ['vinaigre'], density: 1, defaultQty: 15 },
+  { keywords: ['sauce'], density: 1, defaultQty: 15 },
+  { keywords: ['creme liquide', 'crème liquide'], density: 1, defaultQty: 15 },
+  { keywords: ['eau', 'lait', 'jus', 'soda', 'coca', 'cafe', 'thé', 'the', 'bouillon', 'boisson', 'infusion', 'tisane'], density: 1, defaultQty: 200 },
 ];
 
 export interface ResolvedPortion {
@@ -72,14 +96,15 @@ export interface ResolvedPortion {
   hasServing: boolean;
   servingWeight?: number;
   servingLabel?: string;
-  defaultUnit: 'g' | 'piece' | 'serving';
+  hasLiquid: boolean;
+  /** Grammes pour 1 ml. */
+  mlDensity: number;
+  liquidDefaultQty: number;
+  defaultUnit: InputUnit;
   defaultQty: number;
 }
 
-/**
- * Normalise un texte (minuscules, sans accents) pour la recherche de mots-clés.
- */
-function cleanText(text: string): string {
+export function cleanFoodText(text: string): string {
   return (text || '')
     .toLowerCase()
     .normalize('NFD')
@@ -87,99 +112,133 @@ function cleanText(text: string): string {
     .trim();
 }
 
-/**
- * Détermine les portions et l'unité par défaut pour un aliment donné.
- */
+function keywordMatches(foodName: string, keyword: string): boolean {
+  const cleanedKw = cleanFoodText(keyword).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (!cleanedKw) return false;
+  return new RegExp(`(^|[\\s',])${cleanedKw}([\\s',]|$)`, 'i').test(foodName);
+}
+
+function longestMatch<T extends { keywords: string[] }>(foodName: string, rules: T[]): { rule: T; keyword: string } | null {
+  let best: { rule: T; keyword: string; len: number } | null = null;
+  for (const rule of rules) {
+    for (const kw of rule.keywords) {
+      if (!keywordMatches(foodName, kw)) continue;
+      const len = cleanFoodText(kw).length;
+      if (!best || len > best.len) best = { rule, keyword: kw, len };
+    }
+  }
+  return best ? { rule: best.rule, keyword: best.keyword } : null;
+}
+
+function pieceBlocked(foodName: string, keyword: string): boolean {
+  const kw = cleanFoodText(keyword);
+  return PIECE_BLOCKLIST.some((phrase) => {
+    const blocked = cleanFoodText(phrase);
+    return foodName.includes(blocked) && blocked.includes(kw) && blocked.length > kw.length;
+  });
+}
+
+export function pluralizeLabel(label: string, qty: number): string {
+  if (!(qty > 1)) return label;
+  if (/[sx]$/i.test(label)) return label;
+  return `${label}s`;
+}
+
 export function resolveFoodPortion(food: {
   nom?: string;
   name?: string;
   serving_quantity?: number;
   serving_size?: string;
+  code_ciqual?: string;
   last_input_qty?: number;
-  last_input_unit?: 'g' | 'piece' | 'serving';
+  last_input_unit?: InputUnit;
 }): ResolvedPortion {
-  const foodName = cleanText(food.nom || food.name || '');
+  const foodName = cleanFoodText(food.nom || food.name || '');
 
-  // 1. Portion industrielle (Open Food Facts)
   const hasServing = Boolean(food.serving_quantity && food.serving_quantity > 0);
   const servingWeight = hasServing ? Math.round(Number(food.serving_quantity)) : undefined;
   const servingLabel = hasServing ? 'portion' : undefined;
 
-  // 2. Vérification s'il s'agit d'un aliment strictement en vrac sans pièce
-  const isNoPiece = NO_PIECE_KEYWORDS.some(kw => {
-    // Si le nom correspond exactement ou commence par le mot-clé (ex: "riz basmati")
-    const cleanedKw = cleanText(kw);
-    const regex = new RegExp(`(^|\\s)${cleanedKw}(\\s|$)`, 'i');
-    return regex.test(foodName);
-  });
-
-  // Exception : galette de riz a une pièce
+  const isNoPiece = NO_PIECE_KEYWORDS.some((kw) => keywordMatches(foodName, kw));
   const isRiceCakeOrWrap = foodName.includes('galette') || foodName.includes('wrap');
 
   let hasPiece = false;
-  let pieceWeight: number | undefined = undefined;
-  let pieceLabel: string | undefined = undefined;
+  let pieceWeight: number | undefined;
+  let pieceLabel: string | undefined;
 
   if (!isNoPiece || isRiceCakeOrWrap) {
-    for (const rule of PIECE_RULES) {
-      const match = rule.keywords.some(kw => {
-        const cleanedKw = cleanText(kw);
-        const regex = new RegExp(`(^|\\s|[',])${cleanedKw}(\\s|[',]|$)`, 'i');
-        return regex.test(foodName);
-      });
-      if (match) {
-        hasPiece = true;
-        pieceWeight = rule.pieceWeight;
-        pieceLabel = rule.pieceLabel;
-        break;
-      }
+    const found = longestMatch(foodName, PIECE_RULES);
+    if (found && !pieceBlocked(foodName, found.keyword)) {
+      hasPiece = true;
+      pieceWeight = found.rule.pieceWeight;
+      pieceLabel = found.rule.pieceLabel;
     }
   }
 
-  // 3. Détermination de l'unité et quantité par défaut à l'ouverture
-  // Si c'est un aliment récemment consommé, rouvrir sur la dernière saisie
-  if (food.last_input_qty && food.last_input_unit) {
-    return {
-      hasPiece,
-      pieceWeight,
-      pieceLabel,
-      hasServing,
-      servingWeight,
-      servingLabel,
-      defaultUnit: food.last_input_unit,
-      defaultQty: food.last_input_qty,
-    };
-  }
+  const liquid = longestMatch(foodName, LIQUID_RULES);
+  const hasLiquid = Boolean(liquid);
+  const mlDensity = liquid?.rule.density ?? 1;
+  const liquidDefaultQty = liquid?.rule.defaultQty ?? 200;
 
-  // Sinon poser dans la langue naturelle de l'aliment
-  if (hasPiece) {
-    return {
-      hasPiece,
-      pieceWeight,
-      pieceLabel,
-      hasServing,
-      servingWeight,
-      servingLabel,
-      defaultUnit: 'piece',
-      defaultQty: 1,
-    };
-  }
-
-  if (hasServing) {
-    return {
-      hasPiece: false,
-      hasServing,
-      servingWeight,
-      servingLabel,
-      defaultUnit: 'serving',
-      defaultQty: 1,
-    };
-  }
-
-  return {
-    hasPiece: false,
-    hasServing: false,
-    defaultUnit: 'g',
-    defaultQty: 100,
+  const base = {
+    hasPiece,
+    pieceWeight,
+    pieceLabel,
+    hasServing,
+    servingWeight,
+    servingLabel,
+    hasLiquid,
+    mlDensity,
+    liquidDefaultQty,
   };
+
+  if (food.last_input_qty && food.last_input_unit) {
+    return { ...base, defaultUnit: food.last_input_unit, defaultQty: food.last_input_qty };
+  }
+  if (hasPiece) {
+    return { ...base, defaultUnit: 'piece', defaultQty: 1 };
+  }
+  if (hasServing) {
+    return { ...base, defaultUnit: 'serving', defaultQty: 1 };
+  }
+  if (hasLiquid) {
+    return { ...base, defaultUnit: 'ml', defaultQty: liquidDefaultQty };
+  }
+  return { ...base, defaultUnit: 'g', defaultQty: 100 };
+}
+
+/** Poids réel d'une ligne IA. La pièce passe par le dictionnaire, jamais par un 60 g fixe. */
+export function quantityFromAiItem(
+  item: { qty: number; unit: string; name: string },
+  matchedName?: string,
+): { weightG: number; gramsPerUnit: number; unitLabel: string } {
+  if (item.unit === 'piece') {
+    const portion = resolveFoodPortion({ nom: matchedName || item.name });
+    const gramsPerUnit = portion.pieceWeight || 60;
+    return {
+      weightG: item.qty * gramsPerUnit,
+      gramsPerUnit,
+      unitLabel: portion.pieceLabel || 'pièce',
+    };
+  }
+  return { weightG: item.qty, gramsPerUnit: 1, unitLabel: 'g' };
+}
+
+export function formatRecentSubtitle(item: {
+  last_input_qty?: number;
+  last_input_unit?: InputUnit;
+  last_unit_label?: string;
+  last_calories?: number;
+  last_quantity_g?: number;
+}): string {
+  const kcal = Math.round(item.last_calories || 0);
+  const qty = Number(item.last_input_qty);
+  const unit = item.last_input_unit || 'g';
+  if (unit === 'piece' && qty) {
+    return `${qty} ${pluralizeLabel(item.last_unit_label || 'pièce', qty)} · ${kcal} kcal`;
+  }
+  if (unit === 'ml' && qty) return `${qty} ml · ${kcal} kcal`;
+  if (unit === 'serving' && qty) return `${qty} portion${qty > 1 ? 's' : ''} · ${kcal} kcal`;
+  const grams = Math.round(item.last_quantity_g || qty || 0);
+  return `${grams} g · ${kcal} kcal`;
 }

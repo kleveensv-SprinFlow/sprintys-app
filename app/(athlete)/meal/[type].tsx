@@ -44,7 +44,7 @@ export default function MealDetailScreen() {
 
   const [editingLog, setEditingLog] = useState<MealLog | null>(null);
   const [editQty, setEditQty] = useState<string>('');
-  const [editUnit, setEditUnit] = useState<'g' | 'piece' | 'serving'>('g');
+  const [editUnit, setEditUnit] = useState<'g' | 'ml' | 'piece' | 'serving'>('g');
 
   useEffect(() => {
     if (athleteId) {
@@ -121,7 +121,7 @@ export default function MealDetailScreen() {
 
     const gramsPerUnit = editingLog.grams_per_unit || (editingLog.quantity_g / (editingLog.input_qty || 1)) || 1;
     let newTotalGrams = numericQty;
-    if (editUnit === 'piece' || editUnit === 'serving') {
+    if (editUnit === 'piece' || editUnit === 'serving' || editUnit === 'ml') {
       newTotalGrams = numericQty * gramsPerUnit;
     }
 
@@ -137,7 +137,7 @@ export default function MealDetailScreen() {
       input_qty: numericQty,
       input_unit: editUnit,
       grams_per_unit: gramsPerUnit,
-      unit_label: editingLog.unit_label || (editUnit === 'piece' ? 'pièce' : editUnit === 'serving' ? 'portion' : 'g'),
+      unit_label: editingLog.unit_label || (editUnit === 'piece' ? 'pièce' : editUnit === 'serving' ? 'portion' : editUnit === 'ml' ? 'ml' : 'g'),
     });
 
     setEditingLog(null);
@@ -231,6 +231,8 @@ export default function MealDetailScreen() {
                         ? `${log.input_qty ?? 1} ${log.unit_label || 'pièce'}${Number(log.input_qty) > 1 && !log.unit_label?.endsWith('s') && !log.unit_label?.endsWith('x') ? 's' : ''} · ${Math.round(log.quantity_g)} g`
                         : log.input_unit === 'serving'
                         ? `${log.input_qty ?? 1} portion${Number(log.input_qty) > 1 ? 's' : ''} · ${Math.round(log.quantity_g)} g`
+                        : log.input_unit === 'ml'
+                        ? `${log.input_qty ?? Math.round(log.quantity_g)} ml · ${Math.round(log.quantity_g)} g`
                         : `${Math.round(log.quantity_g)} g`}
                     </Text>
                   </View>
@@ -316,6 +318,8 @@ export default function MealDetailScreen() {
                       ? (editingLog?.unit_label || 'pièce(s)')
                       : editUnit === 'serving'
                       ? 'portion(s)'
+                      : editUnit === 'ml'
+                      ? 'ml'
                       : 'g'}
                   </Text>
                 </View>

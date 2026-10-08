@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, Image, KeyboardAvoidingView, Platform, TouchableWithoutFeedback } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
-import { resolveFoodPortion, ResolvedPortion } from '../data/portionDictionary';
+import { resolveFoodPortion, ResolvedPortion, InputUnit } from '../data/portionDictionary';
 
 export interface FoodAddPayload {
   totalGrams: number;
@@ -11,7 +11,7 @@ export interface FoodAddPayload {
   glu: number;
   lip: number;
   inputQty: number;
-  inputUnit: 'g' | 'piece' | 'serving';
+  inputUnit: InputUnit;
   gramsPerUnit: number;
   unitLabel: string;
 }
@@ -26,8 +26,9 @@ interface FoodDetailSheetProps {
 export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visible, onClose, onAdd }) => {
   const theme = useTheme();
   const [inputValue, setInputValue] = useState('100');
-  const [unit, setUnit] = useState<'g' | 'serving' | 'piece'>('g');
+  const [unit, setUnit] = useState<InputUnit>('g');
   const [portionInfo, setPortionInfo] = useState<ResolvedPortion | null>(null);
+  const [userEdited, setUserEdited] = useState(false);
 
   useEffect(() => {
     if (visible && product) {
@@ -35,6 +36,7 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
       setPortionInfo(resolved);
       setUnit(resolved.defaultUnit);
       setInputValue(String(resolved.defaultQty));
+      setUserEdited(Boolean(product.last_input_qty && product.last_input_unit));
     }
   }, [visible, product]);
 
@@ -54,6 +56,10 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
   } else if (unit === 'serving') {
     gramsPerUnit = portionInfo?.servingWeight || 100;
     unitLabel = portionInfo?.servingLabel || 'portion';
+    totalGrams = numericValue * gramsPerUnit;
+  } else if (unit === 'ml') {
+    gramsPerUnit = portionInfo?.mlDensity || 1;
+    unitLabel = 'ml';
     totalGrams = numericValue * gramsPerUnit;
   } else {
     gramsPerUnit = 1;
@@ -76,44 +82,34 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
     lipides: Math.round(baseLip * multiplier),
   };
 
-  const handleSwitchUnit = (targetUnit: 'g' | 'piece' | 'serving') => {
+  const roundHalf = (value: number) => Math.round(value * 2) / 2;
+
+  const handleSwitchUnit = (targetUnit: InputUnit) => {
     if (unit === targetUnit) return;
 
+    let grams = numericValue;
+    if (unit === 'piece') grams = numericValue * (portionInfo?.pieceWeight || 60);
+    else if (unit === 'serving') grams = numericValue * (portionInfo?.servingWeight || 100);
+    else if (unit === 'ml') grams = numericValue * (portionInfo?.mlDensity || 1);
+
     if (targetUnit === 'g') {
-      // Vers les grammes : conversion exacte
-      let grams = numericValue;
-      if (unit === 'piece') {
-        grams = numericValue * (portionInfo?.pieceWeight || 60);
-      } else if (unit === 'serving') {
-        grams = numericValue * (portionInfo?.servingWeight || 100);
-      }
-      setUnit('g');
       setInputValue(String(Math.round(grams)));
+    } else if (targetUnit === 'ml') {
+      const density = portionInfo?.mlDensity || 1;
+      const next = !userEdited && portionInfo?.liquidDefaultQty
+        ? portionInfo.liquidDefaultQty
+        : (roundHalf(grams / density) || 1);
+      setInputValue(String(next));
     } else if (targetUnit === 'piece') {
       const pieceWeight = portionInfo?.pieceWeight || 60;
-      if (inputValue === '100') {
-        // Défaut 100 non touché -> bascule à 1
-        setInputValue('1');
-      } else {
-        // Poids personnalisé -> arrondi au demi le plus proche
-        let currentG = numericValue;
-        if (unit === 'serving') currentG = numericValue * (portionInfo?.servingWeight || 100);
-        const pieces = Math.round((currentG / pieceWeight) * 2) / 2 || 1;
-        setInputValue(String(pieces));
-      }
-      setUnit('piece');
-    } else if (targetUnit === 'serving') {
+      setInputValue(String(!userEdited ? 1 : (roundHalf(grams / pieceWeight) || 1)));
+    } else {
       const servingWeight = portionInfo?.servingWeight || 100;
-      if (inputValue === '100') {
-        setInputValue('1');
-      } else {
-        let currentG = numericValue;
-        if (unit === 'piece') currentG = numericValue * (portionInfo?.pieceWeight || 60);
-        const servings = Math.round((currentG / servingWeight) * 2) / 2 || 1;
-        setInputValue(String(servings));
-      }
-      setUnit('serving');
+      setInputValue(String(!userEdited ? 1 : (roundHalf(grams / servingWeight) || 1)));
     }
+
+    setUnit(targetUnit);
+    setUserEdited(true);
   };
 
   const handleAdd = () => {
@@ -141,6 +137,9 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
     if (unit === 'serving') {
       const plural = numericValue > 1 ? 's' : '';
       return `${inputValue} portion${plural} · ${Math.round(totalGrams)} g`;
+    }
+    if (unit === 'ml') {
+      return `${inputValue} ml · ${Math.round(totalGrams)} g`;
     }
     return `${Math.round(totalGrams)} g`;
   };
@@ -186,7 +185,10 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
               style={[styles.numberInput, { color: theme.colors.text, borderBottomColor: theme.colors.accent }]}
               keyboardType="numeric"
               value={inputValue}
-              onChangeText={setInputValue}
+              onChangeText={(value) => {
+                setUserEdited(true);
+                setInputValue(value);
+              }}
               autoFocus
               selectTextOnFocus
               maxLength={6}
@@ -207,7 +209,16 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
                 <Text style={[styles.unitText, { color: unit === 'g' ? '#FFF' : theme.colors.text }]}>g</Text>
               </TouchableOpacity>
 
-              {/* Bouton 1 Pièce : UNIQUEMENT si pièce naturelle connue */}
+              {(portionInfo?.hasLiquid || unit === 'ml') && (
+                <TouchableOpacity
+                  style={[styles.unitBtn, unit === 'ml' && { backgroundColor: theme.colors.accent }]}
+                  onPress={() => handleSwitchUnit('ml')}
+                >
+                  <Text style={[styles.unitText, { color: unit === 'ml' ? '#FFF' : theme.colors.text }]}>ml</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Bouton Pièce : uniquement si une pièce est connue */}
               {portionInfo?.hasPiece && (
                 <TouchableOpacity 
                   style={[styles.unitBtn, unit === 'piece' && { backgroundColor: theme.colors.accent }]}

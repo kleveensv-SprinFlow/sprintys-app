@@ -443,6 +443,10 @@ export type Database = {
           meal_type: string
           proteines: number
           quantity_g: number
+          input_qty: number | null
+          input_unit: string | null
+          grams_per_unit: number | null
+          unit_label: string | null
           user_id: string | null
         }
         Insert: {
@@ -457,6 +461,10 @@ export type Database = {
           meal_type: string
           proteines: number
           quantity_g: number
+          input_qty?: number | null
+          input_unit?: string | null
+          grams_per_unit?: number | null
+          unit_label?: string | null
           user_id?: string | null
         }
         Update: {
@@ -471,6 +479,10 @@ export type Database = {
           meal_type?: string
           proteines?: number
           quantity_g?: number
+          input_qty?: number | null
+          input_unit?: string | null
+          grams_per_unit?: number | null
+          unit_label?: string | null
           user_id?: string | null
         }
         Relationships: []

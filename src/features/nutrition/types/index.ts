@@ -1,5 +1,7 @@
 export type MealType = 'petit_dejeuner' | 'dejeuner' | 'diner' | 'collation';
 
+export type InputUnit = 'g' | 'ml' | 'piece' | 'serving';
+
 export interface MealLog {
   id: string;
   user_id: string;
@@ -14,7 +16,7 @@ export interface MealLog {
   consumed_at: string;
   created_at?: string;
   input_qty?: number;
-  input_unit?: 'g' | 'piece' | 'serving';
+  input_unit?: InputUnit;
   grams_per_unit?: number;
   unit_label?: string;
 }

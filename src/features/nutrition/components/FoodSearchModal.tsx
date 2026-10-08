@@ -10,7 +10,7 @@ import { useDebounce } from '../../../shared/hooks/useDebounce';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { FoodDetailSheet, FoodAddPayload } from './FoodDetailSheet';
-import { resolveFoodPortion } from '../data/portionDictionary';
+import { formatRecentSubtitle, pluralizeLabel, quantityFromAiItem } from '../data/portionDictionary';
 import { aiNutritionService, ParsedFoodItem } from '../../../services/aiNutritionService';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -31,8 +31,7 @@ export const FoodSearchModal: React.FC = () => {
   const [isAILoading, setIsAILoading] = useState(false);
   const [mode, setMode] = useState<'text' | 'barcode' | 'ai-text' | 'ai-loading' | 'ai-review'>('text');
   const [aiOriginalText, setAiOriginalText] = useState('');
-  const [isEditingList, setIsEditingList] = useState(false);
-  const [aiParsedMeal, setAiParsedMeal] = useState<(ParsedFoodItem & { matchedItem?: HybridFoodResult })[]>([]);
+  const [aiParsedMeal, setAiParsedMeal] = useState<(ParsedFoodItem & { matchedItem?: HybridFoodResult; stateUnconfirmed?: boolean })[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('recents');
   const [replacingIndex, setReplacingIndex] = useState<number | null>(null);
   const [replaceSearchQuery, setReplaceSearchQuery] = useState('');
@@ -94,6 +93,7 @@ export const FoodSearchModal: React.FC = () => {
       ...oldItem,
       name: newName,
       matchedItem: result,
+      stateUnconfirmed: false,
     };
     setAiParsedMeal(newArr);
     setReplacingIndex(null);
@@ -200,7 +200,18 @@ export const FoodSearchModal: React.FC = () => {
               }
             }
 
-            return { ...item, matchedItem: bestMatch };
+            const matchedBlob = bestMatch.type === 'ciqual'
+              ? `${(bestMatch.item as CiqualFood).etat || ''} ${(bestMatch.item as CiqualFood).nom || ''}`.toLowerCase()
+              : '';
+            const cookedWords = ['cuit', 'plat', 'roti', 'rôti', 'vapeur', 'grille'];
+            const wantsCooked = cookedWords.some((word) => targetEtat.includes(word));
+            const foodIsCooked = cookedWords.some((word) => matchedBlob.includes(word));
+            const stateUnconfirmed = Boolean(targetEtat)
+              && bestMatch.type === 'ciqual'
+              && !matchedBlob.includes(targetEtat)
+              && !(wantsCooked && foodIsCooked);
+
+            return { ...item, matchedItem: bestMatch, stateUnconfirmed };
          }
          return item;
       }));
@@ -241,16 +252,10 @@ export const FoodSearchModal: React.FC = () => {
         }
       }
 
-      let weightG = item.qty;
-      let gramsPerUnit = 1;
-      let unitLabel = item.unit === 'piece' ? 'pièce' : 'g';
-
-      if (item.unit === 'piece') {
-        const portionInfo = resolveFoodPortion({ nom: f_name });
-        gramsPerUnit = portionInfo.pieceWeight || 60;
-        unitLabel = portionInfo.pieceLabel || 'pièce';
-        weightG = item.qty * gramsPerUnit;
-      }
+      const weighed = quantityFromAiItem(item, f_name);
+      const weightG = weighed.weightG;
+      const gramsPerUnit = weighed.gramsPerUnit;
+      const unitLabel = weighed.unitLabel;
 
       const multiplier = weightG / 100;
 
@@ -275,7 +280,7 @@ export const FoodSearchModal: React.FC = () => {
     setAiQuery('');
     setAiParsedMeal([]);
     setAiOriginalText('');
-    setIsEditingList(false);
+    setReplacingIndex(null);
     closeSearchModal();
   };
 
@@ -336,7 +341,9 @@ export const FoodSearchModal: React.FC = () => {
     } else {
       // Pour l'historique (frequent / recent)
       name = item.food_name || item.name;
-      sub = `Historique • ${Math.round(item.calories || item.macros_100g?.calories || 0)} kcal`;
+      sub = (item.last_calories != null || item.last_quantity_g != null)
+        ? formatRecentSubtitle(item)
+        : `Historique • ${Math.round(item.macros_100g?.calories || 0)} kcal / 100 g`;
       imageUrl = item.image_url;
     }
 
@@ -471,8 +478,10 @@ export const FoodSearchModal: React.FC = () => {
                    const isCiqual = isMatched && item.matchedItem?.type === 'ciqual';
                    if (!isMatched || !isCiqual) allCiqual = false;
 
-                   let weightG = item.qty;
-                   if (item.unit === 'piece') weightG = item.qty * 60;
+                   const matchedName = isCiqual
+                     ? (item.matchedItem?.item as any).nom
+                     : (isMatched ? (item.matchedItem?.item as any).name : item.name);
+                   const weightG = quantityFromAiItem(item, matchedName).weightG;
                    const mult = weightG / 100;
                    
                    const bKcal = isMatched ? (isCiqual ? (item.matchedItem?.item as any).energie_kcal : ((item.matchedItem?.item as any).macros_100g?.calories || 0)) : item.fallback_kcal_100g;
@@ -514,48 +523,76 @@ export const FoodSearchModal: React.FC = () => {
                  );
                })()}
 
-               {(aiParsedMeal.length > 1 || isEditingList) ? (
-                  <View style={{ gap: 12, marginBottom: 24 }}>
+               <View style={{ gap: 12, marginBottom: 24 }}>
                     {aiParsedMeal.map((item, index) => {
                        const isMatched = !!item.matchedItem;
                        const isCiqual = isMatched && item.matchedItem?.type === 'ciqual';
-                       let weightG = item.qty;
-                       if (item.unit === 'piece') weightG = item.qty * 60;
-                       
+                       const matchedName = isCiqual
+                         ? (item.matchedItem?.item as any).nom
+                         : (isMatched ? (item.matchedItem?.item as any).name : item.name);
+                       const weighed = quantityFromAiItem(item, matchedName);
                        const bKcal = isMatched ? (isCiqual ? (item.matchedItem?.item as any).energie_kcal : ((item.matchedItem?.item as any).macros_100g?.calories || 0)) : item.fallback_kcal_100g;
-                       const totalKcal = Math.round(bKcal * (weightG / 100));
+                       const totalKcal = Math.round(bKcal * (weighed.weightG / 100));
+                       const unitSuffix = item.unit === 'piece'
+                         ? `${pluralizeLabel(weighed.unitLabel, item.qty)} · ${Math.round(weighed.weightG)} g`
+                         : 'g';
 
                        return (
-                         <View key={index} style={{ flexDirection: 'row', alignItems: 'center', padding: 12, backgroundColor: theme.colors.surface, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border }}>
+                         <View key={index} style={{ padding: 12, backgroundColor: theme.colors.surface, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <View style={{ flex: 1 }}>
-                               <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text }}>{item.name}</Text>
+                               <TouchableOpacity onPress={() => handleOpenReplace(index, item)}>
+                                 <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text }}>{item.name}</Text>
+                                 <Text style={{ fontSize: 13, color: item.stateUnconfirmed ? '#B45309' : theme.colors.textSecondary, marginTop: 2 }}>
+                                   {matchedName && matchedName !== item.name ? matchedName : 'Changer l’aliment'}
+                                   {item.stateUnconfirmed ? ' · état non confirmé' : ''}
+                                 </Text>
+                               </TouchableOpacity>
                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
                                   <TextInput 
                                     style={{ fontSize: 14, color: theme.colors.text, borderBottomWidth: 1, borderBottomColor: theme.colors.border, minWidth: 40, textAlign: 'center', marginRight: 4, padding: 0 }}
                                     keyboardType="numeric"
-                                    value={weightG.toString()}
+                                    value={String(item.qty)}
                                     onChangeText={(val) => {
-                                       const num = parseInt(val) || 0;
+                                       const num = parseFloat(val.replace(',', '.'));
                                        const newArr = [...aiParsedMeal];
-                                       newArr[index] = { ...item, qty: num, unit: 'g' };
+                                       newArr[index] = { ...item, qty: Number.isFinite(num) ? num : 0 };
                                        setAiParsedMeal(newArr);
                                     }}
                                   />
-                                  <Text style={{ fontSize: 14, color: theme.colors.textSecondary }}>g  •  {totalKcal} kcal</Text>
+                                  <Text style={{ fontSize: 14, color: theme.colors.textSecondary }}>{unitSuffix}  •  {totalKcal} kcal</Text>
                                </View>
                             </View>
                             <TouchableOpacity onPress={() => removeItem(index)} style={{ padding: 8 }}>
                                <Feather name="x" size={20} color={theme.colors.textSecondary} />
                             </TouchableOpacity>
+                            </View>
+                            {replacingIndex === index && (
+                              <View style={{ marginTop: 10 }}>
+                                <TextInput
+                                  value={replaceSearchQuery}
+                                  onChangeText={handleSearchReplace}
+                                  placeholder="Changer l’aliment"
+                                  placeholderTextColor={theme.colors.textSecondary}
+                                  style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, color: theme.colors.text, marginBottom: 8 }}
+                                />
+                                {isReplacingLoading ? (
+                                  <ActivityIndicator color={theme.colors.accent} />
+                                ) : replaceResults.slice(0, 6).map((result, resultIndex) => {
+                                  const label = result.type === 'ciqual' ? (result.item as CiqualFood).nom : (result.item as OFFProduct).name;
+                                  const detail = result.type === 'ciqual' ? (result.item as CiqualFood).etat : (result.item as OFFProduct).brand;
+                                  return (
+                                    <TouchableOpacity key={`${label}-${resultIndex}`} onPress={() => handleSelectReplacement(result)} style={{ paddingVertical: 8 }}>
+                                      <Text style={{ color: theme.colors.text, fontSize: 14 }}>{label}{detail ? ` · ${detail}` : ''}</Text>
+                                    </TouchableOpacity>
+                                  );
+                                })}
+                              </View>
+                            )}
                          </View>
                        );
                     })}
                   </View>
-               ) : (
-                  <TouchableOpacity onPress={() => setIsEditingList(true)} style={{ paddingVertical: 12, alignItems: 'center', marginBottom: 24 }}>
-                    <Text style={{ fontSize: 16, fontWeight: '600', color: '#1B5E20' }}>Ajouter ou modifier des éléments</Text>
-                  </TouchableOpacity>
-               )}
              </ScrollView>
 
              <TouchableOpacity 
