@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../../core/theme';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { CheckInModal } from '../../checkin/components/CheckInModal';
 import { CheckInSummaryModal } from '../../checkin/components/CheckInSummaryModal';
 import { useCheckInStore } from '../../../store/checkInStore';
@@ -11,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 export const AthleteGauges = () => {
   const theme = useTheme();
+  const router = useRouter();
   const [modalVisible, setModalVisible] = useState(false);
   const [summaryVisible, setSummaryVisible] = useState(false);
   
@@ -39,6 +42,17 @@ export const AthleteGauges = () => {
     if (!user?.id) return;
     editTodayCheckIn(user.id);
     setModalVisible(true);
+  };
+
+  const handleNutritionPress = () => {
+    if (Platform.OS !== 'web') {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } catch (e) {
+        // ignore
+      }
+    }
+    router.push('/(athlete)/nutrition');
   };
 
   const getScoreColor = (score: number) => {
@@ -122,37 +136,74 @@ export const AthleteGauges = () => {
 
       {/* 2. Secondary Row */}
       <View style={styles.secondaryRow}>
-        {/* Nutrition */}
-        <View style={[styles.secondaryPillWrapper, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <View style={styles.secondaryHeader}>
-            <View style={[styles.smallIconCircle, { backgroundColor: theme.colors.accentMuted }]}>
-              <Feather name="zap" size={16} color={theme.colors.accent} />
+        {/* Nutrition Card (Cliquable avec couverts & libellé) */}
+        <TouchableOpacity
+          activeOpacity={0.75}
+          onPress={handleNutritionPress}
+          style={[styles.secondaryPillWrapper, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+        >
+          <View style={styles.cardHeaderRow}>
+            <View style={styles.cardHeaderLeft}>
+              <View style={[styles.smallIconCircle, { backgroundColor: 'rgba(0, 201, 167, 0.12)' }]}>
+                <Ionicons name="restaurant" size={16} color="#00C9A7" />
+              </View>
+              <Text style={[styles.cardHeaderLabel, { color: theme.colors.text }]}>Nutrition</Text>
             </View>
-            <Text style={[styles.secondaryValue, { color: theme.colors.text }]}>
-              {Math.round(consumedKcal)} <Text style={{ fontSize: 13, color: theme.colors.textMuted, fontWeight: '500' }}>/ {kcalGoal}</Text>
-            </Text>
+            <Feather name="chevron-right" size={16} color={theme.colors.textMuted} />
           </View>
-          <View style={[styles.progressBarBg, { backgroundColor: theme.colors.surfaceLight }]}>
-            <LinearGradient
-              colors={['#0069E8', '#00DCFD']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={[styles.progressBarFill, { width: `${nutritionPercentage}%` }]}
-            />
-          </View>
-        </View>
 
-        {/* Competition */}
-        <View style={[styles.secondaryPillWrapper, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <View style={styles.secondaryHeader}>
-            <View style={[styles.smallIconCircle, { backgroundColor: theme.colors.surfaceLight }]}>
-              <Feather name="flag" size={16} color={theme.colors.text} />
-            </View>
+          <View style={styles.valueRow}>
             <Text style={[styles.secondaryValue, { color: theme.colors.text }]}>
-              {compValue} <Text style={{ fontSize: 13, color: theme.colors.textMuted, fontWeight: '500' }}>- Objectif</Text>
+              {Math.round(consumedKcal).toLocaleString('fr-FR')}
+            </Text>
+            <Text style={[styles.secondaryUnitText, { color: theme.colors.textMuted }]}>
+              / {kcalGoal.toLocaleString('fr-FR')} kcal
             </Text>
           </View>
-          <View style={[styles.progressBarBg, { backgroundColor: theme.colors.surfaceLight }]}>
-            <View style={[styles.progressBarFill, { width: `${compPercentage}%`, backgroundColor: compColor === theme.colors.border ? theme.colors.textMuted : compColor }]} />
+
+          <View style={styles.progressRow}>
+            <View style={[styles.progressBarBg, { backgroundColor: theme.colors.surfaceLight }]}>
+              <LinearGradient
+                colors={['#00C9A7', '#00DFB6']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={[styles.progressBarFill, { width: `${nutritionPercentage}%` }]}
+              />
+            </View>
+            <Text style={[styles.percentBadgeText, { color: theme.colors.textSecondary }]}>
+              {nutritionPercentage}%
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        {/* Competition Card */}
+        <View style={[styles.secondaryPillWrapper, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+          <View style={styles.cardHeaderRow}>
+            <View style={styles.cardHeaderLeft}>
+              <View style={[styles.smallIconCircle, { backgroundColor: theme.colors.surfaceLight }]}>
+                <Feather name="flag" size={16} color={theme.colors.text} />
+              </View>
+              <Text style={[styles.cardHeaderLabel, { color: theme.colors.text }]}>Objectif</Text>
+            </View>
+          </View>
+
+          <View style={styles.valueRow}>
+            <Text style={[styles.secondaryValue, { color: theme.colors.text }]}>
+              {compValue}
+            </Text>
+            <Text style={[styles.secondaryUnitText, { color: theme.colors.textMuted }]}>
+              {user?.nextCompetitionDate ? 'Compétition' : ''}
+            </Text>
+          </View>
+
+          <View style={styles.progressRow}>
+            <View style={[styles.progressBarBg, { backgroundColor: theme.colors.surfaceLight }]}>
+              <View style={[styles.progressBarFill, { width: `${compPercentage}%`, backgroundColor: compColor === theme.colors.border ? theme.colors.textMuted : compColor }]} />
+            </View>
+            {compPercentage > 0 && (
+              <Text style={[styles.percentBadgeText, { color: theme.colors.textSecondary }]}>
+                {Math.round(compPercentage)}%
+              </Text>
+            )}
           </View>
         </View>
       </View>
@@ -247,32 +298,57 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 20,
     borderWidth: 1,
-    padding: 16,
+    padding: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,
     shadowRadius: 6,
     elevation: 1,
   },
-  secondaryHeader: {
-    alignItems: 'flex-start',
-    marginBottom: 16,
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  cardHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
   smallIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  cardHeaderLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  valueRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 4,
+    marginBottom: 12,
+  },
   secondaryValue: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
   },
+  secondaryUnitText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   progressBarBg: {
-    height: 8,
-    width: '100%',
+    flex: 1,
+    height: 7,
     borderRadius: 4,
     overflow: 'hidden',
   },
@@ -280,6 +356,10 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 4,
   },
+  percentBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    minWidth: 26,
+    textAlign: 'right',
+  },
 });
-
-
