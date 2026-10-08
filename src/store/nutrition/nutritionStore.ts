@@ -134,11 +134,17 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
               id: log.food_id || key,
               name: log.custom_food_name || 'Aliment',
               macros_100g: {
-                calories: log.calories * multiplier,
-                proteines: log.proteines * multiplier,
-                glucides: log.glucides * multiplier,
-                lipides: log.lipides * multiplier,
-              }
+                calories: Math.round(log.calories * multiplier),
+                proteines: Math.round(log.proteines * multiplier),
+                glucides: Math.round(log.glucides * multiplier),
+                lipides: Math.round(log.lipides * multiplier),
+              },
+              last_input_qty: log.input_qty || (log.quantity_g ? Math.round(log.quantity_g) : 100),
+              last_input_unit: log.input_unit || 'g',
+              last_grams_per_unit: log.grams_per_unit,
+              last_unit_label: log.unit_label,
+              last_calories: Math.round(log.calories),
+              last_quantity_g: Math.round(log.quantity_g),
             });
           }
         });

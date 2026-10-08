@@ -13,6 +13,10 @@ export interface MealLog {
   meal_type: MealType;
   consumed_at: string;
   created_at?: string;
+  input_qty?: number;
+  input_unit?: 'g' | 'piece' | 'serving';
+  grams_per_unit?: number;
+  unit_label?: string;
 }
 
 export interface MealDistribution {

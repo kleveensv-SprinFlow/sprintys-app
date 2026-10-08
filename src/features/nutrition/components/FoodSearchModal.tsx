@@ -9,7 +9,8 @@ import { nutritionService, HybridFoodResult, CiqualFood } from '../../../service
 import { useDebounce } from '../../../shared/hooks/useDebounce';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
-import { FoodDetailSheet } from './FoodDetailSheet';
+import { FoodDetailSheet, FoodAddPayload } from './FoodDetailSheet';
+import { resolveFoodPortion } from '../data/portionDictionary';
 import { aiNutritionService, ParsedFoodItem } from '../../../services/aiNutritionService';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -33,6 +34,10 @@ export const FoodSearchModal: React.FC = () => {
   const [isEditingList, setIsEditingList] = useState(false);
   const [aiParsedMeal, setAiParsedMeal] = useState<(ParsedFoodItem & { matchedItem?: HybridFoodResult })[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('recents');
+  const [replacingIndex, setReplacingIndex] = useState<number | null>(null);
+  const [replaceSearchQuery, setReplaceSearchQuery] = useState('');
+  const [replaceResults, setReplaceResults] = useState<HybridFoodResult[]>([]);
+  const [isReplacingLoading, setIsReplacingLoading] = useState(false);
   
   const [permission, requestPermission] = useCameraPermissions();
   const debouncedQuery = useDebounce(searchQuery, 500);
@@ -57,6 +62,42 @@ export const FoodSearchModal: React.FC = () => {
       setResults([]);
     }
   }, [debouncedQuery, mode]);
+
+  const handleOpenReplace = (index: number, currentItem: any) => {
+    setReplacingIndex(index);
+    const q = currentItem.query || currentItem.name;
+    setReplaceSearchQuery(q);
+    setIsReplacingLoading(true);
+    nutritionService.searchFoodHybrid(q).then(res => {
+      setReplaceResults(res);
+      setIsReplacingLoading(false);
+    });
+  };
+
+  const handleSearchReplace = (text: string) => {
+    setReplaceSearchQuery(text);
+    if (text.trim().length > 1) {
+      setIsReplacingLoading(true);
+      nutritionService.searchFoodHybrid(text.trim()).then(res => {
+        setReplaceResults(res);
+        setIsReplacingLoading(false);
+      });
+    }
+  };
+
+  const handleSelectReplacement = (result: HybridFoodResult) => {
+    if (replacingIndex === null) return;
+    const newArr = [...aiParsedMeal];
+    const oldItem = newArr[replacingIndex];
+    const newName = result.type === 'ciqual' ? (result.item as CiqualFood).nom : (result.item as OFFProduct).name;
+    newArr[replacingIndex] = {
+      ...oldItem,
+      name: newName,
+      matchedItem: result,
+    };
+    setAiParsedMeal(newArr);
+    setReplacingIndex(null);
+  };
 
   const performSearch = async (query: string) => {
     setIsLoading(true);
@@ -130,7 +171,36 @@ export const FoodSearchModal: React.FC = () => {
       const matchedArray = await Promise.all(parsedItems.map(async (item) => {
          const results = await nutritionService.searchFoodHybrid(item.query);
          if (results.length > 0) {
-            return { ...item, matchedItem: results[0] };
+            const targetEtat = (item.etat || '').toLowerCase();
+            let bestMatch = results[0];
+
+            if (targetEtat) {
+              const ciqualMatches = results.filter(r => r.type === 'ciqual');
+              if (ciqualMatches.length > 0) {
+                const exactState = ciqualMatches.find(r => {
+                  const c = r.item as CiqualFood;
+                  const cEtat = (c.etat || '').toLowerCase();
+                  const cNom = (c.nom || '').toLowerCase();
+                  return cEtat.includes(targetEtat) || cNom.includes(targetEtat);
+                });
+
+                if (exactState) {
+                  bestMatch = exactState;
+                } else {
+                  const isLookingForCooked = targetEtat.includes('cuit') || targetEtat.includes('plat') || targetEtat.includes('roti') || targetEtat.includes('rôti');
+                  const notOpposite = ciqualMatches.find(r => {
+                    const c = r.item as CiqualFood;
+                    const cEtat = (c.etat || '').toLowerCase();
+                    const cNom = (c.nom || '').toLowerCase();
+                    return isLookingForCooked ? (!cEtat.includes('cru') && !cNom.includes('cru')) : (!cEtat.includes('cuit') && !cNom.includes('cuit'));
+                  });
+                  if (notOpposite) bestMatch = notOpposite;
+                  else bestMatch = ciqualMatches[0];
+                }
+              }
+            }
+
+            return { ...item, matchedItem: bestMatch };
          }
          return item;
       }));
@@ -172,7 +242,15 @@ export const FoodSearchModal: React.FC = () => {
       }
 
       let weightG = item.qty;
-      if (item.unit === 'piece') weightG = item.qty * 60;
+      let gramsPerUnit = 1;
+      let unitLabel = item.unit === 'piece' ? 'pièce' : 'g';
+
+      if (item.unit === 'piece') {
+        const portionInfo = resolveFoodPortion({ nom: f_name });
+        gramsPerUnit = portionInfo.pieceWeight || 60;
+        unitLabel = portionInfo.pieceLabel || 'pièce';
+        weightG = item.qty * gramsPerUnit;
+      }
 
       const multiplier = weightG / 100;
 
@@ -181,11 +259,15 @@ export const FoodSearchModal: React.FC = () => {
         consumed_at: currentDate,
         food_id: f_id,
         custom_food_name: f_name,
-        quantity_g: weightG,
+        quantity_g: Math.round(weightG),
         calories: Math.round(kcal * multiplier),
         proteines: Math.round(pro * multiplier),
         glucides: Math.round(glu * multiplier),
         lipides: Math.round(lip * multiplier),
+        input_qty: item.qty,
+        input_unit: item.unit,
+        grams_per_unit: gramsPerUnit,
+        unit_label: unitLabel,
       });
     }
     setIsLoading(false);
@@ -204,7 +286,7 @@ export const FoodSearchModal: React.FC = () => {
     if (newArr.length === 0) setMode('text');
   };
 
-  const handleConfirmAdd = async (totalGrams: number, calories: number, pro: number, glu: number, lip: number) => {
+  const handleConfirmAdd = async (payload: FoodAddPayload) => {
     if (!activeSearchMealType || !selectedProduct) return;
     
     setIsLoading(true);
@@ -213,11 +295,15 @@ export const FoodSearchModal: React.FC = () => {
       consumed_at: currentDate,
       food_id: selectedProduct.id,
       custom_food_name: selectedProduct.nom || selectedProduct.name || 'Aliment',
-      quantity_g: totalGrams,
-      calories,
-      proteines: pro,
-      glucides: glu,
-      lipides: lip,
+      quantity_g: payload.totalGrams,
+      calories: payload.calories,
+      proteines: payload.pro,
+      glucides: payload.glu,
+      lipides: payload.lip,
+      input_qty: payload.inputQty,
+      input_unit: payload.inputUnit,
+      grams_per_unit: payload.gramsPerUnit,
+      unit_label: payload.unitLabel,
     });
     
     setIsLoading(false);
@@ -640,7 +726,7 @@ export const FoodSearchModal: React.FC = () => {
                 results.length > 0 ? (
                   <FlatList
                     data={results}
-                    keyExtractor={(item, index) => `${item.id}-${index}`}
+                    keyExtractor={(item, index) => `${item.type === 'ciqual' ? (item.item as any).id : ((item.item as any).id || index)}-${index}`}
                     keyboardShouldPersistTaps="handled"
                     renderItem={renderProductItem}
                   />
@@ -805,7 +891,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   scannerOverlay: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -830,7 +916,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   aiLoadingOverlay: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(255,255,255,0.95)',
     zIndex: 999,
     justifyContent: 'center',

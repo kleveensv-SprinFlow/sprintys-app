@@ -43,7 +43,8 @@ export default function MealDetailScreen() {
   const { mealLogs, openSearchModal, deleteMealLog, updateMealLog } = useNutritionStore();
 
   const [editingLog, setEditingLog] = useState<MealLog | null>(null);
-  const [editGrams, setEditGrams] = useState<string>('');
+  const [editQty, setEditQty] = useState<string>('');
+  const [editUnit, setEditUnit] = useState<'g' | 'piece' | 'serving'>('g');
 
   useEffect(() => {
     if (athleteId) {
@@ -108,23 +109,35 @@ export default function MealDetailScreen() {
   const handleOpenEdit = (log: MealLog) => {
     if (readonly) return;
     setEditingLog(log);
-    setEditGrams(String(log.quantity_g || 100));
+    const unit = log.input_unit || 'g';
+    setEditUnit(unit);
+    setEditQty(String(log.input_qty ?? Math.round(log.quantity_g) ?? 100));
   };
 
   const handleSaveEdit = async () => {
     if (!editingLog || readonly) return;
-    const newGrams = parseFloat(editGrams.replace(',', '.')) || 0;
-    if (newGrams <= 0) return;
+    const numericQty = parseFloat(editQty.replace(',', '.')) || 0;
+    if (numericQty <= 0) return;
+
+    const gramsPerUnit = editingLog.grams_per_unit || (editingLog.quantity_g / (editingLog.input_qty || 1)) || 1;
+    let newTotalGrams = numericQty;
+    if (editUnit === 'piece' || editUnit === 'serving') {
+      newTotalGrams = numericQty * gramsPerUnit;
+    }
 
     const oldGrams = editingLog.quantity_g || 100;
-    const ratio = newGrams / oldGrams;
+    const ratio = newTotalGrams / oldGrams;
 
     await updateMealLog(editingLog.id, {
-      quantity_g: Math.round(newGrams),
+      quantity_g: Math.round(newTotalGrams),
       calories: Math.round(editingLog.calories * ratio),
       proteines: Math.round(editingLog.proteines * ratio * 10) / 10,
       glucides: Math.round(editingLog.glucides * ratio * 10) / 10,
       lipides: Math.round(editingLog.lipides * ratio * 10) / 10,
+      input_qty: numericQty,
+      input_unit: editUnit,
+      grams_per_unit: gramsPerUnit,
+      unit_label: editingLog.unit_label || (editUnit === 'piece' ? 'pièce' : editUnit === 'serving' ? 'portion' : 'g'),
     });
 
     setEditingLog(null);
@@ -214,7 +227,11 @@ export default function MealDetailScreen() {
                       {displayName}
                     </Text>
                     <Text style={[styles.foodPortion, { color: theme.colors.textSecondary }]}>
-                      {log.quantity_g} g
+                      {log.input_unit === 'piece'
+                        ? `${log.input_qty ?? 1} ${log.unit_label || 'pièce'}${Number(log.input_qty) > 1 && !log.unit_label?.endsWith('s') && !log.unit_label?.endsWith('x') ? 's' : ''} · ${Math.round(log.quantity_g)} g`
+                        : log.input_unit === 'serving'
+                        ? `${log.input_qty ?? 1} portion${Number(log.input_qty) > 1 ? 's' : ''} · ${Math.round(log.quantity_g)} g`
+                        : `${Math.round(log.quantity_g)} g`}
                     </Text>
                   </View>
 
@@ -289,13 +306,25 @@ export default function MealDetailScreen() {
                   <TextInput
                     style={[styles.editTextInput, { color: theme.colors.text, borderColor: theme.colors.border }]}
                     keyboardType="numeric"
-                    value={editGrams}
-                    onChangeText={setEditGrams}
+                    value={editQty}
+                    onChangeText={setEditQty}
                     autoFocus
                     selectTextOnFocus
                   />
-                  <Text style={[styles.editUnitLabel, { color: theme.colors.textSecondary }]}>grammes</Text>
+                  <Text style={[styles.editUnitLabel, { color: theme.colors.textSecondary }]}>
+                    {editUnit === 'piece'
+                      ? (editingLog?.unit_label || 'pièce(s)')
+                      : editUnit === 'serving'
+                      ? 'portion(s)'
+                      : 'g'}
+                  </Text>
                 </View>
+
+                {editUnit !== 'g' && editingLog && (
+                  <Text style={{ fontSize: 13, color: theme.colors.textSecondary, marginBottom: 16 }}>
+                    ≈ {Math.round((parseFloat(editQty.replace(',', '.')) || 0) * (editingLog.grams_per_unit || (editingLog.quantity_g / (editingLog.input_qty || 1)) || 1))} g au total
+                  </Text>
+                )}
 
                 <View style={styles.editModalActions}>
                   <TouchableOpacity 
