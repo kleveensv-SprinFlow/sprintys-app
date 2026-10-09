@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Modal, TextInput, Alert } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Modal, TextInput } from 'react-native';
 import { useTheme } from '../../../core/theme';
 import { Feather } from '@expo/vector-icons';
 import { useCheckInStore } from '../../../store/checkInStore';
 import Slider from '@react-native-community/slider';
-import { healthConsent } from '../../../services/healthConsent';
-import { HEALTH_CONSENT_TEXT } from '../../../legal/notices';
 
 interface PainStepProps {
   onBack: () => void;
@@ -86,31 +84,7 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
   const [activeSide, setActiveSide] = useState<'Gauche' | 'Droit' | 'Bilatéral'>('Gauche');
   const [intensity, setIntensity] = useState<number>(3);
   const [comment, setComment] = useState<string>('');
-  const [askConsent, setAskConsent] = useState(false);
-  const [savingConsent, setSavingConsent] = useState(false);
-
-  const finish = async () => {
-    if (currentPains.length === 0) {
-      onSubmit();
-      return;
-    }
-    const ok = await healthConsent.has();
-    if (ok) {
-      onSubmit();
-      return;
-    }
-    setAskConsent(true);
-  };
-
-  const acceptConsent = async () => {
-    setSavingConsent(true);
-    const ok = await healthConsent.grant();
-    setSavingConsent(false);
-    if (!ok) {
-      Alert.alert('Accord', 'Impossible d’enregistrer l’accord. Réessaie dans un instant.');
-      return;
-    }
-    setAskConsent(false);
+  const finish = () => {
     onSubmit();
   };
 
@@ -252,24 +226,7 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
         </TouchableOpacity>
       </View>
 
-      <Modal visible={askConsent} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-            <Text style={[styles.summaryTitle, { color: theme.colors.text, fontSize: 18 }]}>Accord pour les douleurs</Text>
-            <Text style={{ color: theme.colors.textSecondary, marginTop: 10, lineHeight: 20 }}>{HEALTH_CONSENT_TEXT}</Text>
-            <TouchableOpacity
-              onPress={acceptConsent}
-              disabled={savingConsent}
-              style={[styles.submitBtn, { backgroundColor: theme.colors.accent, marginTop: 16 }]}
-            >
-              <Text style={styles.submitBtnText}>{savingConsent ? 'Enregistrement...' : 'J’accepte'}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setAskConsent(false)} style={{ marginTop: 12, alignItems: 'center' }}>
-              <Text style={{ color: theme.colors.textSecondary }}>Pas maintenant</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+
 
       <Modal visible={!!selectedZone} transparent animationType="slide">
         <View style={styles.modalOverlay}>
