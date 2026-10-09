@@ -1,10 +1,17 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTheme } from '../../../core/theme';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useBodyStore } from '../../../store/bodyStore';
 import { useAuthStore } from '../../../store/authStore';
+import { WeightSparkline, movingAverage, TrendPoint } from '../../body/components/WeightChart';
+
+const day = 86400000;
+
+function formatKg(n: number) {
+  return n.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
 
 export const BodyCompositionCard = () => {
   const theme = useTheme();
@@ -13,344 +20,143 @@ export const BodyCompositionCard = () => {
   const { metrics, loadMetrics } = useBodyStore();
 
   useEffect(() => {
-    if (user?.id) {
-      loadMetrics(user.id);
-    }
-  }, [user]);
+    if (user?.id) loadMetrics(user.id);
+  }, [user?.id]);
 
-  const latestMetric = metrics[metrics.length - 1];
+  const latest = metrics.length ? metrics[metrics.length - 1] : null;
+  const target = Number(user?.targetWeight || 0);
 
-  const weight = latestMetric ? latestMetric.weight : (user?.weight || '--');
-  const bodyFat = latestMetric?.body_fat ? `${latestMetric.body_fat}%` : null;
-  const muscleMass = latestMetric?.muscle_mass_kg ? `${latestMetric.muscle_mass_kg}kg` : null;
+  const trend = useMemo(() => {
+    if (!latest || metrics.length < 2) return null;
+    const latestT = new Date(latest.created_at || '').getTime();
+    if (!latestT) return null;
+    const targetT = latestT - 30 * day;
+    let ref = metrics[0];
+    let best = Infinity;
+    metrics.slice(0, -1).forEach((m) => {
+      const t = new Date(m.created_at || '').getTime();
+      const d = Math.abs(t - targetT);
+      if (d < best) {
+        best = d;
+        ref = m;
+      }
+    });
+    const refT = new Date(ref.created_at || '').getTime();
+    const days = Math.max(1, Math.round((latestT - refT) / day));
+    if (!refT || days < 1 || ref.weight == null) return null;
+    return {
+      diff: latest.weight - ref.weight,
+      label: days >= 25 && days <= 40 ? 'sur 30 j' : `sur ${days} j`,
+    };
+  }, [metrics, latest]);
 
-  const currentWeightNum = Number(latestMetric?.weight || user?.weight || 0);
-  const startWeightNum = Number(user?.startWeight || (metrics.length > 0 ? metrics[0]?.weight : 0) || currentWeightNum);
-  const targetWeightNum = Number(user?.targetWeight || 0);
+  const spark = useMemo(() => {
+    if (!latest?.created_at) return [];
+    const latestT = new Date(latest.created_at).getTime();
+    const windowed = metrics.filter((m) => latestT - new Date(m.created_at || '').getTime() <= 30 * day);
+    const source = windowed.length >= 2 ? windowed : metrics;
+    const points: TrendPoint[] = source
+      .filter((m) => m.weight != null && m.created_at)
+      .map((m) => ({ t: new Date(m.created_at as string).getTime(), v: Number(m.weight) }));
+    if (points.length < 2) return points.map((p) => p.v);
+    return movingAverage(points);
+  }, [metrics, latest]);
 
-  const hasTarget = targetWeightNum > 0 && startWeightNum > 0 && currentWeightNum > 0;
-  
-  let progressPercent = 0;
-  let remainingKg = 0;
-  let diffFromStart = 0;
+  const open = () => router.push('/(athlete)/body');
+  const blue = theme.colors.sprintyBlue;
 
-  if (hasTarget) {
-    const totalDist = Math.abs(startWeightNum - targetWeightNum);
-    diffFromStart = currentWeightNum - startWeightNum;
-    remainingKg = Math.abs(currentWeightNum - targetWeightNum);
-
-    if (totalDist > 0) {
-      const isLoss = targetWeightNum < startWeightNum;
-      const progressRatio = isLoss 
-        ? (startWeightNum - currentWeightNum) / totalDist 
-        : (currentWeightNum - startWeightNum) / totalDist;
-      progressPercent = Math.min(100, Math.max(0, Math.round(progressRatio * 100)));
-    } else {
-      progressPercent = 100;
-    }
+  if (!latest) {
+    return (
+      <View style={styles.wrapper}>
+        <TouchableOpacity
+          style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+          activeOpacity={0.85}
+          onPress={open}
+        >
+          <View style={styles.emptyRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>Poids</Text>
+              <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Ajoute ta première pesée</Text>
+            </View>
+            <View style={[styles.plus, { backgroundColor: blue }]}>
+              <Feather name="plus" size={18} color="#FFF" />
+            </View>
+          </View>
+        </TouchableOpacity>
+      </View>
+    );
   }
+
+  const fat = latest.body_fat != null ? Number(latest.body_fat) : null;
+  const muscle = latest.muscle_mass_kg != null ? Number(latest.muscle_mass_kg) : null;
+  const remaining = target > 0 ? Math.abs(latest.weight - target) : null;
+  const diff = trend?.diff ?? 0;
 
   return (
     <View style={styles.wrapper}>
-      <View style={styles.sectionHeader}>
-        <Feather name="activity" size={18} color={theme.colors.text} />
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Composition Corporelle</Text>
-      </View>
-
-      <TouchableOpacity 
-        style={styles.cardsRow}
+      <TouchableOpacity
+        style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
         activeOpacity={0.85}
-        onPress={() => router.push('/(athlete)/body')}
+        onPress={open}
       >
-        {/* Carte 1 : Masse Grasse */}
-        <View style={[styles.sideCard, { backgroundColor: '#FFFBEB', borderColor: '#FEF3C7' }]}>
-          <View style={[styles.statDot, { backgroundColor: '#F59E0B' }]} />
-          <Text style={[styles.sideValue, { color: theme.colors.text }]}>
-            {bodyFat || '--'}
-          </Text>
-          <Text style={[styles.sideLabel, { color: '#B45309' }]}>
-            Masse Grasse
-          </Text>
-        </View>
-
-        {/* Carte 2 (Centrale) : Poids Actuel */}
-        <View style={[styles.centerCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <View style={[styles.centerRing, { borderColor: '#0066FF' }]}>
-            <Text style={[styles.centerValue, { color: theme.colors.text }]}>{weight}</Text>
-            <Text style={[styles.centerUnit, { color: theme.colors.textSecondary }]}>kg</Text>
+        <View style={styles.top}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>Poids</Text>
+            <Text style={[styles.value, { color: theme.colors.text }]}>
+              {formatKg(latest.weight)}
+              <Text style={[styles.unit, { color: theme.colors.textSecondary }]}> kg</Text>
+            </Text>
+            {trend && Math.abs(diff) >= 0.05 && (
+              <View style={styles.deltaRow}>
+                <Feather
+                  name={diff < 0 ? 'trending-down' : 'trending-up'}
+                  size={14}
+                  color={theme.colors.textSecondary}
+                />
+                <Text style={[styles.delta, { color: theme.colors.textSecondary }]}>
+                  {formatKg(Math.abs(diff))} kg {trend.label}
+                </Text>
+              </View>
+            )}
           </View>
-          <Text style={[styles.centerLabel, { color: theme.colors.text }]}>
-            Poids Actuel
-          </Text>
+          <WeightSparkline values={spark} color={blue} target={target > 0 ? target : null} />
         </View>
 
-        {/* Carte 3 : Masse Musculaire */}
-        <View style={[styles.sideCard, { backgroundColor: '#F0FDF4', borderColor: '#DCFCE7' }]}>
-          <View style={[styles.statDot, { backgroundColor: '#10B981' }]} />
-          <Text style={[styles.sideValue, { color: theme.colors.text }]}>
-            {muscleMass || '--'}
+        {(fat != null || muscle != null) && (
+          <Text style={[styles.meta, { color: theme.colors.textSecondary }]}>
+            {fat != null ? `MG ${formatKg(fat)} %` : ''}
+            {fat != null && muscle != null ? '  ·  ' : ''}
+            {muscle != null ? `Muscle ${formatKg(muscle)} kg` : ''}
           </Text>
-          <Text style={[styles.sideLabel, { color: '#047857' }]}>
-            Masse Muscle
+        )}
+
+        {remaining != null && (
+          <Text style={[styles.goal, { color: theme.colors.textSecondary }]}>
+            {remaining <= 0.1 ? 'Objectif atteint' : `encore ${formatKg(remaining)} kg`}
           </Text>
-        </View>
+        )}
       </TouchableOpacity>
-
-      {/* Barre de progression du poids (Objectif Point 0 -> Point B) */}
-      {hasTarget ? (
-        <TouchableOpacity 
-          style={[styles.progressCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-          activeOpacity={0.85}
-          onPress={() => router.push('/(athlete)/body')}
-        >
-          <View style={styles.progressTopRow}>
-            <View style={styles.pointBlock}>
-              <Text style={[styles.pointLabel, { color: theme.colors.textMuted }]}>Départ</Text>
-              <Text style={[styles.pointVal, { color: theme.colors.text }]}>
-                {startWeightNum} <Text style={styles.pointUnit}>kg</Text>
-              </Text>
-            </View>
-
-            <View style={[styles.currentBadge, { backgroundColor: theme.colors.surfaceLight }]}>
-              <Feather 
-                name={diffFromStart < -0.05 ? 'trending-down' : diffFromStart > 0.05 ? 'trending-up' : 'minus'} 
-                size={13} 
-                color={diffFromStart < -0.05 ? '#10B981' : diffFromStart > 0.05 ? '#0066FF' : theme.colors.textMuted} 
-              />
-              <Text style={[styles.currentText, { color: theme.colors.text }]}>
-                {currentWeightNum} kg ({diffFromStart > 0 ? `+${diffFromStart.toFixed(1)}` : `${diffFromStart.toFixed(1)}`} kg)
-              </Text>
-            </View>
-
-            <View style={[styles.pointBlock, { alignItems: 'flex-end' }]}>
-              <Text style={[styles.pointLabel, { color: theme.colors.textMuted }]}>Cible</Text>
-              <Text style={[styles.pointVal, { color: '#0066FF' }]}>
-                {targetWeightNum} <Text style={styles.pointUnit}>kg</Text>
-              </Text>
-            </View>
-          </View>
-
-          {/* Barre de progression */}
-          <View style={[styles.progressBarTrack, { backgroundColor: theme.colors.border }]}>
-            <View style={[styles.progressBarFill, { width: `${progressPercent}%`, backgroundColor: '#0066FF' }]} />
-          </View>
-
-          <View style={styles.progressBottomRow}>
-            <Text style={[styles.progressSubtitle, { color: theme.colors.textSecondary }]}>
-              {remainingKg <= 0.1 
-                ? '🎯 Objectif atteint !' 
-                : `Encore ${remainingKg.toFixed(1)} kg pour atteindre ta cible`}
-            </Text>
-            <Text style={[styles.progressPercentText, { color: '#0066FF' }]}>{progressPercent}%</Text>
-          </View>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity 
-          style={[styles.emptyProgressCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-          activeOpacity={0.8}
-          onPress={() => router.push('/(athlete)/nutrition')}
-        >
-          <View style={styles.emptyLeft}>
-            <View style={[styles.emptyIconCircle, { backgroundColor: theme.colors.surfaceLight }]}>
-              <Feather name="target" size={15} color="#0066FF" />
-            </View>
-            <Text style={[styles.emptyProgressText, { color: theme.colors.textSecondary }]}>
-              Définis un poids cible dans tes repères pour voir ta progression
-            </Text>
-          </View>
-          <Feather name="chevron-right" size={16} color={theme.colors.textMuted} />
-        </TouchableOpacity>
-      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  wrapper: {
-    marginHorizontal: 16,
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 14,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: -0.2,
-  },
-  cardsRow: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    gap: 10,
-  },
-  sideCard: {
-    flex: 1,
+  wrapper: { marginHorizontal: 16, marginBottom: 24 },
+  card: {
     borderRadius: 20,
     borderWidth: 1,
-    paddingVertical: 18,
-    paddingHorizontal: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginBottom: 8,
-  },
-  sideValue: {
-    fontSize: 20,
-    fontWeight: '800',
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  sideLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  centerCard: {
-    flex: 1.25,
-    borderRadius: 22,
-    borderWidth: 1,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  centerRing: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    borderWidth: 3.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  centerValue: {
-    fontSize: 21,
-    fontWeight: '900',
-    letterSpacing: -0.5,
-  },
-  centerUnit: {
-    fontSize: 11,
-    fontWeight: '700',
-    marginTop: -2,
-  },
-  centerLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  progressCard: {
-    marginTop: 12,
-    borderRadius: 18,
-    borderWidth: 1,
     paddingHorizontal: 16,
-    paddingVertical: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 1,
+    paddingVertical: 16,
   },
-  progressTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  pointBlock: {
-    minWidth: 60,
-  },
-  pointLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-    marginBottom: 2,
-  },
-  pointVal: {
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  pointUnit: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  currentBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-  },
-  currentText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  progressBarTrack: {
-    height: 8,
-    borderRadius: 4,
-    overflow: 'hidden',
-    width: '100%',
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  progressBottomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  progressSubtitle: {
-    fontSize: 12,
-    fontWeight: '500',
-    flex: 1,
-    marginRight: 8,
-  },
-  progressPercentText: {
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  emptyProgressCard: {
-    marginTop: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  emptyLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-    paddingRight: 8,
-  },
-  emptyIconCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyProgressText: {
-    fontSize: 12,
-    fontWeight: '500',
-    flex: 1,
-  },
+  top: { flexDirection: 'row', alignItems: 'center' },
+  kicker: { fontSize: 13, fontWeight: '600', marginBottom: 2 },
+  value: { fontSize: 32, fontWeight: '800', letterSpacing: -0.6 },
+  unit: { fontSize: 16, fontWeight: '600' },
+  deltaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  delta: { fontSize: 13, fontWeight: '600' },
+  meta: { fontSize: 13, fontWeight: '500', marginTop: 12 },
+  goal: { fontSize: 13, fontWeight: '500', marginTop: 4 },
+  emptyRow: { flexDirection: 'row', alignItems: 'center' },
+  emptyTitle: { fontSize: 16, fontWeight: '700', marginTop: 2 },
+  plus: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
 });
