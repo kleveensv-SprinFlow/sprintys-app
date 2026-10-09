@@ -561,7 +561,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (updates.avatarUrl !== undefined) dbUpdates.avatar_url = updates.avatarUrl;
     if (updates.role !== undefined) dbUpdates.role = updates.role;
     if (updates.gender !== undefined) dbUpdates.gender = updates.gender;
-    if (updates.dateOfBirth !== undefined) dbUpdates.date_of_birth = updates.dateOfBirth;
     if (updates.disciplines !== undefined) dbUpdates.disciplines = updates.disciplines;
     if (updates.groupName !== undefined) dbUpdates.group_name = updates.groupName;
     if (updates.subgroups !== undefined) dbUpdates.subgroups = updates.subgroups;

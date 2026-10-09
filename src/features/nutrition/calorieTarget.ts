@@ -58,21 +58,28 @@ export function classifyObjective(objective: string): CalorieGoal {
   return 'maintain';
 }
 
-export function parseActivity(raw?: string | null): { neat: NeatLevel; sessions: number } {
+export function parseActivity(raw?: string | null): { neat: NeatLevel; sessions: number; age: number | null } {
   const value = (raw || '').trim();
-  const match = value.match(/^(bureau|marche|debout|physique)\|(\d{1,2})$/);
+  const match = value.match(/^(bureau|marche|debout|physique)\|(\d{1,2})(?:\|(\d{1,2}))?$/);
   if (match && NEAT_IDS.has(match[1])) {
-    return { neat: match[1] as NeatLevel, sessions: clampSessions(Number(match[2])) };
+    const age = match[3] ? Number(match[3]) : null;
+    return {
+      neat: match[1] as NeatLevel,
+      sessions: clampSessions(Number(match[2])),
+      age: age !== null && age >= 14 && age <= 80 ? age : null,
+    };
   }
-  if (value === 'faible') return { neat: 'bureau', sessions: 2 };
-  if (value === 'moyen') return { neat: 'marche', sessions: 3 };
-  if (value === 'élevé') return { neat: 'debout', sessions: 5 };
-  if (value === 'très élevé') return { neat: 'physique', sessions: 6 };
-  return { neat: 'marche', sessions: 4 };
+  if (value === 'faible') return { neat: 'bureau', sessions: 2, age: null };
+  if (value === 'moyen') return { neat: 'marche', sessions: 3, age: null };
+  if (value === 'élevé') return { neat: 'debout', sessions: 5, age: null };
+  if (value === 'très élevé') return { neat: 'physique', sessions: 6, age: null };
+  return { neat: 'marche', sessions: 4, age: null };
 }
 
-export function encodeActivity(neat: NeatLevel, sessions: number): string {
-  return `${neat}|${clampSessions(sessions)}`;
+export function encodeActivity(neat: NeatLevel, sessions: number, age?: number | null): string {
+  const base = `${neat}|${clampSessions(sessions)}`;
+  if (age && age >= 14 && age <= 80) return `${base}|${Math.round(age)}`;
+  return base;
 }
 
 export function formatActivity(raw?: string | null): string {

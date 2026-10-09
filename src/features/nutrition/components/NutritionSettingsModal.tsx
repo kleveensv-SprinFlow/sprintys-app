@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Modal,
   View,
@@ -16,7 +16,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import { useAuthStore } from '../../../store/authStore';
-import { useNutritionStore } from '../../../store/nutrition/nutritionStore';
 import { supabase } from '../../../services/supabase';
 import { MealDistribution } from '../types';
 import {
@@ -25,7 +24,6 @@ import {
   MIN_SESSIONS,
   MAX_SESSIONS,
   ageFromDob,
-  dobFromAge,
   parseActivity,
   encodeActivity,
   classifyObjective,
@@ -79,8 +77,7 @@ const matchesObjective = (current: string, id: string) => {
 export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { user, reloadProfile, updateProfile: updateAuthProfile } = useAuthStore();
-  const updateProfile = useNutritionStore((state) => state.updateNutritionProfile);
+  const { user, reloadProfile } = useAuthStore();
 
   const [activeTab, setActiveTab] = useState<0 | 1>(0);
   const [objective, setObjective] = useState(user?.objective || 'Stabiliser');
@@ -89,7 +86,6 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
   const [neat, setNeat] = useState<NeatLevel>('marche');
   const [sessions, setSessions] = useState(4);
   const [age, setAge] = useState(25);
-  const [ageTouched, setAgeTouched] = useState(false);
   const [bodyFatPct, setBodyFatPct] = useState<number | null>(null);
   const [weeklyGoal, setWeeklyGoal] = useState(user?.weeklyWeightGoal?.toString() || '0.5');
   const [kcalGoal, setKcalGoal] = useState(user?.manualKcalGoal?.toString() || '2000');
@@ -98,18 +94,25 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
   );
   const [isSaving, setIsSaving] = useState(false);
 
+  const hydrated = useRef(false);
+
   useEffect(() => {
-    if (!visible || !user) return;
+    if (!visible) {
+      hydrated.current = false;
+      return;
+    }
+    if (!user || hydrated.current) return;
+    hydrated.current = true;
+
     const activity = parseActivity(user.activityLevel);
     setObjective(user.objective || 'Stabiliser');
     setStartWeight(user.startWeight ? user.startWeight.toString() : '');
     setTargetWeight(user.targetWeight ? user.targetWeight.toString() : '');
     setNeat(activity.neat);
     setSessions(activity.sessions);
-    setAge(ageFromDob(user.dateOfBirth) ?? 25);
-    setAgeTouched(false);
+    setAge(activity.age ?? ageFromDob(user.dateOfBirth) ?? 25);
     setWeeklyGoal(
-      user.weeklyWeightGoal !== undefined && user.weeklyWeightGoal !== null
+      user.weeklyWeightGoal !== undefined && user.weeklyWeightGoal !== null && user.weeklyWeightGoal !== 0
         ? String(Math.abs(user.weeklyWeightGoal))
         : '0.5'
     );
@@ -174,7 +177,6 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
   };
 
   const nudgeAge = (delta: number) => {
-    setAgeTouched(true);
     setAge((current) => Math.max(14, Math.min(80, current + delta)));
   };
 
@@ -201,27 +203,27 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
 
     setIsSaving(true);
     try {
-      const profilePatch: { objective: string; dateOfBirth?: string } = { objective };
-      if (!user?.dateOfBirth || ageTouched) {
-        profilePatch.dateOfBirth = dobFromAge(age, user?.dateOfBirth);
-      }
-      const authOk = await updateAuthProfile(profilePatch);
-      const nutritionOk = await updateProfile({
-        activity_level: encodeActivity(neat, sessions),
-        start_weight: parseFloat(startWeight.replace(',', '.')) || undefined,
-        target_weight: parseFloat(targetWeight.replace(',', '.')) || undefined,
-        weekly_weight_goal: showPace ? parsedWeekly : 0,
-        manual_kcal_goal: parseInt(kcalGoal, 10),
-        meal_distribution: distribution,
-      });
-      if (authOk === false || nutritionOk === false) {
-        throw new Error('save failed');
-      }
+      if (!user) throw new Error('missing user');
+      const start = parseFloat(startWeight.replace(',', '.'));
+      const target = parseFloat(targetWeight.replace(',', '.'));
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          objective,
+          activity_level: encodeActivity(neat, sessions, age),
+          start_weight: Number.isFinite(start) ? start : null,
+          target_weight: Number.isFinite(target) ? target : null,
+          weekly_weight_goal: showPace ? parsedWeekly : 0,
+          manual_kcal_goal: parseInt(kcalGoal, 10),
+          meal_distribution: distribution,
+        })
+        .eq('id', user.id);
+      if (error) throw error;
       await reloadProfile();
       onClose();
     } catch (err) {
       console.error('Error saving nutrition settings:', err);
-      Alert.alert('Erreur', 'Impossible d’enregistrer.');
+      Alert.alert('Erreur', 'Impossible d’enregistrer. Réessaie dans un instant.');
     } finally {
       setIsSaving(false);
     }
@@ -260,7 +262,7 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
         </View>
 
         <ScrollView
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 120, paddingTop: 8 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: Math.max(insets.bottom, 16) + 96, paddingTop: 8 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
