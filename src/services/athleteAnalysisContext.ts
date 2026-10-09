@@ -11,6 +11,7 @@
  * séances dont il est le coach (workouts).
  */
 import { supabase } from './supabase';
+import { formatActivity } from '../features/nutrition/calorieTarget';
 
 export type AnalysisDomain = 'training' | 'nutrition' | 'wellness' | 'body';
 
@@ -628,7 +629,7 @@ Tu analyses UN athlète pour son coach. Réponds en français, style data-scient
 CONTEXTE TEMPOREL : nous sommes le ${dayOfWeek} ${todayStr()}.
 
 ATHLÈTE : ${firstName} (ID technique : ${athleteId})
-- Sexe : ${p.gender || '-'} · Disciplines : ${Array.isArray(p.disciplines) && p.disciplines.length ? p.disciplines.join(', ') : '-'} · Taille : ${fmt(num(p.height), ' cm', 0)} · Niveau d'activité : ${p.activity_level || '-'}
+- Sexe : ${p.gender || '-'} · Disciplines : ${Array.isArray(p.disciplines) && p.disciplines.length ? p.disciplines.join(', ') : '-'} · Taille : ${fmt(num(p.height), ' cm', 0)} · Niveau d'activité : ${p.activity_level ? formatActivity(p.activity_level) : '-'}
 - Objectif déclaré : ${p.objective || '-'}
 
 ══════════ RÉSUMÉS CHIFFRÉS ══════════

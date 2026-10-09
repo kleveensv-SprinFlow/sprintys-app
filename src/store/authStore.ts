@@ -17,6 +17,7 @@ export interface UserProfile {
   firstName?: string;
   lastName?: string;
   gender?: string | null;
+  dateOfBirth?: string | null;
   disciplines?: string[] | null;
   height?: number | null;
   weight?: number | null;
@@ -113,6 +114,7 @@ const buildUserProfile = (authUser: any, profile: any): UserProfile => {
     firstName: profile?.first_name || authUser.user_metadata?.first_name || (profile?.full_name ? profile.full_name.split(' ')[0] : undefined),
     lastName: profile?.last_name || authUser.user_metadata?.last_name || (profile?.full_name && profile.full_name.includes(' ') ? profile.full_name.split(' ').slice(1).join(' ') : undefined),
     gender: profile?.gender,
+    dateOfBirth: profile?.date_of_birth || authUser.user_metadata?.date_of_birth || null,
     disciplines: profile?.disciplines,
     height: profile?.height,
     weight: profile?.weight,
@@ -559,6 +561,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (updates.avatarUrl !== undefined) dbUpdates.avatar_url = updates.avatarUrl;
     if (updates.role !== undefined) dbUpdates.role = updates.role;
     if (updates.gender !== undefined) dbUpdates.gender = updates.gender;
+    if (updates.dateOfBirth !== undefined) dbUpdates.date_of_birth = updates.dateOfBirth;
     if (updates.disciplines !== undefined) dbUpdates.disciplines = updates.disciplines;
     if (updates.groupName !== undefined) dbUpdates.group_name = updates.groupName;
     if (updates.subgroups !== undefined) dbUpdates.subgroups = updates.subgroups;

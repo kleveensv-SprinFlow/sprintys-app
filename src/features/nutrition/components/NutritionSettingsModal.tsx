@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -17,7 +17,21 @@ import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import { useAuthStore } from '../../../store/authStore';
 import { useNutritionStore } from '../../../store/nutrition/nutritionStore';
+import { supabase } from '../../../services/supabase';
 import { MealDistribution } from '../types';
+import {
+  NEAT_LEVELS,
+  NeatLevel,
+  MIN_SESSIONS,
+  MAX_SESSIONS,
+  ageFromDob,
+  dobFromAge,
+  parseActivity,
+  encodeActivity,
+  classifyObjective,
+  computeCalorieTarget,
+  clampSessions,
+} from '../calorieTarget';
 
 interface Props {
   visible: boolean;
@@ -25,17 +39,10 @@ interface Props {
 }
 
 const OBJECTIVES = [
-  { id: 'Perte de poids', label: 'Perte de gras', desc: 'Déficit contrôlé' },
-  { id: 'Prendre du poids', label: 'Prise de masse', desc: 'Surplus calorique' },
-  { id: 'Se muscler', label: 'Muscle & Force', desc: 'Recomposition' },
-  { id: 'Stabiliser', label: 'Maintien', desc: 'Stabilisation' },
-];
-
-const ACTIVITY_LEVELS = [
-  { id: 'faible', label: 'Repos', desc: 'Peu de séances' },
-  { id: 'moyen', label: '3×', desc: 'par semaine' },
-  { id: 'élevé', label: '5×', desc: 'par semaine' },
-  { id: 'très élevé', label: 'Quotidien', desc: 'haute intensité' },
+  { id: 'Perte de poids', label: 'Perte de gras', desc: 'Déficit plafonné' },
+  { id: 'Prendre du poids', label: 'Prise de masse', desc: 'Surplus modéré' },
+  { id: 'Se muscler', label: 'Recomposition', desc: 'Proche du maintien' },
+  { id: 'Stabiliser', label: 'Maintien', desc: 'Dépense du jour' },
 ];
 
 const PACES = ['0.25', '0.5', '0.75', '1'];
@@ -64,8 +71,8 @@ const matchesObjective = (current: string, id: string) => {
   if (current === id) return true;
   if (id === 'Perte de poids') return value.includes('perte') || value.includes('allég') || value.includes('alleg');
   if (id === 'Prendre du poids') return value.includes('prend');
-  if (id === 'Se muscler') return value.includes('muscle');
-  if (id === 'Stabiliser') return value.includes('stabil') || value.includes('tenir');
+  if (id === 'Se muscler') return value.includes('muscle') || value.includes('recomp');
+  if (id === 'Stabiliser') return value.includes('stabil') || value.includes('tenir') || value.includes('maint');
   return false;
 };
 
@@ -79,7 +86,11 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
   const [objective, setObjective] = useState(user?.objective || 'Stabiliser');
   const [startWeight, setStartWeight] = useState(user?.startWeight?.toString() || '');
   const [targetWeight, setTargetWeight] = useState(user?.targetWeight?.toString() || '');
-  const [activityLevel, setActivityLevel] = useState(user?.activityLevel || 'élevé');
+  const [neat, setNeat] = useState<NeatLevel>('marche');
+  const [sessions, setSessions] = useState(4);
+  const [age, setAge] = useState(25);
+  const [ageTouched, setAgeTouched] = useState(false);
+  const [bodyFatPct, setBodyFatPct] = useState<number | null>(null);
   const [weeklyGoal, setWeeklyGoal] = useState(user?.weeklyWeightGoal?.toString() || '0.5');
   const [kcalGoal, setKcalGoal] = useState(user?.manualKcalGoal?.toString() || '2000');
   const [distribution, setDistribution] = useState<MealDistribution>(
@@ -88,19 +99,39 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (visible && user) {
-      setObjective(user.objective || 'Stabiliser');
-      setStartWeight(user.startWeight ? user.startWeight.toString() : '');
-      setTargetWeight(user.targetWeight ? user.targetWeight.toString() : '');
-      setActivityLevel(user.activityLevel || 'élevé');
-      setWeeklyGoal(
-        user.weeklyWeightGoal !== undefined && user.weeklyWeightGoal !== null
-          ? String(Math.abs(user.weeklyWeightGoal))
-          : '0.5'
-      );
-      setKcalGoal(user.manualKcalGoal ? user.manualKcalGoal.toString() : '2000');
-      if (user.mealDistribution) setDistribution(user.mealDistribution);
-    }
+    if (!visible || !user) return;
+    const activity = parseActivity(user.activityLevel);
+    setObjective(user.objective || 'Stabiliser');
+    setStartWeight(user.startWeight ? user.startWeight.toString() : '');
+    setTargetWeight(user.targetWeight ? user.targetWeight.toString() : '');
+    setNeat(activity.neat);
+    setSessions(activity.sessions);
+    setAge(ageFromDob(user.dateOfBirth) ?? 25);
+    setAgeTouched(false);
+    setWeeklyGoal(
+      user.weeklyWeightGoal !== undefined && user.weeklyWeightGoal !== null
+        ? String(Math.abs(user.weeklyWeightGoal))
+        : '0.5'
+    );
+    setKcalGoal(user.manualKcalGoal ? user.manualKcalGoal.toString() : '2000');
+    if (user.mealDistribution) setDistribution(user.mealDistribution);
+
+    let cancelled = false;
+    supabase
+      .from('body_metrics')
+      .select('body_fat')
+      .eq('athlete_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const fat = data?.body_fat;
+        setBodyFatPct(typeof fat === 'number' && fat > 0 ? fat : null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [visible, user]);
 
   const totalDist =
@@ -109,34 +140,46 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
     (distribution.diner || 0) +
     (distribution.collation || 0);
 
-  const holding = matchesObjective(objective, 'Stabiliser');
-  const parsedWeekly = holding ? 0 : parseFloat(weeklyGoal);
-  const isWeeklyValid = !isNaN(parsedWeekly) && Math.abs(parsedWeekly) <= 1;
+  const goalKind = classifyObjective(objective);
+  const showPace = goalKind === 'cut' || goalKind === 'bulk';
+  const parsedWeekly = showPace ? parseFloat(weeklyGoal) : 0;
+  const isWeeklyValid = !showPace || (!isNaN(parsedWeekly) && parsedWeekly > 0 && parsedWeekly <= 1);
   const isKcalValid = !isNaN(parseInt(kcalGoal, 10)) && parseInt(kcalGoal, 10) >= 800;
   const isFormValid = totalDist === 100 && isWeeklyValid && isKcalValid;
   const totalKcal = parseInt(kcalGoal, 10) || 0;
 
+  const weightKg = parseFloat(startWeight.replace(',', '.')) || user?.weight || 0;
+
+  const preview = useMemo(() => {
+    if (!weightKg || weightKg < 30 || weightKg > 250) return null;
+    return computeCalorieTarget({
+      weightKg,
+      heightCm: user?.height || null,
+      age,
+      sex: user?.gender,
+      bodyFatPct,
+      neat,
+      sessionsPerWeek: sessions,
+      goal: goalKind,
+      weeklyKg: parsedWeekly,
+    });
+  }, [weightKg, user?.height, user?.gender, age, bodyFatPct, neat, sessions, goalKind, parsedWeekly]);
+
   const handleRecalculateKcal = () => {
-    const weight = parseFloat(startWeight) || user?.weight || 70;
-    const height = user?.height || 175;
-    const age = 25;
-    const isMale = user?.gender !== 'femme';
-    const bmr = 10 * weight + 6.25 * height - 5 * age + (isMale ? 5 : -161);
-    let activityMultiplier = 1.55;
-    if (activityLevel === 'faible') activityMultiplier = 1.375;
-    if (activityLevel === 'moyen') activityMultiplier = 1.55;
-    if (activityLevel === 'élevé') activityMultiplier = 1.725;
-    if (activityLevel === 'très élevé') activityMultiplier = 1.9;
-    let tdee = bmr * activityMultiplier;
-    const dailyAdjustment = (Math.abs(parsedWeekly) || 0) * 1100;
-    const lowerObj = objective.toLowerCase();
-    if (lowerObj.includes('perte') || lowerObj.includes('gras') || lowerObj.includes('allég') || lowerObj.includes('alleg')) {
-      tdee -= dailyAdjustment;
-    } else if (lowerObj.includes('prend') || lowerObj.includes('muscle')) {
-      tdee += dailyAdjustment;
+    if (!preview) {
+      Alert.alert('Poids', 'Indique ton poids actuel pour calculer.');
+      return;
     }
-    const calculated = Math.round(Math.max(1200, tdee));
-    setKcalGoal(String(calculated));
+    setKcalGoal(String(preview.target));
+  };
+
+  const nudgeAge = (delta: number) => {
+    setAgeTouched(true);
+    setAge((current) => Math.max(14, Math.min(80, current + delta)));
+  };
+
+  const nudgeSessions = (delta: number) => {
+    setSessions((current) => clampSessions(current + delta));
   };
 
   const handleStepMeal = (mealKey: keyof MealDistribution, delta: number) => {
@@ -152,18 +195,22 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
       return;
     }
     if (!isWeeklyValid) {
-      Alert.alert('Rythme', 'Le rythme reste entre 0 et 1 kg par semaine.');
+      Alert.alert('Rythme', 'Le rythme reste entre 0,25 et 1 kg par semaine.');
       return;
     }
 
     setIsSaving(true);
     try {
-      const authOk = await updateAuthProfile({ objective });
+      const profilePatch: { objective: string; dateOfBirth?: string } = { objective };
+      if (!user?.dateOfBirth || ageTouched) {
+        profilePatch.dateOfBirth = dobFromAge(age, user?.dateOfBirth);
+      }
+      const authOk = await updateAuthProfile(profilePatch);
       const nutritionOk = await updateProfile({
-        activity_level: activityLevel,
-        start_weight: parseFloat(startWeight) || undefined,
-        target_weight: parseFloat(targetWeight) || undefined,
-        weekly_weight_goal: parsedWeekly,
+        activity_level: encodeActivity(neat, sessions),
+        start_weight: parseFloat(startWeight.replace(',', '.')) || undefined,
+        target_weight: parseFloat(targetWeight.replace(',', '.')) || undefined,
+        weekly_weight_goal: showPace ? parsedWeekly : 0,
         manual_kcal_goal: parseInt(kcalGoal, 10),
         meal_distribution: distribution,
       });
@@ -228,7 +275,7 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
                       key={obj.id}
                       onPress={() => {
                         setObjective(obj.id);
-                        if (obj.id === 'Stabiliser') setWeeklyGoal('0');
+                        if (obj.id === 'Stabiliser' || obj.id === 'Se muscler') setWeeklyGoal('0');
                         else if (weeklyGoal === '0') setWeeklyGoal('0.5');
                       }}
                       style={[
@@ -259,8 +306,22 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
                   <Text style={[styles.kcalUnit, { color: theme.colors.textSecondary }]}>kcal</Text>
                 </View>
                 <TouchableOpacity onPress={handleRecalculateKcal} style={styles.estimateHit}>
-                  <Text style={[styles.estimateText, { color: theme.colors.sprintyBlue }]}>Calculer mes calories</Text>
+                  <Text style={[styles.estimateText, { color: theme.colors.sprintyBlue }]}>
+                    {preview ? `Calculer mes calories · ${preview.target.toLocaleString('fr-FR')}` : 'Calculer mes calories'}
+                  </Text>
                 </TouchableOpacity>
+                {preview ? (
+                  <Text style={[styles.breakdown, { color: theme.colors.textSecondary }]}>
+                    {preview.note}
+                    {` Entretien ${preview.tdee.toLocaleString('fr-FR')} kcal`}
+                    {preview.exercisePerDay > 0 ? `, dont ${preview.exercisePerDay} kcal d'entraînement.` : '.'}
+                    {preview.bmrMethod === 'katch' ? ' Masse maigre prise en compte.' : ''}
+                  </Text>
+                ) : (
+                  <Text style={[styles.breakdown, { color: theme.colors.textSecondary }]}>
+                    Indique un poids entre 30 et 250 kg.
+                  </Text>
+                )}
               </View>
 
               <Text style={[styles.kicker, { color: theme.colors.textMuted, marginTop: 22 }]}>POIDS</Text>
@@ -269,7 +330,18 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
                 <WeightField label="Cible" value={targetWeight} onChange={setTargetWeight} theme={theme} />
               </View>
 
-              {!holding && (
+              <Text style={[styles.kicker, { color: theme.colors.textMuted, marginTop: 22 }]}>ÂGE</Text>
+              <View style={[styles.sessionBox, { backgroundColor: theme.colors.surface, marginTop: 0 }]}>
+                <TouchableOpacity onPress={() => nudgeAge(-1)} style={[styles.step, { backgroundColor: theme.colors.surfaceLight }]}>
+                  <Feather name="minus" size={16} color={theme.colors.text} />
+                </TouchableOpacity>
+                <Text style={[styles.sessionValue, { color: theme.colors.text }]}>{age} ans</Text>
+                <TouchableOpacity onPress={() => nudgeAge(1)} style={[styles.step, { backgroundColor: theme.colors.surfaceLight }]}>
+                  <Feather name="plus" size={16} color={theme.colors.text} />
+                </TouchableOpacity>
+              </View>
+
+              {showPace && (
                 <>
                   <Text style={[styles.kicker, { color: theme.colors.textMuted, marginTop: 22 }]}>RYTHME</Text>
                   <Text style={[styles.hint, { color: theme.colors.textSecondary }]}>kg par semaine, pas plus de 1</Text>
@@ -296,14 +368,15 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
                 </>
               )}
 
-              <Text style={[styles.kicker, { color: theme.colors.textMuted, marginTop: 22 }]}>CHARGE D'ENTRAÎNEMENT</Text>
+              <Text style={[styles.kicker, { color: theme.colors.textMuted, marginTop: 22 }]}>HORS ENTRAÎNEMENT</Text>
+              <Text style={[styles.hint, { color: theme.colors.textSecondary }]}>Ton quotidien, sans compter les séances</Text>
               <View style={styles.loadGrid}>
-                {ACTIVITY_LEVELS.map((lvl) => {
-                  const on = activityLevel === lvl.id;
+                {NEAT_LEVELS.map((lvl) => {
+                  const on = neat === lvl.id;
                   return (
                     <TouchableOpacity
                       key={lvl.id}
-                      onPress={() => setActivityLevel(lvl.id)}
+                      onPress={() => setNeat(lvl.id)}
                       style={[
                         styles.loadCell,
                         {
@@ -317,6 +390,25 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
                     </TouchableOpacity>
                   );
                 })}
+              </View>
+
+              <Text style={[styles.kicker, { color: theme.colors.textMuted, marginTop: 22 }]}>SÉANCES PAR SEMAINE</Text>
+              <View style={[styles.sessionBox, { backgroundColor: theme.colors.surface }]}>
+                <TouchableOpacity
+                  onPress={() => nudgeSessions(-1)}
+                  disabled={sessions <= MIN_SESSIONS}
+                  style={[styles.step, { backgroundColor: theme.colors.surfaceLight, opacity: sessions <= MIN_SESSIONS ? 0.4 : 1 }]}
+                >
+                  <Feather name="minus" size={16} color={theme.colors.text} />
+                </TouchableOpacity>
+                <Text style={[styles.sessionValue, { color: theme.colors.text }]}>{sessions}</Text>
+                <TouchableOpacity
+                  onPress={() => nudgeSessions(1)}
+                  disabled={sessions >= MAX_SESSIONS}
+                  style={[styles.step, { backgroundColor: theme.colors.surfaceLight, opacity: sessions >= MAX_SESSIONS ? 0.4 : 1 }]}
+                >
+                  <Feather name="plus" size={16} color={theme.colors.text} />
+                </TouchableOpacity>
               </View>
             </>
           ) : (
@@ -431,6 +523,7 @@ function WeightField({
   );
 }
 
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
@@ -520,4 +613,15 @@ const styles = StyleSheet.create({
   bottomBar: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 8 },
   saveButton: { borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
   saveButtonText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
+  breakdown: { fontSize: 13, lineHeight: 18, marginTop: 10 },
+  sessionBox: {
+    marginTop: 8,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sessionValue: { fontSize: 28, fontWeight: '800', minWidth: 36, textAlign: 'center' },
 });
