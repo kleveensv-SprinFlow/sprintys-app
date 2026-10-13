@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, ScrollView, Animated } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ActivityIndicator, Animated } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../src/core/theme';
@@ -8,15 +8,19 @@ import { supabase } from '../../src/services/supabase';
 import { useAuthStore } from '../../src/store/authStore';
 import { chatService, GroupDiscussionsSummary } from '../../src/services/chatService';
 import { useRouter } from 'expo-router';
-import { GlowBackground } from '../../src/shared/components/GlowBackground';
-import { glassSurface, glassRim } from '../../src/core/glass';
+import { glassCard, glassRim } from '../../src/core/glass';
 import { GlassSheen } from '../../src/shared/components/GlassSheen';
-import { FrostedBar } from '../../src/shared/components/FrostedBar';
+import { GlassScreen } from '../../src/shared/components/GlassScreen';
+import { Header } from '../../src/shared/components/Header';
+import { Input } from '../../src/shared/components/Input';
+import { Button } from '../../src/shared/components/Button';
+import { PressableScale } from '../../src/shared/components/PressableScale';
+import { SkeletonCard } from '../../src/shared/components/Skeleton';
 import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
 import { CoachSharingSheet } from '../../src/features/legal/CoachSharingSheet';
 import { useConsentStore } from '../../src/store/consentStore';
 
-import { appAlert } from '../../src/shared/feedback/appAlert';
+import { appAlert, toast, confirmAsync } from '../../src/shared/feedback/appAlert';
 
 import { useRefresh } from '../../src/shared/hooks/useRefresh';
 
@@ -29,39 +33,75 @@ interface MyGroupData {
   subgroup_name: string | null;
 }
 
+const CODE_LENGTH = 8;
+
+const formatMessageTime = (dateStr?: string | null) => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) {
+    const hours = date.getHours().toString().padStart(2, '0');
+    const mins = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${mins}`;
+  } else if (diffDays === 1) {
+    return 'Hier';
+  } else if (diffDays < 7) {
+    const days = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+    return days[date.getDay()];
+  }
+  return `${date.getDate()}/${date.getMonth() + 1}`;
+};
+
 export default function GroupsScreen() {
   const { user } = useAuthStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { barOpacity: headerBarOpacity, scrollProps } = useFrostedHeader();
+  const { scrollY, scrollProps } = useFrostedHeader();
   const [inviteCode, setInviteCode] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [myGroup, setMyGroup] = useState<MyGroupData | null>(null);
   const [discussions, setDiscussions] = useState<GroupDiscussionsSummary | null>(null);
-  const [isDiscussionsLoading, setIsDiscussionsLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [previewTeamName, setPreviewTeamName] = useState<string | null>(null);
+  /** Code check in flight: neutral state, never shown as an error. */
+  const [isCheckingCode, setIsCheckingCode] = useState(false);
+  /** Only true once the check has actually failed for the current code. */
+  const [codeNotFound, setCodeNotFound] = useState(false);
 
   useEffect(() => {
-    if (inviteCode.length === 8) {
-      checkInviteCode();
-    } else {
-      setPreviewTeamName(null);
+    setPreviewTeamName(null);
+    setCodeNotFound(false);
+    if (inviteCode.length !== CODE_LENGTH) {
+      setIsCheckingCode(false);
+      return;
     }
-  }, [inviteCode]);
 
-  const checkInviteCode = async () => {
-    try {
-      const { data, error } = await supabase.rpc('preview_team_by_code', { p_invite_code: inviteCode });
-      if (data && !error) {
-        setPreviewTeamName(data);
-      } else {
-        setPreviewTeamName(null);
+    // Ignore the answer if the code changed (or the screen closed) meanwhile
+    let cancelled = false;
+    setIsCheckingCode(true);
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc('preview_team_by_code', { p_invite_code: inviteCode });
+        if (cancelled) return;
+        if (data && !error) {
+          setPreviewTeamName(data);
+        } else {
+          setCodeNotFound(true);
+        }
+      } catch (e) {
+        if (!cancelled) setCodeNotFound(true);
+      } finally {
+        if (!cancelled) setIsCheckingCode(false);
       }
-    } catch (e) {
-      setPreviewTeamName(null);
-    }
-  };
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [inviteCode]);
 
   const refreshControl = useRefresh(() => fetchMyGroup());
   useFocusEffect(
@@ -70,38 +110,16 @@ export default function GroupsScreen() {
     }, [user?.id])
   );
 
-  const formatMessageTime = (dateStr?: string | null) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) {
-      const hours = date.getHours().toString().padStart(2, '0');
-      const mins = date.getMinutes().toString().padStart(2, '0');
-      return `${hours}:${mins}`;
-    } else if (diffDays === 1) {
-      return 'Hier';
-    } else if (diffDays < 7) {
-      const days = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
-      return days[date.getDay()];
-    } else {
-      return `${date.getDate()}/${date.getMonth() + 1}`;
-    }
-  };
-
   const loadDiscussions = async (teamId: string, coachId: string) => {
-    setIsDiscussionsLoading(true);
     try {
       const res = await chatService.getAthleteGroupDiscussions(teamId, coachId);
       setDiscussions(res);
     } catch (e) {
       console.error('Error loading discussions:', e);
-    } finally {
-      setIsDiscussionsLoading(false);
     }
   };
 
+  // Live last message / unread count on the two discussion cards
   useEffect(() => {
     if (!myGroup || myGroup.status !== 'approved') return;
 
@@ -167,6 +185,7 @@ export default function GroupsScreen() {
       setMyGroup(null);
     } finally {
       setIsLoading(false);
+      setHasLoaded(true);
     }
   };
 
@@ -192,239 +211,315 @@ export default function GroupsScreen() {
         setIsJoining(false);
         return;
       }
-      
-      appAlert('Demande envoyée', `Ta demande pour rejoindre « ${data.team_name} » est partie. Tu seras prévenu dès que ton coach l’aura acceptée.`);
+
+      toast(
+        'success',
+        `Ta demande pour rejoindre « ${data.team_name} » est partie. Tu seras prévenu dès que ton coach l’aura acceptée.`,
+        'Demande envoyée'
+      );
       setInviteCode('');
       fetchMyGroup();
-
     } catch (err: any) {
-      appAlert('Erreur', 'Impossible d\'envoyer la demande. Réessaie plus tard.');
+      appAlert('Erreur', 'Impossible d’envoyer la demande. Réessaie plus tard.');
       console.error(err);
     } finally {
       setIsJoining(false);
     }
   };
 
+  /** Same delete for both cases: cancelling a pending request, or leaving the group. */
   const handleLeaveGroup = async () => {
     if (!myGroup || !user?.id) return;
+    const isPending = myGroup.status === 'pending';
 
-    appAlert(
-      'Quitter le groupe',
-      `Es-tu sûr de vouloir quitter "${myGroup.team_name}" ? Tu conserveras l'historique de tes séances mais tu ne recevras plus les nouvelles planifications.`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Quitter',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase
-                .from('team_members')
-                .delete()
-                .match({ team_id: myGroup.team_id, user_id: user.id });
-
-              if (error) throw error;
-              setMyGroup(null);
-              appAlert('Terminé', 'Tu as quitté le groupe.');
-            } catch (err: any) {
-              appAlert('Erreur', 'Impossible de quitter le groupe.');
-              console.error(err);
-            }
+    const ok = await confirmAsync(
+      isPending
+        ? {
+            title: 'Annuler ta demande ?',
+            message: `Ta demande pour rejoindre « ${myGroup.team_name} » sera retirée. Tu pourras en renvoyer une avec un code d’invitation.`,
+            confirmText: 'Annuler ma demande',
+            cancelText: 'Garder',
+            destructive: true,
+            icon: 'x-circle',
           }
-        }
-      ]
+        : {
+            title: `Quitter « ${myGroup.team_name} » ?`,
+            message:
+              'Ton coach ne verra plus tes données (séances, records, suivi) et tu ne recevras plus ses nouvelles planifications. Ton historique reste dans ton compte.',
+            confirmText: 'Quitter le groupe',
+            destructive: true,
+            icon: 'log-out',
+          }
     );
+    if (!ok) return;
+
+    try {
+      const { error } = await supabase
+        .from('team_members')
+        .delete()
+        .match({ team_id: myGroup.team_id, user_id: user.id });
+
+      if (error) throw error;
+      setMyGroup(null);
+      setDiscussions(null);
+      toast('success', isPending ? 'Ta demande a été annulée.' : 'Tu as quitté le groupe.');
+    } catch (err: any) {
+      toast('error', isPending ? 'Impossible d’annuler la demande.' : 'Impossible de quitter le groupe.');
+      console.error(err);
+    }
   };
 
-  if (isLoading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <GlowBackground />
-        <ActivityIndicator size="large" color={theme.colors.accent} style={{ flex: 1 }} />
-      </SafeAreaView>
-    );
-  }
+  const openCoachChat = () => {
+    if (myGroup?.coach_id) {
+      router.push({
+        pathname: '/chat/[type]/[id]',
+        params: { type: 'direct', id: myGroup.coach_id, title: `Coach ${myGroup.coach_name}` },
+      });
+    } else {
+      appAlert('Information', 'Identifiant du coach indisponible.');
+    }
+  };
+
+  const openTeamChat = () => {
+    if (myGroup?.team_id) {
+      router.push({
+        pathname: '/chat/[type]/[id]',
+        params: { type: 'team', id: myGroup.team_id, title: myGroup.team_name },
+      });
+    } else {
+      appAlert('Information', 'Identifiant de l’équipe indisponible.');
+    }
+  };
+
+  const renderDiscussionCard = ({
+    icon,
+    tint,
+    color,
+    title,
+    fallback,
+    preview,
+    time,
+    unread,
+    onPress,
+  }: {
+    icon: React.ComponentProps<typeof Feather>['name'];
+    tint: string;
+    color: string;
+    title: string;
+    fallback: string;
+    preview: string | null;
+    time: string;
+    unread: number;
+    onPress: () => void;
+  }) => (
+    <PressableScale onPress={onPress} accessibilityRole="button" accessibilityLabel={title} style={[glassCard, styles.discussionCard]}>
+      <GlassSheen radius={22} />
+      <View style={[styles.discussionIcon, { backgroundColor: tint }]}>
+        <Feather name={icon} size={20} color={color} />
+      </View>
+      <View style={styles.discussionContent}>
+        <View style={styles.discussionTopRow}>
+          <Text style={styles.discussionTitle} numberOfLines={1}>
+            {title}
+          </Text>
+          {!!time && <Text style={styles.discussionTime}>{time}</Text>}
+        </View>
+        <View style={styles.discussionBottomRow}>
+          <Text style={[styles.discussionPreview, !preview && styles.discussionPreviewMuted]} numberOfLines={1}>
+            {preview || fallback}
+          </Text>
+          {unread > 0 && (
+            <View style={styles.unreadBadge}>
+              <Text style={styles.unreadBadgeText}>{unread > 99 ? '99+' : unread}</Text>
+            </View>
+          )}
+        </View>
+      </View>
+      <Feather name="chevron-right" size={20} color={theme.colors.textMuted} />
+    </PressableScale>
+  );
+
+  const codeComplete = inviteCode.length === CODE_LENGTH;
+  const codeStatusIcon = !codeComplete ? null : isCheckingCode ? (
+    <ActivityIndicator size="small" color={theme.colors.sprintyBlue} />
+  ) : previewTeamName ? (
+    <Feather name="check-circle" size={20} color={theme.colors.success} />
+  ) : codeNotFound ? (
+    <Feather name="alert-circle" size={20} color={theme.colors.error} />
+  ) : null;
+
+  const coachLast = discussions?.coach?.last_message ?? null;
+  const teamLast = discussions?.team?.last_message ?? null;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <GlowBackground />
-      <View style={styles.header}>
-        {/* Frosted only once content scrolls under it; reaches up under the status bar */}
-        <FrostedBar opacity={headerBarOpacity} style={{ top: -insets.top }} />
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Mon Groupe</Text>
-        <View style={{ width: 24 }} />
-      </View>
+    <GlassScreen scrollY={scrollY}>
+      <Header title="Mon groupe" showBackButton onBackPress={() => router.back()} scrollY={scrollY} />
 
-      <Animated.ScrollView {...scrollProps} refreshControl={refreshControl} style={styles.content} showsVerticalScrollIndicator={false}>
+      <Animated.ScrollView
+        {...scrollProps}
+        refreshControl={refreshControl}
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {isLoading && !hasLoaded && (
+          <>
+            <SkeletonCard lines={3} avatar />
+            <SkeletonCard lines={2} />
+          </>
+        )}
 
         {/* === ÉTAT 1 : Pas de groupe => Rejoindre === */}
-        {!myGroup && (
+        {hasLoaded && !myGroup && (
           <>
-            <View style={styles.joinCard}>
+            <View style={[glassCard, styles.heroCard]}>
               <GlassSheen radius={22} />
-              <View style={styles.joinIconCircle}>
-                <Feather name="users" size={32} color={theme.colors.accent} />
+              <View style={[styles.heroIcon, { backgroundColor: 'rgba(0, 105, 232, 0.1)' }]}>
+                <Feather name="users" size={28} color={theme.colors.sprintyBlue} />
               </View>
               <Text style={styles.cardTitle}>Rejoindre un coach</Text>
               <Text style={styles.cardDesc}>
-                Entre le code à 8 chiffres donné par ton coach ou scanne son QR code pour envoyer ta demande.
+                Entre le code d’invitation à 8 chiffres que ton coach t’a donné pour envoyer ta demande.
               </Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Code à 8 chiffres (ex: 48291037)"
-                placeholderTextColor={theme.colors.textMuted}
+
+              <Input
                 value={inviteCode}
-                onChangeText={setInviteCode}
+                onChangeText={(text) => setInviteCode(text.toUpperCase())}
+                placeholder="00000000"
                 keyboardType="number-pad"
-                maxLength={8}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                autoComplete="off"
+                maxLength={CODE_LENGTH}
+                returnKeyType="send"
+                onSubmitEditing={() => {
+                  if (previewTeamName && !isJoining) requestJoin();
+                }}
+                accessibilityLabel="Code d’invitation"
+                style={styles.codeInput}
+                containerStyle={styles.codeInputContainer}
+                leftIcon={<Feather name="hash" size={18} color={theme.colors.textMuted} />}
+                rightIcon={codeStatusIcon ?? <View style={styles.iconSpacer} />}
+                error={codeComplete && codeNotFound ? 'Code invalide ou introuvable. Vérifie-le avec ton coach.' : undefined}
               />
 
-              {inviteCode.length === 8 && previewTeamName && (
-                <View style={styles.previewContainer}>
-                  <Feather name="check-circle" size={16} color={theme.colors.success} />
-                  <Text style={styles.previewText}>Groupe trouvé : <Text style={styles.previewTeamName}>{previewTeamName}</Text></Text>
+              {codeComplete && isCheckingCode && (
+                <View style={styles.statusRow}>
+                  <Text style={styles.statusChecking}>Vérification…</Text>
                 </View>
               )}
-              {inviteCode.length === 8 && !previewTeamName && (
-                <View style={styles.previewContainerError}>
-                  <Feather name="alert-circle" size={16} color={theme.colors.error} />
-                  <Text style={styles.previewTextError}>Code invalide ou introuvable</Text>
+              {codeComplete && !isCheckingCode && previewTeamName && (
+                <View style={styles.previewPill}>
+                  <Feather name="check" size={16} color={theme.colors.success} />
+                  <Text style={styles.previewText} numberOfLines={2}>
+                    Groupe trouvé : <Text style={styles.previewTeamName}>{previewTeamName}</Text>
+                  </Text>
                 </View>
               )}
 
-              <TouchableOpacity 
-                style={[styles.joinBtn, (!inviteCode.trim() || inviteCode.trim().length < 8) && { opacity: 0.5 }]}
+              <Button
+                title="Envoyer la demande"
                 onPress={requestJoin}
-                disabled={!inviteCode.trim() || inviteCode.trim().length < 8 || isJoining || !previewTeamName}
-              >
-                {isJoining ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.joinBtnText}>Envoyer la demande</Text>
-                )}
-              </TouchableOpacity>
+                loading={isJoining}
+                disabled={!codeComplete || isJoining || !previewTeamName}
+                style={styles.joinBtn}
+              />
             </View>
 
-            <View style={styles.emptyState}>
-              <Feather name="shield" size={48} color={theme.colors.textMuted} />
-              <Text style={styles.emptyText}>Tu n'es dans aucun groupe.</Text>
-              <Text style={styles.emptySubText}>Demande le code d'invitation à ton coach.</Text>
+            <View style={styles.hintRow}>
+              <Feather name="shield" size={16} color={theme.colors.textMuted} />
+              <Text style={styles.hintText}>
+                Tu n’es dans aucun groupe pour l’instant. Demande le code d’invitation à ton coach.
+              </Text>
             </View>
           </>
         )}
 
         {/* === ÉTAT 2 : Demande en attente === */}
         {myGroup && myGroup.status === 'pending' && (
-          <View style={styles.pendingCard}>
+          <View style={[glassCard, styles.heroCard, styles.pendingCard]}>
             <GlassSheen radius={22} />
-            <View style={styles.pendingIconCircle}>
-              <Feather name="clock" size={32} color={theme.colors.warning} />
+            <View style={[styles.heroIcon, { backgroundColor: 'rgba(245, 158, 11, 0.12)' }]}>
+              <Feather name="clock" size={28} color={theme.colors.warning} />
             </View>
-            <Text style={styles.pendingTitle}>Demande en attente</Text>
-            <Text style={styles.pendingDesc}>
-              Ta demande pour rejoindre le groupe "{myGroup.team_name}" a été envoyée. Le coach doit l'accepter pour que tu puisses accéder à la planification.
+            <Text style={styles.cardTitle}>Demande en attente</Text>
+            <Text style={styles.cardDesc}>
+              Ta demande pour rejoindre « {myGroup.team_name} » a bien été envoyée. Ton coach doit l’accepter pour que tu
+              accèdes à sa planification.
             </Text>
-            <View style={styles.pendingInfoRow}>
-              <Feather name="user" size={16} color={theme.colors.textSecondary} />
-              <Text style={styles.pendingInfoText}>Coach : {myGroup.coach_name}</Text>
+            <View style={styles.coachChip}>
+              <Feather name="user" size={14} color={theme.colors.textSecondary} />
+              <Text style={styles.coachChipText} numberOfLines={1}>
+                Coach : {myGroup.coach_name}
+              </Text>
             </View>
-            <TouchableOpacity style={styles.cancelBtn} onPress={handleLeaveGroup}>
-              <Text style={styles.cancelBtnText}>Annuler la demande</Text>
-            </TouchableOpacity>
+            <PressableScale onPress={handleLeaveGroup} haptic="light" hitSlop={8} style={styles.cancelBtn}>
+              <Text style={styles.cancelBtnText}>Annuler ma demande</Text>
+            </PressableScale>
           </View>
         )}
 
         {/* === ÉTAT 3 : Membre approuvé => Tableau de bord du groupe === */}
         {myGroup && myGroup.status === 'approved' && (
-          <View style={styles.approvedContainer}>
-            {/* Carte du groupe */}
-            <View style={styles.groupMainCard}>
+          <>
+            <View style={[glassCard, styles.groupCard]}>
               <GlassSheen radius={22} />
               <View style={styles.groupHeader}>
-                <View style={styles.groupIconCircle}>
-                  <Feather name="shield" size={28} color={theme.colors.accent} />
+                <View style={[styles.groupIcon, { backgroundColor: 'rgba(0, 105, 232, 0.1)' }]}>
+                  <Feather name="shield" size={24} color={theme.colors.sprintyBlue} />
                 </View>
                 <View style={styles.groupTextContainer}>
-                  <Text style={styles.groupName}>{myGroup.team_name}</Text>
-                  <Text style={styles.groupCoach}>Coach : {myGroup.coach_name}</Text>
+                  <Text style={styles.groupName} numberOfLines={2}>
+                    {myGroup.team_name}
+                  </Text>
+                  <Text style={styles.groupCoach} numberOfLines={1}>
+                    Coach : {myGroup.coach_name}
+                  </Text>
                 </View>
               </View>
               {myGroup.subgroup_name && (
                 <View style={styles.subgroupBadge}>
-                  <Feather name="tag" size={14} color={theme.colors.accent} />
+                  <Feather name="tag" size={13} color={theme.colors.sprintyBlue} />
                   <Text style={styles.subgroupText}>{myGroup.subgroup_name}</Text>
                 </View>
               )}
             </View>
 
-            {/* Actions du groupe */}
-            <Text style={styles.sectionLabel}>ACTIONS</Text>
+            <Text style={styles.sectionLabel}>Discussions</Text>
 
-            <TouchableOpacity 
-              style={styles.actionCard} 
-              activeOpacity={0.7}
-              onPress={() => {
-                if (myGroup?.coach_id) {
-                  router.push({
-                    pathname: '/chat/[type]/[id]',
-                    params: { type: 'direct', id: myGroup.coach_id, title: `Coach ${myGroup.coach_name}` }
-                  });
-                } else {
-                  appAlert('Information', 'Identifiant du coach indisponible.');
-                }
-              }}
-            >
-              <GlassSheen radius={18} />
-              <View style={[styles.actionIconCircle, { backgroundColor: theme.colors.accent + '20' }]}>
-                <Feather name="message-circle" size={22} color={theme.colors.accent} />
-              </View>
-              <View style={styles.actionTextContainer}>
-                <Text style={styles.actionTitle}>Discuter avec le coach</Text>
-                <Text style={styles.actionDesc}>Message privé avec {myGroup.coach_name}</Text>
-              </View>
-              <Feather name="chevron-right" size={20} color={theme.colors.textMuted} />
-            </TouchableOpacity>
+            {renderDiscussionCard({
+              icon: 'message-circle',
+              tint: 'rgba(0, 105, 232, 0.1)',
+              color: theme.colors.sprintyBlue,
+              title: `Coach ${myGroup.coach_name}`,
+              fallback: 'Envoie un message privé à ton coach',
+              preview: coachLast ? `${coachLast.is_me ? 'Toi : ' : ''}${coachLast.content}` : null,
+              time: formatMessageTime(coachLast?.created_at),
+              unread: discussions?.coach?.unread_count ?? 0,
+              onPress: openCoachChat,
+            })}
 
-            <TouchableOpacity 
-              style={styles.actionCard} 
-              activeOpacity={0.7}
-              onPress={() => {
-                if (myGroup?.team_id) {
-                  router.push({
-                    pathname: '/chat/[type]/[id]',
-                    params: { type: 'team', id: myGroup.team_id, title: myGroup.team_name }
-                  });
-                } else {
-                  appAlert('Information', 'Identifiant de l\'équipe indisponible.');
-                }
-              }}
-            >
-              <GlassSheen radius={18} />
-              <View style={[styles.actionIconCircle, { backgroundColor: theme.colors.success + '20' }]}>
-                <Feather name="users" size={22} color={theme.colors.success} />
-              </View>
-              <View style={styles.actionTextContainer}>
-                <Text style={styles.actionTitle}>Tchat de groupe</Text>
-                <Text style={styles.actionDesc}>Discuter avec {myGroup.team_name}</Text>
-              </View>
-              <Feather name="chevron-right" size={20} color={theme.colors.textMuted} />
-            </TouchableOpacity>
+            {renderDiscussionCard({
+              icon: 'users',
+              tint: 'rgba(16, 185, 129, 0.12)',
+              color: theme.colors.success,
+              title: myGroup.team_name,
+              fallback: 'Discute avec tout le groupe',
+              preview: teamLast ? `${teamLast.sender_name} : ${teamLast.content}` : null,
+              time: formatMessageTime(teamLast?.created_at),
+              unread: discussions?.team?.unread_count ?? 0,
+              onPress: openTeamChat,
+            })}
 
-            <View style={styles.discussionsHeader}>
-              {/* Discussions moved to Messages tab */}
-            </View>
-
-            {/* Quitter le groupe */}
-            <TouchableOpacity style={styles.leaveBtn} onPress={handleLeaveGroup}>
+            <PressableScale onPress={handleLeaveGroup} haptic="light" style={styles.leaveBtn}>
               <Feather name="log-out" size={18} color={theme.colors.error} />
               <Text style={styles.leaveBtnText}>Quitter le groupe</Text>
-            </TouchableOpacity>
-          </View>
+            </PressableScale>
+          </>
         )}
       </Animated.ScrollView>
+
       <CoachSharingSheet
         visible={sharingSheet}
         teamName={previewTeamName}
@@ -436,177 +531,102 @@ export default function GroupsScreen() {
           }
         }}
       />
-    </SafeAreaView>
+    </GlassScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.backdrop },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
-  backBtn: { padding: 8, marginLeft: -8 },
-  title: { fontSize: 20, fontWeight: 'bold', color: theme.colors.text },
-  content: { flex: 1, paddingHorizontal: 20 },
+  scroll: { flex: 1 },
+  content: { paddingHorizontal: 16, paddingTop: 8 },
 
-  // Join Card
-  joinCard: {
-    ...glassSurface, padding: 24, borderRadius: 22, borderCurve: 'continuous', alignItems: 'center', marginBottom: 24,
+  // Hero cards (join / pending)
+  heroCard: { padding: 24, alignItems: 'center', marginBottom: 16 },
+  heroIcon: {
+    width: 60, height: 60, borderRadius: 30,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 14,
   },
-  joinIconCircle: {
-    width: 64, height: 64, borderRadius: 32, backgroundColor: theme.colors.glassFill,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 16,
-  },
-  cardTitle: { fontSize: 20, fontWeight: 'bold', color: theme.colors.text, marginBottom: 8, textAlign: 'center' },
-  cardDesc: { fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center', marginBottom: 20, lineHeight: 20 },
-  input: {
-    width: '100%', backgroundColor: theme.colors.glassFill, color: theme.colors.text,
-    padding: 16, borderRadius: 12, fontSize: 20, textAlign: 'center', letterSpacing: 4, marginBottom: 16,
-  },
-  joinBtn: {
-    width: '100%', backgroundColor: theme.colors.accent, padding: 16,
-    borderRadius: 12, alignItems: 'center',
-  },
-  joinBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
+  cardTitle: { fontSize: 22, fontWeight: '800', letterSpacing: -0.5, color: theme.colors.text, marginBottom: 6, textAlign: 'center' },
+  cardDesc: { fontSize: 15, color: theme.colors.textSecondary, textAlign: 'center', marginBottom: 20, lineHeight: 21 },
 
-  // Empty State
-  previewContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16, backgroundColor: theme.colors.success + '15', padding: 12, borderRadius: 8, width: '100%' },
-  previewContainerError: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16, backgroundColor: theme.colors.error + '15', padding: 12, borderRadius: 8, width: '100%' },
-  previewText: { color: theme.colors.success, fontSize: 14 },
-  previewTextError: { color: theme.colors.error, fontSize: 14 },
-  previewTeamName: { fontWeight: 'bold' },
-
-  emptyState: { alignItems: 'center', paddingVertical: 40 },
-  emptyText: { color: theme.colors.textSecondary, marginTop: 12, fontSize: 16, fontWeight: '600' },
-  emptySubText: { color: theme.colors.textMuted, marginTop: 4, fontSize: 14 },
-
-  // Pending Card
-  pendingCard: {
-    ...glassSurface, padding: 24, borderRadius: 22, borderCurve: 'continuous',
-    borderColor: theme.colors.warning + '40', ...glassRim, alignItems: 'center',
+  // Code input
+  codeInputContainer: { marginBottom: 12 },
+  codeInput: {
+    flex: 1, minWidth: 0, height: '100%',
+    color: theme.colors.text, fontSize: 24, fontWeight: '700', letterSpacing: 6,
+    textAlign: 'center', fontVariant: ['tabular-nums'],
   },
-  pendingIconCircle: {
-    width: 64, height: 64, borderRadius: 32, backgroundColor: theme.colors.warning + '20',
-    alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+  iconSpacer: { width: 20 },
+  statusRow: { width: '100%', alignItems: 'center', marginBottom: 12 },
+  statusChecking: { fontSize: 13, color: theme.colors.textSecondary, fontWeight: '500' },
+  previewPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, width: '100%',
+    backgroundColor: 'rgba(16, 185, 129, 0.12)', paddingVertical: 10, paddingHorizontal: 12,
+    borderRadius: 12, borderCurve: 'continuous', marginBottom: 12,
   },
-  pendingTitle: { fontSize: 20, fontWeight: 'bold', color: theme.colors.text, marginBottom: 8 },
-  pendingDesc: { fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center', marginBottom: 20, lineHeight: 20 },
-  pendingInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 24 },
-  pendingInfoText: { color: theme.colors.textSecondary, fontSize: 15 },
-  cancelBtn: { padding: 12 },
-  cancelBtnText: { color: theme.colors.error, fontWeight: '600', fontSize: 14 },
+  previewText: { flex: 1, color: theme.colors.text, fontSize: 14 },
+  previewTeamName: { fontWeight: '700' },
+  joinBtn: { width: '100%', marginTop: 4 },
 
-  // Approved Container
-  approvedContainer: { flex: 1 },
-  groupMainCard: {
-    ...glassSurface, padding: 20, borderRadius: 22, borderCurve: 'continuous', marginBottom: 24,
+  hintRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 8, paddingVertical: 8 },
+  hintText: { flex: 1, fontSize: 13, color: theme.colors.textSecondary, lineHeight: 18 },
+
+  // Pending
+  pendingCard: { borderColor: 'rgba(245, 158, 11, 0.35)', ...glassRim },
+  coachChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%',
+    backgroundColor: theme.colors.glassFill, paddingVertical: 8, paddingHorizontal: 12,
+    borderRadius: 12, borderCurve: 'continuous', marginBottom: 16,
   },
+  coachChipText: { color: theme.colors.textSecondary, fontSize: 14, fontWeight: '600' },
+  cancelBtn: { minHeight: 44, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
+  cancelBtnText: { color: theme.colors.error, fontWeight: '700', fontSize: 15 },
+
+  // Approved
+  groupCard: { padding: 20, marginBottom: 24 },
   groupHeader: { flexDirection: 'row', alignItems: 'center' },
-  groupIconCircle: {
-    width: 56, height: 56, borderRadius: 28, backgroundColor: theme.colors.glassFill,
-    alignItems: 'center', justifyContent: 'center', marginRight: 16,
+  groupIcon: {
+    width: 52, height: 52, borderRadius: 26,
+    alignItems: 'center', justifyContent: 'center', marginRight: 14,
   },
   groupTextContainer: { flex: 1 },
-  groupName: { fontSize: 22, fontWeight: 'bold', color: theme.colors.text, marginBottom: 4 },
-  groupCoach: { fontSize: 14, color: theme.colors.textSecondary },
+  groupName: { fontSize: 22, fontWeight: '800', letterSpacing: -0.5, color: theme.colors.text, marginBottom: 2 },
+  groupCoach: { fontSize: 13, color: theme.colors.textSecondary },
   subgroupBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: theme.colors.glassFill, paddingVertical: 8, paddingHorizontal: 14,
-    borderRadius: 8, alignSelf: 'flex-start', marginTop: 16,
+    backgroundColor: 'rgba(0, 105, 232, 0.08)', paddingVertical: 6, paddingHorizontal: 10,
+    borderRadius: 10, borderCurve: 'continuous', alignSelf: 'flex-start', marginTop: 14,
   },
-  subgroupText: { color: theme.colors.accent, fontWeight: '600', fontSize: 14 },
+  subgroupText: { color: theme.colors.sprintyBlue, fontWeight: '700', fontSize: 13 },
 
-  // Actions
   sectionLabel: {
-    fontSize: 12, fontWeight: 'bold', color: theme.colors.textSecondary,
-    letterSpacing: 2, marginBottom: 12,
+    fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary,
+    textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10, marginLeft: 4,
   },
-  actionCard: {
-    flexDirection: 'row', alignItems: 'center', ...glassSurface,
-    padding: 16, borderRadius: 18, borderCurve: 'continuous', marginBottom: 10,
-  },
-  actionIconCircle: {
-    width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginRight: 14,
-  },
-  actionTextContainer: { flex: 1 },
-  actionTitle: { fontSize: 16, fontWeight: '600', color: theme.colors.text, marginBottom: 2 },
-  actionDesc: { fontSize: 13, color: theme.colors.textMuted },
 
-  // Discussions section
-  discussionsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 14,
+  // Discussion cards
+  discussionCard: { flexDirection: 'row', alignItems: 'center', padding: 14, marginBottom: 10 },
+  discussionIcon: {
+    width: 44, height: 44, borderRadius: 22,
+    alignItems: 'center', justifyContent: 'center', marginRight: 12,
   },
-  discussionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    ...glassSurface,
-    padding: 14,
-    borderRadius: 18,
-    borderCurve: 'continuous',
-    marginBottom: 10,
-  },
-  discussionAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  discussionContent: {
-    flex: 1,
-    marginRight: 8,
-  },
-  discussionTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  discussionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: theme.colors.text,
-  },
-  discussionDate: {
-    fontSize: 11,
-    color: theme.colors.textMuted,
-  },
-  discussionBottomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  discussionPreview: {
-    fontSize: 13,
-    color: theme.colors.textSecondary,
-    flex: 1,
-    marginRight: 8,
-  },
-  discussionPreviewMuted: {
-    color: theme.colors.textMuted,
-    fontStyle: 'italic',
-  },
+  discussionContent: { flex: 1, marginRight: 8 },
+  discussionTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3, gap: 8 },
+  discussionTitle: { flex: 1, fontSize: 15, fontWeight: '700', color: theme.colors.text },
+  discussionTime: { fontSize: 12, color: theme.colors.textMuted },
+  discussionBottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  discussionPreview: { flex: 1, fontSize: 13, color: theme.colors.textSecondary },
+  discussionPreviewMuted: { color: theme.colors.textMuted },
   unreadBadge: {
-    backgroundColor: theme.colors.accent,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 5,
+    backgroundColor: theme.colors.sprintyBlue, minWidth: 20, height: 20, borderRadius: 10,
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6,
   },
-  unreadBadgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
+  unreadBadgeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
 
-  // Leave Button
+  // Leave
   leaveBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    padding: 16, marginTop: 30, marginBottom: 100,
+    minHeight: 52, marginTop: 24, borderRadius: 16, borderCurve: 'continuous',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
   },
-  leaveBtnText: { color: theme.colors.error, fontWeight: '600', fontSize: 15 },
+  leaveBtnText: { color: theme.colors.error, fontWeight: '700', fontSize: 15 },
 });
