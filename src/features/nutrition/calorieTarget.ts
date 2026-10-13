@@ -1,5 +1,5 @@
 /**
- * Cible calorique Sprintflow.
+ * Cible calorique Sprintys.
  *
  * Métabolisme de repos
  * - Mifflin-St Jeor (1990) par défaut. C'est l'équation la plus fiable

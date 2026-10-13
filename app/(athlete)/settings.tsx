@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import Constants from 'expo-constants';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal, Image, ActivityIndicator, Linking, Share, Animated } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -54,6 +55,8 @@ function base64ToUint8Array(base64: string): Uint8Array {
   return bytes;
 }
 
+const APP_VERSION = Constants.expoConfig?.version ?? '';
+
 export default function SettingsScreen() {
   const { user, logout, updateProfile, reloadProfile } = useAuthStore();
   const router = useRouter();
@@ -71,7 +74,7 @@ export default function SettingsScreen() {
   const handleContactSupport = () => {
     const subject = encodeURIComponent(`Contact Support - Athlète ${user?.name || ''}`);
     const body = encodeURIComponent(
-      `Bonjour l'équipe Sprintflow,\n\n[Décris ton besoin ou ta question ici]\n\n---\nUtilisateur: ${user?.email || ''}\nRôle: Athlète`
+      `Bonjour l'équipe Sprintys,\n\n[Décris ton besoin ou ta question ici]\n\n---\nUtilisateur: ${user?.email || ''}\nRôle: Athlète`
     );
     Linking.openURL(`mailto:support@sprintflow.app?subject=${subject}&body=${body}`);
   };
@@ -89,7 +92,7 @@ export default function SettingsScreen() {
       const { data, error } = await supabase.functions.invoke('export_data');
       if (error) throw error;
       const json = JSON.stringify(data, null, 2);
-      await Share.share({ title: 'Mes données Sprintflow', message: json });
+      await Share.share({ title: 'Mes données Sprintys', message: json });
     } catch(err) {
       Alert.alert('Erreur', "Impossible d'exporter les données.");
     }
@@ -407,7 +410,7 @@ export default function SettingsScreen() {
 
         {/* App Version Info */}
         <View style={styles.versionContainer}>
-          <Text style={styles.versionText}>Sprintflow Athletics • v1.0.0</Text>
+          <Text style={styles.versionText}>Sprintys · version {APP_VERSION}</Text>
           <Text style={styles.buildText}>Conçu pour la performance et le sprint</Text>
         </View>
       </Animated.ScrollView>

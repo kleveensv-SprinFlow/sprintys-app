@@ -46,6 +46,9 @@ jobs:
           echo "EXPO_PUBLIC_SUPABASE_URL=${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}" >> .env
           echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}" >> .env
 
+      - name: Set build number
+        run: node scripts/set-build-number.js $((100 + ${{ github.run_number }}))
+
       - name: Expo Prebuild (Generate Android Folder)
         run: npx expo prebuild -p android --no-install
 

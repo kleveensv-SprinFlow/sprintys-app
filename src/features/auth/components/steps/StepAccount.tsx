@@ -67,7 +67,7 @@ export const StepAccount = ({ data, updateData, onSubmit, onBack, isLoading }: a
           )}
           {data.dob && !isValidAge && (
             <Text style={{ color: theme.colors.error, marginTop: 4, fontSize: 12 }}>
-              Vous devez avoir au moins 15 ans pour utiliser Sprintflow.
+              Vous devez avoir au moins 15 ans pour utiliser Sprintys.
             </Text>
           )}
           <TouchableOpacity

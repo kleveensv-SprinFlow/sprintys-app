@@ -1,37 +1,84 @@
 {
   "expo": {
-    "name": "Sprintflow",
+    "name": "Sprintys",
     "slug": "sprintflow-v2",
     "scheme": "sprintflowv2",
     "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#050505"
+      "backgroundColor": "#FFFFFF"
     },
     "ios": {
-      "supportsTablet": true,
-      "userInterfaceStyle": "automatic",
+      "supportsTablet": false,
+      "userInterfaceStyle": "light",
       "bundleIdentifier": "com.sprintflow.inc",
       "buildNumber": "8",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Sprintys utilise l'appareil photo pour scanner le code-barres d'un aliment, photographier un repas afin que l'IA estime ses apports, et prendre ta photo de profil.",
+        "NSPhotoLibraryUsageDescription": "Sprintys accède à tes photos uniquement quand tu choisis une photo de profil ou la photo d'un repas à analyser.",
+        "NSLocationWhenInUseUsageDescription": "Sprintys utilise ta position approximative pendant l'utilisation pour afficher la météo de ton lieu d'entraînement."
+      },
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "C617.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategorySystemBootTime",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "35F9.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryDiskSpace",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "E174.1"
+            ]
+          }
+        ],
+        "NSPrivacyTracking": false,
+        "NSPrivacyTrackingDomains": []
       }
     },
     "android": {
-      "userInterfaceStyle": "automatic",
+      "userInterfaceStyle": "light",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#050505"
+        "backgroundColor": "#FFFFFF"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.sprintflow.inc",
-      "versionCode": 8
+      "versionCode": 8,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.VIBRATE",
+        "android.permission.INTERNET"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -41,22 +88,26 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Sprintflow a besoin de l'appareil photo pour scanner les codes-barres des aliments.",
-          "microphonePermission": "Sprintflow a besoin du microphone pour enregistrer des vidéos d'entraînement."
+          "cameraPermission": "Sprintys utilise l'appareil photo pour scanner le code-barres d'un aliment, photographier un repas afin que l'IA estime ses apports, et prendre ta photo de profil.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Sprintflow a besoin de votre localisation pour vous fournir la météo de votre lieu d'entraînement.",
-          "locationWhenInUsePermission": "Sprintflow a besoin de votre localisation lorsque l'application est active pour afficher la météo locale."
+          "locationWhenInUsePermission": "Sprintys utilise ta position approximative pendant l'utilisation pour afficher la météo de ton lieu d'entraînement.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Sprintflow a besoin d'accéder à vos photos pour modifier votre photo de profil.",
-          "cameraPermission": "Sprintflow a besoin de l'appareil photo pour prendre une nouvelle photo de profil."
+          "photosPermission": "Sprintys accède à tes photos uniquement quand tu choisis une photo de profil ou la photo d'un repas à analyser.",
+          "cameraPermission": "Sprintys utilise l'appareil photo pour scanner le code-barres d'un aliment, photographier un repas afin que l'IA estime ses apports, et prendre ta photo de profil.",
+          "microphonePermission": false
         }
       ],
       "expo-web-browser"

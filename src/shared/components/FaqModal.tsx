@@ -42,7 +42,7 @@ const FAQ_ITEMS: FaqItem[] = [
     id: '3',
     category: 'planning',
     question: 'Comment fonctionnent les conditions météo ?',
-    answer: 'Sprintflow analyse les prévisions de vent (vitesse, rafales, sens favorable ou défavorable à la ligne droite), ainsi que le risque de pluie pour t\'indiquer l\'état de la piste.',
+    answer: 'Sprintys analyse les prévisions de vent (vitesse, rafales, sens favorable ou défavorable à la ligne droite), ainsi que le risque de pluie pour t\'indiquer l\'état de la piste.',
   },
   {
     id: '4',
@@ -79,7 +79,7 @@ export const FaqModal = ({ visible, onClose }: Props) => {
   };
 
   const handleContactSupport = () => {
-    Linking.openURL('mailto:support@sprintflow.app?subject=Question%20Support%20Sprintflow');
+    Linking.openURL('mailto:support@sprintflow.app?subject=Question%20Support%20Sprintys');
   };
 
   return (
@@ -102,7 +102,7 @@ export const FaqModal = ({ visible, onClose }: Props) => {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.bannerTitle}>Questions fréquentes</Text>
-              <Text style={styles.bannerSubtitle}>Trouve rapidement les réponses aux usages clés de Sprintflow.</Text>
+              <Text style={styles.bannerSubtitle}>Trouve rapidement les réponses aux usages clés de Sprintys.</Text>
             </View>
           </View>
 

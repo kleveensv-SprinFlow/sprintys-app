@@ -55,7 +55,7 @@ export const WeatherCard = () => {
         return;
       }
 
-      let location = await Location.getCurrentPositionAsync({});
+      let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
       const data = await weatherService.fetchWeather(location.coords.latitude, location.coords.longitude);
       setWeather(data);
 

@@ -90,7 +90,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup }) => {
       <View style={styles.form}>
         <Input
           label="Adresse email"
-          placeholder="sprinter@sprintflow.app"
+          placeholder="ton@email.fr"
           value={email}
           onChangeText={(val) => {
             setEmail(val);

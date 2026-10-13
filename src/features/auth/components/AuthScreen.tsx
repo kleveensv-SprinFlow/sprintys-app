@@ -109,7 +109,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ initialTab = 'login' }) 
 
       {/* Minimal Athletic Footer */}
       <Text style={[styles.footerText, { color: theme.colors.textMuted }]}>
-        Sprintflow • Athlétisme & Haute Performance
+        Sprintys · Athlétisme & performance
       </Text>
     </ScrollView>
   );

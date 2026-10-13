@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Constants from 'expo-constants';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Linking, Image, Modal, ActivityIndicator, Animated } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -51,6 +52,8 @@ function base64ToUint8Array(base64: string): Uint8Array {
   return bytes;
 }
 
+const APP_VERSION = Constants.expoConfig?.version ?? '';
+
 export default function ProfileScreen() {
   const { user, logout, updateProfile } = useAuthStore();
   const router = useRouter();
@@ -67,7 +70,7 @@ export default function ProfileScreen() {
   const handleContactSupport = () => {
     const subject = encodeURIComponent(`Contact Support - Coach ${user?.name || ''}`);
     const body = encodeURIComponent(
-      `Bonjour l'équipe Sprintflow,\n\n[Décris ton besoin ou ta question ici]\n\n---\nUtilisateur: ${user?.email || ''}\nRôle: Coach`
+      `Bonjour l'équipe Sprintys,\n\n[Décris ton besoin ou ta question ici]\n\n---\nUtilisateur: ${user?.email || ''}\nRôle: Coach`
     );
     Linking.openURL(`mailto:support@sprintflow.app?subject=${subject}&body=${body}`);
   };
@@ -317,7 +320,7 @@ export default function ProfileScreen() {
 
         {/* App Version Info */}
         <View style={styles.versionContainer}>
-          <Text style={styles.versionText}>Sprintflow Athletics • v1.0.0</Text>
+          <Text style={styles.versionText}>Sprintys · version {APP_VERSION}</Text>
           <Text style={styles.buildText}>Conçu pour la performance et le sprint</Text>
         </View>
       </Animated.ScrollView>

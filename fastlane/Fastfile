@@ -25,29 +25,12 @@ platform :ios do
       sh("security list-keychains -s #{keychain_path}")
     end
 
-    begin
-      get_certificates(
-        api_key: api_key,
-        keychain_path: "~/Library/Keychains/ci_keychain-db",
-        keychain_password: "ci_keychain_password"
-      )
-    rescue => ex
-      UI.error("Failed to get certificates: #{ex.message}")
-      UI.message("Attempting to clean up old certificates...")
-      require 'spaceship'
-      certs = Spaceship::ConnectAPI::Certificate.all
-      certs.each do |cert|
-        if cert.certificate_type.include?("DISTRIBUTION")
-          cert.delete!
-          UI.message("Deleted distribution certificate #{cert.id}")
-        end
-      end
-      get_certificates(
-        api_key: api_key,
-        keychain_path: "~/Library/Keychains/ci_keychain-db",
-        keychain_password: "ci_keychain_password"
-      )
-    end
+    # Never revoke existing certificates automatically: a failure here must be fixed by hand
+    get_certificates(
+      api_key: api_key,
+      keychain_path: "~/Library/Keychains/ci_keychain-db",
+      keychain_password: "ci_keychain_password"
+    )
 
     get_provisioning_profile(
       api_key: api_key,

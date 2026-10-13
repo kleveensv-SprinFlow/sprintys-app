@@ -30,7 +30,7 @@ export const StepRole = ({ data, updateData, onNext }: any) => {
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.title, { color: theme.colors.text }]}>Comment allez-vous utiliser Sprintflow ?</Text>
+      <Text style={[styles.title, { color: theme.colors.text }]}>Comment vas-tu utiliser Sprintys ?</Text>
 
       <View style={styles.cardsContainer}>
         <RoleCard

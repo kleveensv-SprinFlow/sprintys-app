@@ -6,6 +6,13 @@ import { useTheme } from '../src/core/theme';
 import { SprintyFeedback } from '../src/features/sprinty/SprintyFeedback';
 import { View, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { AppErrorScreen } from '../src/shared/components/AppErrorScreen';
+import { OfflineBanner } from '../src/shared/components/OfflineBanner';
+
+/** Any screen that crashes while rendering shows a friendly retry screen instead of a blank one. */
+export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Promise<void> }) {
+  return <AppErrorScreen error={error} retry={retry} />;
+}
 
 export default function RootLayout() {
   const theme = useTheme();
@@ -59,7 +66,7 @@ export default function RootLayout() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#F8FAFC', '#F1F5F9', '#E2E8F0']}
+        colors={[theme.colors.backdrop, theme.colors.backdrop]}
         style={StyleSheet.absoluteFill}
       />
       <StatusBar style={isDark ? 'light' : 'dark'} />
@@ -72,12 +79,13 @@ export default function RootLayout() {
         <Stack.Screen name="index" />
       </Stack>
       <SprintyFeedback />
+      <OfflineBanner />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#09090D' }
+  container: { flex: 1, backgroundColor: '#EDF1F7' }
 });
 
 

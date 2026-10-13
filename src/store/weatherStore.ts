@@ -39,7 +39,7 @@ export const useWeatherStore = create<WeatherState>((set, get) => ({
       }
 
       // 2. Get Location
-      const location = await Location.getCurrentPositionAsync({});
+      const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
       const { latitude, longitude } = location.coords;
 
       // 3. Fetch Weather
