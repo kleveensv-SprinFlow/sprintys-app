@@ -1,15 +1,17 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import { useNutritionStore, getLocalDateString } from '../../../store/nutrition/nutritionStore';
 import { MealType } from '../types';
 import { useAuthStore } from '../../../store/authStore';
 import { useRouter } from 'expo-router';
-import Svg, { Circle } from 'react-native-svg';
 import { supabase } from '../../../services/supabase';
-import { glassSurface } from '../../../core/glass';
+import { glassCard } from '../../../core/glass';
 import { GlassSheen } from '../../../shared/components/GlassSheen';
+import { PressableScale } from '../../../shared/components/PressableScale';
+import { MealIcon } from './MealIcon';
+import { MEALS, MEAL_ACCENT, MEAL_ACCENT_TINT } from '../nutritionTheme';
 
 interface MealSectionProps {
   readonly?: boolean;
@@ -60,13 +62,6 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
   };
   const kcalGoal = activeProfile?.manualKcalGoal || activeProfile?.manual_kcal_goal || 2000;
 
-  const meals: { type: MealType; label: string; icon: keyof typeof Ionicons.glyphMap; color: string }[] = [
-    { type: 'petit_dejeuner', label: 'Petit déjeuner', icon: 'cafe-outline', color: '#F59E0B' },
-    { type: 'dejeuner', label: 'Déjeuner', icon: 'restaurant-outline', color: '#10B981' },
-    { type: 'diner', label: 'Dîner', icon: 'moon-outline', color: '#6366F1' },
-    { type: 'collation', label: 'Collation', icon: 'nutrition-outline', color: '#EC4899' },
-  ];
-
   const handleAddFood = (type: MealType) => {
     openSearchModal(type);
   };
@@ -79,139 +74,75 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
     router.push(`/meal/${type}${query ? `?${query}` : ''}`);
   };
 
-  const ICON_RING_SIZE = 44;
-  const STROKE_WIDTH = 3;
-  const RADIUS = (ICON_RING_SIZE - STROKE_WIDTH) / 2;
-  const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
-
   return (
     <View style={styles.container}>
-      {/* HEADER DE SECTION */}
-      <View style={styles.sectionHeaderRow}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Alimentation</Text>
-      </View>
+      <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Repas</Text>
 
-      {/* CARTE UNIQUE UNIFIÉE STYLE YAZIO */}
-      <View style={[styles.unifiedCard, glassSurface]}>
-        <GlassSheen radius={24} />
-        {meals.map((meal, index) => {
-          const logs = mealLogs.filter(log => log.meal_type === meal.type);
-          const consumedKcal = logs.reduce((sum, log) => sum + Number(log.calories), 0);
-          const targetKcal = Math.round((kcalGoal * mealDistribution[meal.type]) / 100);
-          
-          const progressPercent = Math.min(1, targetKcal > 0 ? consumedKcal / targetKcal : 0);
-          const strokeDashoffset = CIRCUMFERENCE * (1 - progressPercent);
+      {MEALS.map((meal) => {
+        const logs = mealLogs.filter((log) => log.meal_type === meal.type);
+        const consumedKcal = logs.reduce((sum, log) => sum + Number(log.calories), 0);
+        const targetKcal = Math.round((kcalGoal * mealDistribution[meal.type]) / 100);
+        const progress = Math.min(1, targetKcal > 0 ? consumedKcal / targetKcal : 0);
+        const foodsSummary = logs.map((l) => l.custom_food_name || 'Aliment').join(', ');
+        const yesterday = yesterdayMeals[meal.type];
 
-          // Résumé textuel compact des aliments sur 1 seule ligne
-          const foodsSummary = logs.map(l => l.custom_food_name || 'Aliment').join(', ');
-          const isLast = index === meals.length - 1;
+        return (
+          <PressableScale
+            key={meal.type}
+            onPress={() => navigateToMealDetail(meal.type)}
+            style={[glassCard, styles.mealCard]}
+          >
+            <GlassSheen radius={22} />
+            <View style={styles.mealRow}>
+              <MealIcon type={meal.type} size={22} />
 
-          return (
-            <Pressable 
-              key={meal.type} 
-              style={({ pressed }) => [
-                styles.mealRow, 
-                !isLast && { borderBottomWidth: 1, borderBottomColor: theme.colors.hairline },
-                pressed && { backgroundColor: theme.colors.glassFill }
-              ]}
-              onPress={() => navigateToMealDetail(meal.type)}
-            >
-              {/* Jauge circulaire SVG avec icône centrale */}
-              <View style={styles.iconRingContainer}>
-                <Svg width={ICON_RING_SIZE} height={ICON_RING_SIZE}>
-                  {/* Piste de fond */}
-                  <Circle
-                    cx={ICON_RING_SIZE / 2}
-                    cy={ICON_RING_SIZE / 2}
-                    r={RADIUS}
-                    stroke={theme.colors.border}
-                    strokeWidth={STROKE_WIDTH}
-                    strokeOpacity={0.35}
-                    fill="none"
-                  />
-                  {/* Anneau de progression actif */}
-                  {progressPercent > 0 && (
-                    <Circle
-                      cx={ICON_RING_SIZE / 2}
-                      cy={ICON_RING_SIZE / 2}
-                      r={RADIUS}
-                      stroke={meal.color}
-                      strokeWidth={STROKE_WIDTH}
-                      strokeDasharray={`${CIRCUMFERENCE}`}
-                      strokeDashoffset={`${strokeDashoffset}`}
-                      strokeLinecap="round"
-                      transform={`rotate(-90 ${ICON_RING_SIZE / 2} ${ICON_RING_SIZE / 2})`}
-                      fill="none"
-                    />
-                  )}
-                </Svg>
-
-                <View style={styles.centerIconWrap}>
-                  <Ionicons 
-                    name={meal.icon} 
-                    size={18} 
-                    color={progressPercent > 0 ? meal.color : theme.colors.textSecondary} 
-                  />
-                </View>
-              </View>
-
-              {/* Contenu central : Titre + flèche, Calories, et Aperçu des aliments */}
               <View style={styles.mealInfo}>
-                <View style={styles.titleWithChevron}>
-                  <Text style={[styles.mealTitle, { color: theme.colors.text }]}>
-                    {meal.label}
+                <Text style={[styles.mealTitle, { color: theme.colors.text }]}>{meal.label}</Text>
+                <Text style={[styles.kcalText, { color: theme.colors.text }]}>
+                  {Math.round(consumedKcal).toLocaleString('fr-FR')}
+                  <Text style={{ color: theme.colors.textSecondary, fontWeight: '500' }}>
+                    {' '}/ {targetKcal.toLocaleString('fr-FR')} kcal
                   </Text>
-                  <Feather name="chevron-right" size={14} color={theme.colors.textMuted} style={{ marginLeft: 4 }} />
-                </View>
-
-                <Text style={[styles.kcalText, { color: theme.colors.textSecondary }]}>
-                  {Math.round(consumedKcal)} <Text style={{ color: theme.colors.textMuted }}>/ {targetKcal} kcal</Text>
                 </Text>
-
-                {foodsSummary.length > 0 ? (
-                  <Text style={[styles.foodSummaryText, { color: theme.colors.textMuted }]} numberOfLines={1}>
-                    {foodsSummary}
-                  </Text>
-                ) : (!readonly && (yesterdayMeals[meal.type]?.count ?? 0) > 0 ? (
-                  <TouchableOpacity
-                    style={[styles.repeatYesterdayBtn, { borderColor: `${meal.color}50`, backgroundColor: `${meal.color}14` }]}
-                    onPress={async (e) => {
-                      e.stopPropagation();
-                      await copyMealFromDate(yesterdayDate, meal.type, athleteId);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Feather name="rotate-ccw" size={11} color={meal.color} style={{ marginRight: 4 }} />
-                    <Text style={[styles.repeatYesterdayText, { color: meal.color }]}>
-                      Répéter hier ({Math.round(yesterdayMeals[meal.type]?.kcal ?? 0)} kcal)
-                    </Text>
-                  </TouchableOpacity>
-                ) : null)}
               </View>
 
-              {/* Bouton '+' compact et cerclé assorti à la couleur du repas */}
               {!readonly && (
-                <TouchableOpacity
-                  style={[
-                    styles.addButtonCompact,
-                    {
-                      backgroundColor: `${meal.color}15`,
-                      borderColor: `${meal.color}35`,
-                    }
-                  ]}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    handleAddFood(meal.type);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Feather name="plus" size={17} color={meal.color} />
-                </TouchableOpacity>
+                <PressableScale onPress={() => handleAddFood(meal.type)} hitSlop={6} style={styles.addPill}>
+                  <Feather name="plus" size={15} color={MEAL_ACCENT} />
+                  <Text style={styles.addPillText}>Ajouter</Text>
+                </PressableScale>
               )}
-            </Pressable>
-          );
-        })}
-      </View>
+            </View>
+
+            {/* Share of this meal in the day's target */}
+            <View style={[styles.progressTrack, { backgroundColor: theme.colors.glassFill }]}>
+              <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+            </View>
+
+            {foodsSummary.length > 0 ? (
+              <Text style={[styles.foodSummaryText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                {foodsSummary}
+              </Text>
+            ) : !readonly && (yesterday?.count ?? 0) > 0 ? (
+              <PressableScale
+                haptic="light"
+                hitSlop={6}
+                onPress={async () => {
+                  await copyMealFromDate(yesterdayDate, meal.type, athleteId);
+                }}
+                style={styles.repeatLink}
+              >
+                <Feather name="rotate-ccw" size={12} color={MEAL_ACCENT} />
+                <Text style={styles.repeatLinkText}>
+                  Reprendre hier · {Math.round(yesterday?.kcal ?? 0)} kcal
+                </Text>
+              </PressableScale>
+            ) : (
+              <Text style={[styles.foodSummaryText, { color: theme.colors.textMuted }]}>Rien pour l'instant</Text>
+            )}
+          </PressableScale>
+        );
+      })}
     </View>
   );
 };
@@ -219,91 +150,79 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
-    paddingBottom: 40,
+    paddingBottom: 24,
   },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    marginTop: 8,
     marginBottom: 12,
     paddingHorizontal: 4,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-  },
-  unifiedCard: {
-    borderRadius: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 2,
-    overflow: 'hidden',
+  mealCard: {
+    marginBottom: 12,
+    paddingVertical: 14,
   },
   mealRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  iconRingContainer: {
-    width: 44,
-    height: 44,
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  centerIconWrap: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 12,
   },
   mealInfo: {
     flex: 1,
-    paddingRight: 12,
-  },
-  titleWithChevron: {
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   mealTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
     letterSpacing: -0.2,
   },
   kcalText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
     marginTop: 2,
+    fontVariant: ['tabular-nums'],
+  },
+  addPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: MEAL_ACCENT_TINT,
+  },
+  addPillText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: MEAL_ACCENT,
+  },
+  progressTrack: {
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginTop: 12,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 2,
+    backgroundColor: MEAL_ACCENT,
   },
   foodSummaryText: {
-    fontSize: 12,
-    marginTop: 3,
+    fontSize: 13,
     fontWeight: '500',
+    marginTop: 8,
   },
-  addButtonCompact: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  repeatYesterdayBtn: {
+  repeatLink: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    marginTop: 4,
+    gap: 5,
+    marginTop: 8,
   },
-  repeatYesterdayText: {
-    fontSize: 11,
-    fontWeight: '600',
+  repeatLinkText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: MEAL_ACCENT,
   },
 });

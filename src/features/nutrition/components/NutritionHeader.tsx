@@ -1,19 +1,23 @@
 import React from 'react';
-import { Animated, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Animated, View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
+import { glassSurface } from '../../../core/glass';
 import { useAuthStore } from '../../../store/authStore';
 import { FrostedBar } from '../../../shared/components/FrostedBar';
+import { PressableScale } from '../../../shared/components/PressableScale';
 
 interface Props {
   onSettingsPress: () => void;
   athleteProfile?: any;
   /** Frosted bar opacity (fades in once the content scrolls under the header). */
   barOpacity?: Animated.AnimatedInterpolation<number> | number;
+  /** Hidden for the coach's read-only view. */
+  showSettings?: boolean;
 }
 
-export const NutritionHeader: React.FC<Props> = ({ onSettingsPress, athleteProfile, barOpacity = 0 }) => {
+export const NutritionHeader: React.FC<Props> = ({ onSettingsPress, athleteProfile, barOpacity = 0, showSettings = true }) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
@@ -24,46 +28,67 @@ export const NutritionHeader: React.FC<Props> = ({ onSettingsPress, athleteProfi
   return (
     <View style={[styles.container, { paddingTop: Math.max(insets.top, 16) + 6 }]}>
       <FrostedBar opacity={barOpacity} />
-      <View style={styles.streakContainer}>
-        <Feather name="zap" size={20} color="#FFD700" />
-        <Text style={[styles.streakText, { color: theme.colors.text }]}>{currentStreak}</Text>
+      <View style={styles.row}>
+        <Text style={[styles.title, { color: theme.colors.text }]}>Nutrition</Text>
+
+        <View style={styles.right}>
+          {/* Logging streak, in the app's own bolt */}
+          <View style={[styles.streakChip, glassSurface]}>
+            <Feather name="zap" size={14} color={theme.colors.sprintyBlue} />
+            <Text style={[styles.streakText, { color: theme.colors.text }]}>{currentStreak}</Text>
+          </View>
+
+          {showSettings && (
+            <PressableScale onPress={onSettingsPress} haptic="selection" hitSlop={8} style={[styles.iconButton, glassSurface]}>
+              <Feather name="sliders" size={18} color={theme.colors.text} />
+            </PressableScale>
+          )}
+        </View>
       </View>
-
-      <Text style={[styles.title, { color: theme.colors.text }]}>Nutrition</Text>
-
-      <TouchableOpacity onPress={onSettingsPress} style={styles.settingsButton}>
-        <Feather name="settings" size={24} color={theme.colors.text} />
-      </TouchableOpacity>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 20,
-    paddingBottom: 12,
+    paddingBottom: 8,
+    zIndex: 10,
   },
-  streakContainer: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 215, 0, 0.1)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 15,
-  },
-  streakText: {
-    fontWeight: 'bold',
-    marginLeft: 5,
-    fontSize: 14,
+    justifyContent: 'space-between',
+    minHeight: 44,
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 32,
+    fontWeight: '800',
+    letterSpacing: -0.8,
   },
-  settingsButton: {
-    padding: 5,
-  }
+  right: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  streakChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 11,
+    height: 38,
+    borderRadius: 19,
+  },
+  streakText: {
+    fontSize: 15,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  iconButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

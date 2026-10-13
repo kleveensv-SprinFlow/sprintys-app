@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import { useNutritionStore, getLocalDateString } from '../../../store/nutrition/nutritionStore';
+import { glassSurface } from '../../../core/glass';
 
 interface DateSelectorProps {
   athleteId?: string;
@@ -44,38 +45,62 @@ export const DateSelector: React.FC<DateSelectorProps> = ({ athleteId }) => {
     return targetDate.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
   };
 
+  const isToday = currentDate === getLocalDateString(new Date());
+
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={handlePrevDay} style={styles.arrowButton}>
-        <Feather name="chevron-left" size={24} color={theme.colors.text} />
-      </TouchableOpacity>
+      {/* Glass capsule: previous day · label (tap = back to today) · next day */}
+      <View style={[styles.capsule, glassSurface]}>
+        <Pressable onPress={handlePrevDay} style={styles.arrowButton} hitSlop={8}>
+          <Feather name="chevron-left" size={20} color={theme.colors.text} />
+        </Pressable>
 
-      <Text style={[styles.dateText, { color: theme.colors.text }]}>
-        {formatDateLabel(currentDate)}
-      </Text>
+        <Pressable
+          onPress={() => !isToday && setCurrentDate(getLocalDateString(new Date()), athleteId)}
+          style={styles.labelButton}
+        >
+          <Text style={[styles.dateText, { color: theme.colors.text }]}>{formatDateLabel(currentDate)}</Text>
+          {!isToday && <Text style={[styles.todayHint, { color: theme.colors.sprintyBlue }]}>Revenir à aujourd'hui</Text>}
+        </Pressable>
 
-      <TouchableOpacity onPress={handleNextDay} style={styles.arrowButton}>
-        <Feather name="chevron-right" size={24} color={theme.colors.text} />
-      </TouchableOpacity>
+        <Pressable onPress={handleNextDay} style={styles.arrowButton} hitSlop={8}>
+          <Feather name="chevron-right" size={20} color={theme.colors.text} />
+        </Pressable>
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    alignItems: 'center',
+    paddingTop: 4,
+    paddingBottom: 8,
+  },
+  capsule: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 15,
+    borderRadius: 999,
+    paddingHorizontal: 4,
+    minHeight: 44,
+  },
+  arrowButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  labelButton: {
+    minWidth: 150,
+    alignItems: 'center',
+    paddingVertical: 4,
   },
   dateText: {
     fontSize: 16,
-    fontWeight: '600',
-    marginHorizontal: 20,
-    minWidth: 100,
-    textAlign: 'center',
+    fontWeight: '700',
+    textTransform: 'capitalize',
   },
-  arrowButton: {
-    padding: 10,
-  }
+  todayHint: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 1,
+  },
 });

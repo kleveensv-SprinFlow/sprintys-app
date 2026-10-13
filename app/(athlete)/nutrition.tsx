@@ -53,6 +53,7 @@ export default function NutritionScreen() {
     <GlassScreen>
       <NutritionHeader
         barOpacity={barOpacity}
+        showSettings={!readonly}
         onSettingsPress={() => { if (!readonly) setSettingsVisible(true); }}
         athleteProfile={athleteProfile}
       />
