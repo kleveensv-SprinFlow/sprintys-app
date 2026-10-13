@@ -49,7 +49,13 @@ export const ListRow: React.FC<ListRowProps> = ({
           </Text>
         )}
       </View>
-      {typeof value === 'string' ? <Text style={styles.value}>{value}</Text> : value}
+      {typeof value === 'string' ? (
+        <Text style={styles.value} numberOfLines={1}>
+          {value}
+        </Text>
+      ) : (
+        value
+      )}
       {chevron && <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />}
     </>
   );
@@ -70,5 +76,5 @@ const styles = StyleSheet.create({
   text: { flex: 1, minWidth: 0 },
   title: { fontSize: 16, fontWeight: '600', color: theme.colors.text },
   subtitle: { fontSize: 13, lineHeight: 18, color: theme.colors.textSecondary, marginTop: 1 },
-  value: { fontSize: 15, color: theme.colors.textSecondary, fontWeight: '500' },
+  value: { fontSize: 15, color: theme.colors.textSecondary, fontWeight: '500', flexShrink: 1, maxWidth: '45%' },
 });

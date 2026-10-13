@@ -1,991 +1,616 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Animated, Image } from 'react-native';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Animated, Image, Share, ActivityIndicator } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import { useTheme, theme } from '../../src/core/theme';
-import { Header } from '../../src/shared/components/Header';
-import { supabase } from '../../src/services/supabase';
-import { useCoachStore } from '../../src/store/coach/coachStore';
-import { useAuthStore } from '../../src/store/authStore';
 import { useRouter } from 'expo-router';
-import { GlowBackground } from '../../src/shared/components/GlowBackground';
-import { glassSurface } from '../../src/core/glass';
-import { useTabBarSpace } from '../../src/shared/hooks/useTabBarSpace';
+import { theme } from '../../src/core/theme';
+import { glassCard } from '../../src/core/glass';
+import { Header } from '../../src/shared/components/Header';
+import { useCoachStore, TeamMember } from '../../src/store/coach/coachStore';
+import { GlassScreen } from '../../src/shared/components/GlassScreen';
 import { GlassSheen } from '../../src/shared/components/GlassSheen';
+import { PressableScale } from '../../src/shared/components/PressableScale';
+import { SegmentedControl } from '../../src/shared/components/SegmentedControl';
+import { IconButton } from '../../src/shared/components/IconButton';
+import { ListRow } from '../../src/shared/components/ListRow';
+import { EmptyState } from '../../src/shared/components/EmptyState';
+import { SkeletonCard } from '../../src/shared/components/Skeleton';
+import { BottomSheet } from '../../src/shared/components/BottomSheet';
+import { Input } from '../../src/shared/components/Input';
+import { Button } from '../../src/shared/components/Button';
+import { useTabBarSpace } from '../../src/shared/hooks/useTabBarSpace';
 import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
-import { FeedbackHost } from '../../src/shared/feedback/FeedbackHost';
-import { appAlert } from '../../src/shared/feedback/appAlert';
+import { useRefresh } from '../../src/shared/hooks/useRefresh';
+import { appAlert, confirmAsync, toast } from '../../src/shared/feedback/appAlert';
+
+type Tab = 'members' | 'subgroups' | 'pending' | 'settings';
+type NameSheet = { kind: 'create_team' | 'rename_team' | 'create_sg' | 'rename_sg'; id?: string; value: string } | null;
+
+const NAME_SHEETS = {
+  create_team: { title: 'Nouveau groupe', placeholder: 'Ex. Groupe sprint', cta: 'Créer le groupe' },
+  rename_team: { title: 'Renommer le groupe', placeholder: 'Nom du groupe', cta: 'Enregistrer' },
+  create_sg: { title: 'Nouveau sous-groupe', placeholder: 'Ex. Juniors, 100 m, Haies', cta: 'Ajouter' },
+  rename_sg: { title: 'Renommer le sous-groupe', placeholder: 'Nom du sous-groupe', cta: 'Enregistrer' },
+};
+
+const nameOf = (m?: TeamMember | null) =>
+  m?.profile?.full_name || `${m?.profile?.first_name || ''} ${m?.profile?.last_name || ''}`.trim() || 'Athlète';
+
+const Avatar = ({ member, size = 44 }: { member: TeamMember; size?: number }) => (
+  <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]}>
+    {member.profile?.avatar_url ? (
+      <Image source={{ uri: member.profile.avatar_url }} style={{ width: size, height: size }} />
+    ) : (
+      <Text style={[styles.avatarInitial, { fontSize: size * 0.38 }]}>{nameOf(member).charAt(0).toUpperCase()}</Text>
+    )}
+  </View>
+);
+
+/** Runs a store action, then shows a toast based on the store's error flag (actions never throw). */
+const runAction = async (action: () => Promise<unknown>, success: string, failure: string) => {
+  useCoachStore.setState({ error: null });
+  await action();
+  if (useCoachStore.getState().error) toast('error', failure, 'Oups');
+  else toast('success', success);
+};
 
 export default function CoachGroupsScreen() {
   const router = useRouter();
   const tabBarSpace = useTabBarSpace();
   const { scrollY, scrollProps } = useFrostedHeader();
-  const { user } = useAuthStore();
-  const { 
+  const {
     teams, fetchTeams, createTeam, updateTeam, deleteTeam,
     subgroups, fetchSubgroups, createSubgroup, updateSubgroup, deleteSubgroup,
     teamMembers, pendingMembers, fetchTeamMembers, approveAthlete, rejectAthlete, removeAthlete, assignSubgroup,
-    subscribeToTeam, unsubscribe,
-    hasFetchedTeams
+    subscribeToTeam, unsubscribe, hasFetchedTeams,
   } = useCoachStore();
 
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'members' | 'subgroups' | 'pending' | 'settings'>('members');
-  
-  const [isCreatingTeam, setIsCreatingTeam] = useState(false);
-  const [newTeamName, setNewTeamName] = useState('');
-  
-  // States for Modals
-  const [modalType, setModalType] = useState<'none' | 'rename_team' | 'create_sg' | 'rename_sg' | 'change_sg' | 'athlete_profile'>('none');
-  const [tempValue, setTempValue] = useState('');
-  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
-  const [selectedAthlete, setSelectedAthlete] = useState<any>(null);
+  const [tab, setTab] = useState<Tab>('members');
+  const [nameSheet, setNameSheet] = useState<NameSheet>(null);
+  const [saving, setSaving] = useState(false);
+  const [athlete, setAthlete] = useState<TeamMember | null>(null);
+  const [pickSubgroup, setPickSubgroup] = useState(false);
+  useEffect(() => {
+    if (!athlete) setPickSubgroup(false);
+  }, [athlete]);
+  const [busyIds, setBusyIds] = useState<string[]>([]);
 
-  // Load initial teams
   useEffect(() => {
     fetchTeams();
   }, []);
 
-  
-
-  // Handle entering a team
   useEffect(() => {
-    if (activeTeamId) {
-      fetchTeamMembers(activeTeamId);
-      fetchSubgroups(activeTeamId);
-      subscribeToTeam(activeTeamId);
-    }
-    return () => {
-      unsubscribe();
-    };
+    if (!activeTeamId) return;
+    setTab('members');
+    fetchTeamMembers(activeTeamId);
+    fetchSubgroups(activeTeamId);
+    subscribeToTeam(activeTeamId);
+    return () => unsubscribe();
   }, [activeTeamId]);
 
-  const handleCreateTeam = async () => {
-    if (!newTeamName.trim()) return;
-    setIsCreatingTeam(true);
-    await createTeam(newTeamName.trim());
-    setNewTeamName('');
-    setIsCreatingTeam(false);
-    setModalType('none');
-  };
+  const refreshControl = useRefresh(async () => {
+    await fetchTeams();
+    if (activeTeamId) await Promise.all([fetchTeamMembers(activeTeamId), fetchSubgroups(activeTeamId)]);
+  });
 
-  const handleDeleteTeam = () => {
-    if (!activeTeamId) return;
-    appAlert('Supprimer le groupe ?', 'Le groupe et ses accès seront supprimés. C’est définitif.', [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Supprimer', style: 'destructive', onPress: async () => {
-        await deleteTeam(activeTeamId);
-        setActiveTeamId(null);
-      }}
-    ]);
-  };
+  const activeTeam = teams.find((t) => t.id === activeTeamId);
+  const teamPending = pendingMembers.filter((m) => m.team_id === activeTeamId);
 
-  const handleRemoveAthlete = (userId: string) => {
-    if (!activeTeamId) return;
-    appAlert('Exclure cet athlète ?', 'Il n’aura plus accès au groupe ni à tes séances.', [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Exclure', style: 'destructive', onPress: () => removeAthlete(userId, activeTeamId) }
-    ]);
-  };
-
-  const copyToClipboard = async (code: string) => {
+  const copyCode = async (code: string) => {
     await Clipboard.setStringAsync(code);
-    appAlert('Code copié', 'Le code d\'invitation a été copié dans le presse-papier.');
+    toast('success', 'Code copié');
   };
 
-  const renderTeamList = () => (
-    <Animated.ScrollView {...scrollProps} contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace }]} showsVerticalScrollIndicator={false}>
-      <Text style={styles.sectionTitle}>Mes Groupes</Text>
-      
-      {teams.map(team => (
-        <TouchableOpacity 
-          key={team.id} 
-          style={styles.teamCard}
-          activeOpacity={0.8}
-          onPress={() => setActiveTeamId(team.id)}
-        >
-          <GlassSheen radius={20} />
-          <View style={styles.teamCardHeader}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.teamCardTitle}>{team.name}</Text>
-              <Text style={styles.teamCardSub}>Groupe d'entraînement</Text>
-            </View>
-            <View style={styles.teamCardChevron}>
-              <Feather name="chevron-right" size={18} color="#0F172A" />
-            </View>
-          </View>
-          <View style={styles.teamCardFooter}>
-            <TouchableOpacity style={styles.teamCodeBadge} onPress={() => copyToClipboard(team.invite_code)} activeOpacity={0.7}>
-              <Feather name="copy" size={12} color="#0069E8" />
-              <Text style={styles.teamCodeText}>Code : {team.invite_code}</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      ))}
+  const shareCode = (name: string, code: string) =>
+    Share.share({ message: `Rejoins le groupe « ${name} » sur Sprintys avec le code ${code}` }).catch(() => undefined);
 
-      <TouchableOpacity 
-        style={styles.createBtn}
-        onPress={() => setModalType('create_sg')}
-        activeOpacity={0.8}
-      >
-        <View style={styles.createBtnIconWrap}>
-          <Feather name="plus" size={18} color="#0069E8" />
+  const saveName = async () => {
+    if (!nameSheet || !nameSheet.value.trim() || saving) return;
+    const value = nameSheet.value.trim();
+    setSaving(true);
+    const { kind, id } = nameSheet;
+    if (kind === 'create_team') await runAction(() => createTeam(value), 'Groupe créé', 'Impossible de créer le groupe.');
+    if (kind === 'rename_team' && activeTeamId) await runAction(() => updateTeam(activeTeamId, value), 'Groupe renommé', 'Impossible de renommer le groupe.');
+    if (kind === 'create_sg' && activeTeamId) await runAction(() => createSubgroup(activeTeamId, value), 'Sous-groupe ajouté', 'Impossible d’ajouter le sous-groupe.');
+    if (kind === 'rename_sg' && id) await runAction(() => updateSubgroup(id, value), 'Sous-groupe renommé', 'Impossible de renommer le sous-groupe.');
+    setSaving(false);
+    setNameSheet(null);
+  };
+
+  const withBusy = async (id: string, fn: () => Promise<void>) => {
+    setBusyIds((b) => [...b, id]);
+    await fn();
+    setBusyIds((b) => b.filter((x) => x !== id));
+  };
+
+  const handleDeleteTeam = async () => {
+    if (!activeTeam) return;
+    const ok = await confirmAsync({
+      title: `Supprimer « ${activeTeam.name} » ?`,
+      message: 'Le groupe, ses sous-groupes et les accès des athlètes seront supprimés. C’est définitif.',
+      confirmText: 'Supprimer le groupe',
+      destructive: true,
+    });
+    if (!ok) return;
+    await runAction(() => deleteTeam(activeTeam.id), 'Groupe supprimé', 'Impossible de supprimer le groupe.');
+    setActiveTeamId(null);
+  };
+
+  const handleRemove = async (member: TeamMember) => {
+    if (!activeTeamId) return;
+    const ok = await confirmAsync({
+      title: `Exclure ${nameOf(member)} ?`,
+      message: 'Il n’aura plus accès au groupe ni à tes séances.',
+      confirmText: 'Exclure',
+      destructive: true,
+      icon: 'user-x',
+    });
+    if (!ok) return;
+    setAthlete(null);
+    await runAction(() => removeAthlete(member.user_id, activeTeamId), 'Athlète retiré du groupe', 'Impossible d’exclure cet athlète.');
+  };
+
+  // ---------- List of groups ----------
+  const renderTeamList = () => (
+    <Animated.ScrollView
+      {...scrollProps}
+      refreshControl={refreshControl}
+      contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace }]}
+      showsVerticalScrollIndicator={false}
+    >
+      {!hasFetchedTeams ? (
+        <>
+          <SkeletonCard />
+          <SkeletonCard />
+        </>
+      ) : teams.length === 0 ? (
+        <View style={[glassCard, styles.card]}>
+          <GlassSheen radius={22} />
+          <EmptyState
+            icon="users"
+            title="Aucun groupe pour l’instant"
+            message="Crée un groupe : tes athlètes le rejoignent avec son code d’invitation."
+            actionLabel="Créer un groupe"
+            onAction={() => setNameSheet({ kind: 'create_team', value: '' })}
+          />
         </View>
-        <Text style={styles.createBtnText}>Créer un nouveau groupe</Text>
-      </TouchableOpacity>
+      ) : (
+        teams.map((team) => (
+          <PressableScale key={team.id} onPress={() => setActiveTeamId(team.id)} style={[glassCard, styles.teamCard]}>
+            <GlassSheen radius={22} />
+            <View style={styles.teamIcon}>
+              <Feather name="users" size={20} color={theme.colors.sprintyBlue} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.teamName} numberOfLines={1}>
+                {team.name}
+              </Text>
+              <PressableScale haptic="selection" onPress={() => copyCode(team.invite_code)} style={styles.codeChip} hitSlop={8}>
+                <Text style={styles.codeChipText}>{team.invite_code}</Text>
+                <Feather name="copy" size={12} color={theme.colors.sprintyBlue} />
+              </PressableScale>
+            </View>
+            <Feather name="chevron-right" size={20} color={theme.colors.textMuted} />
+          </PressableScale>
+        ))
+      )}
     </Animated.ScrollView>
   );
 
-  const activeTeam = teams.find(t => t.id === activeTeamId);
-
-  const renderTeamDetails = () => {
-    if (!activeTeam) return null;
-    const currentTeamPending = pendingMembers.filter(m => m.team_id === activeTeam.id);
-
-    return (
-      <View style={{ flex: 1 }}>
-        {/* Detail Header */}
-        <View style={styles.detailHeader}>
-          <TouchableOpacity onPress={() => setActiveTeamId(null)} style={styles.backBtn}>
-            <Feather name="arrow-left" size={24} color={theme.colors.text} />
-          </TouchableOpacity>
-          <View style={{ flex: 1, paddingHorizontal: 16 }}>
-            <Text style={styles.detailTitle}>{activeTeam.name}</Text>
-            <TouchableOpacity onPress={() => copyToClipboard(activeTeam.invite_code)} activeOpacity={0.7}>
-              <Text style={styles.detailSubtitle}>Code: {activeTeam.invite_code} <Feather name="copy" size={12} /></Text>
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity 
-             onPress={() => router.push(`/chat/team/${activeTeam.id}`)}
-             style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: theme.colors.glassFill, alignItems: 'center', justifyContent: 'center' }}
-          >
-             <Feather name="message-circle" size={20} color={theme.colors.text} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Tabs */}
-        <View style={styles.tabsContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsRow}>
-            <TouchableOpacity style={[styles.tabBtn, activeTab === 'members' && styles.tabBtnActive]} onPress={() => setActiveTab('members')}>
-              <Text style={[styles.tabText, activeTab === 'members' && styles.tabTextActive]}>Membres</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.tabBtn, activeTab === 'subgroups' && styles.tabBtnActive]} onPress={() => setActiveTab('subgroups')}>
-              <Text style={[styles.tabText, activeTab === 'subgroups' && styles.tabTextActive]}>Sous-groupes</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.tabBtn, activeTab === 'pending' && styles.tabBtnActive]} onPress={() => setActiveTab('pending')}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={[styles.tabText, activeTab === 'pending' && styles.tabTextActive]}>
-                  Demandes {currentTeamPending.length > 0 && `(${currentTeamPending.length})`}
+  // ---------- One group ----------
+  const renderMembers = () =>
+    teamMembers.length === 0 ? (
+      <EmptyState
+        icon="user-plus"
+        title="Personne pour l’instant"
+        message="Partage le code du groupe : chaque athlète qui le saisit t’envoie une demande."
+        actionLabel="Partager le code"
+        onAction={() => activeTeam && shareCode(activeTeam.name, activeTeam.invite_code)}
+      />
+    ) : (
+      <View style={[glassCard, styles.listCard]}>
+        {teamMembers.map((m, i) => {
+          const sg = subgroups.find((s) => s.id === m.subgroup_id);
+          return (
+            <PressableScale
+              key={m.user_id}
+              activeScale={0.985}
+              onPress={() => setAthlete(m)}
+              style={[styles.memberRow, i < teamMembers.length - 1 && styles.divider]}
+            >
+              <Avatar member={m} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.memberName} numberOfLines={1}>
+                  {nameOf(m)}
                 </Text>
-                {currentTeamPending.length > 0 && (
-                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.warning }} />
-                )}
+                <Text style={styles.memberSub} numberOfLines={1}>
+                  {sg ? sg.name : 'Sans sous-groupe'}
+                </Text>
               </View>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.tabBtn, activeTab === 'settings' && styles.tabBtnActive]} onPress={() => setActiveTab('settings')}>
-              <Text style={[styles.tabText, activeTab === 'settings' && styles.tabTextActive]}>Paramètres</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-
-        {/* Tab Content */}
-        <Animated.ScrollView {...scrollProps} contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace }]} showsVerticalScrollIndicator={false}>
-          
-          {activeTab === 'members' && (
-            <>
-              {teamMembers.length === 0 ? (
-                <Text style={styles.emptyText}>Aucun athlète dans ce groupe.</Text>
-              ) : (
-                teamMembers.map(member => {
-                  const sg = subgroups.find(s => s.id === member.subgroup_id);
-                  return (
-                    <TouchableOpacity 
-                      key={member.user_id} 
-                      style={styles.rowCard}
-                      onPress={() => {
-                        setSelectedEntityId(member.user_id);
-                        setSelectedAthlete(member);
-                        setModalType('athlete_profile');
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <GlassSheen radius={16} />
-                      <View style={styles.avatar}>
-                        {member.profile?.avatar_url ? (
-                          <Image source={{ uri: member.profile.avatar_url }} style={styles.avatarImage} />
-                        ) : (
-                          <Ionicons name="person" size={22} color={theme.colors.textMuted} />
-                        )}
-                      </View>
-                      <View style={styles.rowInfo}>
-                        <Text style={styles.rowTitle}>
-                          {member.profile?.full_name || `${member.profile?.first_name || ''} ${member.profile?.last_name || ''}`.trim() || 'Athlète'}
-                        </Text>
-                        <Text style={styles.rowSubtitle}>{sg ? sg.name : 'Aucun sous-groupe'}</Text>
-                      </View>
-                      <View style={{ flexDirection: 'row', gap: 8 }}>
-                        <TouchableOpacity 
-                          onPress={(e) => { e.stopPropagation(); router.push(`/chat/direct/${member.user_id}`); }} 
-                          style={styles.actionBtnIcon}
-                        >
-                          <Feather name="message-circle" size={18} color={theme.colors.textSecondary} />
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                          onPress={(e) => { e.stopPropagation(); handleRemoveAthlete(member.user_id); }} 
-                          style={[styles.actionBtnIcon, { backgroundColor: theme.colors.error + '15' }]}
-                        >
-                          <Feather name="user-x" size={18} color={theme.colors.error} />
-                        </TouchableOpacity>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })
-              )}
-            </>
-          )}
-
-          {activeTab === 'subgroups' && (
-            <>
-              <TouchableOpacity 
-                style={styles.createBtn}
-                onPress={() => { setModalType('create_sg'); setTempValue(''); }}
-                activeOpacity={0.8}
-              >
-                <View style={styles.createBtnIconWrap}>
-                  <Feather name="plus" size={18} color="#0069E8" />
-                </View>
-                <Text style={styles.createBtnText}>Ajouter un sous-groupe</Text>
-              </TouchableOpacity>
-
-              {subgroups.length === 0 ? (
-                <View style={styles.emptyStateBox}>
-                  <View style={styles.emptyStateIconCircle}>
-                    <Feather name="layers" size={24} color="#0069E8" />
-                  </View>
-                  <Text style={styles.emptyStateTitle}>Aucun sous-groupe configuré</Text>
-                  <Text style={styles.emptyStateSubtitle}>
-                    Crée des sous-groupes (ex. 100 m/200 m, Haies, Relais) pour adapter tes programmes.
-                  </Text>
-                </View>
-              ) : (
-                subgroups.map(sg => (
-                  <View key={sg.id} style={styles.rowCard}>
-                    <GlassSheen radius={16} />
-                    <View style={styles.sgTagIcon}>
-                      <Feather name="tag" size={16} color="#0069E8" />
-                    </View>
-                    <View style={styles.rowInfo}>
-                      <Text style={styles.rowTitle}>{sg.name}</Text>
-                    </View>
-                    <TouchableOpacity 
-                      onPress={() => { setSelectedEntityId(sg.id); setTempValue(sg.name); setModalType('rename_sg'); }}
-                      style={styles.actionBtnIcon}
-                      activeOpacity={0.7}
-                    >
-                      <Feather name="edit-2" size={16} color={theme.colors.textSecondary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      onPress={() => {
-                        appAlert('Supprimer', 'Supprimer ce sous-groupe ?', [
-                          { text: 'Annuler', style: 'cancel' },
-                          { text: 'Supprimer', style: 'destructive', onPress: () => deleteSubgroup(sg.id) }
-                        ]);
-                      }}
-                      style={[styles.actionBtnIcon, { backgroundColor: '#FEE2E2' }]}
-                      activeOpacity={0.7}
-                    >
-                      <Feather name="trash-2" size={16} color="#DC2626" />
-                    </TouchableOpacity>
-                  </View>
-                ))
-              )}
-            </>
-          )}
-
-          {activeTab === 'pending' && (
-            <>
-              {currentTeamPending.length === 0 ? (
-                <View style={styles.emptyStateBox}>
-                  <View style={[styles.emptyStateIconCircle, { backgroundColor: '#DCFCE7' }]}>
-                    <Feather name="check-circle" size={24} color="#16A34A" />
-                  </View>
-                  <Text style={styles.emptyStateTitle}>Toutes les demandes sont traitées</Text>
-                  <Text style={styles.emptyStateSubtitle}>
-                    Aucun athlète en attente de validation pour le moment.
-                  </Text>
-                </View>
-              ) : (
-                currentTeamPending.map(member => (
-                  <View key={member.user_id} style={styles.rowCard}>
-                    <GlassSheen radius={16} />
-                    <View style={styles.avatar}>
-                      {member.profile?.avatar_url ? (
-                        <Image source={{ uri: member.profile.avatar_url }} style={styles.avatarImage} />
-                      ) : (
-                        <Ionicons name="person" size={22} color={theme.colors.textMuted} />
-                      )}
-                    </View>
-                    <View style={styles.rowInfo}>
-                      <Text style={styles.rowTitle}>
-                        {member.profile?.full_name || `${member.profile?.first_name || ''} ${member.profile?.last_name || ''}`.trim() || 'Athlète'}
-                      </Text>
-                      <Text style={styles.rowSubtitle}>Demande d'accès au groupe</Text>
-                    </View>
-                    <TouchableOpacity onPress={() => approveAthlete(member.user_id, activeTeam.id)} style={[styles.actionBtnIcon, { backgroundColor: '#DCFCE7' }]} activeOpacity={0.7}>
-                      <Feather name="check" size={18} color="#16A34A" />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => rejectAthlete(member.user_id, activeTeam.id)} style={[styles.actionBtnIcon, { backgroundColor: '#FEE2E2' }]} activeOpacity={0.7}>
-                      <Feather name="x" size={18} color="#DC2626" />
-                    </TouchableOpacity>
-                  </View>
-                ))
-              )}
-            </>
-          )}
-
-          {activeTab === 'settings' && (
-            <View style={{ gap: 14 }}>
-              {/* Card Group Info */}
-              <View style={styles.settingsCard}>
-                <GlassSheen radius={20} />
-                <View style={styles.settingsCardHeader}>
-                  <Feather name="info" size={18} color="#0069E8" />
-                  <Text style={styles.settingsCardTitle}>Informations du groupe</Text>
-                </View>
-                <View style={styles.settingsRow}>
-                  <Text style={styles.settingsLabel}>Nom</Text>
-                  <Text style={styles.settingsValue}>{activeTeam.name}</Text>
-                </View>
-                <View style={styles.settingsDivider} />
-                <View style={styles.settingsRow}>
-                  <Text style={styles.settingsLabel}>Code d'accès</Text>
-                  <TouchableOpacity onPress={() => copyToClipboard(activeTeam.invite_code)} style={styles.settingsCodeBadge} activeOpacity={0.7}>
-                    <Text style={styles.settingsCodeText}>{activeTeam.invite_code}</Text>
-                    <Feather name="copy" size={12} color="#0069E8" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              <TouchableOpacity 
-                style={styles.settingsBtn}
-                onPress={() => { setTempValue(activeTeam.name); setModalType('rename_team'); }}
-                activeOpacity={0.7}
-              >
-                <Feather name="edit-3" size={18} color="#0F172A" />
-                <Text style={styles.settingsBtnText}>Renommer le groupe</Text>
-                <Feather name="chevron-right" size={16} color="#94A3B8" style={{ marginLeft: 'auto' }} />
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[styles.settingsBtn, styles.settingsDeleteBtn]} 
-                onPress={handleDeleteTeam}
-                activeOpacity={0.7}
-              >
-                <Feather name="trash-2" size={18} color="#DC2626" />
-                <Text style={[styles.settingsBtnText, { color: '#DC2626' }]}>Supprimer le groupe</Text>
-                <Feather name="chevron-right" size={16} color="#DC2626" style={{ marginLeft: 'auto' }} />
-              </TouchableOpacity>
-            </View>
-          )}
-          
-          <View style={{ height: 100 }} />
-        </Animated.ScrollView>
+              <Feather name="more-horizontal" size={20} color={theme.colors.textMuted} />
+            </PressableScale>
+          );
+        })}
       </View>
     );
-  };
+
+  const renderSubgroups = () => (
+    <>
+      {subgroups.length === 0 ? (
+        <EmptyState
+          icon="layers"
+          title="Aucun sous-groupe"
+          message="Crée des sous-groupes (100 m, Haies, Juniors…) pour adapter tes séances à chacun."
+          actionLabel="Ajouter un sous-groupe"
+          onAction={() => setNameSheet({ kind: 'create_sg', value: '' })}
+        />
+      ) : (
+        <>
+          <View style={[glassCard, styles.listCard]}>
+            {subgroups.map((sg, i) => {
+              const count = teamMembers.filter((m) => m.subgroup_id === sg.id).length;
+              return (
+                <View key={sg.id} style={[styles.memberRow, i < subgroups.length - 1 && styles.divider]}>
+                  <View style={styles.sgIcon}>
+                    <Feather name="tag" size={16} color={theme.colors.sprintyBlue} />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.memberName} numberOfLines={1}>
+                      {sg.name}
+                    </Text>
+                    <Text style={styles.memberSub}>{count === 0 ? 'Aucun athlète' : `${count} athlète${count > 1 ? 's' : ''}`}</Text>
+                  </View>
+                  <IconButton
+                    icon="edit-2"
+                    size={36}
+                    tone="plain"
+                    accessibilityLabel={`Renommer ${sg.name}`}
+                    onPress={() => setNameSheet({ kind: 'rename_sg', id: sg.id, value: sg.name })}
+                  />
+                  <IconButton
+                    icon="trash-2"
+                    size={36}
+                    tone="danger"
+                    accessibilityLabel={`Supprimer ${sg.name}`}
+                    onPress={async () => {
+                      const ok = await confirmAsync({
+                        title: `Supprimer « ${sg.name} » ?`,
+                        message: 'Les athlètes restent dans le groupe, sans sous-groupe.',
+                        confirmText: 'Supprimer',
+                        destructive: true,
+                      });
+                      if (ok) await runAction(() => deleteSubgroup(sg.id), 'Sous-groupe supprimé', 'Impossible de supprimer ce sous-groupe.');
+                    }}
+                  />
+                </View>
+              );
+            })}
+          </View>
+          <PressableScale onPress={() => setNameSheet({ kind: 'create_sg', value: '' })} style={styles.addRow}>
+            <Feather name="plus" size={16} color={theme.colors.sprintyBlue} />
+            <Text style={styles.addText}>Ajouter un sous-groupe</Text>
+          </PressableScale>
+        </>
+      )}
+    </>
+  );
+
+  const renderPending = () =>
+    teamPending.length === 0 ? (
+      <EmptyState icon="check-circle" title="Tout est à jour" message="Aucune demande en attente pour ce groupe." />
+    ) : (
+      <View style={[glassCard, styles.listCard]}>
+        {teamPending.map((m, i) => {
+          const busy = busyIds.includes(m.user_id);
+          return (
+            <View key={m.user_id} style={[styles.memberRow, i < teamPending.length - 1 && styles.divider]}>
+              <Avatar member={m} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.memberName} numberOfLines={1}>
+                  {nameOf(m)}
+                </Text>
+                <Text style={styles.memberSub}>Souhaite rejoindre le groupe</Text>
+              </View>
+              {busy ? (
+                <ActivityIndicator color={theme.colors.sprintyBlue} style={{ width: 84 }} />
+              ) : (
+                <View style={styles.pendingActions}>
+                  <IconButton
+                    icon="x"
+                    tone="danger"
+                    accessibilityLabel={`Refuser ${nameOf(m)}`}
+                    onPress={() =>
+                      withBusy(m.user_id, () =>
+                        runAction(() => rejectAthlete(m.user_id, m.team_id), 'Demande refusée', 'Impossible de refuser la demande.'),
+                      )
+                    }
+                  />
+                  <IconButton
+                    icon="check"
+                    tone="blue"
+                    accessibilityLabel={`Accepter ${nameOf(m)}`}
+                    onPress={() =>
+                      withBusy(m.user_id, () =>
+                        runAction(
+                          () => approveAthlete(m.user_id, m.team_id),
+                          `${nameOf(m)} a rejoint le groupe`,
+                          'Impossible d’accepter la demande.',
+                        ),
+                      )
+                    }
+                  />
+                </View>
+              )}
+            </View>
+          );
+        })}
+      </View>
+    );
+
+  const renderSettings = () =>
+    activeTeam && (
+      <>
+        <View style={[glassCard, styles.listCard]}>
+          <ListRow
+            icon="edit-3"
+            title="Renommer le groupe"
+            subtitle={activeTeam.name}
+            onPress={() => setNameSheet({ kind: 'rename_team', value: activeTeam.name })}
+          />
+          <ListRow icon="share-2" title="Partager le code d’invitation" onPress={() => shareCode(activeTeam.name, activeTeam.invite_code)} last />
+        </View>
+        <View style={[glassCard, styles.listCard]}>
+          <ListRow icon="trash-2" title="Supprimer le groupe" destructive onPress={handleDeleteTeam} last chevron={false} />
+        </View>
+      </>
+    );
+
+  const renderTeamDetails = () =>
+    activeTeam && (
+      <Animated.ScrollView
+        {...scrollProps}
+        refreshControl={refreshControl}
+        contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace }]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={[glassCard, styles.codeCard]}>
+          <GlassSheen radius={22} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.codeLabel}>CODE D’INVITATION</Text>
+            <Text style={styles.codeValue} selectable>
+              {activeTeam.invite_code}
+            </Text>
+          </View>
+          <IconButton icon="copy" tone="blue" size={42} accessibilityLabel="Copier le code" onPress={() => copyCode(activeTeam.invite_code)} />
+          <IconButton
+            icon="share-2"
+            tone="blue"
+            size={42}
+            accessibilityLabel="Partager le code"
+            onPress={() => shareCode(activeTeam.name, activeTeam.invite_code)}
+          />
+        </View>
+
+        <SegmentedControl
+          style={styles.segments}
+          options={[
+            { key: 'members' as Tab, label: 'Athlètes' },
+            { key: 'subgroups' as Tab, label: 'Groupes' },
+            { key: 'pending' as Tab, label: teamPending.length ? `Demandes ${teamPending.length}` : 'Demandes' },
+            { key: 'settings' as Tab, label: 'Réglages' },
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
+
+        {tab === 'members' && renderMembers()}
+        {tab === 'subgroups' && renderSubgroups()}
+        {tab === 'pending' && renderPending()}
+        {tab === 'settings' && renderSettings()}
+      </Animated.ScrollView>
+    );
+
+  const sheetCfg = nameSheet ? NAME_SHEETS[nameSheet.kind] : null;
+  const currentSg = athlete ? subgroups.find((s) => s.id === athlete.subgroup_id) : null;
 
   return (
-    <View style={styles.container}>
-      <GlowBackground />
-      <Header title="Équipe" large scrollY={scrollY} />
+    <GlassScreen scrollY={scrollY}>
+      {activeTeam ? (
+        <Header
+          title={activeTeam.name}
+          showBackButton
+          onBackPress={() => setActiveTeamId(null)}
+          scrollY={scrollY}
+          rightComponent={
+            <IconButton icon="message-circle" accessibilityLabel="Discussion du groupe" onPress={() => router.push(`/chat/team/${activeTeam.id}`)} />
+          }
+        />
+      ) : (
+        <Header
+          title="Équipe"
+          large
+          scrollY={scrollY}
+          rightComponent={
+            <IconButton icon="plus" tone="blue" accessibilityLabel="Créer un groupe" onPress={() => setNameSheet({ kind: 'create_team', value: '' })} />
+          }
+        />
+      )}
 
-      {activeTeamId ? renderTeamDetails() : renderTeamList()}
+      {activeTeam ? renderTeamDetails() : renderTeamList()}
 
-      {/* REUSABLE MODAL FOR INPUTS */}
-      <Modal visible={modalType !== 'none' && modalType !== 'change_sg'} transparent animationType="fade">
-        <FeedbackHost />
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
-            <Text style={styles.modalTitle}>
-              {modalType === 'rename_team' ? 'Renommer le groupe' :
-               modalType === 'rename_sg' ? 'Renommer le sous-groupe' :
-               'Nouveau nom'}
-            </Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: theme.colors.background, color: theme.colors.text }]}
-              value={tempValue}
-              onChangeText={setTempValue}
-              placeholder="Ex: Pôle Sprint"
-              placeholderTextColor={theme.colors.textMuted}
-              autoFocus
-            />
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalCancel} onPress={() => setModalType('none')}>
-                <Text style={styles.modalCancelText}>Annuler</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalSave, { backgroundColor: theme.colors.accent }]}
-                onPress={async () => {
-                  if (!tempValue.trim()) return;
-                  if (modalType === 'rename_team' && activeTeamId) {
-                    await updateTeam(activeTeamId, tempValue.trim());
-                  } else if (modalType === 'rename_sg' && selectedEntityId) {
-                    await updateSubgroup(selectedEntityId, tempValue.trim());
-                  } else if (modalType === 'create_sg' && activeTeamId) {
-                    await createSubgroup(activeTeamId, tempValue.trim());
-                  } else if (modalType === 'create_sg' && !activeTeamId) {
-                    // C'est la création de team
-                    await createTeam(tempValue.trim());
-                  }
-                  setModalType('none');
-                }}
-              >
-                <Text style={styles.modalSaveText}>Enregistrer</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+      {/* Create / rename */}
+      <BottomSheet visible={!!nameSheet} onClose={() => setNameSheet(null)} title={sheetCfg?.title}>
+        <View style={{ marginTop: 16 }}>
+          <Input
+            placeholder={sheetCfg?.placeholder}
+            value={nameSheet?.value ?? ''}
+            onChangeText={(v) => setNameSheet((s) => (s ? { ...s, value: v } : s))}
+            autoFocus
+            maxLength={40}
+            returnKeyType="done"
+            onSubmitEditing={saveName}
+          />
+          <Button title={sheetCfg?.cta ?? 'Enregistrer'} onPress={saveName} loading={saving} disabled={!nameSheet?.value.trim()} />
         </View>
-      </Modal>
+      </BottomSheet>
 
-      {/* MODAL FOR ATHLETE PROFILE (Proposition B) */}
-      <Modal visible={modalType === 'athlete_profile' && !!selectedAthlete} transparent animationType="fade">
-        <FeedbackHost />
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
-            
-            <View style={{ alignItems: 'center', marginBottom: 24 }}>
-                <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: theme.colors.surfaceLight, justifyContent: 'center', alignItems: 'center', marginBottom: 12, overflow: 'hidden' }}>
-                  {selectedAthlete?.profile?.avatar_url ? (
-                    <Image source={{ uri: selectedAthlete.profile.avatar_url }} style={{ width: 80, height: 80, borderRadius: 40 }} />
-                  ) : (
-                    <Ionicons name="person" size={40} color={theme.colors.textMuted} />
-                  )}
-                </View>
-              <Text style={{ fontSize: 24, fontWeight: 'bold', color: theme.colors.text }}>
-                {selectedAthlete?.profile?.full_name || `${selectedAthlete?.profile?.first_name || ''} ${selectedAthlete?.profile?.last_name || ''}`.trim() || 'Athlète'}
-              </Text>
-              <Text style={{ fontSize: 14, color: theme.colors.textMuted, marginTop: 4 }}>Athlète de l'équipe</Text>
-            </View>
-
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between', marginBottom: 24 }}>
-              {/* Sous-groupe */}
-              <TouchableOpacity style={styles.actionSquareBtn} onPress={() => setModalType('change_sg')}>
-                <View style={[styles.actionSquareIcon, { backgroundColor: theme.colors.accent + '20' }]}>
-                  <Feather name="users" size={24} color={theme.colors.accent} />
-                </View>
-                <Text style={styles.actionSquareText}>Sous-groupe</Text>
-              </TouchableOpacity>
-
-              {/* Sprinty */}
-              <TouchableOpacity 
-                style={styles.actionSquareBtn} 
-                onPress={() => {
-                  setModalType('none');
-                  router.navigate({ 
-                    pathname: '/(coach)/chat', 
-                    params: {
-                      athleteId: selectedAthlete?.user_id,
-                      athleteName: selectedAthlete?.profile?.full_name || `${selectedAthlete?.profile?.first_name || ''} ${selectedAthlete?.profile?.last_name || ''}`.trim() || 'Athlète',
-                      avatarUrl: selectedAthlete?.profile?.avatar_url || '',
-                      domains: 'training,nutrition,wellness,body',
-                      ts: String(Date.now()),
-                    } 
-                  });
-                }}
-              >
-                <View style={[styles.actionSquareIcon, { backgroundColor: '#8B5CF620' }]}>
-                  <Feather name="cpu" size={24} color="#8B5CF6" />
-                </View>
-                <Text style={styles.actionSquareText}>Sprinty IA</Text>
-              </TouchableOpacity>
-
-            </View>
-
-            <TouchableOpacity style={styles.modalCancel} onPress={() => { setModalType('none'); setSelectedAthlete(null); }}>
-              <Text style={styles.modalCancelText}>Fermer</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* MODAL FOR ASSIGNING SUBGROUP */}
-      <Modal visible={modalType === 'change_sg'} transparent animationType="slide">
-        <FeedbackHost />
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
-            <Text style={styles.modalTitle}>Assigner un sous-groupe</Text>
-            
-            {subgroups.length === 0 ? (
-              <View style={{ alignItems: 'center', paddingVertical: 32, gap: 12 }}>
-                <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: theme.colors.accent + '15', alignItems: 'center', justifyContent: 'center' }}>
-                  <Feather name="layers" size={32} color={theme.colors.accent} />
-                </View>
-                <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text, textAlign: 'center' }}>Aucun sous-groupe créé</Text>
-                <Text style={{ fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center', paddingHorizontal: 16 }}>
-                  Va dans l’onglet « Sous-groupes » pour en créer un et organiser tes athlètes.
+      {/* Athlete actions, then subgroup picker inside the same sheet (two native modals cannot overlap on iOS) */}
+      <BottomSheet
+        visible={!!athlete}
+        onClose={() => (pickSubgroup ? setPickSubgroup(false) : setAthlete(null))}
+        title={pickSubgroup ? 'Sous-groupe' : undefined}
+        subtitle={pickSubgroup && athlete ? `Pour ${nameOf(athlete)}` : undefined}
+      >
+        {athlete && !pickSubgroup && (
+          <>
+            <View style={styles.athleteHead}>
+              <Avatar member={athlete} size={56} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.athleteName} numberOfLines={1}>
+                  {nameOf(athlete)}
                 </Text>
+                <Text style={styles.memberSub}>{currentSg ? currentSg.name : 'Sans sous-groupe'}</Text>
               </View>
+            </View>
+            <ListRow
+              icon="heart"
+              title="Voir sa forme"
+              onPress={() => {
+                const id = athlete.user_id;
+                setAthlete(null);
+                router.push(`/(coach)/athlete/${id}`);
+              }}
+            />
+            <ListRow
+              icon="message-circle"
+              title="Envoyer un message"
+              onPress={() => {
+                const id = athlete.user_id;
+                setAthlete(null);
+                router.push(`/chat/direct/${id}`);
+              }}
+            />
+            <ListRow
+              icon="cpu"
+              iconColor="#8B5CF6"
+              title="Analyser avec Sprinty"
+              onPress={() => {
+                const a = athlete;
+                setAthlete(null);
+                router.navigate({
+                  pathname: '/(coach)/chat',
+                  params: {
+                    athleteId: a.user_id,
+                    athleteName: nameOf(a),
+                    avatarUrl: a.profile?.avatar_url || '',
+                    domains: 'training,nutrition,wellness,body',
+                    ts: String(Date.now()),
+                  },
+                });
+              }}
+            />
+            <ListRow icon="layers" title="Changer de sous-groupe" value={currentSg?.name} onPress={() => setPickSubgroup(true)} />
+            <ListRow icon="user-x" title="Exclure du groupe" destructive chevron={false} onPress={() => handleRemove(athlete)} last />
+          </>
+        )}
+        {athlete && pickSubgroup && (
+          <View style={{ marginTop: 12 }}>
+            {subgroups.length === 0 ? (
+              <EmptyState compact icon="layers" title="Aucun sous-groupe" message="Crée-en un depuis l’onglet « Groupes »." />
             ) : (
-              <ScrollView style={{ maxHeight: 300, marginTop: 16 }}>
-                <TouchableOpacity 
-                  style={[styles.sgOption, { borderColor: theme.colors.border }]}
-                  onPress={() => {
-                    if (selectedEntityId && activeTeamId) assignSubgroup(selectedEntityId, activeTeamId, null);
-                    setModalType('none');
-                  }}
-                >
-                  <Text style={styles.sgOptionText}>Aucun sous-groupe</Text>
-                </TouchableOpacity>
-
-                {subgroups.map(sg => (
-                  <TouchableOpacity 
-                    key={sg.id}
-                    style={[styles.sgOption, { borderColor: theme.colors.border }]}
-                    onPress={() => {
-                      if (selectedEntityId && activeTeamId) assignSubgroup(selectedEntityId, activeTeamId, sg.id);
-                      setModalType('none');
+              [{ id: null as string | null, name: 'Sans sous-groupe' }, ...subgroups].map((sg, i, all) => {
+                const on = (athlete.subgroup_id ?? null) === sg.id;
+                return (
+                  <ListRow
+                    key={sg.id ?? 'none'}
+                    title={sg.name}
+                    chevron={false}
+                    last={i === all.length - 1}
+                    value={on ? <Feather name="check" size={20} color={theme.colors.sprintyBlue} /> : undefined}
+                    onPress={async () => {
+                      if (!activeTeamId) return;
+                      const target = athlete;
+                      setAthlete(null);
+                      if (!on)
+                        await runAction(
+                          () => assignSubgroup(target.user_id, activeTeamId, sg.id),
+                          'Sous-groupe mis à jour',
+                          'Impossible de changer le sous-groupe.',
+                        );
                     }}
-                  >
-                    <Text style={styles.sgOptionText}>{sg.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+                  />
+                );
+              })
             )}
-
-            <TouchableOpacity style={[styles.modalCancel, { marginTop: 16 }]} onPress={() => setModalType('none')}>
-              <Text style={styles.modalCancelText}>Annuler</Text>
-            </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
-
-    </View>
+        )}
+      </BottomSheet>
+    </GlassScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.backdrop,
-  },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 32,
-    paddingBottom: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: theme.colors.text,
-  },
-  content: {
-    paddingHorizontal: 24,
-    paddingBottom: 40,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: theme.colors.textSecondary,
-    letterSpacing: 1,
-    marginBottom: 16,
-    marginTop: 8,
-  },
-  teamCard: {
-    ...glassSurface,
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 12,
-  },
-  teamCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  teamCardTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#0F172A',
-    letterSpacing: -0.3,
-  },
-  teamCardSub: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  teamCardChevron: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: theme.colors.glassFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  teamCardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  teamCodeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F0F7FF',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#BAE6FD',
-    gap: 6,
-  },
-  teamCodeText: {
-    color: '#0369A1',
-    fontWeight: '700',
-    fontSize: 13,
-    letterSpacing: 0.5,
-  },
-  createBtn: {
-    ...glassSurface,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    borderRadius: 18,
-    marginBottom: 14,
-  },
-  createBtnIconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#0069E815',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  createBtnText: {
-    color: '#0F172A',
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: -0.2,
-  },
-  
-  // Detail View
-  detailHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  backBtn: {
-    width: 40, height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.colors.glassFill,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  detailTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: theme.colors.text,
-  },
-  detailSubtitle: {
-    fontSize: 14,
-    color: theme.colors.accent,
-    fontWeight: '600',
-    marginTop: 2,
-    letterSpacing: 1,
-  },
-  tabsContainer: {
-    marginBottom: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.hairline,
-  },
-  tabsRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    gap: 24, // Adds spacing between tabs
-  },
-  tabBtn: {
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  tabBtnActive: {
-    borderBottomColor: theme.colors.accent,
-  },
-  tabText: {
-    fontSize: 13,
-    color: theme.colors.textMuted,
-    fontWeight: '600',
-  },
-  tabTextActive: {
-    color: theme.colors.accent,
-  },
-  
-  // Row Cards
-  rowCard: {
-    ...glassSurface,
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 12,
-  },
-  avatar: {
-    width: 44, height: 44,
-    borderRadius: 22,
-    backgroundColor: theme.colors.glassFill,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-    overflow: 'hidden',
-  },
-  avatarImage: {
+  content: { paddingHorizontal: 16, paddingTop: 4 },
+  card: { marginBottom: 12 },
+  teamCard: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 16, marginBottom: 12 },
+  teamIcon: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-  },
-  avatarText: {
-    color: theme.colors.textSecondary,
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  rowInfo: {
-    flex: 1,
-  },
-  rowTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.text,
-    marginBottom: 4,
-  },
-  rowSubtitle: {
-    fontSize: 13,
-    color: theme.colors.textSecondary,
-  },
-  actionBtnIcon: {
-    width: 36, height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: theme.colors.glassFill,
-    marginLeft: 8,
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: theme.colors.textMuted,
-    marginTop: 40,
-    fontStyle: 'italic',
-  },
-
-  // Empty State Box (Athletic clean look)
-  emptyStateBox: {
-    ...glassSurface,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0, 105, 232, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 36,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    marginTop: 8,
   },
-  emptyStateIconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#0069E815',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-  },
-  emptyStateTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginBottom: 6,
-    textAlign: 'center',
-    letterSpacing: -0.2,
-  },
-  emptyStateSubtitle: {
-    fontSize: 13,
-    color: '#64748B',
-    textAlign: 'center',
-    lineHeight: 18,
-    maxWidth: 280,
-  },
-  sgTagIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: '#0069E815',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-
-  // Settings Card & Buttons
-  settingsCard: {
-    ...glassSurface,
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 4,
-  },
-  settingsCardHeader: {
+  teamName: { fontSize: 17, fontWeight: '800', letterSpacing: -0.3, color: theme.colors.text },
+  codeChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
-  },
-  settingsCardTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0F172A',
-    letterSpacing: -0.2,
-  },
-  settingsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  settingsLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  settingsValue: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  settingsDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: theme.colors.hairline,
-    marginVertical: 4,
-  },
-  settingsCodeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    alignSelf: 'flex-start',
     gap: 6,
-    backgroundColor: '#F0F7FF',
+    marginTop: 6,
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#BAE6FD',
+    paddingVertical: 4,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0, 105, 232, 0.08)',
   },
-  settingsCodeText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0369A1',
-  },
-  settingsBtn: {
-    ...glassSurface,
-    flexDirection: 'row',
+  codeChipText: { fontSize: 13, fontWeight: '700', letterSpacing: 1, color: theme.colors.sprintyBlue },
+  codeCard: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 16, marginBottom: 14 },
+  codeLabel: { fontSize: 12, fontWeight: '700', letterSpacing: 0.6, color: theme.colors.textSecondary },
+  codeValue: { fontSize: 26, fontWeight: '800', letterSpacing: 3, color: theme.colors.text, marginTop: 2 },
+  segments: { marginBottom: 14 },
+  listCard: { paddingVertical: 4, marginBottom: 12 },
+  memberRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 64, paddingVertical: 10 },
+  divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.hairline },
+  avatar: {
+    backgroundColor: 'rgba(0, 105, 232, 0.1)',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 15,
-    borderRadius: 18,
-  },
-  settingsDeleteBtn: {
-    borderColor: '#FEE2E2',
-    backgroundColor: '#FFF5F5',
-  },
-  settingsBtnText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginLeft: 12,
-  },
-
-  // Modals
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
-    padding: 24,
+    overflow: 'hidden',
   },
-  modalContent: {
-    borderRadius: 24,
-    padding: 24,
+  avatarInitial: { fontWeight: '800', color: theme.colors.sprintyBlue },
+  memberName: { fontSize: 16, fontWeight: '700', color: theme.colors.text },
+  memberSub: { fontSize: 13, color: theme.colors.textSecondary, marginTop: 2 },
+  sgIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    backgroundColor: 'rgba(0, 105, 232, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: theme.colors.text,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    marginBottom: 24,
-    color: theme.colors.text,
-  },
-  modalActions: {
+  addRow: {
     flexDirection: 'row',
-    gap: 12,
-  },
-  modalCancel: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 12,
     alignItems: 'center',
-    backgroundColor: theme.colors.surfaceLight,
-  },
-  modalCancelText: {
-    color: theme.colors.text,
-    fontWeight: 'bold',
-  },
-  modalSave: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    backgroundColor: theme.colors.accent,
-  },
-  modalSaveText: {
-    color: '#FFF',
-    fontWeight: 'bold',
-  },
-  sgOption: {
-    padding: 16,
-    borderWidth: 1,
-    borderRadius: 12,
-    marginBottom: 8,
-    backgroundColor: theme.colors.surfaceLight,
-  },
-  sgOptionText: {
-    color: theme.colors.text,
-    fontSize: 16,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  actionSquareBtn: {
-    width: '47%',
-    backgroundColor: theme.colors.surfaceLight,
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  actionSquareIcon: {
-    width: 48,
+    justifyContent: 'center',
+    gap: 6,
     height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 105, 232, 0.08)',
   },
-  actionSquareText: {
-    color: theme.colors.text,
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
-  }
+  addText: { fontSize: 15, fontWeight: '700', color: theme.colors.sprintyBlue },
+  pendingActions: { flexDirection: 'row', gap: 10 },
+  athleteHead: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 8 },
+  athleteName: { fontSize: 20, fontWeight: '800', letterSpacing: -0.4, color: theme.colors.text },
 });
-
-
