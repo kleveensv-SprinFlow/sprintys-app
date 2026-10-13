@@ -367,7 +367,7 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.backdrop },
 
-  // Sheet header (shared pattern with TechnicalWorkoutBuilder / HybridWorkoutBuilder)
+  // Sheet header (shared pattern with TechnicalWorkoutBuilder)
   header: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingBottom: 12,

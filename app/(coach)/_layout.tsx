@@ -18,9 +18,7 @@ export default function CoachTabsLayout() {
       
       {/* Cacher les écrans qui ne sont pas des onglets principaux et masquer la tabbar */}
       <Tabs.Screen name="profile" options={{ href: null, tabBarStyle: { display: 'none' } }} />
-      <Tabs.Screen name="library" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="athlete" options={{ href: null, tabBarStyle: { display: 'none' } }} />
-      <Tabs.Screen name="assign" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="day" options={{ href: null, tabBarStyle: { display: 'none' } }} />
     </Tabs>
   );

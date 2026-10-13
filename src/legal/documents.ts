@@ -42,7 +42,7 @@ export const PRIVACY_POLICY: LegalDocument = {
       paragraphs: [
         'Fournir le service (compte, planification, suivi, échanges avec ton coach) : exécution du contrat que constituent les conditions d’utilisation.',
         'Données de santé et douleurs : ton consentement explicite (article 9 du RGPD), que tu peux retirer dans les réglages.',
-        'Fonctions d’intelligence artificielle (assistant, analyse de repas, conseils météo) : ton consentement, demandé avant la première utilisation. Sans cet accord, l’application fonctionne sans ces fonctions.',
+        'Fonctions d’intelligence artificielle (assistant, analyse de repas) : ton consentement, demandé avant la première utilisation. Sans cet accord, l’application fonctionne sans ces fonctions.',
         'Sécurité, prévention des abus, modération des signalements : notre intérêt légitime à garder un service sûr.',
         'Obligations légales : conservation de certaines informations quand la loi l’impose.',
       ],
@@ -60,7 +60,7 @@ export const PRIVACY_POLICY: LegalDocument = {
       title: '5. Prestataires et transferts',
       paragraphs: [
         'Supabase : base de données, comptes et fichiers. Données hébergées dans l’Union européenne (Paris).',
-        'OpenAI (États-Unis) : génération des réponses de l’assistant, analyse des photos et descriptions de repas, conseils météo. Les données transmises ne sont pas utilisées pour entraîner leurs modèles (conditions de l’API). Le transfert est encadré par les clauses contractuelles types de la Commission européenne et le cadre de protection des données UE–États-Unis.',
+        'OpenAI (États-Unis) : génération des réponses de l’assistant, analyse des photos et descriptions de repas. Les données transmises ne sont pas utilisées pour entraîner leurs modèles (conditions de l’API). Le transfert est encadré par les clauses contractuelles types de la Commission européenne et le cadre de protection des données UE–États-Unis.',
         'Open-Meteo : prévisions météo à partir de ta position approximative, sans identifiant personnel.',
         'Open Food Facts : recherche d’un aliment par nom ou code-barres, sans identifiant personnel.',
         'Tavily (États-Unis) : recherche de compétitions à partir de critères (région, dates), sans donnée personnelle.',

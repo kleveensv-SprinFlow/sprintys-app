@@ -155,7 +155,7 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
     }
     const ok = await confirmAsync({
       title: 'Désactiver l’IA ?',
-      message: 'Sprinty, l’analyse de repas et les conseils météo seront désactivés. Tu pourras les réactiver à tout moment.',
+      message: 'Sprinty et l’analyse de repas seront désactivés. Tu pourras les réactiver à tout moment.',
       confirmText: 'Désactiver',
       destructive: true,
       icon: 'cpu',
@@ -309,7 +309,7 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
             icon="cpu"
             iconColor="#8B5CF6"
             title="Assistant IA"
-            subtitle="Sprinty, analyse de repas, conseils météo"
+            subtitle="Sprinty et analyse de repas"
             value={aiConsent ? 'Activé' : 'Désactivé'}
             onPress={toggleAI}
           />

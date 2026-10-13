@@ -44,7 +44,7 @@ export function AIConsentSheet() {
             <Feather name="zap" size={24} color="#FFFFFF" />
           </LinearGradient>
           <Text style={styles.title}>Activer les fonctions d’IA</Text>
-          <Text style={styles.subtitle}>Assistant Sprinty, analyse de repas et conseils météo.</Text>
+          <Text style={styles.subtitle}>Assistant Sprinty et analyse de repas.</Text>
 
           <View style={styles.points}>
             {POINTS.map((p) => (

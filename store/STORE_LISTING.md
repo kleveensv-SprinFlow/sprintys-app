@@ -181,7 +181,7 @@ Légendes courtes, sur le fond bleu de la marque, par exemple :
 Sprintys is a training app for track & field athletes and their coaches.
 - Sign in with the demo athlete or coach account above (Sign in with Apple and Google are also available).
 - Health data (weight, wellness check-ins, pains) is only collected after explicit in-app consent.
-- AI features (assistant "Sprinty", meal photo analysis, weather tips) require a separate consent shown before first use; the app works without them. Requests go through our server with per-user daily limits.
+- AI features (assistant "Sprinty", meal photo analysis) require a separate consent shown before first use; the app works without them. Requests go through our server with per-user daily limits.
 - Team chat is user-generated content: users can report a message and block a user (long-press a message or use the chat menu). Reports are reviewed within 24 h.
 - Account deletion: Profile → Supprimer mon compte (deletes the account and all associated data).
 - Location is only used while the app is in use, approximately, for the weather card.
