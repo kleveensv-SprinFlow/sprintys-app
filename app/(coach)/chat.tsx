@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Image, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Image, Keyboard, Pressable } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { theme } from '../../src/core/theme';
 import { buildGeneralCoachSystemPrompt, buildCoachSystemPromptForAthlete } from '../../src/services/aiContextBuilder';
 import { AnalysisDomain, ALL_DOMAINS, DOMAIN_LABELS } from '../../src/services/athleteAnalysisContext';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { fetchOpenAIResponse } from '../../src/services/aiService';
+import { streamAIResponse, AIError } from '../../src/services/aiService';
+import * as Clipboard from 'expo-clipboard';
 import SprintyThinkingBubble from '../../src/components/SprintyThinkingBubble';
 import { AIAnalysisDashboardCard, AnalysisDashboardData } from '../../src/components/AIAnalysisDashboardCard';
 import { InteractiveMetricPicker, MetricOption } from '../../src/components/InteractiveMetricPicker';
@@ -27,6 +28,12 @@ import { searchCompetitionsOnWeb, FoundCompetition, CompetitionSearchParams } fr
 import { useKeyboardOffset } from '../../src/shared/hooks/useKeyboardOffset';
 import { GlowBackground } from '../../src/shared/components/GlowBackground';
 import { glassSurface } from '../../src/core/glass';
+import { PressableScale } from '../../src/shared/components/PressableScale';
+import { IconButton } from '../../src/shared/components/IconButton';
+import { appAlert } from '../../src/shared/feedback/appAlert';
+
+const MAX_CHARS = 2000;
+const RICH_BLOCKS = /```(workout_proposal|analysis_dashboard|metric_picker|competition_results)[\s\S]*?(```|$)/gi;
 
 export default function CoachMessageScreen() {
   const router = useRouter();
@@ -36,15 +43,21 @@ export default function CoachMessageScreen() {
     currentConversationId, 
     startNewConversation, 
     addMessage, 
-    getCurrentMessages 
+    getCurrentMessages,
+    removeLastAssistantMessage,
   } = useSprintyChatStore();
 
   const messages = getCurrentMessages();
+  const lastAssistantIndex = messages.map((m) => m.role).lastIndexOf('assistant');
   const currentConversation = conversations.find(c => c.id === currentConversationId) || null;
   const athleteCtx = currentConversation?.athleteContext || null;
 
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [streamText, setStreamText] = useState('');
+  const [error, setError] = useState<{ message: string; canRetry: boolean } | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => abortRef.current?.abort(), []);
   const [historyVisible, setHistoryVisible] = useState(false);
   const [searchModalVisible, setSearchModalVisible] = useState(false);
   const [competitionBuilderVisible, setCompetitionBuilderVisible] = useState(false);
@@ -73,12 +86,12 @@ export default function CoachMessageScreen() {
 
       if (searchResult.exactMatch) {
         intro = isSingleDay
-          ? `🔍 J'ai trouvé **${count} compétition(s)** officielle(s) le **${searchParams.startDate}** :`
-          : `🔍 J'ai trouvé **${count} compétition(s)** sur ta sélection (${searchParams.startDate} au ${searchParams.endDate}) :`;
+          ? `J'ai trouvé **${count} compétition(s)** officielle(s) le **${searchParams.startDate}** :`
+          : `J'ai trouvé **${count} compétition(s)** sur ta sélection (${searchParams.startDate} au ${searchParams.endDate}) :`;
       } else {
         intro = isSingleDay
-          ? `⚠️ Aucun meeting officiel n'est programmé le **${searchParams.startDate}** en région **${searchParams.region}**.\nVoici les **${count} compétitions les plus proches** dans le calendrier officiel :`
-          : `⚠️ Aucun meeting officiel n'a été trouvé précisément sur cet intervalle en **${searchParams.region}**.\nVoici les **${count} compétitions les plus proches** :`;
+          ? `Aucun meeting officiel n'est programmé le **${searchParams.startDate}** en région **${searchParams.region}**.\nVoici les **${count} compétitions les plus proches** dans le calendrier officiel :`
+          : `Aucun meeting officiel n'a été trouvé précisément sur cet intervalle en **${searchParams.region}**.\nVoici les **${count} compétitions les plus proches** :`;
       }
 
       const responseMsg = `${intro}\n\n\`\`\`competition_results\n${JSON.stringify(found, null, 2)}\n\`\`\``;
@@ -86,7 +99,7 @@ export default function CoachMessageScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
       console.error(err);
-      addMessage({ role: 'assistant', content: "Désolé, une erreur est survenue lors de la recherche des compétitions." });
+      addMessage({ role: 'assistant', content: "La recherche de compétitions n’a pas abouti. Réessaie dans un instant." });
     } finally {
       setIsTyping(false);
       setTimeout(() => {
@@ -102,7 +115,7 @@ export default function CoachMessageScreen() {
     extraMargin: 20,
     onKeyboardShow: () => scrollViewRef.current?.scrollToEnd({ animated: true }),
   });
-  const params = useLocalSearchParams<{ athleteId?: string; athleteName?: string; avatarUrl?: string; domains?: string; ts?: string }>();
+  const params = useLocalSearchParams<{ athleteId?: string; athleteName?: string; avatarUrl?: string; domains?: string; ts?: string; initialPrompt?: string }>();
   const lottieRef = useRef<LottieView>(null);
   // Prompt système de l'athlète, construit une fois par conversation (requêtes Supabase lourdes)
   const promptCacheRef = useRef<Record<string, string>>({});
@@ -116,7 +129,7 @@ export default function CoachMessageScreen() {
 
   useEffect(() => {
     lottieRef.current?.play();
-    const key = params.athleteId ? `${params.athleteId}-${params.ts || ''}` : 'general';
+    const key = params.athleteId ? `${params.athleteId}-${params.ts || ''}` : `general-${params.ts || ''}`;
     if (handledParamsKeyRef.current === key) return;
     const isFirstRun = handledParamsKeyRef.current === null;
     handledParamsKeyRef.current = key;
@@ -131,11 +144,13 @@ export default function CoachMessageScreen() {
         params.avatarUrl || null,
         parseDomains(params.domains)
       );
-    } else if (isFirstRun) {
+    } else if (isFirstRun || params.initialPrompt) {
       // Auto reset conversation on mount
       startNewConversation();
     }
-  }, [params.athleteId, params.ts]);
+    // Opened from a calendar day: the request is pre-filled so the coach can adjust it before sending
+    if (params.initialPrompt) setInputText(params.initialPrompt);
+  }, [params.athleteId, params.ts, params.initialPrompt]);
 
   const renderMessageContent = (msg: { role: string; content: string }) => {
     if (msg.role !== 'assistant') {
@@ -231,7 +246,7 @@ export default function CoachMessageScreen() {
             <WorkoutProposalCard 
               proposal={proposalObj} 
               onValidate={() => {
-                addMessage({ role: 'assistant', content: '💪 Séance ajoutée au calendrier !' });
+                addMessage({ role: 'assistant', content: 'Séance ajoutée au calendrier.' });
               }}
               onReject={() => {
                 setInputText("Je n'ai pas validé cette séance, voici ce qu'il faut changer : ");
@@ -259,44 +274,82 @@ export default function CoachMessageScreen() {
     return buildGeneralCoachSystemPrompt();
   };
   
-  const sendMessage = async (text?: string, opts?: { auto?: boolean }) => {
-    const messageToSend = text || inputText;
-    if (!messageToSend.trim() || isTyping) return;
-    if (!(await useConsentStore.getState().ensureAIConsent())) return;
+  const scrollToEnd = () => setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (!opts?.auto) setInputText('');
-    
-    const userMsg = { role: 'user', content: messageToSend.trim(), auto: opts?.auto };
-    addMessage(userMsg);
+  const generate = async () => {
+    const history = getCurrentMessages()
+      .filter((m) => m.role === 'user' || m.role === 'assistant')
+      .map((m) => ({ role: m.role, content: m.content }));
+    setError(null);
+    setStreamText('');
     setIsTyping(true);
+    scrollToEnd();
 
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 100);
-
+    const controller = new AbortController();
+    abortRef.current = controller;
+    let partial = '';
     try {
       const systemPrompt = await getSystemPrompt();
-      const currentMsgs = getCurrentMessages();
-      
-      const response = await fetchOpenAIResponse(
-        currentMsgs.map(m => ({ role: m.role, content: m.content })),
+      const reply = await streamAIResponse({
+        messages: history,
         systemPrompt,
-        'gpt-4o-mini',
-        'coach_chat'
-      );
-      
-      addMessage({ role: 'assistant', content: response.trim() });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        purpose: 'coach_chat',
+        signal: controller.signal,
+        onDelta: (text) => {
+          partial = text;
+          setStreamText(text);
+        },
+      });
+      const final = (reply || partial).trim();
+      if (final) addMessage({ role: 'assistant', content: final });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
     } catch (err) {
-      console.error(err);
-      addMessage({ role: 'assistant', content: "Désolé, j'ai rencontré un problème de connexion avec le serveur. Réessaie dans un instant." });
+      if (controller.signal.aborted) {
+        // Stopped by the coach: keep what was already written
+        if (partial.trim()) addMessage({ role: 'assistant', content: partial.trim() });
+      } else {
+        console.error(err);
+        // Shown locally only: an error is never stored as Sprinty's answer
+        setError(
+          err instanceof AIError
+            ? { message: err.message, canRetry: err.status !== 429 && err.status !== 413 }
+            : { message: 'Connexion impossible. Vérifie ton réseau et réessaie.', canRetry: true },
+        );
+      }
     } finally {
+      abortRef.current = null;
       setIsTyping(false);
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      setStreamText('');
+      scrollToEnd();
     }
+  };
+
+  const sendMessage = async (text?: string, opts?: { auto?: boolean }) => {
+    const messageToSend = (text || inputText).trim().slice(0, MAX_CHARS);
+    if (!messageToSend || isTyping) return;
+    if (!(await useConsentStore.getState().ensureAIConsent())) return;
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
+    if (!opts?.auto) setInputText('');
+    addMessage({ role: 'user', content: messageToSend, auto: opts?.auto });
+    generate();
+  };
+
+  const stop = () => abortRef.current?.abort();
+
+  const regenerate = () => {
+    if (isTyping) return;
+    removeLastAssistantMessage();
+    generate();
+  };
+
+  const openActions = (content: string, isLastAssistant: boolean) => {
+    const text = content.replace(RICH_BLOCKS, '').trim();
+    appAlert('Message', undefined, [
+      ...(text ? [{ text: 'Copier', onPress: () => Clipboard.setStringAsync(text) }] : []),
+      ...(isLastAssistant && !isTyping ? [{ text: 'Réessayer', onPress: regenerate }] : []),
+      { text: 'Annuler', style: 'cancel' as const },
+    ]);
   };
 
   /** Démarre une conversation verrouillée sur l'athlète et lance l'analyse automatique. */
@@ -332,9 +385,7 @@ export default function CoachMessageScreen() {
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.replace('/(coach)')}>
-            <Feather name="chevron-left" size={24} color={theme.colors.text} />
-          </TouchableOpacity>
+          <IconButton icon="chevron-left" size={40} accessibilityLabel="Retour" onPress={() => router.replace('/(coach)')} style={styles.backBtn} />
           <View style={styles.headerCenter}>
             <View style={styles.avatarWrapper}>
               <LottieView
@@ -351,9 +402,7 @@ export default function CoachMessageScreen() {
               <Text style={styles.subtitle}>{isTyping ? "Analyse en cours…" : 'En ligne · Prêt à t’aider'}</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.menuBtn} onPress={() => setHistoryVisible(true)}>
-            <Feather name="more-horizontal" size={20} color={theme.colors.text} />
-          </TouchableOpacity>
+          <IconButton icon="clock" size={40} accessibilityLabel="Historique des conversations" onPress={() => setHistoryVisible(true)} style={styles.menuBtn} />
         </View>
 
         {/* Bandeau : conversation verrouillée sur un athlète */}
@@ -445,18 +494,42 @@ export default function CoachMessageScreen() {
               );
               return (
                 <View key={index} style={!isAssistant ? styles.messageRowRight : styles.messageRowLeft}>
-                  <View style={!isAssistant ? styles.messageBubbleRight : [styles.messageBubbleLeft, hasRichCards && styles.messageBubbleWide]}>
+                  <Pressable
+                    delayLongPress={300}
+                    onLongPress={() => openActions(msg.content, isAssistant && index === lastAssistantIndex)}
+                    style={!isAssistant ? styles.messageBubbleRight : [styles.messageBubbleLeft, hasRichCards && styles.messageBubbleWide]}
+                  >
                     {renderMessageContent(msg)}
-                  </View>
+                  </Pressable>
                 </View>
               );
             })}
-            
+
+            {/* Answer being written */}
             {isTyping && (
               <View style={styles.messageRowLeft}>
-                <View style={[styles.messageBubbleLeft, { paddingHorizontal: 14, paddingVertical: 10, minWidth: 260 }]}>
-                  <SprintyThinkingBubble />
-                </View>
+                {streamText ? (
+                  <View style={styles.messageBubbleLeft}>
+                    <RichChatMessage content={streamText.replace(RICH_BLOCKS, '')} />
+                  </View>
+                ) : (
+                  <View style={[styles.messageBubbleLeft, { paddingHorizontal: 14, paddingVertical: 10, minWidth: 260 }]}>
+                    <SprintyThinkingBubble />
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Local error, never saved in the conversation */}
+            {error && !isTyping && (
+              <View style={styles.errorBox}>
+                <Feather name="alert-circle" size={16} color={theme.colors.error} />
+                <Text style={styles.errorText}>{error.message}</Text>
+                {error.canRetry && (
+                  <Pressable onPress={generate} hitSlop={10}>
+                    <Text style={styles.errorRetry}>Réessayer</Text>
+                  </Pressable>
+                )}
               </View>
             )}
           </ScrollView>
@@ -469,19 +542,25 @@ export default function CoachMessageScreen() {
                 placeholder="Écris un message…"
                 placeholderTextColor={theme.colors.textMuted}
                 multiline
+                maxLength={MAX_CHARS}
                 value={inputText}
                 onChangeText={setInputText}
               />
-              <TouchableOpacity 
-                style={[
-                  styles.sendBtn, 
-                  (!inputText.trim()) ? styles.sendBtnDisabled : styles.sendBtnActive
-                ]} 
-                onPress={() => sendMessage()} 
-                disabled={isTyping || !inputText.trim()}
-              >
-                <Ionicons name="arrow-up" size={18} color="#FFFFFF" />
-              </TouchableOpacity>
+              {isTyping ? (
+                <PressableScale haptic="medium" onPress={stop} style={[styles.sendBtn, styles.stopBtn]} accessibilityLabel="Arrêter la réponse">
+                  <View style={styles.stopSquare} />
+                </PressableScale>
+              ) : (
+                <PressableScale
+                  haptic="light"
+                  style={[styles.sendBtn, !inputText.trim() ? styles.sendBtnDisabled : styles.sendBtnActive]}
+                  onPress={() => sendMessage()}
+                  disabled={!inputText.trim()}
+                  accessibilityLabel="Envoyer"
+                >
+                  <Ionicons name="arrow-up" size={18} color="#FFFFFF" />
+                </PressableScale>
+              )}
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -513,7 +592,7 @@ export default function CoachMessageScreen() {
             setCompetitionBuilderVisible(false);
             addMessage({
               role: 'assistant',
-              content: `🏆 La compétition **"${selectedCompForCalendar.title}"** a été enregistrée avec succès dans le calendrier de l'équipe !`,
+              content: `La compétition **« ${selectedCompForCalendar.title} »** est ajoutée au calendrier de l’équipe.`,
             });
             setSelectedCompForCalendar(null);
           }}
@@ -533,6 +612,22 @@ export default function CoachMessageScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.backdrop },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    alignSelf: 'flex-start',
+    maxWidth: '92%',
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  errorText: { flexShrink: 1, fontSize: 14, color: theme.colors.text },
+  errorRetry: { fontSize: 14, fontWeight: '800', color: theme.colors.sprintyBlue },
+  stopBtn: { backgroundColor: theme.colors.text },
+  stopSquare: { width: 12, height: 12, borderRadius: 3, backgroundColor: '#FFFFFF' },
   header: { 
     flexDirection: 'row',
     justifyContent: 'space-between',

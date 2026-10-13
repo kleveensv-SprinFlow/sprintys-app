@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity, ScrollView, Animated } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, Animated } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../../../src/core/theme';
 import { Header } from '../../../src/shared/components/Header';
@@ -9,6 +9,9 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { WorkoutCard } from '../../../src/shared/components/WorkoutCard';
 import { WorkoutDetailModal } from '../../../src/features/calendar/components/WorkoutDetailModal';
+import { PressableScale } from '../../../src/shared/components/PressableScale';
+import { IconButton } from '../../../src/shared/components/IconButton';
+import { SkeletonCard } from '../../../src/shared/components/Skeleton';
 import { RunWorkoutBuilder } from '../../../src/features/calendar/components/RunWorkoutBuilder';
 import { StrengthWorkoutBuilder } from '../../../src/features/calendar/components/StrengthWorkoutBuilder';
 import { StairsWorkoutBuilder } from '../../../src/features/calendar/components/StairsWorkoutBuilder';
@@ -158,7 +161,9 @@ export default function CoachDayScreen() {
     setEditingWorkout(w);
 
     const type = (w.type_seance || '').toLowerCase();
-    if (type.includes('escalier')) {
+    if (type.includes('compétition') || type.includes('competition')) {
+      setBuilderType('competition');
+    } else if (type.includes('escalier')) {
       setBuilderType('escalier');
     } else if (type.includes('muscu') || type.includes('force') || type.includes('strength')) {
       setBuilderType('strength');
@@ -230,6 +235,31 @@ export default function CoachDayScreen() {
     },
   ];
 
+  const renderCreationGrid = () => (
+    <View style={styles.gridContainer}>
+      {CREATION_OPTIONS.map((item) => (
+        <PressableScale
+          key={item.id}
+          haptic="medium"
+          containerStyle={styles.gridCell}
+          style={[styles.gridCard, glassSurface]}
+          onPress={() => openBuilder(item.type, item.title)}
+          accessibilityRole="button"
+        >
+          <View style={[styles.gridIconBox, { backgroundColor: item.color + '15' }]}>
+            <Ionicons name={item.icon} size={24} color={item.color} />
+          </View>
+          <Text style={[styles.gridOptionTitle, { color: theme.colors.text }]} numberOfLines={1}>
+            {item.title}
+          </Text>
+          <Text style={[styles.gridOptionSubtitle, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+            {item.subtitle}
+          </Text>
+        </PressableScale>
+      ))}
+    </View>
+  );
+
   const getSummaryText = () => {
     if (workouts.length === 0) return 'Aucune séance';
     const countText = `${workouts.length} Séance${workouts.length > 1 ? 's' : ''}`;
@@ -255,9 +285,7 @@ export default function CoachDayScreen() {
 
       {/* Date Navigator */}
       <View style={[styles.navigatorContainer, { borderBottomColor: theme.colors.hairline }]}>
-        <TouchableOpacity onPress={() => navigateDay(-1)} style={styles.navButton}>
-          <Feather name="chevron-left" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
+        <IconButton icon="chevron-left" tone="plain" size={40} color={theme.colors.text} accessibilityLabel="Jour précédent" onPress={() => navigateDay(-1)} />
         <View style={styles.navDateBlock}>
           <Text style={[styles.navigatorDate, { color: theme.colors.text }]}>
             {formattedTitle}
@@ -271,9 +299,7 @@ export default function CoachDayScreen() {
             </View>
           )}
         </View>
-        <TouchableOpacity onPress={() => navigateDay(1)} style={styles.navButton}>
-          <Feather name="chevron-right" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
+        <IconButton icon="chevron-right" tone="plain" size={40} color={theme.colors.text} accessibilityLabel="Jour suivant" onPress={() => navigateDay(1)} />
       </View>
 
       <Animated.ScrollView {...scrollProps} refreshControl={refreshControl}
@@ -282,8 +308,9 @@ export default function CoachDayScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         {isLoading ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={theme.colors.accent} />
+          <View style={{ paddingTop: 8 }}>
+            <SkeletonCard />
+            <SkeletonCard />
           </View>
         ) : workouts.length === 0 ? (
           <View style={styles.emptyWrapper}>
@@ -295,36 +322,14 @@ export default function CoachDayScreen() {
             </View>
 
             {/* Grille sportive 2 colonnes */}
-            <View style={styles.gridContainer}>
-              {CREATION_OPTIONS.map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={[
-                    styles.gridCard,
-                    glassSurface,
-                  ]}
-                  onPress={() => openBuilder(item.type, item.title)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.gridIconBox, { backgroundColor: item.color + '15' }]}>
-                    <Ionicons name={item.icon} size={24} color={item.color} />
-                  </View>
-                  <Text style={[styles.gridOptionTitle, { color: theme.colors.text }]} numberOfLines={1}>
-                    {item.title}
-                  </Text>
-                  <Text style={[styles.gridOptionSubtitle, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                    {item.subtitle}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            {renderCreationGrid()}
 
             {/* Quick Action Sprinty IA */}
-            <TouchableOpacity
+            <PressableScale
               style={[
                 styles.sprintyQuickActionCard,
                 glassSurface,
-                { borderColor: theme.colors.accent + '30' },
+                { borderColor: theme.colors.sprintyBlue + '30' },
                 glassRim,
               ]}
               onPress={() => {
@@ -332,23 +337,23 @@ export default function CoachDayScreen() {
                 router.push({
                   pathname: '/(coach)/chat' as any,
                   params: {
-                    initialPrompt: `Propose-moi une séance d'entraînement optimisée pour le ${formattedTitle}${activePeriod ? ` dans le cadre du cycle « ${activePeriod.name} »` : ''}.`,
+                    initialPrompt: `Propose-moi une séance d’entraînement pour le ${formattedTitle}${activePeriod ? `, dans le cycle « ${activePeriod.name} »` : ''}.`,
+                    ts: String(Date.now()),
                   },
                 });
               }}
-              activeOpacity={0.8}
             >
               <View style={styles.sprintyIconBadge}>
                 <Feather name="zap" size={18} color="#0069E8" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.sprintyCardTitle}>Sprinty IA — Générateur</Text>
+                <Text style={styles.sprintyCardTitle}>Créer avec Sprinty</Text>
                 <Text style={[styles.sprintyCardSubtitle, { color: theme.colors.textSecondary }]}>
-                  Créer une séance sur mesure pour le {formattedTitle}
+                  Une séance sur mesure pour le {formattedTitle}
                 </Text>
               </View>
               <Feather name="arrow-right" size={18} color="#0069E8" />
-            </TouchableOpacity>
+            </PressableScale>
           </View>
         ) : (
           <View style={styles.workoutsContainer}>
@@ -405,20 +410,19 @@ export default function CoachDayScreen() {
 
             {/* Bouton Unique Principal "＋ Planifier" */}
             {!showAddOptions ? (
-              <TouchableOpacity
+              <PressableScale
                 style={[styles.primaryPlanBtn, glassSurface]}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   setShowAddOptions(true);
                 }}
-                activeOpacity={0.8}
               >
                 <View style={styles.planIconWrap}>
                   <Feather name="plus" size={18} color="#0069E8" />
                 </View>
                 <Text style={styles.planBtnText}>Planifier un entraînement</Text>
                 <Feather name="chevron-down" size={18} color="#94A3B8" />
-              </TouchableOpacity>
+              </PressableScale>
             ) : (
               <View style={[styles.emptyWrapper, { marginTop: 10 }]}>
                 <View style={styles.sectionHeader}>
@@ -427,35 +431,13 @@ export default function CoachDayScreen() {
                     Choisis le type d’entraînement
                   </Text>
                 </View>
-                <View style={styles.gridContainer}>
-                  {CREATION_OPTIONS.map((item) => (
-                    <TouchableOpacity
-                      key={item.id}
-                      style={[
-                        styles.gridCard,
-                        glassSurface,
-                      ]}
-                      onPress={() => openBuilder(item.type, item.title)}
-                      activeOpacity={0.7}
-                    >
-                      <View style={[styles.gridIconBox, { backgroundColor: item.color + '15' }]}>
-                        <Ionicons name={item.icon} size={24} color={item.color} />
-                      </View>
-                      <Text style={[styles.gridOptionTitle, { color: theme.colors.text }]} numberOfLines={1}>
-                        {item.title}
-                      </Text>
-                      <Text style={[styles.gridOptionSubtitle, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                        {item.subtitle}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <TouchableOpacity
+                {renderCreationGrid()}
+                <PressableScale
                   style={{ alignItems: 'center', marginTop: 14, paddingVertical: 10 }}
                   onPress={() => setShowAddOptions(false)}
                 >
                   <Text style={{ color: theme.colors.textSecondary, fontWeight: '700', fontSize: 14 }}>Fermer</Text>
-                </TouchableOpacity>
+                </PressableScale>
               </View>
             )}
           </View>
@@ -664,8 +646,8 @@ const styles = StyleSheet.create({
     gap: 12,
     justifyContent: 'space-between',
   },
+  gridCell: { width: '48%' },
   gridCard: {
-    width: '48%',
     padding: 16,
     borderRadius: 20,
     borderWidth: 1,

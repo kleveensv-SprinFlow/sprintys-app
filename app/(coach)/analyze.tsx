@@ -3,12 +3,10 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   FlatList,
   Image,
   ScrollView,
   TextInput,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,6 +20,9 @@ import { AnalysisDomainSheet, AnalysisAthlete } from '../../src/features/coach/c
 import { GlowBackground } from '../../src/shared/components/GlowBackground';
 import { glassSurface } from '../../src/core/glass';
 import { theme } from '../../src/core/theme';
+import { PressableScale } from '../../src/shared/components/PressableScale';
+import { IconButton } from '../../src/shared/components/IconButton';
+import { Skeleton } from '../../src/shared/components/Skeleton';
 
 interface TeamTab {
   id: string;
@@ -166,13 +167,10 @@ export default function AnalyzeAthleteScreen() {
   const renderAthlete = ({ item }: { item: GridAthlete }) => {
     const st = scoreTheme(item.healthScore);
     return (
-      <TouchableOpacity
+      <PressableScale
+        containerStyle={styles.cardCell}
         style={styles.card}
-        activeOpacity={0.85}
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          setSelectedAthlete(item);
-        }}
+        onPress={() => setSelectedAthlete(item)}
       >
         {st && (
           <View style={[styles.scoreBadge, { backgroundColor: st.bg }]}>
@@ -184,7 +182,7 @@ export default function AnalyzeAthleteScreen() {
           <Image source={{ uri: item.avatarUrl }} style={styles.cardAvatar} />
         ) : (
           <View style={[styles.cardAvatar, styles.cardAvatarFallback]}>
-            <Ionicons name="person" size={38} color="#94A3B8" />
+            <Ionicons name="person" size={38} color={theme.colors.textMuted} />
           </View>
         )}
         <Text style={styles.firstName} numberOfLines={1}>{item.firstName}</Text>
@@ -195,10 +193,10 @@ export default function AnalyzeAthleteScreen() {
           </Text>
         )}
         <View style={styles.analyzeHint}>
-          <Feather name="cpu" size={12} color="#0F172A" />
+          <Feather name="cpu" size={12} color={theme.colors.text} />
           <Text style={styles.analyzeHintText}>Analyser</Text>
         </View>
-      </TouchableOpacity>
+      </PressableScale>
     );
   };
 
@@ -207,9 +205,7 @@ export default function AnalyzeAthleteScreen() {
       <GlowBackground />
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.navigate('/(coach)/chat')}>
-          <Feather name="chevron-left" size={24} color="#0F172A" />
-        </TouchableOpacity>
+        <IconButton icon="chevron-left" size={40} accessibilityLabel="Retour" onPress={() => router.navigate('/(coach)/chat')} style={styles.backBtn} />
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Analyser un athlète</Text>
           <Text style={styles.subtitle}>
@@ -220,18 +216,16 @@ export default function AnalyzeAthleteScreen() {
 
       {/* Recherche */}
       <View style={styles.searchBox}>
-        <Feather name="search" size={16} color="#94A3B8" />
+        <Feather name="search" size={16} color={theme.colors.textMuted} />
         <TextInput
           style={styles.searchInput}
           placeholder="Rechercher un athlète…"
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor={theme.colors.textMuted}
           value={search}
           onChangeText={setSearch}
         />
         {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Feather name="x-circle" size={16} color="#94A3B8" />
-          </TouchableOpacity>
+          <IconButton icon="x-circle" tone="plain" size={32} color={theme.colors.textMuted} accessibilityLabel="Effacer la recherche" onPress={() => setSearch('')} />
         )}
       </View>
 
@@ -242,20 +236,17 @@ export default function AnalyzeAthleteScreen() {
             {tabs.map(tab => {
               const active = tab.id === activeTab;
               return (
-                <TouchableOpacity
+                <PressableScale
                   key={tab.id}
+                  haptic="selection"
                   style={[styles.tab, active && styles.tabActive]}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    setActiveTab(tab.id);
-                  }}
-                  activeOpacity={0.8}
+                  onPress={() => setActiveTab(tab.id)}
                 >
                   <Text style={[styles.tabText, active && styles.tabTextActive]}>{tab.name}</Text>
                   <View style={[styles.tabCount, active && styles.tabCountActive]}>
-                    <Text style={[styles.tabCountText, active && { color: '#0F172A' }]}>{countForTab(tab.id)}</Text>
+                    <Text style={[styles.tabCountText, active && { color: theme.colors.sprintyBlue }]}>{countForTab(tab.id)}</Text>
                   </View>
-                </TouchableOpacity>
+                </PressableScale>
               );
             })}
           </ScrollView>
@@ -264,8 +255,10 @@ export default function AnalyzeAthleteScreen() {
 
       {/* Grille 2x2 */}
       {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#0F172A" />
+        <View style={styles.skeletonGrid}>
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} width="48.5%" height={170} radius={22} />
+          ))}
         </View>
       ) : (
         <FlatList
@@ -288,7 +281,7 @@ export default function AnalyzeAthleteScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <View style={styles.emptyIcon}>
-                <Feather name="users" size={26} color="#94A3B8" />
+                <Feather name="users" size={26} color={theme.colors.textMuted} />
               </View>
               <Text style={styles.emptyTitle}>
                 {teams.length === 0 ? 'Aucune équipe' : search ? 'Aucun résultat' : 'Aucun athlète'}
@@ -326,8 +319,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { fontSize: 20, fontWeight: '800', color: '#0F172A' },
-  subtitle: { fontSize: 12, color: '#64748B', marginTop: 2 },
+  title: { fontSize: 20, fontWeight: '800', color: theme.colors.text },
+  subtitle: { fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 },
   searchBox: {
     ...glassSurface,
     flexDirection: 'row',
@@ -339,7 +332,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     marginBottom: 12,
   },
-  searchInput: { flex: 1, fontSize: 14, color: '#0F172A' },
+  searchInput: { flex: 1, fontSize: 14, color: theme.colors.text },
   tabs: { paddingHorizontal: 20, gap: 8, paddingBottom: 14 },
   tab: {
     ...glassSurface,
@@ -351,18 +344,19 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
   },
-  tabActive: { backgroundColor: '#0F172A', borderColor: '#0F172A' },
-  tabText: { fontSize: 13, fontWeight: '700', color: '#475569' },
+  tabActive: { backgroundColor: theme.colors.sprintyBlue, borderColor: theme.colors.sprintyBlue },
+  tabText: { fontSize: 13, fontWeight: '700', color: theme.colors.textSecondary },
   tabTextActive: { color: '#FFFFFF' },
   tabCount: { minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, backgroundColor: theme.colors.glassFill, alignItems: 'center', justifyContent: 'center' },
   tabCountActive: { backgroundColor: '#FFFFFF' },
-  tabCountText: { fontSize: 11, fontWeight: '800', color: '#64748B' },
+  tabCountText: { fontSize: 11, fontWeight: '800', color: theme.colors.textSecondary },
   list: { paddingHorizontal: 20, paddingBottom: 40 },
   row: { gap: 12, marginBottom: 12 },
+  skeletonGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12, paddingHorizontal: 20, paddingTop: 4 },
+  cardCell: { flex: 1, maxWidth: '48.5%' },
   card: {
     ...glassSurface,
     flex: 1,
-    maxWidth: '48.5%',
     alignItems: 'center',
     borderRadius: 22,
     paddingTop: 20,
@@ -383,9 +377,9 @@ const styles = StyleSheet.create({
   scoreText: { fontSize: 10, fontWeight: '800' },
   cardAvatar: { width: 76, height: 76, borderRadius: 38, backgroundColor: theme.colors.glassFill, borderWidth: 2, borderColor: theme.colors.glassBorder, marginBottom: 10 },
   cardAvatarFallback: { alignItems: 'center', justifyContent: 'center' },
-  firstName: { fontSize: 15, fontWeight: '800', color: '#0F172A', maxWidth: '100%' },
-  lastName: { fontSize: 13, fontWeight: '500', color: '#64748B', marginTop: 1, maxWidth: '100%' },
-  teamLabel: { fontSize: 10, fontWeight: '600', color: '#64748B', marginTop: 4, maxWidth: '100%' },
+  firstName: { fontSize: 15, fontWeight: '800', color: theme.colors.text, maxWidth: '100%' },
+  lastName: { fontSize: 13, fontWeight: '500', color: theme.colors.textSecondary, marginTop: 1, maxWidth: '100%' },
+  teamLabel: { fontSize: 10, fontWeight: '600', color: theme.colors.textSecondary, marginTop: 4, maxWidth: '100%' },
   analyzeHint: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -396,10 +390,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: theme.colors.glassFill,
   },
-  analyzeHintText: { fontSize: 11, fontWeight: '700', color: '#0F172A' },
+  analyzeHintText: { fontSize: 11, fontWeight: '700', color: theme.colors.text },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   empty: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 30 },
   emptyIcon: { width: 60, height: 60, borderRadius: 30, backgroundColor: theme.colors.glassFill, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A', marginBottom: 6 },
-  emptyText: { fontSize: 13, color: '#64748B', textAlign: 'center', lineHeight: 19 },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: theme.colors.text, marginBottom: 6 },
+  emptyText: { fontSize: 13, color: theme.colors.textSecondary, textAlign: 'center', lineHeight: 19 },
 });
