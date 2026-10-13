@@ -5,7 +5,7 @@ import { useNutritionStore } from '../../../store/nutrition/nutritionStore';
 import { useAuthStore } from '../../../store/authStore';
 import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import { glassSurface } from '../../../core/glass';
-import { Grain } from '../../../shared/components/Grain';
+import { GlassSheen } from '../../../shared/components/GlassSheen';
 
 interface NutritionSummaryProps {
   athleteProfile?: any;
@@ -104,7 +104,7 @@ export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ athleteProfi
 
   return (
     <View style={[styles.container, glassSurface]}>
-      <Grain radius={24} />
+      <GlassSheen radius={24} />
       {/* JAUGE CIRCULAIRE STYLE INSTRUMENT DE PRÉCISION */}
       <View style={styles.gaugeContainer}>
         <View style={{ width: SIZE, height: SIZE, position: 'relative' }}>

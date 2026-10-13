@@ -2,7 +2,6 @@ import React from 'react';
 import { Platform, StyleSheet, ViewStyle } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { universalColors } from '../../core/theme';
-import { Grain } from './Grain';
 
 /**
  * Frosted background of the floating tab bars (and other bottom bars). Real blur here: content actually
@@ -10,16 +9,12 @@ import { Grain } from './Grain';
  * is a flat tint).
  */
 export const GlassTabBarBackground = () => (
-  <>
-    <BlurView
-      tint="light"
-      intensity={Platform.OS === 'ios' ? 80 : 70}
-      experimentalBlurMethod="dimezisBlurView"
-      style={StyleSheet.absoluteFill}
-    />
-    {/* Frosted ("dépoli") grain on top of the blur */}
-    <Grain sheen={false} />
-  </>
+  <BlurView
+    tint="light"
+    intensity={Platform.OS === 'ios' ? 80 : 70}
+    experimentalBlurMethod="dimezisBlurView"
+    style={StyleSheet.absoluteFill}
+  />
 );
 
 /** Container style of a floating glass tab bar. */

@@ -14,7 +14,7 @@ import { LegalNoticeModal } from '../../src/features/auth/components/LegalNotice
 import { healthConsent } from '../../src/services/healthConsent';
 import { GlowBackground } from '../../src/shared/components/GlowBackground';
 import { glassSurface } from '../../src/core/glass';
-import { Grain } from '../../src/shared/components/Grain';
+import { GlassSheen } from '../../src/shared/components/GlassSheen';
 import { FrostedBar } from '../../src/shared/components/FrostedBar';
 import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
 
@@ -333,7 +333,7 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.infoCard}>
-          <Grain radius={18} />
+          <GlassSheen radius={18} />
           <TouchableOpacity 
             style={styles.infoRow} 
             onPress={() => setIsEditModalVisible(true)}
@@ -392,7 +392,7 @@ export default function SettingsScreen() {
 
         <Text style={styles.sectionTitle}>Application</Text>
         <View style={styles.card}>
-          <Grain radius={18} />
+          <GlassSheen radius={18} />
           <SettingsItem icon="help-circle" title="FAQ & Centre d'aide" onPress={() => setIsFaqModalVisible(true)} />
           <SettingsItem icon="file-text" title="Mentions et conditions" onPress={() => setIsLegalVisible(true)} />
           <SettingsItem icon="shield" title="Retirer l’accord sur les douleurs" onPress={handleRevokeHealth} />

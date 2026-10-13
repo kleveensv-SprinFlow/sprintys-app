@@ -12,7 +12,7 @@ import { GlassScreen } from '../../src/shared/components/GlassScreen';
 import { PressableScale } from '../../src/shared/components/PressableScale';
 import { glassSurface } from '../../src/core/glass';
 import { useTabBarSpace } from '../../src/shared/hooks/useTabBarSpace';
-import { Grain } from '../../src/shared/components/Grain';
+import { GlassSheen } from '../../src/shared/components/GlassSheen';
 import { FrostedBar } from '../../src/shared/components/FrostedBar';
 import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
 
@@ -115,7 +115,7 @@ export default function MessagesHubScreen() {
             style={styles.discussionCard}
             onPress={() => router.push('/chat/sprinty')}
           >
-            <Grain radius={18} />
+            <GlassSheen radius={18} />
             <View style={[styles.discussionAvatar, { backgroundColor: '#0026AE15' }]}>
               <Text style={{ fontSize: 20 }}>⚡</Text>
             </View>
@@ -139,7 +139,7 @@ export default function MessagesHubScreen() {
           ) : myGroup ? (
             myGroup.status === 'pending' ? (
               <View style={styles.emptyState}>
-                <Grain radius={18} />
+                <GlassSheen radius={18} />
                 <Text style={styles.emptyText}>Demande en attente pour l'équipe {myGroup.team_name}.</Text>
               </View>
             ) : (
@@ -152,7 +152,7 @@ export default function MessagesHubScreen() {
                     params: { type: 'direct', id: myGroup.coach_id, title: `Coach ${myGroup.coach_name}` }
                   })}
                 >
-                  <Grain radius={18} />
+                  <GlassSheen radius={18} />
                   <View style={[styles.discussionAvatar, { backgroundColor: theme.colors.accent + '20' }]}>
                     <Feather name="user-check" size={20} color={theme.colors.accent} />
                   </View>
@@ -189,7 +189,7 @@ export default function MessagesHubScreen() {
                     params: { type: 'team', id: myGroup.team_id, title: myGroup.team_name }
                   })}
                 >
-                  <Grain radius={18} />
+                  <GlassSheen radius={18} />
                   <View style={[styles.discussionAvatar, { backgroundColor: theme.colors.success + '20' }]}>
                     <Feather name="users" size={20} color={theme.colors.success} />
                   </View>
@@ -221,7 +221,7 @@ export default function MessagesHubScreen() {
             )
           ) : (
             <View style={styles.emptyState}>
-              <Grain radius={18} />
+              <GlassSheen radius={18} />
               <Text style={styles.emptyText}>Tu n'as pas encore d'équipe. Appuie sur l'icône de personnes en haut de l'accueil pour en rejoindre une.</Text>
             </View>
           )}

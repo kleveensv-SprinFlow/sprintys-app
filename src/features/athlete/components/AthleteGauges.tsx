@@ -13,7 +13,7 @@ import { PressableScale } from '../../../shared/components/PressableScale';
 import { glassCard, glassFill, DashboardCardHeader } from '../../../shared/components/DashboardCard';
 import { useFocusEffect } from '@react-navigation/native';
 import { workoutService } from '../../../services/workoutService';
-import { Grain } from '../../../shared/components/Grain';
+import { GlassSheen } from '../../../shared/components/GlassSheen';
 
 const toLocalDateString = (d: Date): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -199,7 +199,7 @@ export const AthleteGauges = ({ refreshKey = 0 }: { refreshKey?: number }) => {
     <View style={styles.container}>
       {/* 1. Hero card: Check-In / Readiness */}
       <PressableScale onPress={handleCheckInPress} haptic="medium" style={glassCard}>
-        <Grain radius={22} />
+        <GlassSheen radius={22} />
         {!showScore ? (
           <View style={styles.mainCardInner}>
             <View style={[styles.iconCircleAccent, { backgroundColor: theme.colors.sprintyBlue }]}>
@@ -232,7 +232,7 @@ export const AthleteGauges = ({ refreshKey = 0 }: { refreshKey?: number }) => {
       {/* 2. Summary tiles */}
       <View style={styles.secondaryRow}>
         <PressableScale onPress={handleNutritionPress} containerStyle={styles.tileTouch} style={[glassCard, styles.tile]}>
-          <Grain radius={22} />
+          <GlassSheen radius={22} />
           <DashboardCardHeader
             icon={<Ionicons name="restaurant" size={15} color={NUTRITION_TINT} />}
             label="Nutrition"
@@ -268,7 +268,7 @@ export const AthleteGauges = ({ refreshKey = 0 }: { refreshKey?: number }) => {
 
         {/* Next competition planned by the coach */}
         <PressableScale onPress={handleCompetitionPress} containerStyle={styles.tileTouch} style={[glassCard, styles.tile]}>
-          <Grain radius={22} />
+          <GlassSheen radius={22} />
           <DashboardCardHeader
             icon={<Ionicons name="trophy" size={15} color={COMPETITION_TINT} />}
             label="Compétition"

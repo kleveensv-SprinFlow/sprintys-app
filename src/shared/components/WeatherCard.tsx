@@ -6,7 +6,7 @@ import * as Location from 'expo-location';
 import { weatherService, WeatherData } from '../../services/weatherService';
 import { PressableScale } from './PressableScale';
 import { glassCard, DashboardCardHeader } from './DashboardCard';
-import { Grain } from './Grain';
+import { GlassSheen } from './GlassSheen';
 
 const WEATHER_TINT = '#0284C7';
 
@@ -96,7 +96,7 @@ export const WeatherCard = () => {
   if (isLoading) {
     return (
       <View style={[cardStyle, styles.container, styles.loading]}>
-        <Grain radius={22} />
+        <GlassSheen radius={22} />
         <ActivityIndicator size="small" color={theme.colors.textMuted} />
       </View>
     );
@@ -136,7 +136,7 @@ export const WeatherCard = () => {
           loadWeather();
         }}
       >
-        <Grain radius={22} />
+        <GlassSheen radius={22} />
         <DashboardCardHeader
           icon={<Feather name="map-pin" size={15} color={WEATHER_TINT} />}
           label="Météo"
@@ -163,7 +163,7 @@ export const WeatherCard = () => {
   return (
     <>
       <PressableScale style={[cardStyle, styles.container]} onPress={() => setIsModalVisible(true)}>
-        <Grain radius={22} />
+        <GlassSheen radius={22} />
         <DashboardCardHeader
           icon={<Feather name={getWeatherIcon(weather.condition) as any} size={15} color={WEATHER_TINT} />}
           label="Météo"

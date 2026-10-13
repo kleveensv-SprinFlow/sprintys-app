@@ -12,7 +12,7 @@ import { LegalNoticeModal } from '../../src/features/auth/components/LegalNotice
 import { supabase } from '../../src/services/supabase';
 import { GlowBackground } from '../../src/shared/components/GlowBackground';
 import { glassSurface } from '../../src/core/glass';
-import { Grain } from '../../src/shared/components/Grain';
+import { GlassSheen } from '../../src/shared/components/GlassSheen';
 import { FrostedBar } from '../../src/shared/components/FrostedBar';
 import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
 
@@ -281,7 +281,7 @@ export default function ProfileScreen() {
 
         <Text style={styles.sectionTitle}>Mon Compte</Text>
         <View style={styles.card}>
-          <Grain radius={18} />
+          <GlassSheen radius={18} />
           <SettingsItem
             icon="user"
             title="Mes informations"
@@ -292,7 +292,7 @@ export default function ProfileScreen() {
 
         <Text style={styles.sectionTitle}>Application</Text>
         <View style={styles.card}>
-          <Grain radius={18} />
+          <GlassSheen radius={18} />
           <SettingsItem
             icon="help-circle"
             title="FAQ & Centre d'aide"

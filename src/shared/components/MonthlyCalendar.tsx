@@ -6,24 +6,17 @@ import {
   Pressable,
   PanResponder,
   Animated,
-  LayoutAnimation,
-  Platform,
-  UIManager,
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../core/theme';
 import { glassCard, glassSurface } from '../../core/glass';
 import * as Haptics from 'expo-haptics';
 import { TrainingPeriod } from '../../types/period';
-import { Grain } from './Grain';
+import { GlassSheen } from './GlassSheen';
 import { FrostedBar } from './FrostedBar';
 import { PressableScale } from './PressableScale';
 import { useFrostedHeader } from '../hooks/useFrostedHeader';
 
-// Enable LayoutAnimation on Android
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 // === Pastel workout banners (matching screenshot style) ===
 export const TYPE_CONFIG: Record<string, { abbr: string; bg: string; text: string; icon?: any }> = {
@@ -298,7 +291,6 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
       }
     } else {
       Haptics.selectionAsync();
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       onSelectDate(date);
       if (date.getMonth() !== currentMonth.getMonth()) {
         navigateMonth(date > currentMonth ? 'next' : 'prev');
@@ -309,7 +301,6 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
   const goToToday = useCallback(() => {
     const now = new Date();
     Haptics.selectionAsync();
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     if (now.getFullYear() !== currentMonth.getFullYear() || now.getMonth() !== currentMonth.getMonth()) {
       setCurrentMonth(new Date(now.getFullYear(), now.getMonth(), 1));
       onMonthChange?.(now.getFullYear(), now.getMonth());
@@ -430,7 +421,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
       >
         {/* === Month grid: one frosted card, iOS-style clean days === */}
         <View style={[glassCard, styles.gridCard]} {...panResponder.panHandlers}>
-          <Grain radius={22} />
+          <GlassSheen radius={22} />
           <View style={styles.dayLabelsRow}>
             {DAYS_OF_WEEK.map((day, index) => (
               <Text
@@ -544,7 +535,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                 haptic={onOpenDate ? 'light' : 'none'}
                 style={[glassCard, styles.agendaItem]}
               >
-                <Grain radius={22} />
+                <GlassSheen radius={22} />
                 <View style={[styles.agendaIcon, { backgroundColor: config.bg }]}>
                   <Ionicons name={config.icon} size={20} color={config.text} />
                 </View>
@@ -560,7 +551,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
           })
         ) : (
           <View style={[glassCard, styles.agendaEmpty]}>
-            <Grain radius={22} />
+            <GlassSheen radius={22} />
             <Feather name="coffee" size={18} color={theme.colors.textSecondary} />
             <Text style={[styles.agendaEmptyText, { color: theme.colors.textSecondary }]}>
               {isCoach ? 'Aucune séance planifiée' : 'Aucune séance · récupération'}
@@ -727,9 +718,9 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   dot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   phaseStrip: {
     position: 'absolute',

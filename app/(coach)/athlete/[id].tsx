@@ -7,7 +7,7 @@ import { checkInService, CheckInData } from '../../../src/services/checkInServic
 import { useCoachStore } from '../../../src/store/coach/coachStore';
 import { GlowBackground } from '../../../src/shared/components/GlowBackground';
 import { glassSurface } from '../../../src/core/glass';
-import { Grain } from '../../../src/shared/components/Grain';
+import { GlassSheen } from '../../../src/shared/components/GlassSheen';
 
 export default function AthleteDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -90,7 +90,7 @@ export default function AthleteDetailScreen() {
             style={styles.actionGridItem}
             onPress={() => router.push(`/(athlete)/nutrition?athleteId=${id}&readonly=true`)}
           >
-            <Grain radius={18} />
+            <GlassSheen radius={18} />
             <View style={[styles.actionIconBg, { backgroundColor: theme.colors.warning + '20' }]}>
               <Feather name="pie-chart" size={24} color={theme.colors.warning} />
             </View>
@@ -101,7 +101,7 @@ export default function AthleteDetailScreen() {
             style={styles.actionGridItem}
             onPress={() => router.push(`/(coach)/athlete/${id}/calendar`)}
           >
-            <Grain radius={18} />
+            <GlassSheen radius={18} />
             <View style={[styles.actionIconBg, { backgroundColor: theme.colors.accent + '20' }]}>
               <Feather name="calendar" size={24} color={theme.colors.accent} />
             </View>
@@ -112,7 +112,7 @@ export default function AthleteDetailScreen() {
             style={styles.actionGridItem}
             onPress={() => router.push(`/(coach)/athlete/${id}/calendar`)}
           >
-            <Grain radius={18} />
+            <GlassSheen radius={18} />
             <View style={[styles.actionIconBg, { backgroundColor: theme.colors.success + '20' }]}>
               <Feather name="calendar" size={24} color={theme.colors.success} />
             </View>
@@ -132,7 +132,7 @@ export default function AthleteDetailScreen() {
               },
             })}
           >
-            <Grain radius={18} />
+            <GlassSheen radius={18} />
             <View style={[styles.actionIconBg, { backgroundColor: theme.colors.accent + '20' }]}>
               <Feather name="zap" size={22} color={theme.colors.accent} />
             </View>
@@ -147,13 +147,13 @@ export default function AthleteDetailScreen() {
           <ActivityIndicator color={theme.colors.accent} style={{ marginVertical: 30 }} />
         ) : !latestCheckIn ? (
           <View style={styles.emptyCard}>
-            <Grain radius={18} />
+            <GlassSheen radius={18} />
             <Feather name="clock" size={32} color={theme.colors.textMuted} />
             <Text style={styles.emptyText}>Aucun Check-In aujourd'hui</Text>
           </View>
         ) : (
           <View style={styles.checkInCard}>
-            <Grain radius={22} />
+            <GlassSheen radius={22} />
             {/* Global Score */}
             <View style={styles.globalScoreHeader}>
               <Text style={styles.globalScoreTitle}>Readiness Score</Text>

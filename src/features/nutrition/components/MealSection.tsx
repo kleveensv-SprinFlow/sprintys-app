@@ -9,7 +9,7 @@ import { useRouter } from 'expo-router';
 import Svg, { Circle } from 'react-native-svg';
 import { supabase } from '../../../services/supabase';
 import { glassSurface } from '../../../core/glass';
-import { Grain } from '../../../shared/components/Grain';
+import { GlassSheen } from '../../../shared/components/GlassSheen';
 
 interface MealSectionProps {
   readonly?: boolean;
@@ -93,7 +93,7 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
 
       {/* CARTE UNIQUE UNIFIÉE STYLE YAZIO */}
       <View style={[styles.unifiedCard, glassSurface]}>
-        <Grain radius={24} />
+        <GlassSheen radius={24} />
         {meals.map((meal, index) => {
           const logs = mealLogs.filter(log => log.meal_type === meal.type);
           const consumedKcal = logs.reduce((sum, log) => sum + Number(log.calories), 0);

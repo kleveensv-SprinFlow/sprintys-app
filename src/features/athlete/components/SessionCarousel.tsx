@@ -12,7 +12,7 @@ import { WorkoutDetailModal } from '../../calendar/components/WorkoutDetailModal
 import { WorkoutSession } from '../../workout/types';
 import { PressableScale } from '../../../shared/components/PressableScale';
 import { glassCard, glassFill } from '../../../shared/components/DashboardCard';
-import { Grain } from '../../../shared/components/Grain';
+import { GlassSheen } from '../../../shared/components/GlassSheen';
 
 const { width } = Dimensions.get('window');
 const CARD_GAP = 12;
@@ -351,7 +351,7 @@ export const SessionCarousel = () => {
               style={[styles.cardSlot, { opacity, transform: [{ scale }] }]}
             >
               <PressableScale onPress={onPress} unstable_pressDelay={70} style={[glassCard, styles.card]}>
-                <Grain radius={22} />
+                <GlassSheen radius={22} />
                 {content}
               </PressableScale>
             </Animated.View>
@@ -416,9 +416,9 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   workoutDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     marginTop: 5,
   },
 
@@ -432,7 +432,8 @@ const styles = StyleSheet.create({
     marginRight: CARD_GAP,
   },
   card: {
-    height: 168,
+    // minHeight, not height: with a large system font the content must be able to grow
+    minHeight: 168,
     justifyContent: 'space-between',
   },
   cardTopRow: {

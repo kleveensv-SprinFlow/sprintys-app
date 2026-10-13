@@ -5,7 +5,8 @@ import { universalColors } from './theme';
  * Light frosted-glass ("verre dépoli") theme building blocks.
  *
  * Cards are milky translucent white over the GlowBackground, with a lit top rim,
- * a shaded bottom rim and a fine grain (<Grain />). There is no real blur on cards
+ * a shaded bottom rim and a soft top reflection (<GlassSheen />). No noise texture:
+ * stretched over large cards it reads as stains, not frosting. There is no real blur on cards
  * on purpose: behind them there are only static, already soft glows, so a blur
  * would look the same and cost a lot on Android. Real blur is kept for bars that
  * content actually scrolls under (tab bars).

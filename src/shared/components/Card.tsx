@@ -2,7 +2,7 @@
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import { theme } from '../../core/theme';
 import { glassSurface } from '../../core/glass';
-import { Grain } from './Grain';
+import { GlassSheen } from './GlassSheen';
 
 interface CardProps {
   children: React.ReactNode;
@@ -28,7 +28,7 @@ export const Card: React.FC<CardProps> = ({
 
   return (
     <View style={[styles.base, getVariantStyle(), style]}>
-      {variant !== 'elevated' && <Grain radius={theme.radius.md} />}
+      {variant !== 'elevated' && <GlassSheen radius={theme.radius.md} />}
       {children}
     </View>
   );
