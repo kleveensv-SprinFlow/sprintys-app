@@ -1,5 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, useWindowDimensions, Animated } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Alert,
+  useWindowDimensions,
+  Animated,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+} from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -14,6 +28,11 @@ import { glassCard, glassSurface } from '../../src/core/glass';
 import { GlassSheen } from '../../src/shared/components/GlassSheen';
 import { FrostedBar } from '../../src/shared/components/FrostedBar';
 import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
+import { SegmentedControl } from '../../src/shared/components/SegmentedControl';
+import { PressableScale } from '../../src/shared/components/PressableScale';
+import { supabase } from '../../src/services/supabase';
+
+const BLUE_TINT = 'rgba(0, 105, 232, 0.1)';
 
 type MetricKey = 'weight' | 'fat' | 'muscle';
 type RangeKey = '1S' | '1M' | '3M' | '1A' | 'Tout';
@@ -50,7 +69,7 @@ export default function BodyCompositionScreen() {
   const { barOpacity: headerBarOpacity, scrollProps } = useFrostedHeader();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const { user } = useAuthStore();
+  const { user, reloadProfile } = useAuthStore();
   const { metrics, addMetric, updateMetric, deleteMetric, loadMetrics, isLoading } = useBodyStore();
   const { showFeedback } = useSprintyStore();
 
@@ -65,6 +84,9 @@ export default function BodyCompositionScreen() {
   const [muscleMass, setMuscleMass] = useState('');
   const [water, setWater] = useState('');
   const [scaleType, setScaleType] = useState<ScaleType>('none');
+  const [goalSheet, setGoalSheet] = useState(false);
+  const [goalValue, setGoalValue] = useState('');
+  const [savingGoal, setSavingGoal] = useState(false);
 
   useEffect(() => {
     if (user?.id) loadMetrics(user.id);
@@ -174,19 +196,63 @@ export default function BodyCompositionScreen() {
     }
   };
 
-  const confirmDelete = (m: BodyMetric) => {
-    if (!m.id || !user?.id) return;
+  const confirmDelete = () => {
+    const m = metrics.find((x) => x.id === editingId);
+    if (!m?.id || !user?.id) return;
     Alert.alert('Supprimer cette pesée ?', formatKg(m.weight) + ' kg', [
       { text: 'Annuler', style: 'cancel' },
       {
         text: 'Supprimer',
         style: 'destructive',
-        onPress: () => deleteMetric(m.id as string, user.id),
+        onPress: async () => {
+          await deleteMetric(m.id as string, user.id);
+          setSheet(false);
+        },
       },
     ]);
   };
 
+  const openGoal = () => {
+    const last = [...metrics].reverse().find((m) => m.weight != null);
+    const base = target > 0 ? target : last ? Math.round(Number(last.weight)) : 70;
+    setGoalValue(String(base).replace('.', ','));
+    setGoalSheet(true);
+  };
+
+  const nudgeGoal = (dir: number) => {
+    const current = parseFloat(goalValue.replace(',', '.'));
+    const base = Number.isNaN(current) ? 70 : current;
+    const next = Math.round((base + dir * 0.5) * 2) / 2;
+    setGoalValue(String(next).replace('.', ','));
+  };
+
+  const saveGoal = async (value: number | null) => {
+    if (!user?.id) return;
+    if (value != null && (value < 30 || value > 250)) {
+      showFeedback('error', 'Choisis un objectif entre 30 et 250 kg.');
+      return;
+    }
+    setSavingGoal(true);
+    try {
+      const { error } = await supabase.from('profiles').update({ target_weight: value }).eq('id', user.id);
+      if (error) throw error;
+      await reloadProfile();
+      showFeedback('success', value == null ? 'Objectif retiré' : 'Objectif enregistré');
+      setGoalSheet(false);
+    } catch (err) {
+      console.error(err);
+      showFeedback('error', "Impossible d'enregistrer l'objectif.");
+    } finally {
+      setSavingGoal(false);
+    }
+  };
+
   const history = [...metrics].reverse();
+  const metricOptions: { key: MetricKey; label: string }[] = [
+    { key: 'weight', label: 'Poids' },
+    ...(hasFat ? [{ key: 'fat' as MetricKey, label: 'Gras' }] : []),
+    ...(hasMuscle ? [{ key: 'muscle' as MetricKey, label: 'Muscle' }] : []),
+  ];
 
   return (
     <GlassScreen>
@@ -198,9 +264,9 @@ export default function BodyCompositionScreen() {
             <Feather name="arrow-left" size={22} color={theme.colors.text} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Poids</Text>
-          <TouchableOpacity onPress={openNew} style={[styles.iconBtn, { backgroundColor: blue }]}>
-            <Feather name="plus" size={20} color="#FFF" />
-          </TouchableOpacity>
+          <PressableScale onPress={openNew} haptic="selection" style={[styles.iconBtn, glassSurface]}>
+            <Feather name="plus" size={20} color={blue} />
+          </PressableScale>
         </View>
 
         <Animated.ScrollView {...scrollProps} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -208,39 +274,39 @@ export default function BodyCompositionScreen() {
             {shown ? formatKg(shown.v) : '--'}
             <Text style={[styles.heroUnit, { color: theme.colors.textSecondary }]}> {unit}</Text>
           </Text>
-          {delta != null && Math.abs(delta) >= 0.05 && (
-            <View style={styles.deltaRow}>
-              <Feather name={delta < 0 ? 'trending-down' : 'trending-up'} size={14} color={theme.colors.textSecondary} />
+          {delta != null && Math.abs(delta) >= 0.05 ? (
+            <View style={[styles.deltaChip, { backgroundColor: theme.colors.glassFill }]}>
+              <Feather name={delta < 0 ? 'arrow-down-right' : 'arrow-up-right'} size={13} color={theme.colors.textSecondary} />
               <Text style={[styles.delta, { color: theme.colors.textSecondary }]}>
+                {delta < 0 ? '−' : '+'}
                 {formatKg(Math.abs(delta))} {unit} {rangeLabel}
               </Text>
             </View>
+          ) : (
+            <View style={styles.deltaSpacer} />
           )}
 
-          <View style={styles.filters}>
-            {(['weight', 'fat', 'muscle'] as MetricKey[])
-              .filter((k) => k === 'weight' || (k === 'fat' ? hasFat : hasMuscle))
-              .map((k) => {
-                const on = metricKey === k;
-                const label = k === 'weight' ? 'Poids' : k === 'fat' ? 'Gras' : 'Muscle';
-                return (
-                  <TouchableOpacity key={k} onPress={() => { setMetricKey(k); setScrub(null); }} style={[styles.pill, on && { backgroundColor: theme.colors.text }]}>
-                    <Text style={{ color: on ? '#FFF' : theme.colors.textSecondary, fontWeight: '700', fontSize: 13 }}>{label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-          </View>
+          {metricOptions.length > 1 && (
+            <SegmentedControl
+              style={styles.segment}
+              options={metricOptions}
+              value={metricKey}
+              onChange={(k) => {
+                setMetricKey(k);
+                setScrub(null);
+              }}
+            />
+          )}
 
-          <View style={styles.filters}>
-            {RANGES.map((r) => {
-              const on = range === r.key;
-              return (
-                <TouchableOpacity key={r.key} onPress={() => { setRange(r.key); setScrub(null); }} style={[styles.pill, on && glassSurface]}>
-                  <Text style={{ color: on ? theme.colors.text : theme.colors.textMuted, fontWeight: '700', fontSize: 13 }}>{r.key}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          <SegmentedControl
+            style={styles.segment}
+            options={RANGES.map((r) => ({ key: r.key, label: r.key }))}
+            value={range}
+            onChange={(k) => {
+              setRange(k);
+              setScrub(null);
+            }}
+          />
 
           <View style={glassCard}>
             <GlassSheen radius={22} />
@@ -268,10 +334,23 @@ export default function BodyCompositionScreen() {
               </View>
             )}
 
-            {metricKey === 'weight' && target > 0 && latest && (
-              <Text style={[styles.goal, { color: theme.colors.textSecondary }]}>
-                {Math.abs(latest.v - target) <= 0.1 ? 'Objectif atteint' : `encore ${formatKg(Math.abs(latest.v - target))} kg`}
-              </Text>
+            {metricKey === 'weight' && (
+              <PressableScale onPress={openGoal} haptic="selection" style={[styles.goalRow, { borderTopColor: theme.colors.hairline }]}>
+                <View style={[styles.goalIcon, { backgroundColor: BLUE_TINT }]}>
+                  <Feather name="flag" size={14} color={blue} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.goalTitle, { color: theme.colors.text }]}>
+                    {target > 0 ? `Objectif ${target.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} kg` : 'Définir un objectif'}
+                  </Text>
+                  {target > 0 && latest && (
+                    <Text style={[styles.goalSub, { color: theme.colors.textSecondary }]}>
+                      {Math.abs(latest.v - target) <= 0.1 ? 'Objectif atteint' : `encore ${formatKg(Math.abs(latest.v - target))} kg`}
+                    </Text>
+                  )}
+                </View>
+                <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />
+              </PressableScale>
             )}
           </View>
 
@@ -286,84 +365,134 @@ export default function BodyCompositionScreen() {
                 const d = m.created_at ? new Date(m.created_at) : null;
                 const label = d ? d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
                 return (
-                  <View
+                  <TouchableOpacity
                     key={m.id || label + m.weight}
+                    activeOpacity={0.6}
+                    onPress={() => openEdit(m)}
                     style={[styles.row, { borderColor: theme.colors.hairline }, i === history.length - 1 && { borderBottomWidth: 0 }]}
                   >
-                    <TouchableOpacity style={{ flex: 1 }} onPress={() => openEdit(m)}>
+                    <View style={{ flex: 1 }}>
                       <Text style={[styles.rowValue, { color: theme.colors.text }]}>{formatKg(m.weight)} kg</Text>
                       <Text style={[styles.rowDate, { color: theme.colors.textMuted }]}>
                         {label}
                         {m.body_fat != null ? `  ·  MG ${formatKg(Number(m.body_fat))} %` : ''}
                         {m.muscle_mass_kg != null ? `  ·  Muscle ${formatKg(Number(m.muscle_mass_kg))} kg` : ''}
                       </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => confirmDelete(m)} hitSlop={10}>
-                      <Feather name="trash-2" size={16} color={theme.colors.textMuted} />
-                    </TouchableOpacity>
-                  </View>
+                    </View>
+                    <Feather name="chevron-right" size={16} color={theme.colors.textMuted} />
+                  </TouchableOpacity>
                 );
               })}
             </View>
           )}
         </Animated.ScrollView>
 
-        {sheet && (
-          <View style={styles.sheetBackdrop}>
-            <TouchableOpacity style={{ flex: 1 }} onPress={() => setSheet(false)} />
+        <Modal visible={sheet} transparent animationType="slide" onRequestClose={() => setSheet(false)} statusBarTranslucent>
+          <KeyboardAvoidingView style={styles.sheetBackdrop} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <Pressable style={{ flex: 1 }} onPress={() => setSheet(false)} />
             <View style={[styles.sheet, { backgroundColor: theme.colors.surface, paddingBottom: Math.max(insets.bottom, 16) }]}>
-              <Text style={[styles.sheetTitle, { color: theme.colors.text }]}>{editingId ? 'Modifier la pesée' : 'Nouvelle pesée'}</Text>
-              <View style={styles.stepper}>
-                <TouchableOpacity onPress={() => nudge(-1)} style={[styles.stepBtn, { backgroundColor: theme.colors.surfaceLight }]}>
-                  <Text style={[styles.stepLabel, { color: theme.colors.text }]}>− 0,1</Text>
+              <View style={[styles.handle, { backgroundColor: theme.colors.border }]} />
+              <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} bounces={false}>
+                <Text style={[styles.sheetTitle, { color: theme.colors.text }]}>{editingId ? 'Modifier la pesée' : 'Nouvelle pesée'}</Text>
+                <View style={styles.stepper}>
+                  <PressableScale onPress={() => nudge(-1)} haptic="selection" style={[styles.stepBtn, { backgroundColor: theme.colors.glassFill }]}>
+                    <Text style={[styles.stepLabel, { color: theme.colors.text }]}>− 0,1</Text>
+                  </PressableScale>
+                  <TextInput
+                    value={weight}
+                    onChangeText={(t) => setWeight(formatSmartDecimal(t))}
+                    keyboardType="decimal-pad"
+                    style={[styles.weightInput, { color: theme.colors.text }]}
+                    placeholder="0,0"
+                    placeholderTextColor={theme.colors.textMuted}
+                  />
+                  <PressableScale onPress={() => nudge(1)} haptic="selection" style={[styles.stepBtn, { backgroundColor: theme.colors.glassFill }]}>
+                    <Text style={[styles.stepLabel, { color: theme.colors.text }]}>+ 0,1</Text>
+                  </PressableScale>
+                </View>
+                <Text style={[styles.kgHint, { color: theme.colors.textMuted }]}>kg</Text>
+
+                <TouchableOpacity onPress={() => setMore((v) => !v)} style={styles.moreBtn}>
+                  <Text style={{ color: blue, fontWeight: '700' }}>{more ? 'Masquer les autres mesures' : 'Ma balance mesure aussi…'}</Text>
                 </TouchableOpacity>
+
+                {more && (
+                  <View>
+                    <Field label="Masse grasse (%)" value={bodyFat} onChange={setBodyFat} theme={theme} />
+                    <Field label="Muscle (kg)" value={muscleMass} onChange={setMuscleMass} theme={theme} />
+                    <Field label="Eau (%)" value={water} onChange={setWater} theme={theme} />
+                    <SegmentedControl
+                      style={styles.scaleSegment}
+                      options={[
+                        { key: 'none' as ScaleType, label: 'Classique' },
+                        { key: '4_electrodes' as ScaleType, label: '4 électrodes' },
+                        { key: '8_electrodes' as ScaleType, label: '8 électrodes' },
+                      ]}
+                      value={scaleType}
+                      onChange={setScaleType}
+                    />
+                  </View>
+                )}
+
+                <PressableScale
+                  style={[styles.save, { backgroundColor: blue, opacity: isLoading ? 0.6 : 1 }]}
+                  onPress={handleSave}
+                  disabled={isLoading}
+                  haptic="medium"
+                >
+                  <Text style={styles.saveText}>{isLoading ? 'Enregistrement…' : 'Enregistrer'}</Text>
+                </PressableScale>
+
+                {editingId && (
+                  <TouchableOpacity onPress={confirmDelete} style={styles.deleteBtn}>
+                    <Text style={[styles.deleteText, { color: theme.colors.error }]}>Supprimer la pesée</Text>
+                  </TouchableOpacity>
+                )}
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+
+        <Modal visible={goalSheet} transparent animationType="slide" onRequestClose={() => setGoalSheet(false)} statusBarTranslucent>
+          <KeyboardAvoidingView style={styles.sheetBackdrop} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <Pressable style={{ flex: 1 }} onPress={() => setGoalSheet(false)} />
+            <View style={[styles.sheet, { backgroundColor: theme.colors.surface, paddingBottom: Math.max(insets.bottom, 16) }]}>
+              <View style={[styles.handle, { backgroundColor: theme.colors.border }]} />
+              <Text style={[styles.sheetTitle, { color: theme.colors.text }]}>Objectif de poids</Text>
+              <View style={styles.stepper}>
+                <PressableScale onPress={() => nudgeGoal(-1)} haptic="selection" style={[styles.stepBtn, { backgroundColor: theme.colors.glassFill }]}>
+                  <Text style={[styles.stepLabel, { color: theme.colors.text }]}>− 0,5</Text>
+                </PressableScale>
                 <TextInput
-                  value={weight}
-                  onChangeText={(t) => setWeight(formatSmartDecimal(t))}
+                  value={goalValue}
+                  onChangeText={(t) => setGoalValue(formatSmartDecimal(t))}
                   keyboardType="decimal-pad"
                   style={[styles.weightInput, { color: theme.colors.text }]}
                   placeholder="0,0"
                   placeholderTextColor={theme.colors.textMuted}
                 />
-                <TouchableOpacity onPress={() => nudge(1)} style={[styles.stepBtn, { backgroundColor: theme.colors.surfaceLight }]}>
-                  <Text style={[styles.stepLabel, { color: theme.colors.text }]}>+ 0,1</Text>
-                </TouchableOpacity>
+                <PressableScale onPress={() => nudgeGoal(1)} haptic="selection" style={[styles.stepBtn, { backgroundColor: theme.colors.glassFill }]}>
+                  <Text style={[styles.stepLabel, { color: theme.colors.text }]}>+ 0,5</Text>
+                </PressableScale>
               </View>
               <Text style={[styles.kgHint, { color: theme.colors.textMuted }]}>kg</Text>
 
-              <TouchableOpacity onPress={() => setMore((v) => !v)} style={styles.moreBtn}>
-                <Text style={{ color: blue, fontWeight: '700' }}>Ma balance mesure aussi…</Text>
-              </TouchableOpacity>
-
-              {more && (
-                <View>
-                  <Field label="Masse grasse (%)" value={bodyFat} onChange={setBodyFat} theme={theme} />
-                  <Field label="Muscle (kg)" value={muscleMass} onChange={setMuscleMass} theme={theme} />
-                  <Field label="Eau (%)" value={water} onChange={setWater} theme={theme} />
-                  <View style={styles.scaleRow}>
-                    {(['none', '4_electrodes', '8_electrodes'] as ScaleType[]).map((type) => {
-                      const on = scaleType === type;
-                      const label = type === 'none' ? 'Classique' : type === '4_electrodes' ? '4 électrodes' : '8 électrodes';
-                      return (
-                        <TouchableOpacity key={type} onPress={() => setScaleType(type)} style={[styles.pill, on && { backgroundColor: theme.colors.text }]}>
-                          <Text style={{ color: on ? '#FFF' : theme.colors.textSecondary, fontWeight: '700', fontSize: 12 }}>{label}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </View>
-              )}
-
-              <TouchableOpacity
-                style={[styles.save, { backgroundColor: blue, opacity: isLoading ? 0.6 : 1 }]}
-                onPress={handleSave}
-                disabled={isLoading}
+              <PressableScale
+                style={[styles.save, { backgroundColor: blue, opacity: savingGoal ? 0.6 : 1 }]}
+                onPress={() => saveGoal(parseNum(goalValue))}
+                disabled={savingGoal}
+                haptic="medium"
               >
-                <Text style={styles.saveText}>{isLoading ? 'Enregistrement…' : 'Enregistrer'}</Text>
-              </TouchableOpacity>
+                <Text style={styles.saveText}>{savingGoal ? 'Enregistrement…' : "Enregistrer l'objectif"}</Text>
+              </PressableScale>
+              {target > 0 && (
+                <TouchableOpacity onPress={() => saveGoal(null)} style={styles.deleteBtn} disabled={savingGoal}>
+                  <Text style={[styles.deleteText, { color: theme.colors.textSecondary }]}>Retirer l'objectif</Text>
+                </TouchableOpacity>
+              )}
             </View>
-          </View>
-        )}
+          </KeyboardAvoidingView>
+        </Modal>
       </SafeAreaView>
     </GlassScreen>
   );
@@ -372,8 +501,8 @@ export default function BodyCompositionScreen() {
 function Stat({ label, value, color, muted }: { label: string; value: string; color: string; muted: string }) {
   return (
     <View style={{ flex: 1 }}>
-      <Text style={{ color: muted, fontSize: 12, fontWeight: '600' }}>{label}</Text>
-      <Text style={{ color, fontSize: 16, fontWeight: '800', marginTop: 2 }}>{value}</Text>
+      <Text style={[styles.statLabel, { color: muted }]}>{label}</Text>
+      <Text style={[styles.statValue, { color }]}>{value}</Text>
     </View>
   );
 }
@@ -386,15 +515,7 @@ function Field({ label, value, onChange, theme }: { label: string; value: string
         value={value}
         onChangeText={(t) => onChange(formatSmartDecimal(t))}
         keyboardType="decimal-pad"
-        style={{
-          borderWidth: 1,
-          borderColor: theme.colors.border,
-          borderRadius: 12,
-          paddingHorizontal: 12,
-          paddingVertical: 10,
-          color: theme.colors.text,
-          fontSize: 16,
-        }}
+        style={[styles.field, { backgroundColor: theme.colors.glassFill, color: theme.colors.text }]}
       />
     </View>
   );
@@ -408,28 +529,55 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingBottom: 40 },
   hero: { fontSize: 40, fontWeight: '800', letterSpacing: -1, marginTop: 8 },
   heroUnit: { fontSize: 18, fontWeight: '600' },
-  deltaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4, marginBottom: 12 },
-  delta: { fontSize: 14, fontWeight: '600' },
-  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  pill: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 },
+  deltaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    marginTop: 6,
+    marginBottom: 16,
+  },
+  deltaSpacer: { height: 12 },
+  delta: { fontSize: 13, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  segment: { marginBottom: 10 },
+  scaleSegment: { marginTop: 4 },
   hint: { fontSize: 14, marginVertical: 24 },
   stats: { flexDirection: 'row', marginTop: 8 },
-  goal: { fontSize: 14, fontWeight: '500', marginTop: 8 },
+  statLabel: { fontSize: 12, fontWeight: '600' },
+  statValue: { fontSize: 16, fontWeight: '800', marginTop: 2, fontVariant: ['tabular-nums'] },
+  goalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  goalIcon: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  goalTitle: { fontSize: 15, fontWeight: '700' },
+  goalSub: { fontSize: 13, fontWeight: '500', marginTop: 1 },
   historyCard: { paddingVertical: 4 },
   section: { fontSize: 17, fontWeight: '700', marginTop: 16, marginBottom: 8 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   rowValue: { fontSize: 16, fontWeight: '700' },
   rowDate: { fontSize: 12, marginTop: 2 },
-  sheetBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,23,42,0.35)', justifyContent: 'flex-end', zIndex: 20 },
-  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20 },
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.35)', justifyContent: 'flex-end' },
+  sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 8, maxHeight: '88%' },
+  handle: { alignSelf: 'center', width: 40, height: 5, borderRadius: 3, marginBottom: 14 },
   sheetTitle: { fontSize: 18, fontWeight: '800', marginBottom: 16 },
   stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  stepBtn: { paddingHorizontal: 14, paddingVertical: 12, borderRadius: 14 },
+  stepBtn: { paddingHorizontal: 14, paddingVertical: 12, borderRadius: 14, borderCurve: 'continuous' },
   stepLabel: { fontSize: 16, fontWeight: '700' },
   weightInput: { fontSize: 40, fontWeight: '800', minWidth: 120, textAlign: 'center' },
   kgHint: { textAlign: 'center', marginTop: -4, marginBottom: 8 },
   moreBtn: { paddingVertical: 12 },
   scaleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  save: { marginTop: 12, borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
-  saveText: { color: '#FFF', fontWeight: '800', fontSize: 16 },
+  save: { marginTop: 16, borderRadius: 16, borderCurve: 'continuous', paddingVertical: 16, alignItems: 'center' },
+  saveText: { color: '#FFFFFF', fontWeight: '800', fontSize: 16 },
+  deleteBtn: { alignItems: 'center', paddingVertical: 14 },
+  deleteText: { fontSize: 15, fontWeight: '700' },
+  field: { borderRadius: 12, borderCurve: 'continuous', paddingHorizontal: 12, paddingVertical: 11, fontSize: 16 },
 });

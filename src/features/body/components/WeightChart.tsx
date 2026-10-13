@@ -1,6 +1,6 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, PanResponder, GestureResponderEvent } from 'react-native';
-import Svg, { Polyline, Circle, Line } from 'react-native-svg';
+import Svg, { Polyline, Circle, Line, Path, Defs, LinearGradient, Stop, Text as SvgText } from 'react-native-svg';
 
 export type TrendPoint = { t: number; v: number };
 
@@ -22,6 +22,15 @@ function toXY(values: number[], width: number, height: number, target?: number |
     const y = pad + (1 - (v - min) / span) * (height - pad * 2);
     return { x, y, v };
   });
+}
+
+/** Draw the goal only when it is close enough to the data not to flatten the curve. */
+export function goalInView(values: number[], target?: number | null): number | null {
+  if (target == null || !(target > 0) || values.length === 0) return null;
+  const lo = Math.min(...values);
+  const hi = Math.max(...values);
+  const span = Math.max(hi - lo, 0.4);
+  return Math.min(Math.abs(target - lo), Math.abs(target - hi)) <= Math.max(1.5, span * 1.5) ? target : null;
 }
 
 export function movingAverage(points: TrendPoint[], windowDays = 7): number[] {
@@ -96,6 +105,7 @@ export const WeightTrendChart = ({
   onScrub: (index: number | null) => void;
 }) => {
   const line = smooth.length >= 2 ? smooth : raw;
+  target = goalInView([...line, ...raw], target);
   const coords = toXY(line, width, height, target);
   const dots = toXY(raw, width, height, target);
   const { min, max } = rangeOf(line.length ? line : raw, target);
@@ -151,6 +161,18 @@ export const WeightTrendChart = ({
   return (
     <View {...responder.panHandlers}>
       <Svg width={width} height={height}>
+        <Defs>
+          <LinearGradient id="weightTrendArea" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={color} stopOpacity={0.16} />
+            <Stop offset="1" stopColor={color} stopOpacity={0} />
+          </LinearGradient>
+        </Defs>
+        {coords.length >= 2 && (
+          <Path
+            d={`${smoothPath(coords)} L ${coords[coords.length - 1].x} ${height} L ${coords[0].x} ${height} Z`}
+            fill="url(#weightTrendArea)"
+          />
+        )}
         {targetY != null && (
           <Line
             x1={pad}
@@ -164,19 +186,93 @@ export const WeightTrendChart = ({
           />
         )}
         {coords.length >= 2 && (
-          <Polyline
-            points={coords.map((p) => `${p.x},${p.y}`).join(' ')}
-            fill="none"
-            stroke={color}
-            strokeWidth={2.5}
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
+          <Path d={smoothPath(coords)} fill="none" stroke={color} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
         )}
         {dots.map((p, i) => (
           <Circle key={i} cx={p.x} cy={p.y} r={raw.length > 24 ? 2 : 3} fill={color} fillOpacity={0.35} />
         ))}
       </Svg>
+    </View>
+  );
+};
+
+/** Smooth curve through the points (Catmull-Rom converted to cubic Béziers). */
+function smoothPath(pts: { x: number; y: number }[]) {
+  if (pts.length < 2) return '';
+  let d = `M ${pts[0].x} ${pts[0].y}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2] || p2;
+    const c1x = p1.x + (p2.x - p0.x) / 6;
+    const c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6;
+    const c2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C ${c1x} ${c1y} ${c2x} ${c2y} ${p2.x} ${p2.y}`;
+  }
+  return d;
+}
+
+/**
+ * Full-width weight curve for the dashboard card: smoothed line over a soft
+ * gradient area, the goal as a labelled dashed line when it is close enough to
+ * the data to be meaningful, and a dot on the latest weigh-in.
+ */
+export const WeightAreaChart = ({
+  values,
+  color,
+  target,
+  height = 92,
+}: {
+  values: number[];
+  color: string;
+  target?: number | null;
+  height?: number;
+}) => {
+  const [width, setWidth] = useState(0);
+  if (values.length < 2) return null;
+
+  const showTarget = goalInView(values, target) != null;
+  const coords = width > 0 ? toXY(values, width, height, showTarget ? target : null) : [];
+  const { min, max } = rangeOf(values, showTarget ? target : null);
+  const targetY = showTarget ? pad + (1 - ((target as number) - min) / (max - min || 1)) * (height - pad * 2) : null;
+  const line = smoothPath(coords);
+  const last = coords[coords.length - 1];
+  const area = coords.length >= 2 ? `${line} L ${last.x} ${height} L ${coords[0].x} ${height} Z` : '';
+
+  return (
+    <View style={{ height }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+      {width > 0 && (
+        <Svg width={width} height={height}>
+          <Defs>
+            <LinearGradient id="weightArea" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={color} stopOpacity={0.18} />
+              <Stop offset="1" stopColor={color} stopOpacity={0} />
+            </LinearGradient>
+          </Defs>
+          <Path d={area} fill="url(#weightArea)" />
+          {targetY != null && (
+            <>
+              <Line
+                x1={pad}
+                y1={targetY}
+                x2={width - 24}
+                y2={targetY}
+                stroke={color}
+                strokeOpacity={0.45}
+                strokeDasharray="4 4"
+                strokeWidth={1}
+              />
+              <SvgText x={width - 2} y={targetY + 4} fontSize={11} fontWeight="700" fill={color} textAnchor="end">
+                {String(target).replace('.', ',')}
+              </SvgText>
+            </>
+          )}
+          <Path d={line} fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+          <Circle cx={last.x} cy={last.y} r={5.5} fill="#FFFFFF" stroke={color} strokeWidth={2.5} />
+        </Svg>
+      )}
     </View>
   );
 };

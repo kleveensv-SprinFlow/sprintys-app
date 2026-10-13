@@ -7,8 +7,9 @@ import { useBodyStore } from '../../../store/bodyStore';
 import { useAuthStore } from '../../../store/authStore';
 import { PressableScale } from '../../../shared/components/PressableScale';
 import { glassCard, DashboardCardHeader } from '../../../shared/components/DashboardCard';
-import { WeightSparkline, movingAverage, TrendPoint } from '../../body/components/WeightChart';
+import { WeightAreaChart, movingAverage, TrendPoint } from '../../body/components/WeightChart';
 import { GlassSheen } from '../../../shared/components/GlassSheen';
+import { MEAL_ACCENT_TINT } from '../../nutrition/nutritionTheme';
 
 const day = 86400000;
 
@@ -81,8 +82,8 @@ export const BodyCompositionCard = ({ refreshKey = 0 }: { refreshKey?: number })
           />
           <View style={styles.emptyRow}>
             <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Ajoute ta première pesée</Text>
-            <View style={[styles.plus, { backgroundColor: blue }]}>
-              <Feather name="plus" size={18} color="#FFF" />
+            <View style={[styles.plus, { backgroundColor: MEAL_ACCENT_TINT }]}>
+              <Feather name="plus" size={18} color={blue} />
             </View>
           </View>
         </PressableScale>
@@ -92,47 +93,63 @@ export const BodyCompositionCard = ({ refreshKey = 0 }: { refreshKey?: number })
 
   const fat = latest.body_fat != null ? Number(latest.body_fat) : null;
   const muscle = latest.muscle_mass_kg != null ? Number(latest.muscle_mass_kg) : null;
-  const remaining = target > 0 ? Math.abs(latest.weight - target) : null;
   const diff = trend?.diff ?? 0;
+  const hasTrend = !!trend && Math.abs(diff) >= 0.05;
+  // Good direction = toward the goal (or down when no goal is set)
+  const towardGoal = target > 0 ? Math.abs(latest.weight - target) < Math.abs(latest.weight - diff - target) : diff < 0;
+  const deltaColor = towardGoal ? blue : theme.colors.textSecondary;
+  const goalMeta = target > 0
+    ? Math.abs(latest.weight - target) <= 0.1
+      ? 'Objectif atteint'
+      : `Objectif ${target.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} kg`
+    : undefined;
 
   return (
     <View style={styles.wrapper}>
       <PressableScale style={glassCard} onPress={open}>
         <GlassSheen radius={22} />
         <DashboardCardHeader
-          icon={<Feather name="trending-down" size={15} color={blue} />}
+          icon={<Feather name={hasTrend && diff > 0 ? 'trending-up' : 'trending-down'} size={15} color={blue} />}
           label="Poids"
           tint={blue}
-          meta={remaining != null ? (remaining <= 0.1 ? 'Objectif atteint' : `encore ${formatKg(remaining)} kg`) : undefined}
+          meta={goalMeta}
         />
+
         <View style={styles.top}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.value, { color: theme.colors.text }]}>
-              {formatKg(latest.weight)}
-              <Text style={[styles.unit, { color: theme.colors.textSecondary }]}> kg</Text>
-            </Text>
-            {trend && Math.abs(diff) >= 0.05 && (
-              <View style={styles.deltaRow}>
-                <Feather
-                  name={diff < 0 ? 'trending-down' : 'trending-up'}
-                  size={14}
-                  color={theme.colors.textSecondary}
-                />
-                <Text style={[styles.delta, { color: theme.colors.textSecondary }]}>
-                  {formatKg(Math.abs(diff))} kg {trend.label}
-                </Text>
-              </View>
-            )}
-          </View>
-          <WeightSparkline values={spark} color={blue} target={target > 0 ? target : null} />
+          <Text style={[styles.value, { color: theme.colors.text }]}>
+            {formatKg(latest.weight)}
+            <Text style={[styles.unit, { color: theme.colors.textSecondary }]}> kg</Text>
+          </Text>
+          {hasTrend && (
+            <View style={[styles.deltaChip, { backgroundColor: towardGoal ? MEAL_ACCENT_TINT : theme.colors.glassFill }]}>
+              <Feather name={diff < 0 ? 'arrow-down-right' : 'arrow-up-right'} size={13} color={deltaColor} />
+              <Text style={[styles.delta, { color: deltaColor }]}>
+                {diff < 0 ? '−' : '+'}
+                {formatKg(Math.abs(diff))} kg · {trend!.label.replace('sur ', '')}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.chart}>
+          <WeightAreaChart values={spark} color={blue} target={target > 0 ? target : null} />
         </View>
 
         {(fat != null || muscle != null) && (
-          <Text style={[styles.meta, { color: theme.colors.textSecondary }]}>
-            {fat != null ? `MG ${formatKg(fat)} %` : ''}
-            {fat != null && muscle != null ? '  ·  ' : ''}
-            {muscle != null ? `Muscle ${formatKg(muscle)} kg` : ''}
-          </Text>
+          <View style={styles.chips}>
+            {fat != null && (
+              <View style={[styles.chip, { backgroundColor: theme.colors.glassFill }]}>
+                <Text style={[styles.chipLabel, { color: theme.colors.textSecondary }]}>MG</Text>
+                <Text style={[styles.chipValue, { color: theme.colors.text }]}>{formatKg(fat)} %</Text>
+              </View>
+            )}
+            {muscle != null && (
+              <View style={[styles.chip, { backgroundColor: theme.colors.glassFill }]}>
+                <Text style={[styles.chipLabel, { color: theme.colors.textSecondary }]}>Muscle</Text>
+                <Text style={[styles.chipValue, { color: theme.colors.text }]}>{formatKg(muscle)} kg</Text>
+              </View>
+            )}
+          </View>
         )}
       </PressableScale>
     </View>
@@ -141,12 +158,16 @@ export const BodyCompositionCard = ({ refreshKey = 0 }: { refreshKey?: number })
 
 const styles = StyleSheet.create({
   wrapper: { marginHorizontal: 16, marginTop: 6, marginBottom: 24 },
-  top: { flexDirection: 'row', alignItems: 'center' },
-  value: { fontSize: 32, fontWeight: '800', letterSpacing: -0.8 },
-  unit: { fontSize: 16, fontWeight: '600' },
-  deltaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  delta: { fontSize: 13, fontWeight: '600' },
-  meta: { fontSize: 13, fontWeight: '500', marginTop: 10 },
+  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  value: { fontSize: 34, fontWeight: '800', letterSpacing: -1, fontVariant: ['tabular-nums'] },
+  unit: { fontSize: 16, fontWeight: '600', letterSpacing: 0 },
+  deltaChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
+  delta: { fontSize: 13, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  chart: { marginTop: 10, marginHorizontal: -4 },
+  chips: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  chip: { flexDirection: 'row', alignItems: 'baseline', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
+  chipLabel: { fontSize: 12, fontWeight: '600' },
+  chipValue: { fontSize: 13, fontWeight: '800', fontVariant: ['tabular-nums'] },
   emptyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   emptyTitle: { fontSize: 17, fontWeight: '700', letterSpacing: -0.3, flex: 1 },
   plus: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
