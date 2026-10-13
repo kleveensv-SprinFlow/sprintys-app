@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { openFoodFactsService, OFFProduct } from './openFoodFactsService';
-import { matchScore, searchTokens, normalizeSearchText } from './foodSearchRank';
+import { matchScore, searchTokens, isStateToken, recallForms, tokenInName, normalizeSearchText } from './foodSearchRank';
 
 export { normalizeSearchText };
 
@@ -26,53 +26,36 @@ const escapeIlike = (str: string): string => {
   return str.replace(/[%_\\]/g, '\\$&');
 };
 
-/** Formes du mot : pluriel, et œ/oe. Jamais une lettre au milieu d'un autre mot. */
-function tokenForms(token: string): string[] {
-  const forms = new Set<string>([token]);
-  if (token.includes('oe')) forms.add(token.replace(/oe/g, 'œ'));
-  if (token.length >= 3 && !token.endsWith('s')) forms.add(`${token}s`);
-  return [...forms];
-}
+const CIQUAL_COLUMNS = 'id, code_ciqual, nom, etat, synonymes, energie_kcal, proteines, glucides, lipides, fibres, sodium, search_text';
 
-function boundaryFilters(column: string, token: string): string[] {
+/** Formes du mot, avec l'accent et la faute, collées au début d'un mot du nom. */
+function boundaryFilters(token: string): string[] {
   const filters: string[] = [];
-  for (const form of tokenForms(token)) {
+  for (const form of recallForms(token)) {
     const safe = escapeIlike(form);
-    filters.push(`${column}.ilike.${safe}%`);
-    if (column === 'nom') {
-      filters.push(`${column}.ilike.% ${safe}%`);
-      filters.push(`${column}.ilike.%'${safe}%`);
-      filters.push(`${column}.ilike.%-${safe}%`);
-    }
+    filters.push(`nom.ilike.${safe}%`);
+    filters.push(`nom.ilike.% ${safe}%`);
+    filters.push(`nom.ilike.%-${safe}%`);
+    filters.push(`nom.ilike.%'${safe}%`);
+    filters.push(`search_text.ilike.${safe}%`);
   }
   return filters;
 }
 
-const CIQUAL_COLUMNS = 'id, code_ciqual, nom, etat, synonymes, energie_kcal, proteines, glucides, lipides, fibres, sodium, search_text';
-
-async function searchCiqual(rawQ: string): Promise<HybridFoodResult[]> {
-  const tokens = searchTokens(rawQ);
-  if (tokens.length === 0) return [];
-
-  const filters = tokens.flatMap((token) => [
-    ...boundaryFilters('nom', token),
-    ...boundaryFilters('search_text', token),
-  ]);
-  const orFilter = [...new Set(filters)].slice(0, 24).join(',');
-
-  let { data, error } = await supabase
+async function rowsForToken(token: string): Promise<CiqualFood[]> {
+  const filters = boundaryFilters(token).slice(0, 40);
+  const run = (active: string[]) => supabase
     .from('ciqual_foods')
     .select(CIQUAL_COLUMNS)
-    .or(orFilter)
-    .limit(60);
+    .or(active.join(','))
+    .order('nom', { ascending: true })
+    .limit(400);
 
+  let { data, error } = await run(filters);
   if (error) {
-    const retry = await supabase
-      .from('ciqual_foods')
-      .select('id, code_ciqual, nom, etat, synonymes, energie_kcal, proteines, glucides, lipides, fibres, sodium')
-      .or([...new Set(tokens.flatMap((token) => boundaryFilters('nom', token)))].slice(0, 16).join(','))
-      .limit(60);
-    data = retry.data as typeof data;
+    const safer = filters.filter((filter) => !filter.includes("'"));
+    const retry = await run(safer.length ? safer : filters.slice(0, 12));
+    data = retry.data;
     error = retry.error;
   }
 
@@ -81,11 +64,35 @@ async function searchCiqual(rawQ: string): Promise<HybridFoodResult[]> {
     return [];
   }
 
-  return data
-    .map((item) => ({ item: item as CiqualFood, score: matchScore(tokens, item.nom, `${item.etat || ''} ${item.synonymes || ''}`) }))
+  const seen = new Set<string>();
+  const rows: CiqualFood[] = [];
+  for (const item of data as CiqualFood[]) {
+    if (seen.has(item.id) || !tokenInName(token, item.nom, item.etat || '')) continue;
+    seen.add(item.id);
+    rows.push(item);
+  }
+  return rows;
+}
+
+async function searchCiqual(rawQ: string): Promise<HybridFoodResult[]> {
+  const tokens = searchTokens(rawQ);
+  if (tokens.length === 0) return [];
+
+  const distinctive = tokens.filter((token) => !isStateToken(token));
+  const lookedUp = distinctive.length > 0 ? distinctive : tokens;
+  const lists = await Promise.all(lookedUp.map((token) => rowsForToken(token)));
+
+  let rows = lists[0] || [];
+  for (const list of lists.slice(1)) {
+    const ids = new Set(list.map((item) => item.id));
+    rows = rows.filter((item) => ids.has(item.id));
+  }
+
+  return rows
+    .map((item) => ({ item, score: matchScore(tokens, item.nom, item.etat || '') }))
     .filter((row) => row.score > 0)
     .sort((a, b) => b.score - a.score || a.item.nom.localeCompare(b.item.nom, 'fr'))
-    .slice(0, 12)
+    .slice(0, 15)
     .map((row) => ({ type: 'ciqual' as const, item: row.item }));
 }
 
@@ -97,7 +104,7 @@ async function searchPackaged(rawQ: string): Promise<HybridFoodResult[]> {
       new Promise<OFFProduct[]>((resolve) => setTimeout(() => resolve([]), 1600)),
     ]);
     return products
-      .map((item) => ({ item, score: matchScore(tokens, item.name, item.brand || '') }))
+      .map((item) => ({ item, score: matchScore(tokens, item.name) }))
       .filter((row) => row.score > 0 && row.item.name && row.item.name !== 'Produit inconnu')
       .sort((a, b) => {
         const kcalBias = (row: { item: OFFProduct }) => (row.item.macros_100g.calories > 0 ? 0 : -80);

@@ -1,18 +1,67 @@
+/**
+ * Recherche sur le NOM seulement.
+ * « poulet » ne sort pas d'une sauce qui a du poulet dans les ingrédients.
+ * « oeuf » ne sort pas de « boeuf ». « riz » ne sort pas de « chorizo ».
+ * Une faute légère (lettre échangée, oubliée ou en trop) passe quand même.
+ */
+
 const STOP = new Set([
   'de', 'du', 'des', 'la', 'le', 'les', 'un', 'une', 'au', 'aux',
   'et', 'en', 'd', 'l', 'a', 'pour', 'avec', 'sans', 'sur', 'dans', 'ou',
 ]);
 
+const STATE = new Set([
+  'cru', 'crue', 'cuit', 'cuite', 'roti', 'rotie', 'grille', 'grillee',
+  'bouilli', 'bouillie', 'vapeur', 'saute', 'sautee', 'frit', 'frite',
+  'pane', 'panee', 'seche', 'sechee', 'frais', 'fraiche', 'surgel', 'surgele',
+  'brouille', 'brouillee', 'poele', 'poelee', 'appertise',
+]);
+
+/** Même mot, orthographes différentes. Pas une liste d'aliments. */
+const SPELLING_GROUPS = [
+  ['yaourt', 'yogourt', 'yoghourt', 'yahourt'],
+  ['oeuf', 'euf'],
+  ['muesli', 'musli'],
+  ['boulgour', 'bulgur', 'bourgoul'],
+  ['couscous', 'couscou', 'kouskous'],
+  ['cacahuete', 'cacahouete'],
+];
+
+const ACCENT: Record<string, string[]> = {
+  a: ['à', 'â'],
+  e: ['é', 'è', 'ê'],
+  i: ['î', 'ï'],
+  o: ['ô'],
+  u: ['ù', 'û'],
+  c: ['ç'],
+};
+
+const SPELLING = new Map<string, string>();
+for (const group of SPELLING_GROUPS) {
+  for (const form of group) SPELLING.set(form, group[0]);
+}
+
 const COOKED = /^(cru|crue|cuit|cuite|roti|grille|grillee|bouilli|bouillie|surgel|appertis|frais|fraiche|seche|sechee|brouille|poele|poeile|vapeur|saute)/;
 
 export function normalizeSearchText(text: string): string {
-  return text
+  return (text || '')
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/œ/g, 'oe')
     .replace(/æ/g, 'ae')
     .trim();
+}
+
+function stemToken(token: string): string {
+  if (token.length > 4 && token.endsWith('s') && !token.endsWith('ss')) return token.slice(0, -1);
+  if (token.length > 4 && token.endsWith('x')) return token.slice(0, -1);
+  return token;
+}
+
+function canonWord(raw: string): string {
+  const stemmed = stemToken(normalizeSearchText(raw));
+  return SPELLING.get(stemmed) || stemmed;
 }
 
 export function searchTokens(query: string): string[] {
@@ -27,99 +76,135 @@ export function searchTokens(query: string): string[] {
   return tokens;
 }
 
-function stemToken(token: string): string {
-  if (token.length > 4 && token.endsWith('s') && !token.endsWith('ss')) return token.slice(0, -1);
-  if (token.length > 4 && token.endsWith('x')) return token.slice(0, -1);
-  return token;
+export function isStateToken(token: string): boolean {
+  const canon = canonWord(token);
+  return STATE.has(canon) || STATE.has(canon.replace(/e$/, ''));
 }
 
-function editDistance(a: string, b: string): number {
-  if (a === b) return 0;
-  if (Math.abs(a.length - b.length) > 2) return 3;
-  const dp = Array.from({ length: b.length + 1 }, (_, i) => i);
-  for (let i = 1; i <= a.length; i++) {
-    let prev = i - 1;
-    dp[0] = i;
-    for (let j = 1; j <= b.length; j++) {
-      const current = dp[j];
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      dp[j] = Math.min(prev + cost, dp[j] + 1, dp[j - 1] + 1);
-      prev = current;
-    }
-  }
-  return dp[b.length];
-}
-
-function nameWords(text: string): string[] {
+function wordsOf(text: string): string[] {
   return normalizeSearchText(text)
     .split(/[^a-z0-9]+/)
     .filter((word) => word.length >= 2)
-    .map(stemToken);
+    .map((word) => canonWord(word))
+    .filter((word) => word.length >= 2);
 }
 
-type Hit = 'exact' | 'prefix' | 'fuzzy';
-
-/** « oeuf » ne doit jamais compter comme trouvé dans « boeuf ». */
-function classifyHit(token: string, word: string): Hit | null {
-  if (word === token) return 'exact';
-  if (word.length > token.length && word.endsWith(token)) return null;
-  if (token.length >= 3 && word.startsWith(token) && word.length - token.length <= 2) return 'prefix';
-  if (word.length >= 4 && token.startsWith(word) && token.length - word.length <= 2) return 'prefix';
-  if (token.length >= 5 && Math.abs(token.length - word.length) <= 1 && editDistance(token, word) === 1) {
-    if (word.endsWith(token) || token.endsWith(word)) return null;
-    return 'fuzzy';
+function damerau(a: string, b: string): number {
+  if (a === b) return 0;
+  if (Math.abs(a.length - b.length) > 2) return 3;
+  const dp: number[][] = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+  for (let i = 0; i <= a.length; i++) dp[i][0] = i;
+  for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        dp[i][j] = Math.min(dp[i][j], dp[i - 2][j - 2] + 1);
+      }
+    }
   }
-  return null;
+  return dp[a.length][b.length];
 }
 
-function bestHit(token: string, words: string[]): Hit | null {
-  const rank: Record<Hit, number> = { exact: 3, prefix: 2, fuzzy: 1 };
-  let best: Hit | null = null;
+/** Un mot caché dans un plus long : « riz » dans « chorizo », « pois » dans « poisson ». */
+function isEmbedded(token: string, word: string): boolean {
+  if (token === word) return false;
+  const [short, long] = token.length <= word.length ? [token, word] : [word, token];
+  if (!long.includes(short)) return false;
+  if (long === `${short}s` || long === `${short}x`) return false;
+  return long.length - short.length >= 2;
+}
+
+function matchWord(token: string, word: string): 'exact' | 'typo' | null {
+  if (token === word) return 'exact';
+  if (isEmbedded(token, word)) return null;
+  if (token.length < 5 || word.length < 5) return null;
+  if (Math.abs(token.length - word.length) > 1) return null;
+  if (damerau(token, word) > 1) return null;
+  if (token[0] === word[0]) return 'typo';
+  const [short, long] = token.length <= word.length ? [token, word] : [word, token];
+  return long.slice(1) === short ? 'typo' : null;
+}
+
+function bestWord(token: string, words: string[]): 'exact' | 'typo' | null {
+  let typo = false;
   for (const word of words) {
-    const hit = classifyHit(token, word);
-    if (hit && (!best || rank[hit] > rank[best])) best = hit;
+    const hit = matchWord(token, word);
+    if (hit === 'exact') return 'exact';
+    if (hit === 'typo') typo = true;
   }
-  return best;
+  return typo ? 'typo' : null;
 }
 
-function isEmbeddedInName(token: string, titleWords: string[]): boolean {
-  return titleWords.some((word) => word !== token && word.endsWith(token) && word.length > token.length);
+export function tokenInName(token: string, name: string, state = ''): boolean {
+  const canon = canonWord(token);
+  if (bestWord(canon, wordsOf(name))) return true;
+  return isStateToken(canon) && wordsOf(state).includes(canon);
 }
 
-export function matchScore(queryTokens: string[], name: string, extra = ''): number {
-  const titleWords = nameWords(name);
-  const extraWords = nameWords(extra).filter((word) => !isEmbeddedInName(word, titleWords));
-  if (queryTokens.length === 0) return 0;
+export function matchScore(queryTokens: string[], name: string, state = ''): number {
+  const nameWords = wordsOf(name);
+  const stateWords = wordsOf(state);
+  if (queryTokens.length === 0 || nameWords.length === 0) return 0;
 
-  let hits = 0;
   let score = 0;
-  for (const token of queryTokens) {
-    const inName = bestHit(token, titleWords);
-    const inExtra = isEmbeddedInName(token, titleWords) ? null : bestHit(token, extraWords);
-    const hit = inName || inExtra;
-    if (!hit) continue;
-    hits += 1;
-    const weight = hit === 'exact' ? 340 : hit === 'prefix' ? 220 : 110;
-    score += inName ? weight : Math.round(weight * 0.4);
-  }
-  if (hits < queryTokens.length) return 0;
+  let nameHits = 0;
+  let typo = false;
+  const wanted = queryTokens.map((token) => canonWord(token));
 
-  const nameNorm = normalizeSearchText(name);
-  if (titleWords[0] === queryTokens[0]) score += 220;
-  if (nameNorm === queryTokens.join(' ')) score += 260;
-  score -= Math.min(70, Math.max(0, nameNorm.length - 14));
+  for (const token of wanted) {
+    const hit = bestWord(token, nameWords);
+    if (hit) {
+      nameHits += 1;
+      score += hit === 'exact' ? 500 : 260;
+      if (hit === 'typo') typo = true;
+      if (nameWords[0] === token) score += 220;
+      continue;
+    }
+    if (isStateToken(token) && (stateWords.includes(token) || stateWords.includes(token.replace(/e$/, '')))) {
+      score += 70;
+      continue;
+    }
+    return 0;
+  }
 
-  if (!queryTokens.some((token) => token.startsWith('cru')) && COOKED.test(normalizeSearchText(extra))) {
-    if (normalizeSearchText(extra).startsWith('cru')) score -= 30;
-    else score += 20;
-  }
-  if (queryTokens.length === 1 && queryTokens[0] === 'pomme' && nameNorm.includes('pomme de terre')) {
-    score -= 900;
-  }
-  if (queryTokens.length === 1 && queryTokens[0] === 'oeuf' && /lump|lompe|cabillaud|poisson|truite|saumon/.test(nameNorm)) {
-    score -= 250;
-  }
+  if (nameHits === 0) return 0;
+  const extras = nameWords.filter((word) => !wanted.includes(word) && !isStateToken(word)).length;
+  score -= extras * 35;
+  if (!typo) score += 80;
   return score;
+}
+
+/** Formes à envoyer à la base pour rattraper accent, pluriel et faute. Le tri final reste sur le nom. */
+export function recallForms(token: string): string[] {
+  const canon = canonWord(token);
+  const family = SPELLING_GROUPS.find((group) => group.includes(canon) || group.includes(stemToken(token))) || [canon];
+  const seeds = [...new Set([stemToken(token), canon, ...family])];
+  const forms: string[] = [];
+  const push = (value: string) => {
+    const clean = value.trim();
+    if (clean.length >= 3 && !forms.includes(clean)) forms.push(clean);
+  };
+
+  for (const seed of seeds) push(seed);
+  for (const seed of seeds) {
+    if (seed.includes('oe')) push(seed.replace(/oe/g, 'œ'));
+    if (seed.length >= 5) {
+      for (let i = 0; i < seed.length - 1; i++) {
+        push(seed.slice(0, i) + seed[i + 1] + seed[i] + seed.slice(i + 2));
+      }
+      push(seed.slice(0, -1));
+    }
+  }
+  for (const seed of [...forms]) {
+    for (let i = 0; i < seed.length; i++) {
+      const accents = ACCENT[seed[i]];
+      if (!accents) continue;
+      for (const accent of accents) push(seed.slice(0, i) + accent + seed.slice(i + 1));
+    }
+  }
+  return forms.slice(0, 14);
 }
 
 export function friendlyFoodTitle(nom: string): string {
