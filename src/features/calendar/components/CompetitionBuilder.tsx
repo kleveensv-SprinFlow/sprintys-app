@@ -5,23 +5,26 @@ import {
   StyleSheet,
   Modal,
   ScrollView,
-  TouchableOpacity,
-  TextInput,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather, Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../../core/theme';
+import { Feather } from '@expo/vector-icons';
+import { theme } from '../../../core/theme';
+import { glassCard } from '../../../core/glass';
 import * as Haptics from 'expo-haptics';
 import uuid from 'react-native-uuid';
 import { useAuthStore } from '../../../store/authStore';
 import { useCoachStore } from '../../../store/coach/coachStore';
 import { workoutService } from '../../../services/workoutService';
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
-import { appAlert } from '../../../shared/feedback/appAlert';
+import { appAlert, toast } from '../../../shared/feedback/appAlert';
+import { IconButton } from '../../../shared/components/IconButton';
+import { Input } from '../../../shared/components/Input';
+import { PressableScale } from '../../../shared/components/PressableScale';
+import { SegmentedControl } from '../../../shared/components/SegmentedControl';
 
 export interface CompetitionBuilderProps {
   visible: boolean;
@@ -31,6 +34,14 @@ export interface CompetitionBuilderProps {
   initialWorkout?: any;
 }
 
+type TargetType = 'team' | 'subgroup' | 'athlete';
+
+const TARGET_OPTIONS: { key: TargetType; label: string }[] = [
+  { key: 'team', label: 'Toute l’équipe' },
+  { key: 'subgroup', label: 'Sous-groupe' },
+  { key: 'athlete', label: 'Athlète' },
+];
+
 export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
   visible,
   date,
@@ -38,7 +49,6 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
   onSave,
   initialWorkout,
 }) => {
-  const theme = useTheme();
   const insets = useSafeAreaInsets();
   const safeTop = Platform.OS === 'android'
     ? Math.max(insets.top, StatusBar.currentHeight || 24) + 8
@@ -51,10 +61,12 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
   const [location, setLocation] = useState('');
   const [attachmentUrl, setAttachmentUrl] = useState('');
 
-  const [targetType, setTargetType] = useState<'team' | 'subgroup' | 'athlete'>('team');
+  const [targetType, setTargetType] = useState<TargetType>('team');
   const [targetId, setTargetId] = useState<string | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [titleError, setTitleError] = useState<string | null>(null);
+  const [targetError, setTargetError] = useState<string | null>(null);
 
   const approvedMembers = useMemo(() => {
     return teamMembers.filter((m) => m.status === 'approved');
@@ -75,19 +87,20 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
 
   useEffect(() => {
     if (visible) {
+      setTitleError(null);
+      setTargetError(null);
       if (initialWorkout) {
         setTitle(initialWorkout.description?.split('\n')[0] || '');
         setLocation(initialWorkout.measures?.location || '');
         setAttachmentUrl(initialWorkout.measures?.attachmentUrl || '');
 
-        const tType: 'team' | 'subgroup' | 'athlete' = initialWorkout.subgroup_id
-          ? 'subgroup'
-          : initialWorkout.athlete_id && !initialWorkout.group_assignment_id
-          ? 'athlete'
-          : 'team';
-        
-        setTargetType(tType);
-        setTargetId(initialWorkout.subgroup_id || initialWorkout.athlete_id || null);
+        // Resolved from the sibling rows: a single row can't tell one athlete from the whole team
+        setTargetType('team');
+        setTargetId(null);
+        workoutService.resolveAssignmentTarget(initialWorkout, user?.id).then((t) => {
+          setTargetType(t.type);
+          setTargetId(t.id);
+        });
       } else {
         setTitle('');
         setLocation('');
@@ -98,20 +111,32 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
     }
   }, [visible, initialWorkout]);
 
+  const handleTargetTypeChange = (next: TargetType) => {
+    setTargetError(null);
+    setTargetType(next);
+    if (next === 'team') setTargetId(null);
+    if (next === 'subgroup') setTargetId(subgroups[0]?.id || null);
+    if (next === 'athlete') setTargetId(approvedMembers[0]?.user_id || null);
+  };
+
   const handleSaveWorkout = async () => {
     if (!user?.id) return;
 
+    let hasError = false;
     if (title.trim().length === 0) {
-      appAlert('Titre requis', 'Veuillez saisir le nom de la compétition.');
-      return;
+      setTitleError('Donne un nom à la compétition.');
+      hasError = true;
     }
-
     if (targetType === 'subgroup' && !targetId) {
-      appAlert('Sous-groupe requis', `Veuillez sélectionner un sous-groupe.`);
-      return;
+      setTargetError('Choisis un sous-groupe.');
+      hasError = true;
     }
     if (targetType === 'athlete' && !targetId) {
-      appAlert('Athlète requis', `Veuillez sélectionner un athlète.`);
+      setTargetError('Choisis un athlète.');
+      hasError = true;
+    }
+    if (hasError) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       return;
     }
 
@@ -128,12 +153,13 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
       const payloadsToUpdate: any[] = [];
 
       if (approvedMembers.length === 0) {
-        appAlert('Aucun athlète', "Aucun athlète validé n'a été trouvé dans votre équipe.");
+        setTargetError('Aucun athlète validé dans ton équipe.');
         setIsSubmitting(false);
         return;
       }
 
       const sharedAssignmentId = uuid.v4() as string;
+      // Stored format read by the athlete screens: "<title>\n📍 <location>"
       const formattedDescription = `${title.trim()}\n${location ? `📍 ${location}` : ''}`;
 
       for (const member of approvedMembers) {
@@ -164,10 +190,7 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
       }
 
       if (payloadsToUpdate.length === 0) {
-        appAlert(
-          'Aucun athlète ciblé',
-          "Aucun athlète de votre équipe ne correspond à la sélection."
-        );
+        setTargetError('Aucun athlète de ton équipe ne correspond à cette sélection.');
         setIsSubmitting(false);
         return;
       }
@@ -175,203 +198,162 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
       await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      toast('success', initialWorkout ? 'Compétition mise à jour.' : 'Compétition ajoutée au calendrier.');
       onSave();
       onClose();
     } catch (err: any) {
       console.error('Erreur enregistrement compétition:', err);
-      appAlert('Erreur', err?.message || "Impossible d'enregistrer la compétition.");
+      appAlert('Erreur', err?.message || 'Impossible d’enregistrer la compétition.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const renderChip = (key: string, label: string, isSelected: boolean, onPress: () => void) => (
+    <PressableScale
+      key={key}
+      haptic="selection"
+      onPress={onPress}
+      hitSlop={{ top: 4, bottom: 4 }}
+      accessibilityRole="button"
+      accessibilityState={{ selected: isSelected }}
+      style={[styles.chip, isSelected && styles.chipActive]}
+    >
+      <Text style={[styles.chipText, isSelected && styles.chipTextActive]} numberOfLines={1}>
+        {label}
+      </Text>
+    </PressableScale>
+  );
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <FeedbackHost />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-          {/* Header */}
-          <View style={[styles.header, { paddingTop: safeTop, borderBottomColor: theme.colors.border }]}>
-            <TouchableOpacity onPress={onClose} style={styles.headerTextBtn}>
-              <Text style={[styles.headerCancelText, { color: theme.colors.textSecondary }]}>Annuler</Text>
-            </TouchableOpacity>
+        <View style={styles.container}>
+          {/* Sheet header */}
+          <View style={[styles.header, { paddingTop: safeTop }]}>
+            <IconButton icon="x" onPress={onClose} accessibilityLabel="Fermer" />
 
             <View style={styles.headerCenter}>
-              <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Compétition</Text>
-              <Text style={[styles.headerSubtitle, { color: theme.colors.textSecondary }]}>
+              <Text style={styles.headerTitle} numberOfLines={1}>Compétition</Text>
+              <Text style={styles.headerSubtitle} numberOfLines={1}>
                 {date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
               </Text>
             </View>
 
-            <TouchableOpacity
+            <PressableScale
+              haptic="none"
               onPress={handleSaveWorkout}
               disabled={isSubmitting}
-              style={[styles.headerSaveBtn, { backgroundColor: '#0F172A' }]}
+              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+              accessibilityRole="button"
+              accessibilityLabel="Enregistrer"
+              style={[styles.headerSaveBtn, isSubmitting && styles.headerSaveBtnBusy]}
             >
               {isSubmitting ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color={theme.colors.surface} />
               ) : (
-                <Text style={styles.headerSaveBtnText}>Valider</Text>
+                <Text style={styles.headerSaveBtnText}>Enregistrer</Text>
               )}
-            </TouchableOpacity>
+            </PressableScale>
           </View>
 
-          <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-            {/* Banner card */}
-            <View style={[styles.bannerCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              <View style={[styles.iconCircle, { backgroundColor: '#FEF3C7' }]}>
-                <Ionicons name="trophy-outline" size={26} color="#D97706" />
+          <ScrollView
+            style={styles.scroll}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.scrollContent}
+          >
+            {/* Intro */}
+            <View style={[glassCard, styles.bannerCard]}>
+              <View style={styles.iconCircle}>
+                <Feather name="award" size={24} color={theme.colors.warning} />
               </View>
-              <Text style={[styles.bannerTitle, { color: theme.colors.text }]}>Ajouter une compétition</Text>
-              <Text style={[styles.bannerSubtitle, { color: theme.colors.textSecondary }]}>
-                Planifiez un événement sportif, précisez le lieu et attachez un lien d'information pour vos athlètes.
+              <Text style={styles.bannerTitle}>
+                {initialWorkout ? 'Modifier la compétition' : 'Ajouter une compétition'}
+              </Text>
+              <Text style={styles.bannerSubtitle}>
+                Planifie un événement, précise le lieu et ajoute un lien d’information pour tes athlètes.
               </Text>
             </View>
 
-            {/* Form Card */}
-            <View style={[styles.noteCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              
-              <Text style={[styles.cardInputCaption, { color: theme.colors.textSecondary }]}>
-                NOM DE LA COMPÉTITION
-              </Text>
-              <TextInput
-                style={[styles.titleInput, { color: theme.colors.text, backgroundColor: theme.colors.background, borderColor: theme.colors.border, marginBottom: 16 }]}
-                placeholder="Ex: Championnat Régional, Meeting..."
-                placeholderTextColor={theme.colors.textMuted}
+            {/* Details */}
+            <Text style={styles.sectionLabel}>Informations</Text>
+            <View style={[glassCard, styles.card]}>
+              <Input
+                label="Nom de la compétition"
+                placeholder="Ex. : Championnat régional, meeting…"
                 value={title}
-                onChangeText={setTitle}
+                onChangeText={(v) => {
+                  setTitle(v);
+                  if (titleError) setTitleError(null);
+                }}
                 maxLength={60}
+                error={titleError || undefined}
               />
-
-              <Text style={[styles.cardInputCaption, { color: theme.colors.textSecondary }]}>
-                EMPLACEMENT / ADRESSE (OPTIONNEL)
-              </Text>
-              <TextInput
-                style={[styles.titleInput, { color: theme.colors.text, backgroundColor: theme.colors.background, borderColor: theme.colors.border, marginBottom: 16 }]}
-                placeholder="Ex: Stade Omnisports, Paris"
-                placeholderTextColor={theme.colors.textMuted}
+              <Input
+                label="Lieu (facultatif)"
+                placeholder="Ex. : Stade omnisports, Paris"
                 value={location}
                 onChangeText={setLocation}
+                leftIcon={<Feather name="map-pin" size={17} color={theme.colors.textSecondary} />}
               />
-
-              <Text style={[styles.cardInputCaption, { color: theme.colors.textSecondary }]}>
-                PIÈCE JOINTE (LIEN URL)
-              </Text>
-              <TextInput
-                style={[styles.titleInput, { color: theme.colors.text, backgroundColor: theme.colors.background, borderColor: theme.colors.border, marginBottom: 24 }]}
-                placeholder="Ex: https://drive.google.com/..."
-                placeholderTextColor={theme.colors.textMuted}
+              <Input
+                label="Pièce jointe, lien (facultatif)"
+                placeholder="https://drive.google.com/…"
                 value={attachmentUrl}
                 onChangeText={setAttachmentUrl}
                 keyboardType="url"
                 autoCapitalize="none"
+                autoCorrect={false}
+                leftIcon={<Feather name="link" size={17} color={theme.colors.textSecondary} />}
+                containerStyle={{ marginBottom: 0 }}
               />
+            </View>
 
-              {/* Target Segmented Row */}
-              <Text style={[styles.cardInputCaption, { color: theme.colors.textSecondary }]}>PARTICIPANTS</Text>
-              <View style={[styles.segmentedRow, { backgroundColor: theme.colors.background }]}>
-                <TouchableOpacity
-                  style={[styles.segmentBtn, targetType === 'team' && [styles.segmentBtnActive, { backgroundColor: '#0069E8' }]]}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    setTargetType('team');
-                    setTargetId(null);
-                  }}
-                >
-                  <Text style={[styles.segmentBtnText, { color: targetType === 'team' ? '#FFFFFF' : theme.colors.text }]}>
-                    Toute l'équipe
-                  </Text>
-                </TouchableOpacity>
+            {/* Participants */}
+            <Text style={styles.sectionLabel}>Participants</Text>
+            <View style={[glassCard, styles.card]}>
+              <SegmentedControl options={TARGET_OPTIONS} value={targetType} onChange={handleTargetTypeChange} />
 
-                <TouchableOpacity
-                  style={[styles.segmentBtn, targetType === 'subgroup' && [styles.segmentBtnActive, { backgroundColor: '#0069E8' }]]}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    setTargetType('subgroup');
-                    setTargetId(subgroups[0]?.id || null);
-                  }}
-                >
-                  <Text style={[styles.segmentBtnText, { color: targetType === 'subgroup' ? '#FFFFFF' : theme.colors.text }]}>
-                    Sous-groupe
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.segmentBtn, targetType === 'athlete' && [styles.segmentBtnActive, { backgroundColor: '#0069E8' }]]}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    setTargetType('athlete');
-                    setTargetId(approvedMembers[0]?.user_id || null);
-                  }}
-                >
-                  <Text style={[styles.segmentBtnText, { color: targetType === 'athlete' ? '#FFFFFF' : theme.colors.text }]}>
-                    Athlète
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Subgroup Selector Chips */}
               {targetType === 'subgroup' && (
-                <View style={styles.subScrollWrapper}>
+                <View style={styles.chipsWrapper}>
                   {subgroups.length === 0 ? (
-                    <Text style={[styles.emptyHintText, { color: theme.colors.textSecondary }]}>Aucun sous-groupe créé.</Text>
+                    <Text style={styles.emptyHintText}>Aucun sous-groupe créé pour l’instant.</Text>
                   ) : (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subScroll}>
-                      {subgroups.map((sg) => {
-                        const isSelected = targetId === sg.id;
-                        return (
-                          <TouchableOpacity
-                            key={sg.id}
-                            style={[styles.chip, {
-                              backgroundColor: isSelected ? '#0069E820' : theme.colors.background,
-                              borderColor: isSelected ? '#0069E8' : theme.colors.border,
-                            }]}
-                            onPress={() => {
-                              Haptics.selectionAsync();
-                              setTargetId(sg.id);
-                            }}
-                          >
-                            <Text style={[styles.chipText, { color: isSelected ? '#0069E8' : theme.colors.text, fontWeight: isSelected ? '700' : '500' }]}>
-                              {sg.name}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+                      {subgroups.map((sg) =>
+                        renderChip(sg.id, sg.name, targetId === sg.id, () => {
+                          setTargetError(null);
+                          setTargetId(sg.id);
+                        })
+                      )}
                     </ScrollView>
                   )}
                 </View>
               )}
 
-              {/* Athlete Selector Chips */}
               {targetType === 'athlete' && (
-                <View style={styles.subScrollWrapper}>
+                <View style={styles.chipsWrapper}>
                   {approvedMembers.length === 0 ? (
-                    <Text style={[styles.emptyHintText, { color: theme.colors.textSecondary }]}>Aucun athlète validé.</Text>
+                    <Text style={styles.emptyHintText}>Aucun athlète validé pour l’instant.</Text>
                   ) : (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subScroll}>
-                      {approvedMembers.map((m) => {
-                        const isSelected = targetId === m.user_id;
-                        const name = getMemberName(m);
-                        return (
-                          <TouchableOpacity
-                            key={m.user_id}
-                            style={[styles.chip, {
-                              backgroundColor: isSelected ? '#0069E820' : theme.colors.background,
-                              borderColor: isSelected ? '#0069E8' : theme.colors.border,
-                            }]}
-                            onPress={() => {
-                              Haptics.selectionAsync();
-                              setTargetId(m.user_id);
-                            }}
-                          >
-                            <Text style={[styles.chipText, { color: isSelected ? '#0069E8' : theme.colors.text, fontWeight: isSelected ? '700' : '500' }]}>
-                              {name}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+                      {approvedMembers.map((m) =>
+                        renderChip(m.user_id, getMemberName(m), targetId === m.user_id, () => {
+                          setTargetError(null);
+                          setTargetId(m.user_id);
+                        })
+                      )}
                     </ScrollView>
                   )}
+                </View>
+              )}
+
+              {targetError && (
+                <View style={styles.errorNotice}>
+                  <Feather name="alert-circle" size={15} color={theme.colors.error} />
+                  <Text style={styles.errorNoticeText}>{targetError}</Text>
                 </View>
               )}
             </View>
@@ -383,60 +365,62 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: theme.colors.backdrop },
+
+  // Sheet header (shared pattern with TechnicalWorkoutBuilder / HybridWorkoutBuilder)
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.hairline,
+    backgroundColor: theme.colors.backdrop,
   },
-  headerTextBtn: { paddingVertical: 6, paddingHorizontal: 4 },
-  headerCancelText: { fontSize: 16, fontWeight: '500' },
-  headerCenter: { alignItems: 'center' },
-  headerTitle: { fontSize: 17, fontWeight: '700' },
-  headerSubtitle: { fontSize: 12, marginTop: 1, fontWeight: '500' },
+  headerCenter: { flex: 1, alignItems: 'center', marginHorizontal: 8 },
+  headerTitle: { fontSize: 17, fontWeight: '800', letterSpacing: -0.3, color: theme.colors.text },
+  headerSubtitle: { fontSize: 13, marginTop: 1, fontWeight: '500', color: theme.colors.textSecondary, textTransform: 'capitalize' },
   headerSaveBtn: {
-    paddingVertical: 7, paddingHorizontal: 16, borderRadius: 18,
-    alignItems: 'center', justifyContent: 'center',
+    height: 38, minWidth: 108, paddingHorizontal: 16, borderRadius: 19, borderCurve: 'continuous',
+    alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.sprintyBlue,
   },
-  headerSaveBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  headerSaveBtnBusy: { opacity: 0.7 },
+  headerSaveBtnText: { color: theme.colors.surface, fontSize: 15, fontWeight: '700' },
+
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 80 },
 
-  bannerCard: {
-    borderRadius: 20, padding: 16, borderWidth: StyleSheet.hairlineWidth,
-    alignItems: 'center', marginBottom: 20,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03, shadowRadius: 6, elevation: 1,
-  },
+  bannerCard: { alignItems: 'center', marginBottom: 24 },
   iconCircle: {
     width: 52, height: 52, borderRadius: 26,
     alignItems: 'center', justifyContent: 'center', marginBottom: 10,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
   },
-  bannerTitle: { fontSize: 18, fontWeight: '700', textAlign: 'center' },
+  bannerTitle: { fontSize: 18, fontWeight: '800', letterSpacing: -0.3, textAlign: 'center', color: theme.colors.text },
   bannerSubtitle: {
     fontSize: 13, marginTop: 6, textAlign: 'center',
-    lineHeight: 18, paddingHorizontal: 10,
+    lineHeight: 18, paddingHorizontal: 10, color: theme.colors.textSecondary,
   },
 
-  noteCard: {
-    borderRadius: 20, padding: 20, borderWidth: 1, marginBottom: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03, shadowRadius: 6, elevation: 1,
+  sectionLabel: {
+    fontSize: 12, fontWeight: '700', letterSpacing: 0.6, textTransform: 'uppercase',
+    color: theme.colors.textSecondary, marginBottom: 8, marginLeft: 4,
   },
-  cardInputCaption: {
-    fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 8,
-  },
-  titleInput: {
-    borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10,
-    fontSize: 14, fontWeight: '600',
-  },
+  card: { marginBottom: 24 },
 
-  segmentedRow: { flexDirection: 'row', borderRadius: 12, padding: 3, gap: 4 },
-  segmentBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 9 },
-  segmentBtnActive: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 1 },
-  segmentBtnText: { fontSize: 13, fontWeight: '600' },
-  subScrollWrapper: { marginTop: 10 },
-  subScroll: { flexDirection: 'row' },
-  emptyHintText: { fontSize: 12, fontStyle: 'italic', paddingVertical: 6 },
-  chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 14, borderWidth: 1, marginRight: 8 },
-  chipText: { fontSize: 13 },
+  chipsWrapper: { marginTop: 12 },
+  chipsRow: { gap: 8, paddingVertical: 2 },
+  emptyHintText: { fontSize: 13, color: theme.colors.textSecondary, paddingVertical: 6 },
+  chip: {
+    height: 36, paddingHorizontal: 14, borderRadius: 12, borderCurve: 'continuous',
+    justifyContent: 'center', borderWidth: 1, borderColor: 'transparent',
+    backgroundColor: theme.colors.glassFill,
+  },
+  chipActive: { backgroundColor: 'rgba(0, 105, 232, 0.1)', borderColor: theme.colors.sprintyBlue },
+  chipText: { fontSize: 13, fontWeight: '600', color: theme.colors.text },
+  chipTextActive: { color: theme.colors.sprintyBlue, fontWeight: '700' },
+
+  errorNotice: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12,
+    paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderCurve: 'continuous',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+  },
+  errorNoticeText: { flex: 1, fontSize: 13, fontWeight: '600', color: theme.colors.error },
 });

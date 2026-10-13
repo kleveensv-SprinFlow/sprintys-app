@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TextInput,
-  TouchableOpacity,
   Platform,
   Keyboard,
   TouchableWithoutFeedback,
@@ -12,9 +11,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../../core/theme';
+import { PressableScale } from '../../../shared/components/PressableScale';
+import { IconButton } from '../../../shared/components/IconButton';
 
 export interface AthleteValueKeypadModalProps {
   visible: boolean;
@@ -222,7 +223,7 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
     <View style={[StyleSheet.absoluteFill, styles.overlay]}>
       {/* Darkened Backdrop - tapping outside dismisses keyboard/closes */}
       <TouchableWithoutFeedback onPress={handleCancel}>
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0, 0, 0, 0.45)' }]} />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(15, 23, 42, 0.45)' }]} />
       </TouchableWithoutFeedback>
 
       {/* Sheet dynamically hoisted above keyboard via Animated marginBottom, adhering to App Theme */}
@@ -231,7 +232,7 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
           styles.sheetContent,
           {
             backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.border,
+            borderColor: theme.colors.hairline,
             marginBottom: keyboardHeightAnim,
             paddingBottom: isKeyboardVisible ? 16 : Math.max(insets.bottom, 20),
           },
@@ -239,13 +240,7 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
       >
         {/* Top Bar */}
         <View style={styles.topBar}>
-          <TouchableOpacity
-            onPress={handleCancel}
-            style={[styles.closeBtn, { backgroundColor: theme.colors.surfaceLight }]}
-            activeOpacity={0.7}
-          >
-            <Feather name="x" size={20} color={theme.colors.text} />
-          </TouchableOpacity>
+          <IconButton icon="x" onPress={handleCancel} accessibilityLabel="Fermer" />
 
           <View style={styles.headerInfo}>
             <Text style={[styles.headerTitle, { color: theme.colors.text }]}>{title}</Text>
@@ -256,13 +251,17 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
             ) : null}
           </View>
 
-          <TouchableOpacity
+          <PressableScale
+            haptic="none"
             onPress={handleClear}
-            style={[styles.clearBtn, { backgroundColor: theme.colors.surfaceLight }]}
-            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Effacer la valeur"
+            hitSlop={4}
+            style={[styles.clearBtn, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}
           >
+            <Feather name="delete" size={14} color={theme.colors.error} />
             <Text style={[styles.clearBtnText, { color: theme.colors.error }]}>Effacer</Text>
-          </TouchableOpacity>
+          </PressableScale>
         </View>
 
         {/* Hero Typography Display: Native TextInput with Big Digits + Unit */}
@@ -281,31 +280,27 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
                 returnKeyType="done"
                 onSubmitEditing={handleConfirm}
                 selectTextOnFocus={true}
-                selectionColor={theme.colors.accent}
+                selectionColor={theme.colors.sprintyBlue}
               />
-              <Text style={[styles.heroUnit, { color: theme.colors.accent }]}>{getUnit()}</Text>
+              <Text style={[styles.heroUnit, { color: theme.colors.sprintyBlue }]}>{getUnit()}</Text>
             </View>
 
             {/* Quick Weight Chips (Musculation mode) */}
             {mode === 'weight' && (
               <View style={styles.quickWeightRow}>
                 {[-5, -2.5, +2.5, +5].map((delta) => (
-                  <TouchableOpacity
+                  <PressableScale
                     key={delta}
-                    style={[
-                      styles.quickWeightChip,
-                      {
-                        backgroundColor: theme.colors.surfaceLight,
-                        borderColor: theme.colors.border,
-                      },
-                    ]}
+                    haptic="none"
+                    accessibilityRole="button"
+                    accessibilityLabel={`${delta > 0 ? 'Ajouter' : 'Retirer'} ${Math.abs(delta)} kg`}
+                    style={[styles.quickWeightChip, { backgroundColor: theme.colors.glassFill }]}
                     onPress={() => handleAdjustWeight(delta)}
-                    activeOpacity={0.7}
                   >
                     <Text style={[styles.quickWeightChipText, { color: theme.colors.text }]}>
-                      {delta > 0 ? `+${delta}` : delta}
+                      {delta > 0 ? `+${delta}` : `\u2212${Math.abs(delta)}`}
                     </Text>
-                  </TouchableOpacity>
+                  </PressableScale>
                 ))}
               </View>
             )}
@@ -314,24 +309,28 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
 
         {/* Bottom Action Bar: Only Annuler & Valider */}
         <View style={styles.bottomBar}>
-          <TouchableOpacity
-            style={[styles.cancelActionBtn, { backgroundColor: theme.colors.surfaceLight }]}
+          <PressableScale
+            haptic="light"
+            accessibilityRole="button"
+            containerStyle={styles.cancelActionContainer}
+            style={[styles.cancelActionBtn, { backgroundColor: theme.colors.glassFill }]}
             onPress={handleCancel}
-            activeOpacity={0.7}
           >
             <Text style={[styles.cancelActionBtnText, { color: theme.colors.textSecondary }]}>
               Annuler
             </Text>
-          </TouchableOpacity>
+          </PressableScale>
 
-          <TouchableOpacity
-            style={[styles.confirmActionBtn, { backgroundColor: theme.colors.accent }]}
+          <PressableScale
+            haptic="none"
+            accessibilityRole="button"
+            containerStyle={styles.confirmActionContainer}
+            style={[styles.confirmActionBtn, { backgroundColor: theme.colors.sprintyBlue }]}
             onPress={handleConfirm}
-            activeOpacity={0.8}
           >
-            <Feather name="check" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-            <Text style={styles.confirmActionBtnText}>Valider</Text>
-          </TouchableOpacity>
+            <Feather name="check" size={18} color={theme.colors.surface} style={{ marginRight: 8 }} />
+            <Text style={[styles.confirmActionBtnText, { color: theme.colors.surface }]}>Valider</Text>
+          </PressableScale>
         </View>
       </Animated.View>
     </View>
@@ -351,8 +350,9 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
+    borderCurve: 'continuous',
     borderWidth: 1,
-    shadowColor: '#000',
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.12,
     shadowRadius: 10,
@@ -364,21 +364,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 4,
   },
-  closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   headerInfo: {
     alignItems: 'center',
     flex: 1,
     paddingHorizontal: 10,
   },
   headerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '800',
     letterSpacing: -0.2,
     textAlign: 'center',
   },
@@ -389,13 +382,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   clearBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    height: 38,
     paddingHorizontal: 12,
-    paddingVertical: 7,
     borderRadius: 12,
+    borderCurve: 'continuous',
   },
   clearBtnText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 
   // Big Typographic Hero Display
@@ -413,6 +410,7 @@ const styles = StyleSheet.create({
     fontSize: 52,
     fontWeight: '800',
     letterSpacing: -1,
+    fontVariant: ['tabular-nums'],
     textAlign: 'center',
     minWidth: 130,
     padding: 0,
@@ -424,41 +422,25 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 
-  // Reps toggle
-  repsToggleWrapper: {
-    alignItems: 'center',
-    marginTop: 14,
-    gap: 10,
-  },
-  repsTogglePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: 24,
-    borderWidth: 1.5,
-  },
-  repsTogglePillText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-
   // Quick weight adjuster chips
   quickWeightRow: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 2,
+    marginTop: 10,
   },
   quickWeightChip: {
+    minWidth: 56,
+    height: 44,
     borderRadius: 12,
+    borderCurve: 'continuous',
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   quickWeightChipText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
 
   // Bottom action bar
@@ -468,10 +450,13 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 6,
   },
-  cancelActionBtn: {
+  cancelActionContainer: {
     flex: 1,
-    paddingVertical: 14,
+  },
+  cancelActionBtn: {
+    height: 52,
     borderRadius: 16,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -479,22 +464,24 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
-  confirmActionBtn: {
+  confirmActionContainer: {
     flex: 2,
-    paddingVertical: 14,
+  },
+  confirmActionBtn: {
+    height: 52,
     borderRadius: 16,
+    borderCurve: 'continuous',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#6366F1',
+    shadowColor: '#0069E8',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 3,
   },
   confirmActionBtnText: {
-    color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '800',
   },
 });

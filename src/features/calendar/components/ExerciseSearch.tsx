@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, ScrollView, Platform, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, TextInput, FlatList, ActivityIndicator, ScrollView, Platform, StatusBar } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../../../core/theme';
+import { glassCard } from '../../../core/glass';
 import { supabase } from '../../../services/supabase';
 import { Database } from '../../../types/supabase';
+import { IconButton } from '../../../shared/components/IconButton';
+import { PressableScale } from '../../../shared/components/PressableScale';
+import { EmptyState } from '../../../shared/components/EmptyState';
 
 export type ExerciseCatalogRow = Database['public']['Tables']['exercises_catalog']['Row'];
 
@@ -74,92 +78,107 @@ export const ExerciseSearch: React.FC<ExerciseSearchProps> = ({ onSelect, onCanc
   }, [searchQuery, selectedEquipment, selectedZone]);
 
   const renderItem = ({ item }: { item: ExerciseCatalogRow }) => (
-    <TouchableOpacity style={styles.resultItem} onPress={() => onSelect(item)}>
+    <PressableScale
+      activeScale={0.98}
+      accessibilityRole="button"
+      accessibilityLabel={`Ajouter ${item.name_fr}`}
+      style={[glassCard, styles.resultItem]}
+      onPress={() => onSelect(item)}
+    >
       <View style={styles.resultInfo}>
         <Text style={styles.resultName}>{item.name_fr}</Text>
-        <Text style={styles.resultNameEn}>{item.name_en || '—'}</Text>
-        
-        <View style={styles.tagsContainer}>
-          {item.equipment && (
-            <View style={styles.tag}>
-              <Text style={styles.tagText}>{item.equipment}</Text>
-            </View>
-          )}
-          {item.zones && item.zones.map((zone, idx) => (
-            <View key={idx} style={[styles.tag, styles.zoneTag]}>
-              <Text style={styles.tagText}>{zone}</Text>
-            </View>
-          ))}
-        </View>
+        {!!item.name_en && <Text style={styles.resultNameEn}>{item.name_en}</Text>}
+
+        {(!!item.equipment || (item.zones && item.zones.length > 0)) && (
+          <View style={styles.tagsContainer}>
+            {item.equipment && (
+              <View style={styles.tag}>
+                <Text style={styles.tagText}>{item.equipment}</Text>
+              </View>
+            )}
+            {item.zones && item.zones.map((zone, idx) => (
+              <View key={idx} style={[styles.tag, styles.zoneTag]}>
+                <Text style={[styles.tagText, styles.zoneTagText]}>{zone}</Text>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
-      <Feather name="plus" size={20} color={theme.colors.accent} />
-    </TouchableOpacity>
+      <View style={styles.addCircle}>
+        <Feather name="plus" size={18} color={theme.colors.sprintyBlue} />
+      </View>
+    </PressableScale>
+  );
+
+  const renderFilter = (label: string, active: boolean, onPress: () => void) => (
+    <PressableScale
+      key={label}
+      haptic="selection"
+      hitSlop={{ top: 4, bottom: 4 }}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      style={[styles.filterChip, active && styles.filterChipActive]}
+      onPress={onPress}
+    >
+      <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>{label}</Text>
+    </PressableScale>
   );
 
   return (
     <View style={styles.container}>
-      {/* Header / Search bar */}
+      {/* Header / search bar */}
       <View style={[styles.searchHeader, { paddingTop: safeTop }]}>
+        {onCancel && <IconButton icon="x" onPress={onCancel} accessibilityLabel="Fermer" />}
         <View style={styles.searchBar}>
-          <Feather name="search" size={20} color={theme.colors.textSecondary} />
+          <Feather name="search" size={18} color={theme.colors.textSecondary} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Rechercher un exercice..."
-            placeholderTextColor={theme.colors.textSecondary}
+            placeholder="Rechercher un exercice…"
+            placeholderTextColor={theme.colors.textMuted}
+            selectionColor={theme.colors.sprintyBlue}
             value={searchQuery}
             onChangeText={setSearchQuery}
+            returnKeyType="search"
+            autoCorrect={false}
             autoFocus
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Feather name="x-circle" size={20} color={theme.colors.textSecondary} />
-            </TouchableOpacity>
+            <PressableScale
+              haptic="selection"
+              onPress={() => setSearchQuery('')}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel="Effacer la recherche"
+            >
+              <Feather name="x-circle" size={18} color={theme.colors.textSecondary} />
+            </PressableScale>
           )}
         </View>
-        {onCancel && (
-          <TouchableOpacity onPress={onCancel} style={styles.cancelBtn}>
-            <Text style={styles.cancelText}>Annuler</Text>
-          </TouchableOpacity>
-        )}
       </View>
 
-      {/* Quick Filters (Optional expansion: could map actual catalog distinct equipments/zones) */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersContainer} contentContainerStyle={styles.filtersContent}>
-        <TouchableOpacity 
-          style={[styles.filterChip, selectedEquipment === 'Haltères' && styles.filterChipActive]}
-          onPress={() => setSelectedEquipment(prev => prev === 'Haltères' ? null : 'Haltères')}
-        >
-          <Text style={[styles.filterChipText, selectedEquipment === 'Haltères' && styles.filterChipTextActive]}>Haltères</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.filterChip, selectedEquipment === 'Barre' && styles.filterChipActive]}
-          onPress={() => setSelectedEquipment(prev => prev === 'Barre' ? null : 'Barre')}
-        >
-          <Text style={[styles.filterChipText, selectedEquipment === 'Barre' && styles.filterChipTextActive]}>Barre</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.filterChip, selectedEquipment === 'Poids du corps' && styles.filterChipActive]}
-          onPress={() => setSelectedEquipment(prev => prev === 'Poids du corps' ? null : 'Poids du corps')}
-        >
-          <Text style={[styles.filterChipText, selectedEquipment === 'Poids du corps' && styles.filterChipTextActive]}>Poids du corps</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.filterChip, selectedZone === 'Jambes' && styles.filterChipActive]}
-          onPress={() => setSelectedZone(prev => prev === 'Jambes' ? null : 'Jambes')}
-        >
-          <Text style={[styles.filterChipText, selectedZone === 'Jambes' && styles.filterChipTextActive]}>Jambes</Text>
-        </TouchableOpacity>
-      </ScrollView>
+      {/* Quick filters */}
+      <View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersContent}>
+          {renderFilter('Haltères', selectedEquipment === 'Haltères', () => setSelectedEquipment(prev => prev === 'Haltères' ? null : 'Haltères'))}
+          {renderFilter('Barre', selectedEquipment === 'Barre', () => setSelectedEquipment(prev => prev === 'Barre' ? null : 'Barre'))}
+          {renderFilter('Poids du corps', selectedEquipment === 'Poids du corps', () => setSelectedEquipment(prev => prev === 'Poids du corps' ? null : 'Poids du corps'))}
+          {renderFilter('Jambes', selectedZone === 'Jambes', () => setSelectedZone(prev => prev === 'Jambes' ? null : 'Jambes'))}
+        </ScrollView>
+      </View>
 
       {/* Results */}
       {isLoading ? (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={theme.colors.accent} />
+          <ActivityIndicator size="large" color={theme.colors.sprintyBlue} />
         </View>
       ) : results.length === 0 ? (
         <View style={styles.centerContainer}>
-          <Feather name="inbox" size={40} color={theme.colors.border} style={{ marginBottom: 10 }} />
-          <Text style={styles.emptyText}>Aucun exercice trouvé</Text>
+          <EmptyState
+            icon="search"
+            title="Aucun exercice trouvé"
+            message="Essaie un autre mot-clé ou retire un filtre."
+            compact
+          />
         </View>
       ) : (
         <FlatList
@@ -169,6 +188,7 @@ export const ExerciseSearch: React.FC<ExerciseSearchProps> = ({ onSelect, onCanc
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
         />
       )}
     </View>
@@ -178,125 +198,125 @@ export const ExerciseSearch: React.FC<ExerciseSearchProps> = ({ onSelect, onCanc
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.backdrop,
   },
   searchHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.hairline,
   },
   searchBar: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    borderRadius: 8,
+    backgroundColor: theme.colors.glassFill,
+    borderRadius: 14,
+    borderCurve: 'continuous',
     paddingHorizontal: 12,
     height: 44,
   },
   searchInput: {
     flex: 1,
+    minWidth: 0,
     color: theme.colors.text,
     fontSize: 16,
     marginLeft: 8,
-  },
-  cancelBtn: {
-    marginLeft: 12,
-  },
-  cancelText: {
-    color: theme.colors.accent,
-    fontSize: 16,
-  },
-  filtersContainer: {
-    maxHeight: 50,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    height: '100%',
   },
   filtersContent: {
-    paddingHorizontal: 15,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     alignItems: 'center',
+    gap: 8,
   },
   filterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: theme.colors.surface,
-    marginRight: 8,
+    height: 36,
+    paddingHorizontal: 14,
+    justifyContent: 'center',
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    backgroundColor: theme.colors.glassFill,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: 'transparent',
   },
   filterChipActive: {
-    backgroundColor: theme.colors.accent + '20',
-    borderColor: theme.colors.accent,
+    backgroundColor: 'rgba(0, 105, 232, 0.1)',
+    borderColor: theme.colors.sprintyBlue,
   },
   filterChipText: {
     fontSize: 13,
+    fontWeight: '600',
     color: theme.colors.textSecondary,
   },
   filterChipTextActive: {
-    color: theme.colors.accent,
-    fontWeight: '500',
+    color: theme.colors.sprintyBlue,
+    fontWeight: '700',
   },
   listContent: {
-    padding: 15,
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 32,
   },
   resultItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: theme.colors.surface,
-    padding: 15,
-    borderRadius: 12,
     marginBottom: 10,
   },
   resultInfo: {
     flex: 1,
-    paddingRight: 15,
+    paddingRight: 12,
   },
   resultName: {
     color: theme.colors.text,
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 2,
+    fontSize: 15,
+    fontWeight: '700',
   },
   resultNameEn: {
     color: theme.colors.textSecondary,
-    fontSize: 12,
-    marginBottom: 8,
+    fontSize: 13,
+    marginTop: 2,
   },
   tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
+    marginTop: 8,
   },
   tag: {
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.glassFill,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderRadius: 10,
+    borderCurve: 'continuous',
   },
   zoneTag: {
-    backgroundColor: '#3498db15',
-    borderColor: '#3498db40',
+    backgroundColor: 'rgba(0, 105, 232, 0.08)',
   },
   tagText: {
-    fontSize: 11,
+    fontSize: 12,
+    fontWeight: '600',
     color: theme.colors.textSecondary,
+  },
+  zoneTagText: {
+    color: theme.colors.sprintyBlue,
+  },
+  addCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 105, 232, 0.1)',
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
-  },
-  emptyText: {
-    color: theme.colors.textSecondary,
-    fontSize: 15,
-    textAlign: 'center',
+    padding: 24,
   },
 });

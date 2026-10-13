@@ -120,6 +120,29 @@ export const workoutService = {
     return data || [];
   },
 
+  /**
+   * Who an existing assignment was planned for. Every save sets group_assignment_id and each athlete's
+   * subgroup_id, so a single row cannot tell "one athlete" from "the team": look at the sibling rows.
+   */
+  resolveAssignmentTarget: async (
+    workout: any,
+    coachId?: string,
+  ): Promise<{ type: 'team' | 'subgroup' | 'athlete'; id: string | null }> => {
+    if (!workout?.group_assignment_id) {
+      if (workout?.athlete_id) return { type: 'athlete', id: workout.athlete_id };
+      return { type: 'team', id: null };
+    }
+    const { data } = await supabase
+      .from('workouts')
+      .select('athlete_id, subgroup_id')
+      .eq('group_assignment_id', workout.group_assignment_id);
+    const rows = (data || []).filter((r: any) => r.athlete_id && r.athlete_id !== coachId);
+    if (rows.length === 1) return { type: 'athlete', id: rows[0].athlete_id };
+    const subgroups = new Set(rows.map((r: any) => r.subgroup_id));
+    if (rows.length > 1 && subgroups.size === 1 && rows[0].subgroup_id) return { type: 'subgroup', id: rows[0].subgroup_id };
+    return { type: 'team', id: null };
+  },
+
   smartUpdateWorkouts: async (oldGroupAssignmentId: string | undefined | null, newPayloads: any[]) => {
     let existingWorkouts: any[] = [];
     if (oldGroupAssignmentId) {

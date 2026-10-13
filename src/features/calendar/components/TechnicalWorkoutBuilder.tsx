@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Modal,
   ScrollView,
-  TouchableOpacity,
   TextInput,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -13,15 +12,20 @@ import {
   StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather, Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../../core/theme';
+import { Feather } from '@expo/vector-icons';
+import { theme } from '../../../core/theme';
+import { glassCard } from '../../../core/glass';
 import * as Haptics from 'expo-haptics';
 import uuid from 'react-native-uuid';
 import { useAuthStore } from '../../../store/authStore';
 import { useCoachStore } from '../../../store/coach/coachStore';
 import { workoutService } from '../../../services/workoutService';
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
-import { appAlert } from '../../../shared/feedback/appAlert';
+import { appAlert, toast } from '../../../shared/feedback/appAlert';
+import { IconButton } from '../../../shared/components/IconButton';
+import { Input } from '../../../shared/components/Input';
+import { PressableScale } from '../../../shared/components/PressableScale';
+import { SegmentedControl } from '../../../shared/components/SegmentedControl';
 
 export interface TechnicalNoteItem {
   id: string;
@@ -40,6 +44,15 @@ export interface TechnicalWorkoutBuilderProps {
   initialWorkout?: any;
 }
 
+type TargetType = TechnicalNoteItem['targetType'];
+type NoteErrors = Record<string, { content?: string; target?: string }>;
+
+const TARGET_OPTIONS: { key: TargetType; label: string }[] = [
+  { key: 'team', label: 'Tout le groupe' },
+  { key: 'subgroup', label: 'Sous-groupe' },
+  { key: 'athlete', label: 'Athlète' },
+];
+
 export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = ({
   visible,
   date,
@@ -47,7 +60,6 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
   onSave,
   initialWorkout,
 }) => {
-  const theme = useTheme();
   const insets = useSafeAreaInsets();
   const safeTop = Platform.OS === 'android'
     ? Math.max(insets.top, StatusBar.currentHeight || 24) + 8
@@ -67,6 +79,8 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
     },
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [noteErrors, setNoteErrors] = useState<NoteErrors>({});
+  const [formError, setFormError] = useState<string | null>(null);
 
   const approvedMembers = useMemo(() => {
     return teamMembers.filter((m) => m.status === 'approved');
@@ -87,6 +101,8 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
 
   useEffect(() => {
     if (visible) {
+      setNoteErrors({});
+      setFormError(null);
       if (initialWorkout) {
         if (
           initialWorkout.measures?.technical_notes &&
@@ -120,9 +136,10 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
             targetName = mem ? getMemberName(mem) : 'Athlète';
           }
 
+          const noteId = uuid.v4() as string;
           setNotes([
             {
-              id: uuid.v4() as string,
+              id: noteId,
               targetType,
               targetId,
               targetName,
@@ -130,6 +147,19 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
               content: initialWorkout.description || '',
             },
           ]);
+          // A single row can't tell one athlete from the whole team: resolve from the sibling rows
+          workoutService.resolveAssignmentTarget(initialWorkout, user?.id).then((t) => {
+            const name =
+              t.type === 'subgroup'
+                ? subgroups.find((sg) => sg.id === t.id)?.name || 'Sous-groupe'
+                : t.type === 'athlete'
+                ? (() => {
+                    const mem = approvedMembers.find((m) => m.user_id === t.id);
+                    return mem ? getMemberName(mem) : 'Athlète';
+                  })()
+                : 'Tout le groupe';
+            setNotes((prev) => prev.map((n) => (n.id === noteId ? { ...n, targetType: t.type, targetId: t.id, targetName: name } : n)));
+          });
         }
       } else {
         setNotes([
@@ -148,6 +178,33 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
 
   const updateNote = (id: string, updates: Partial<TechnicalNoteItem>) => {
     setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, ...updates } : n)));
+    setFormError(null);
+    setNoteErrors((prev) => {
+      if (!prev[id]) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const handleTargetTypeChange = (id: string, next: TargetType) => {
+    if (next === 'team') {
+      updateNote(id, { targetType: 'team', targetId: null, targetName: 'Tout le groupe' });
+    } else if (next === 'subgroup') {
+      const firstSg = subgroups[0];
+      updateNote(id, {
+        targetType: 'subgroup',
+        targetId: firstSg ? firstSg.id : null,
+        targetName: firstSg ? firstSg.name : 'Sous-groupe',
+      });
+    } else {
+      const firstAth = approvedMembers[0];
+      updateNote(id, {
+        targetType: 'athlete',
+        targetId: firstAth ? firstAth.user_id : null,
+        targetName: firstAth ? getMemberName(firstAth) : 'Athlète',
+      });
+    }
   };
 
   const handleAddNoteItem = () => {
@@ -171,7 +228,6 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
   };
 
   const handleRemoveNoteItem = (id: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setNotes((prev) => prev.filter((n) => n.id !== id));
   };
 
@@ -180,20 +236,21 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
 
     const validNotes = notes.filter((n) => n.content.trim().length > 0);
     if (validNotes.length === 0) {
-      appAlert('Consigne requise', 'Veuillez saisir au moins une consigne technique.');
+      if (notes[0]) setNoteErrors({ [notes[0].id]: { content: 'Écris au moins une consigne technique.' } });
+      else setFormError('Ajoute au moins une consigne technique.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       return;
     }
 
-    for (let i = 0; i < validNotes.length; i++) {
-      const n = validNotes[i];
-      if (n.targetType === 'subgroup' && !n.targetId) {
-        appAlert('Sous-groupe requis', `Veuillez sélectionner un sous-groupe pour la consigne #${i + 1}.`);
-        return;
-      }
-      if (n.targetType === 'athlete' && !n.targetId) {
-        appAlert('Athlète requis', `Veuillez sélectionner un athlète pour la consigne #${i + 1}.`);
-        return;
-      }
+    const targetErrors: NoteErrors = {};
+    for (const n of validNotes) {
+      if (n.targetType === 'subgroup' && !n.targetId) targetErrors[n.id] = { target: 'Choisis un sous-groupe.' };
+      if (n.targetType === 'athlete' && !n.targetId) targetErrors[n.id] = { target: 'Choisis un athlète.' };
+    }
+    if (Object.keys(targetErrors).length > 0) {
+      setNoteErrors(targetErrors);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      return;
     }
 
     setIsSubmitting(true);
@@ -210,7 +267,7 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
       const payloadsToUpdate: any[] = [];
 
       if (approvedMembers.length === 0) {
-        appAlert('Aucun athlète', "Aucun athlète validé n'a été trouvé dans votre équipe.");
+        setFormError('Aucun athlète validé dans ton équipe.');
         setIsSubmitting(false);
         return;
       }
@@ -255,10 +312,7 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
       }
 
       if (payloadsToUpdate.length === 0) {
-        appAlert(
-          'Aucun athlète ciblé',
-          "Aucun athlète de votre équipe ne correspond aux sous-groupes ou athlètes sélectionnés."
-        );
+        setFormError('Aucun athlète de ton équipe ne correspond aux sous-groupes ou athlètes choisis.');
         setIsSubmitting(false);
         return;
       }
@@ -266,313 +320,191 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
       await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      toast('success', initialWorkout ? 'Séance technique mise à jour.' : 'Séance technique enregistrée.');
       onSave();
       onClose();
     } catch (err: any) {
       console.error('Erreur enregistrement séance technique:', err);
-      appAlert('Erreur', err?.message || "Impossible d'enregistrer la séance technique.");
+      appAlert('Erreur', err?.message || 'Impossible d’enregistrer la séance technique.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const renderChip = (key: string, label: string, isSelected: boolean, onPress: () => void) => (
+    <PressableScale
+      key={key}
+      haptic="selection"
+      onPress={onPress}
+      hitSlop={{ top: 4, bottom: 4 }}
+      accessibilityRole="button"
+      accessibilityState={{ selected: isSelected }}
+      style={[styles.chip, isSelected && styles.chipActive]}
+    >
+      <Text style={[styles.chipText, isSelected && styles.chipTextActive]} numberOfLines={1}>
+        {label}
+      </Text>
+    </PressableScale>
+  );
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <FeedbackHost />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-          {/* Header */}
-          <View style={[styles.header, { paddingTop: safeTop, borderBottomColor: theme.colors.border }]}>
-            <TouchableOpacity onPress={onClose} style={styles.headerTextBtn}>
-              <Text style={[styles.headerCancelText, { color: theme.colors.textSecondary }]}>Annuler</Text>
-            </TouchableOpacity>
+        <View style={styles.container}>
+          {/* Sheet header */}
+          <View style={[styles.header, { paddingTop: safeTop }]}>
+            <IconButton icon="x" onPress={onClose} accessibilityLabel="Fermer" />
 
             <View style={styles.headerCenter}>
-              <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Séance Technique</Text>
-              <Text style={[styles.headerSubtitle, { color: theme.colors.textSecondary }]}>
+              <Text style={styles.headerTitle} numberOfLines={1}>Séance technique</Text>
+              <Text style={styles.headerSubtitle} numberOfLines={1}>
                 {date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
               </Text>
             </View>
 
-            <TouchableOpacity
+            <PressableScale
+              haptic="none"
               onPress={handleSaveWorkout}
               disabled={isSubmitting}
-              style={[styles.headerSaveBtn, { backgroundColor: '#0F172A' }]}
+              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+              accessibilityRole="button"
+              accessibilityLabel="Enregistrer"
+              style={[styles.headerSaveBtn, isSubmitting && styles.headerSaveBtnBusy]}
             >
               {isSubmitting ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color={theme.colors.surface} />
               ) : (
-                <Text style={styles.headerSaveBtnText}>Valider</Text>
+                <Text style={styles.headerSaveBtnText}>Enregistrer</Text>
               )}
-            </TouchableOpacity>
+            </PressableScale>
           </View>
 
-          <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-            {/* Emerald Banner card */}
-            <View style={[styles.bannerCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              <View style={[styles.iconCircle, { backgroundColor: '#F0F9FF' }]}>
-                <Feather name="crosshair" size={26} color="#0069E8" />
+          <ScrollView
+            style={styles.scroll}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.scrollContent}
+          >
+            {formError && (
+              <View style={[styles.errorNotice, styles.formErrorNotice]}>
+                <Feather name="alert-circle" size={15} color={theme.colors.error} />
+                <Text style={styles.errorNoticeText}>{formError}</Text>
               </View>
-              <Text style={[styles.bannerTitle, { color: theme.colors.text }]}>Consignes & Ateliers Techniques</Text>
-              <Text style={[styles.bannerSubtitle, { color: theme.colors.textSecondary }]}>
-                Rédigez des consignes pour l'ensemble du groupe, ou personnalisez les ateliers par sous-groupe ou par athlète au sein de la même séance.
+            )}
+
+            {/* Intro */}
+            <View style={[glassCard, styles.bannerCard]}>
+              <View style={styles.iconCircle}>
+                <Feather name="crosshair" size={24} color={theme.colors.sprintyBlue} />
+              </View>
+              <Text style={styles.bannerTitle}>Consignes et ateliers techniques</Text>
+              <Text style={styles.bannerSubtitle}>
+                Rédige des consignes pour tout le groupe, ou personnalise les ateliers par sous-groupe ou par athlète dans la même séance.
               </Text>
             </View>
 
-            {/* Note Cards List */}
-            {notes.map((note, index) => (
-              <View
-                key={note.id}
-                style={[
-                  styles.noteCard,
-                  { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-                ]}
-              >
-                {/* Note Card Header */}
-                <View style={styles.noteCardHeader}>
-                  <View style={styles.noteNumberBadge}>
-                    <View style={styles.emeraldDot} />
-                    <Text style={[styles.noteNumberText, { color: theme.colors.text }]}>
-                      ATELIER #{index + 1}
-                    </Text>
+            {/* Note cards */}
+            {notes.map((note, index) => {
+              const errors = noteErrors[note.id];
+              return (
+                <View key={note.id} style={[glassCard, styles.noteCard]}>
+                  <View style={styles.noteCardHeader}>
+                    <View style={styles.noteNumberBadge}>
+                      <View style={styles.noteDot} />
+                      <Text style={styles.noteNumberText}>Atelier {index + 1}</Text>
+                    </View>
+
+                    {notes.length > 1 && (
+                      <IconButton
+                        icon="trash-2"
+                        tone="danger"
+                        size={34}
+                        onPress={() => handleRemoveNoteItem(note.id)}
+                        accessibilityLabel={`Supprimer l’atelier ${index + 1}`}
+                      />
+                    )}
                   </View>
 
-                  {notes.length > 1 && (
-                    <TouchableOpacity
-                      onPress={() => handleRemoveNoteItem(note.id)}
-                      style={styles.deleteBtn}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Feather name="trash-2" size={16} color="#EF4444" />
-                    </TouchableOpacity>
+                  <Text style={styles.fieldCaption}>Destinataire</Text>
+                  <SegmentedControl
+                    options={TARGET_OPTIONS}
+                    value={note.targetType}
+                    onChange={(next) => handleTargetTypeChange(note.id, next)}
+                  />
+
+                  {note.targetType === 'subgroup' && (
+                    <View style={styles.chipsWrapper}>
+                      {subgroups.length === 0 ? (
+                        <Text style={styles.emptyHintText}>Aucun sous-groupe créé pour cette équipe.</Text>
+                      ) : (
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+                          {subgroups.map((sg) =>
+                            renderChip(sg.id, sg.name, note.targetId === sg.id, () =>
+                              updateNote(note.id, { targetId: sg.id, targetName: sg.name })
+                            )
+                          )}
+                        </ScrollView>
+                      )}
+                    </View>
                   )}
+
+                  {note.targetType === 'athlete' && (
+                    <View style={styles.chipsWrapper}>
+                      {approvedMembers.length === 0 ? (
+                        <Text style={styles.emptyHintText}>Aucun athlète validé dans cette équipe.</Text>
+                      ) : (
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+                          {approvedMembers.map((m) => {
+                            const name = getMemberName(m);
+                            return renderChip(m.user_id, name, note.targetId === m.user_id, () =>
+                              updateNote(note.id, { targetId: m.user_id, targetName: name })
+                            );
+                          })}
+                        </ScrollView>
+                      )}
+                    </View>
+                  )}
+
+                  {errors?.target && <Text style={styles.fieldError}>{errors.target}</Text>}
+
+                  <Input
+                    label="Thème ou titre (facultatif)"
+                    placeholder="Ex. : haies, virage, départ en starting-blocks…"
+                    value={note.title}
+                    onChangeText={(val) => updateNote(note.id, { title: val })}
+                    maxLength={60}
+                    containerStyle={styles.titleInputContainer}
+                  />
+
+                  <Text style={styles.fieldCaption}>Consigne technique</Text>
+                  <TextInput
+                    style={[styles.contentInput, errors?.content && styles.contentInputError]}
+                    placeholder="Ex. : travaille la vitesse d’attaque sur les 3 premières haies, regard vers l’avant, reprise d’appui active…"
+                    placeholderTextColor={theme.colors.textMuted}
+                    selectionColor={theme.colors.sprintyBlue}
+                    multiline
+                    value={note.content}
+                    onChangeText={(val) => updateNote(note.id, { content: val })}
+                    textAlignVertical="top"
+                  />
+                  {errors?.content && <Text style={styles.fieldError}>{errors.content}</Text>}
                 </View>
+              );
+            })}
 
-                {/* Target Segmented Row */}
-                <Text style={[styles.cardInputCaption, { color: theme.colors.textSecondary }]}>DESTINATAIRE</Text>
-                <View style={[styles.segmentedRow, { backgroundColor: theme.colors.background }]}>
-                  <TouchableOpacity
-                    style={[
-                      styles.segmentBtn,
-                      note.targetType === 'team' && [styles.segmentBtnActive, { backgroundColor: '#0069E8' }],
-                    ]}
-                    onPress={() => {
-                      Haptics.selectionAsync();
-                      updateNote(note.id, {
-                        targetType: 'team',
-                        targetId: null,
-                        targetName: 'Tout le groupe',
-                      });
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.segmentBtnText,
-                        { color: note.targetType === 'team' ? '#FFFFFF' : theme.colors.text },
-                      ]}
-                    >
-                      Tout le groupe
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.segmentBtn,
-                      note.targetType === 'subgroup' && [styles.segmentBtnActive, { backgroundColor: '#0069E8' }],
-                    ]}
-                    onPress={() => {
-                      Haptics.selectionAsync();
-                      const firstSg = subgroups[0];
-                      updateNote(note.id, {
-                        targetType: 'subgroup',
-                        targetId: firstSg ? firstSg.id : null,
-                        targetName: firstSg ? firstSg.name : 'Sous-groupe',
-                      });
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.segmentBtnText,
-                        { color: note.targetType === 'subgroup' ? '#FFFFFF' : theme.colors.text },
-                      ]}
-                    >
-                      Sous-groupe
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.segmentBtn,
-                      note.targetType === 'athlete' && [styles.segmentBtnActive, { backgroundColor: '#0069E8' }],
-                    ]}
-                    onPress={() => {
-                      Haptics.selectionAsync();
-                      const firstAth = approvedMembers[0];
-                      updateNote(note.id, {
-                        targetType: 'athlete',
-                        targetId: firstAth ? firstAth.user_id : null,
-                        targetName: firstAth ? getMemberName(firstAth) : 'Athlète',
-                      });
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.segmentBtnText,
-                        { color: note.targetType === 'athlete' ? '#FFFFFF' : theme.colors.text },
-                      ]}
-                    >
-                      Athlète
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Subgroup Selector Chips */}
-                {note.targetType === 'subgroup' && (
-                  <View style={styles.subScrollWrapper}>
-                    {subgroups.length === 0 ? (
-                      <Text style={[styles.emptyHintText, { color: theme.colors.textSecondary }]}>
-                        Aucun sous-groupe créé pour cette équipe.
-                      </Text>
-                    ) : (
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subScroll}>
-                        {subgroups.map((sg) => {
-                          const isSelected = note.targetId === sg.id;
-                          return (
-                            <TouchableOpacity
-                              key={sg.id}
-                              style={[
-                                styles.chip,
-                                {
-                                  backgroundColor: isSelected ? '#0069E820' : theme.colors.background,
-                                  borderColor: isSelected ? '#0069E8' : theme.colors.border,
-                                },
-                              ]}
-                              onPress={() => {
-                                Haptics.selectionAsync();
-                                updateNote(note.id, { targetId: sg.id, targetName: sg.name });
-                              }}
-                            >
-                              <Text
-                                style={[
-                                  styles.chipText,
-                                  { color: isSelected ? '#0069E8' : theme.colors.text, fontWeight: isSelected ? '700' : '500' },
-                                ]}
-                              >
-                                {sg.name}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </ScrollView>
-                    )}
-                  </View>
-                )}
-
-                {/* Athlete Selector Chips */}
-                {note.targetType === 'athlete' && (
-                  <View style={styles.subScrollWrapper}>
-                    {approvedMembers.length === 0 ? (
-                      <Text style={[styles.emptyHintText, { color: theme.colors.textSecondary }]}>
-                        Aucun athlète validé dans cette équipe.
-                      </Text>
-                    ) : (
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subScroll}>
-                        {approvedMembers.map((m) => {
-                          const isSelected = note.targetId === m.user_id;
-                          const name = getMemberName(m);
-                          return (
-                            <TouchableOpacity
-                              key={m.user_id}
-                              style={[
-                                styles.chip,
-                                {
-                                  backgroundColor: isSelected ? '#0069E820' : theme.colors.background,
-                                  borderColor: isSelected ? '#0069E8' : theme.colors.border,
-                                },
-                              ]}
-                              onPress={() => {
-                                Haptics.selectionAsync();
-                                updateNote(note.id, { targetId: m.user_id, targetName: name });
-                              }}
-                            >
-                              <Text
-                                style={[
-                                  styles.chipText,
-                                  { color: isSelected ? '#0069E8' : theme.colors.text, fontWeight: isSelected ? '700' : '500' },
-                                ]}
-                              >
-                                {name}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </ScrollView>
-                    )}
-                  </View>
-                )}
-
-                {/* Title / Theme Field (Optional) */}
-                <Text style={[styles.cardInputCaption, { color: theme.colors.textSecondary, marginTop: 14 }]}>
-                  THÈME / TITRE (OPTIONNEL)
-                </Text>
-                <TextInput
-                  style={[
-                    styles.titleInput,
-                    {
-                      color: theme.colors.text,
-                      backgroundColor: theme.colors.background,
-                      borderColor: theme.colors.border,
-                    },
-                  ]}
-                  placeholder="Ex: Haies, Virage, Départ en starting-blocks..."
-                  placeholderTextColor={theme.colors.textMuted}
-                  value={note.title}
-                  onChangeText={(val) => updateNote(note.id, { title: val })}
-                  maxLength={60}
-                />
-
-                {/* Instruction multiline text */}
-                <Text style={[styles.cardInputCaption, { color: theme.colors.textSecondary, marginTop: 14 }]}>
-                  CONSIGNE TECHNIQUE
-                </Text>
-                <TextInput
-                  style={[
-                    styles.contentInput,
-                    {
-                      color: theme.colors.text,
-                      backgroundColor: theme.colors.background,
-                      borderColor: theme.colors.border,
-                    },
-                  ]}
-                  placeholder="Ex: Travailler la vitesse d'attaque sur les 3 premières haies, regard fixé vers l'avant, reprise d'appui active..."
-                  placeholderTextColor={theme.colors.textMuted}
-                  multiline
-                  value={note.content}
-                  onChangeText={(val) => updateNote(note.id, { content: val })}
-                  textAlignVertical="top"
-                />
-              </View>
-            ))}
-
-            {/* Add note button */}
-            <TouchableOpacity
-              style={[
-                styles.addNoteBtn,
-                {
-                  backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.border,
-                },
-              ]}
+            {/* Add note */}
+            <PressableScale
               onPress={handleAddNoteItem}
-              activeOpacity={0.7}
+              haptic="none"
+              accessibilityRole="button"
+              style={styles.addNoteBtn}
             >
-              <View style={[styles.addNoteIconCircle, { backgroundColor: '#0069E820' }]}>
-                <Feather name="plus" size={18} color="#0069E8" />
+              <View style={styles.addNoteIconCircle}>
+                <Feather name="plus" size={18} color={theme.colors.sprintyBlue} />
               </View>
-              <Text style={[styles.addNoteBtnText, { color: theme.colors.text }]}>
-                Ajouter une consigne pour un autre groupe / athlète
-              </Text>
-            </TouchableOpacity>
+              <Text style={styles.addNoteBtnText}>Ajouter une consigne pour un autre groupe ou athlète</Text>
+            </PressableScale>
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
@@ -581,70 +513,44 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1, backgroundColor: theme.colors.backdrop },
+
+  // Sheet header (shared pattern with CompetitionBuilder / HybridWorkoutBuilder)
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.hairline,
+    backgroundColor: theme.colors.backdrop,
   },
-  headerTextBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-  },
-  headerCancelText: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  headerCenter: {
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-  },
+  headerCenter: { flex: 1, alignItems: 'center', marginHorizontal: 8 },
+  headerTitle: { fontSize: 17, fontWeight: '800', letterSpacing: -0.3, color: theme.colors.text },
   headerSubtitle: {
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 1,
     fontWeight: '500',
+    color: theme.colors.textSecondary,
+    textTransform: 'capitalize',
   },
   headerSaveBtn: {
-    paddingVertical: 7,
+    height: 38,
+    minWidth: 108,
     paddingHorizontal: 16,
-    borderRadius: 18,
+    borderRadius: 19,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: theme.colors.sprintyBlue,
   },
-  headerSaveBtnText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 80,
-  },
+  headerSaveBtnBusy: { opacity: 0.7 },
+  headerSaveBtnText: { color: theme.colors.surface, fontSize: 15, fontWeight: '700' },
 
-  bannerCard: {
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: 'center',
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 1,
-  },
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 80 },
+
+  bannerCard: { alignItems: 'center', marginBottom: 20 },
   iconCircle: {
     width: 52,
     height: 52,
@@ -652,11 +558,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
+    backgroundColor: 'rgba(0, 105, 232, 0.1)',
   },
   bannerTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: -0.3,
     textAlign: 'center',
+    color: theme.colors.text,
   },
   bannerSubtitle: {
     fontSize: 13,
@@ -664,127 +573,94 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
     paddingHorizontal: 10,
+    color: theme.colors.textSecondary,
   },
 
-  noteCard: {
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 1,
-  },
+  noteCard: { marginBottom: 16 },
   noteCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    minHeight: 34,
+    marginBottom: 12,
   },
-  noteNumberBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  emeraldDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#0069E8',
-  },
+  noteNumberBadge: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  noteDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.sprintyBlue },
   noteNumberText: {
     fontSize: 12,
     fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  deleteBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FEE2E2',
-    alignItems: 'center',
-    justifyContent: 'center',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: theme.colors.text,
   },
 
-  cardInputCaption: {
-    fontSize: 11,
+  fieldCaption: {
+    fontSize: 12,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: theme.colors.textSecondary,
     marginBottom: 8,
   },
-  segmentedRow: {
-    flexDirection: 'row',
-    borderRadius: 12,
-    padding: 3,
-    gap: 4,
-  },
-  segmentBtn: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 9,
-  },
-  segmentBtnActive: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  segmentBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  subScrollWrapper: {
-    marginTop: 10,
-  },
-  subScroll: {
-    flexDirection: 'row',
-  },
-  emptyHintText: {
-    fontSize: 12,
-    fontStyle: 'italic',
-    paddingVertical: 6,
-  },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 14,
-    borderWidth: 1,
-    marginRight: 8,
-  },
-  chipText: {
-    fontSize: 13,
-  },
+  fieldError: { fontSize: 12, fontWeight: '500', marginTop: 6, color: theme.colors.error },
 
-  titleInput: {
-    borderWidth: 1,
+  chipsWrapper: { marginTop: 12 },
+  chipsRow: { gap: 8, paddingVertical: 2 },
+  emptyHintText: { fontSize: 13, color: theme.colors.textSecondary, paddingVertical: 6 },
+  chip: {
+    height: 36,
+    paddingHorizontal: 14,
     borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    fontWeight: '600',
+    borderCurve: 'continuous',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
+    backgroundColor: theme.colors.glassFill,
   },
+  chipActive: { backgroundColor: 'rgba(0, 105, 232, 0.1)', borderColor: theme.colors.sprintyBlue },
+  chipText: { fontSize: 13, fontWeight: '600', color: theme.colors.text },
+  chipTextActive: { color: theme.colors.sprintyBlue, fontWeight: '700' },
+
+  titleInputContainer: { marginTop: 16, marginBottom: 14 },
   contentInput: {
-    borderWidth: 1,
-    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    borderRadius: 14,
+    borderCurve: 'continuous',
+    backgroundColor: theme.colors.glassFill,
+    color: theme.colors.text,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    minHeight: 110,
+    lineHeight: 21,
+  },
+  contentInputError: { borderColor: theme.colors.error },
+
+  errorNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    fontSize: 14,
-    minHeight: 96,
-    lineHeight: 20,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
   },
+  formErrorNotice: { marginBottom: 16 },
+  errorNoticeText: { flex: 1, fontSize: 13, fontWeight: '600', color: theme.colors.error },
 
   addNoteBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    minHeight: 60,
     padding: 14,
-    borderRadius: 18,
-    borderWidth: 1,
+    borderRadius: 22,
+    borderCurve: 'continuous',
+    borderWidth: 1.5,
     borderStyle: 'dashed',
+    borderColor: 'rgba(0, 105, 232, 0.3)',
+    backgroundColor: 'rgba(0, 105, 232, 0.05)',
     marginTop: 4,
   },
   addNoteIconCircle: {
@@ -794,10 +670,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+    backgroundColor: 'rgba(0, 105, 232, 0.12)',
   },
-  addNoteBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    flex: 1,
-  },
+  addNoteBtnText: { flex: 1, fontSize: 15, fontWeight: '700', color: theme.colors.sprintyBlue },
 });

@@ -1,9 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Platform, StatusBar, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Modal, ScrollView, Platform, StatusBar, TextInput, ActivityIndicator, KeyboardAvoidingView } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useTheme } from '../../../core/theme';
+import { theme } from '../../../core/theme';
+import { glassCard } from '../../../core/glass';
 import { WorkoutBlock, Exercise } from '../../workout/types';
 import { useAuthStore } from '../../../store/authStore';
 import { useCoachStore } from '../../../store/coach/coachStore';
@@ -13,7 +15,9 @@ import { AthleteValueKeypadModal } from './AthleteValueKeypadModal';
 import { CopyWorkoutModal } from './CopyWorkoutModal';
 import { RepeatWorkoutModal } from './RepeatWorkoutModal';
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
-import { appAlert } from '../../../shared/feedback/appAlert';
+import { appAlert, confirmAsync, toast } from '../../../shared/feedback/appAlert';
+import { IconButton } from '../../../shared/components/IconButton';
+import { PressableScale } from '../../../shared/components/PressableScale';
 
 interface WorkoutDetailModalProps {
   visible: boolean;
@@ -49,7 +53,6 @@ const getSessionCategory = (typeSeance: string): 'muscu' | 'course' | 'other' =>
 };
 
 export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible, onClose, workout, onDelete, onEdit, onUpdated, readOnlyAthleteId }) => {
-  const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
   const { subgroups, teamMembers } = useCoachStore();
@@ -224,22 +227,16 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
   // Guard: return null if no workout data (safe because all hooks have been called)
   if (!workout) return null;
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    appAlert(
-      'Supprimer la séance',
-      'Cette séance sera supprimée du calendrier.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
-          onPress: () => {
-            onDelete?.(workout);
-          },
-        },
-      ]
-    );
+    const confirmed = await confirmAsync({
+      title: 'Supprimer la séance ?',
+      message: 'Cette séance sera supprimée du calendrier.',
+      confirmText: 'Supprimer',
+      destructive: true,
+      icon: 'trash-2',
+    });
+    if (confirmed) onDelete?.(workout);
   };
 
   const handleEdit = () => {
@@ -318,11 +315,12 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onUpdated?.();
 
-      appAlert(
-        'Données enregistrées ! ✓',
+      toast(
+        'success',
         isValidated
-          ? 'Tes modifications ont été mises à jour avec succès.'
-          : 'Ta séance a été validée avec succès !'
+          ? 'Tes modifications ont été enregistrées.'
+          : 'Ta séance a été validée.',
+        'Données enregistrées'
       );
     } catch (e: any) {
       console.error('Error submitting athlete workout:', e);
@@ -421,31 +419,28 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <FeedbackHost />
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={styles.container}>
         <View style={[styles.header, { paddingTop: safeTop }]}>
-          <TouchableOpacity onPress={onClose} style={[styles.closeButton, { backgroundColor: theme.colors.surfaceLight }]}>
-            <Feather name="x" size={24} color={theme.colors.text} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Détails de la Séance</Text>
-          <View style={styles.closeButtonPlaceholder} />
+          <IconButton icon="x" onPress={onClose} accessibilityLabel="Fermer" />
+          <Text style={styles.headerTitle} numberOfLines={1}>Détails de la séance</Text>
+          <View style={styles.headerPlaceholder} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {/* Header Card with Title and Status */}
-          <View style={[styles.titleContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={[styles.workoutName, { color: theme.colors.text, flex: 1 }]}>{sessionTitle}</Text>
+          <View style={styles.titleContainer}>
+            <View style={styles.titleRow}>
+              <Text style={styles.workoutName}>{sessionTitle}</Text>
               {!isCoach && (
-                <View style={{
-                  paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
-                  backgroundColor: isValidated ? '#D1FAE5' : '#FEF3C7',
-                  marginLeft: 8,
-                }}>
-                  <Text style={{
-                    fontSize: 12, fontWeight: '700',
-                    color: isValidated ? '#047857' : '#B45309',
-                  }}>
-                    {isValidated ? '✓ Validée' : '○ À compléter'}
+                <View style={[styles.statusPill, isValidated ? styles.statusPillDone : styles.statusPillTodo]}>
+                  <Feather
+                    name={isValidated ? 'check-circle' : 'circle'}
+                    size={12}
+                    color={isValidated ? theme.colors.success : theme.colors.warning}
+                  />
+                  <Text style={[styles.statusPillText, { color: isValidated ? theme.colors.success : theme.colors.warning }]}>
+                    {isValidated ? 'Validée' : 'À compléter'}
                   </Text>
                 </View>
               )}
@@ -454,16 +449,26 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
             {!isRestDay && !isCompetition && (!!surfaceMeta || !!equipmentMeta) && (
               <View style={styles.metaRow}>
                 {!!surfaceMeta && (
-                  <View style={[styles.metaPill, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
-                    <Text style={[styles.metaPillText, { color: theme.colors.accent }]}>
-                      {surfaceMeta === 'cote' ? '⛰️ Côte' : '🏟️ Piste'}
+                  <View style={styles.metaPill}>
+                    <Feather
+                      name={surfaceMeta === 'cote' ? 'trending-up' : 'disc'}
+                      size={12}
+                      color={theme.colors.sprintyBlue}
+                    />
+                    <Text style={styles.metaPillText}>
+                      {surfaceMeta === 'cote' ? 'Côte' : 'Piste'}
                     </Text>
                   </View>
                 )}
                 {!!equipmentMeta && (
-                  <View style={[styles.metaPill, { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '30' }]}>
-                    <Text style={[styles.metaPillText, { color: theme.colors.accent }]}>
-                      {equipmentMeta === 'pointes' ? '👟 Pointes' : '👟 Baskets'}
+                  <View style={styles.metaPill}>
+                    <Feather
+                      name={equipmentMeta === 'pointes' ? 'zap' : 'activity'}
+                      size={12}
+                      color={theme.colors.sprintyBlue}
+                    />
+                    <Text style={styles.metaPillText}>
+                      {equipmentMeta === 'pointes' ? 'Pointes' : 'Baskets'}
                     </Text>
                   </View>
                 )}
@@ -472,91 +477,96 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
 
             {isCoach && (
               <View style={styles.actionsContainer}>
-                <TouchableOpacity
+                <PressableScale
+                  haptic="none"
+                  containerStyle={styles.actionBtnContainer}
                   style={styles.actionBtn}
                   onPress={handleEdit}
-                  activeOpacity={0.7}
+                  accessibilityRole="button"
                 >
-                  <Feather name="edit-2" size={14} color="#0F172A" style={{ marginRight: 6 }} />
+                  <Feather name="edit-2" size={15} color={theme.colors.sprintyBlue} />
                   <Text style={styles.actionBtnText}>Modifier</Text>
-                </TouchableOpacity>
+                </PressableScale>
 
-                <TouchableOpacity
+                <PressableScale
+                  containerStyle={styles.actionBtnContainer}
                   style={styles.actionBtn}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowCopyModal(true); }}
-                  activeOpacity={0.7}
+                  onPress={() => setShowCopyModal(true)}
+                  accessibilityRole="button"
                 >
-                  <Feather name="copy" size={14} color="#0F172A" style={{ marginRight: 6 }} />
+                  <Feather name="copy" size={15} color={theme.colors.sprintyBlue} />
                   <Text style={styles.actionBtnText}>Copier</Text>
-                </TouchableOpacity>
+                </PressableScale>
 
-                <TouchableOpacity
+                <PressableScale
+                  containerStyle={styles.actionBtnContainer}
                   style={styles.actionBtn}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowRepeatModal(true); }}
-                  activeOpacity={0.7}
+                  onPress={() => setShowRepeatModal(true)}
+                  accessibilityRole="button"
                 >
-                  <Feather name="repeat" size={14} color="#0F172A" style={{ marginRight: 6 }} />
+                  <Feather name="repeat" size={15} color={theme.colors.sprintyBlue} />
                   <Text style={styles.actionBtnText}>Répéter</Text>
-                </TouchableOpacity>
+                </PressableScale>
               </View>
             )}
           </View>
 
           {/* Consignes / Notes if provided (for non-technical sessions) */}
           {!isTechnical && cleanDescription ? (
-            <View style={[styles.consignesCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+            <View style={styles.consignesCard}>
               <View style={styles.consignesHeader}>
-                <Feather name="file-text" size={14} color={theme.colors.accent} />
-                <Text style={[styles.consignesCaption, { color: theme.colors.accent }]}>
-                  {isRestDay ? 'NOTE DE RÉCUPÉRATION' : 'CONSIGNES DE SÉANCE'}
+                <Feather name="file-text" size={14} color={theme.colors.sprintyBlue} />
+                <Text style={styles.consignesCaption}>
+                  {isRestDay ? 'Note de récupération' : 'Consignes de séance'}
                 </Text>
               </View>
-              <Text style={[styles.consignesBody, { color: theme.colors.text }]}>{cleanDescription}</Text>
+              <Text style={styles.consignesBody}>{cleanDescription}</Text>
             </View>
           ) : null}
 
           {isRestDay ? (
-            <View style={[styles.restDayCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              <View style={[styles.restDayIconCircle, { backgroundColor: '#F1F5F9' }]}>
-                <Ionicons name="cafe-outline" size={30} color="#475569" />
+            <View style={styles.restDayCard}>
+              <View style={styles.restDayIconCircle}>
+                <Feather name="coffee" size={28} color={theme.colors.textSecondary} />
               </View>
-              <Text style={[styles.restDayTitle, { color: theme.colors.text }]}>Jour de repos</Text>
-              <Text style={[styles.restDaySubtitle, { color: theme.colors.textSecondary }]}>
+              <Text style={styles.restDayTitle}>Jour de repos</Text>
+              <Text style={styles.restDaySubtitle}>
                 Aucun entraînement programmé. Priorité à la récupération et au repos.
               </Text>
             </View>
           ) : isCompetition ? (
             <View style={styles.technicalContainer}>
               <View style={styles.technicalSectionHeader}>
-                <View style={[styles.technicalIconBox, { backgroundColor: '#FEF3C7' }]}>
-                  <Ionicons name="trophy-outline" size={16} color="#D97706" />
+                <View style={[styles.technicalIconBox, { backgroundColor: 'rgba(245, 158, 11, 0.14)' }]}>
+                  <Feather name="award" size={15} color={theme.colors.warning} />
                 </View>
-                <Text style={[styles.technicalSectionTitle, { color: theme.colors.text }]}>
-                  INFORMATIONS DE LA COMPÉTITION
-                </Text>
+                <Text style={styles.technicalSectionTitle}>Informations de la compétition</Text>
               </View>
 
-              <View style={[styles.technicalCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                <Text style={[styles.technicalNoteContent, { color: theme.colors.text, fontSize: 16, fontWeight: '700', marginBottom: 12 }]}>
+              <View style={styles.technicalCard}>
+                <Text style={styles.competitionName}>
                   {workout.description?.split('\n')[0] || 'Compétition'}
                 </Text>
 
                 {workout.measures?.location ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
-                    <Ionicons name="location-outline" size={18} color={theme.colors.textSecondary} style={{ marginRight: 6, marginTop: 1 }} />
-                    <Text style={{ color: theme.colors.textSecondary, flex: 1, fontSize: 14 }}>
+                  <View style={styles.competitionInfoRow}>
+                    <Feather name="map-pin" size={16} color={theme.colors.textSecondary} style={styles.competitionInfoIcon} />
+                    <Text style={styles.competitionInfoText}>
                       {workout.measures.location}
                     </Text>
                   </View>
                 ) : null}
 
                 {workout.measures?.attachmentUrl ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Ionicons name="link-outline" size={18} color="#3B82F6" style={{ marginRight: 6 }} />
-                    <Text 
-                      style={{ color: '#3B82F6', flex: 1, fontSize: 14, textDecorationLine: 'underline' }}
+                  <View style={styles.competitionInfoRow}>
+                    <Feather name="link" size={16} color={theme.colors.sprintyBlue} style={styles.competitionInfoIcon} />
+                    <Text
+                      style={styles.competitionLink}
+                      accessibilityRole="link"
                       onPress={() => {
-                         // A real app might open the URL here using Linking.openURL
+                        const raw = workout.measures.attachmentUrl.trim();
+                        const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+                        WebBrowser.openBrowserAsync(url).catch(() => undefined);
                       }}
                     >
                       {workout.measures.attachmentUrl}
@@ -565,7 +575,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                 ) : null}
 
                 {(!workout.measures?.location && !workout.measures?.attachmentUrl) && (
-                  <Text style={{ color: theme.colors.textSecondary, fontStyle: 'italic', fontSize: 14 }}>
+                  <Text style={styles.emptyInfoText}>
                     Aucune information supplémentaire.
                   </Text>
                 )}
@@ -574,12 +584,10 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
           ) : isTechnical ? (
             <View style={styles.technicalContainer}>
               <View style={styles.technicalSectionHeader}>
-                <View style={[styles.technicalIconBox, { backgroundColor: '#D1FAE5' }]}>
-                  <Ionicons name="git-merge-outline" size={16} color="#047857" />
+                <View style={[styles.technicalIconBox, { backgroundColor: 'rgba(16, 185, 129, 0.12)' }]}>
+                  <Feather name="git-merge" size={15} color={theme.colors.success} />
                 </View>
-                <Text style={[styles.technicalSectionTitle, { color: theme.colors.text }]}>
-                  CONSIGNES & ATELIERS TECHNIQUES
-                </Text>
+                <Text style={styles.technicalSectionTitle}>Consignes et ateliers techniques</Text>
               </View>
 
               {Array.isArray(technicalNotes) && technicalNotes.length > 0 ? (
@@ -588,41 +596,41 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                   const isSubgroup = note.targetType === 'subgroup';
                   const badgeBg = isTeam ? '#E0E7FF' : isSubgroup ? '#D1FAE5' : '#FEF3C7';
                   const badgeText = isTeam ? '#4338CA' : isSubgroup ? '#047857' : '#B45309';
-                  const badgeIcon = isTeam ? 'people' : isSubgroup ? 'git-branch' : 'person';
+                  const badgeIcon = isTeam ? 'users' : isSubgroup ? 'git-branch' : 'user';
                   const targetLabel = note.targetName || (isTeam ? 'Tout le groupe' : isSubgroup ? 'Sous-groupe' : 'Athlète');
 
                   return (
                     <View
                       key={note.id || idx}
-                      style={[styles.technicalCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                      style={styles.technicalCard}
                     >
                       <View style={styles.technicalCardTop}>
                         <View style={[styles.technicalBadge, { backgroundColor: badgeBg }]}>
-                          <Ionicons name={badgeIcon as any} size={12} color={badgeText} />
+                          <Feather name={badgeIcon as any} size={12} color={badgeText} />
                           <Text style={[styles.technicalBadgeText, { color: badgeText }]}>
                             {targetLabel}
                           </Text>
                         </View>
-                        <Text style={[styles.technicalIndex, { color: theme.colors.textSecondary }]}>
+                        <Text style={styles.technicalIndex}>
                           Atelier #{idx + 1}
                         </Text>
                       </View>
 
                       {note.title ? (
-                        <Text style={[styles.technicalNoteTitle, { color: theme.colors.text }]}>
+                        <Text style={styles.technicalNoteTitle}>
                           {note.title}
                         </Text>
                       ) : null}
 
-                      <Text style={[styles.technicalNoteContent, { color: theme.colors.text }]}>
+                      <Text style={styles.technicalNoteContent}>
                         {note.content}
                       </Text>
                     </View>
                   );
                 })
               ) : (
-                <View style={[styles.technicalCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                  <Text style={[styles.technicalNoteContent, { color: theme.colors.text }]}>
+                <View style={styles.technicalCard}>
+                  <Text style={styles.technicalNoteContent}>
                     {cleanDescription || 'Aucune consigne technique renseignée.'}
                   </Text>
                 </View>
@@ -632,8 +640,8 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
             /* ========== EXERCISE BLOCKS ========== */
             <View style={styles.blocksContainer}>
               {isLoadingData && !isCoach && (
-                <View style={{ padding: 20, alignItems: 'center' }}>
-                  <ActivityIndicator size="small" color={theme.colors.accent} />
+                <View style={styles.loadingBox}>
+                  <ActivityIndicator size="small" color={theme.colors.sprintyBlue} />
                 </View>
               )}
               {blocks.map((block, index) => {
@@ -643,15 +651,15 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                 return (
                   <View key={block.id || index} style={styles.block}>
                     <View style={styles.blockHeader}>
-                      <View style={[styles.blockNumber, { backgroundColor: theme.colors.accent }]}>
+                      <View style={styles.blockNumber}>
                         <Text style={styles.blockNumberText}>{index + 1}</Text>
                       </View>
-                      <Text style={[styles.blockName, { color: theme.colors.text }]} numberOfLines={1}>{block.name}</Text>
-                      
+                      <Text style={styles.blockName} numberOfLines={1}>{block.name}</Text>
+
                       {targetLabel && (
-                        <View style={[styles.blockTargetBadge, { backgroundColor: '#0069E8' + '18' }]}>
-                          <Feather name="users" size={11} color="#0069E8" style={{ marginRight: 4 }} />
-                          <Text style={[styles.blockTargetBadgeText, { color: '#0069E8' }]} numberOfLines={1}>
+                        <View style={styles.blockTargetBadge}>
+                          <Feather name="users" size={11} color={theme.colors.sprintyBlue} />
+                          <Text style={styles.blockTargetBadgeText} numberOfLines={1}>
                             {targetLabel}
                           </Text>
                         </View>
@@ -659,20 +667,20 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                     </View>
 
                 {(block.exercises || []).map((exercise: Exercise) => (
-                  <View key={exercise.id} style={[styles.exerciseCard, { backgroundColor: theme.colors.surface, ...theme.shadows.soft }]}>
-                    <Text style={[styles.exerciseName, { color: theme.colors.text }]}>{exercise.name}</Text>
-                    
+                  <View key={exercise.id} style={styles.exerciseCard}>
+                    <Text style={styles.exerciseName}>{exercise.name}</Text>
+
                     {!!(exercise as any).target && (exercise as any).target.type !== 'all' && (
                       <View style={styles.targetBadge}>
-                        <Feather name="user" size={11} color={theme.colors.accent} />
-                        <Text style={[styles.targetBadgeText, { color: theme.colors.accent }]}>
+                        <Feather name="user" size={11} color={theme.colors.sprintyBlue} />
+                        <Text style={styles.targetBadgeText}>
                           {(exercise as any).target.name || 'Cible spécifique'}
                         </Text>
                       </View>
                     )}
 
                     {!!exercise.notes && (
-                      <Text style={[styles.exerciseNotes, { color: theme.colors.textSecondary }]}>
+                      <Text style={styles.exerciseNotes}>
                         {exercise.notes}
                       </Text>
                     )}
@@ -680,14 +688,14 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                     <View style={[styles.setsContainer, needsDataEntry && { gap: 0 }]}>
                       {/* Column headers for athlete mode */}
                       {needsDataEntry && (exercise.sets || []).length > 0 && (
-                        <View style={[styles.athleteSetHeader, { borderBottomColor: theme.colors.border }]}>
-                          <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, width: 32 }]}>Série</Text>
-                          <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, flex: 1 }]}>Objectif</Text>
+                        <View style={styles.athleteSetHeader}>
+                          <Text style={[styles.athleteHeaderText, { width: 32 }]}>Série</Text>
+                          <Text style={[styles.athleteHeaderText, { flex: 1 }]}>Objectif</Text>
                           {sessionCategory === 'muscu' && (
-                            <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, width: 90 }]}>Charge</Text>
+                            <Text style={[styles.athleteHeaderText, { width: 90 }]}>Charge</Text>
                           )}
                           {sessionCategory === 'course' && (
-                            <Text style={[styles.athleteHeaderText, { color: theme.colors.textMuted, width: 90 }]}>Chrono</Text>
+                            <Text style={[styles.athleteHeaderText, { width: 90 }]}>Chrono</Text>
                           )}
                         </View>
                       )}
@@ -716,7 +724,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                         }
                         if (set.restSeconds) {
                           const r = set.restSeconds >= 60 ? `${Math.floor(set.restSeconds / 60)}m${set.restSeconds % 60 ? (set.restSeconds % 60) : ''}` : `${set.restSeconds}s`;
-                          setDetails.push(`Réc: ${r}`);
+                          setDetails.push(`Récup ${r}`);
                         }
 
                         const resultKey = `${exercise.id}_${setIndex}`;
@@ -725,19 +733,21 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                         if (needsDataEntry) {
                           // ===== ATHLETE: Inline data entry =====
                           return (
-                            <View key={set.id || setIndex} style={[styles.athleteSetRow, { borderBottomColor: theme.colors.border }]}>
+                            <View key={set.id || setIndex} style={styles.athleteSetRow}>
                               {/* Set number */}
-                              <View style={[styles.athleteSetNum, { backgroundColor: theme.colors.surfaceLight }]}>
-                                <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.text }}>{setIndex + 1}</Text>
+                              <View style={styles.athleteSetNum}>
+                                <Text style={styles.athleteSetNumText}>{setIndex + 1}</Text>
                               </View>
-                              
+
                               {/* Objective */}
-                              <Text style={{ flex: 1, fontSize: 13, color: theme.colors.textSecondary, fontWeight: '500' }} numberOfLines={1}>
+                              <Text style={styles.athleteObjective} numberOfLines={1}>
                                 {setDetails.join(' · ')}
                               </Text>
 
                               {sessionCategory === 'muscu' && (
-                                <TouchableOpacity
+                                <PressableScale
+                                  haptic="selection"
+                                  hitSlop={{ top: 4, bottom: 4 }}
                                   style={[
                                     styles.athleteValueButton,
                                     { minWidth: 90 },
@@ -747,20 +757,23 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                                     const idx = allSets.findIndex(s => s.exercise.id === exercise.id && s.setIndex === setIndex);
                                     if (idx >= 0) openKeypadAtIndex(idx);
                                   }}
-                                  activeOpacity={0.7}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={data.weight ? `Charge série ${setIndex + 1} : ${data.weight} kg` : `Saisir la charge de la série ${setIndex + 1}`}
                                 >
+                                  {!data.weight && <Feather name="plus" size={13} color={theme.colors.textSecondary} />}
                                   <Text style={[
                                     styles.athleteValueButtonText,
-                                    { color: data.weight ? theme.colors.accent : theme.colors.textMuted },
-                                    !data.weight && styles.athleteValuePlaceholder,
+                                    data.weight ? styles.athleteValueFilledText : styles.athleteValuePlaceholder,
                                   ]}>
-                                    {data.weight ? `${data.weight} kg` : '+ Poids'}
+                                    {data.weight ? `${data.weight} kg` : 'Poids'}
                                   </Text>
-                                </TouchableOpacity>
+                                </PressableScale>
                               )}
 
                               {sessionCategory === 'course' && (
-                                <TouchableOpacity
+                                <PressableScale
+                                  haptic="selection"
+                                  hitSlop={{ top: 4, bottom: 4 }}
                                   style={[
                                     styles.athleteValueButton,
                                     { minWidth: 105 },
@@ -770,22 +783,21 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                                     const idx = allSets.findIndex(s => s.exercise.id === exercise.id && s.setIndex === setIndex);
                                     if (idx >= 0) openKeypadAtIndex(idx);
                                   }}
-                                  activeOpacity={0.7}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={data.chrono ? `Chrono série ${setIndex + 1} : ${data.chrono}` : `Saisir le chrono de la série ${setIndex + 1}`}
                                 >
                                   <Feather
                                     name="clock"
                                     size={13}
-                                    color={data.chrono ? theme.colors.accent : theme.colors.textMuted}
-                                    style={{ marginRight: 6 }}
+                                    color={data.chrono ? theme.colors.sprintyBlue : theme.colors.textSecondary}
                                   />
                                   <Text style={[
                                     styles.athleteValueButtonText,
-                                    { color: data.chrono ? theme.colors.accent : theme.colors.textMuted },
-                                    !data.chrono && styles.athleteValuePlaceholder,
+                                    data.chrono ? styles.athleteValueFilledText : styles.athleteValuePlaceholder,
                                   ]}>
-                                    {data.chrono ? `${data.chrono} ${(set.distance || 0) >= 800 ? 'min' : 'sec'}` : '+ Chrono'}
+                                    {data.chrono ? `${data.chrono} ${(set.distance || 0) >= 800 ? 'min' : 's'}` : 'Chrono'}
                                   </Text>
-                                </TouchableOpacity>
+                                </PressableScale>
                               )}
                             </View>
                           );
@@ -793,8 +805,10 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                           // ===== COACH or non-data session: read-only =====
                           return (
                             <View key={set.id || setIndex} style={styles.setRow}>
-                              <Text style={[styles.setNumber, { color: theme.colors.textMuted }]}>{setIndex + 1}</Text>
-                              <Text style={[styles.setDetails, { color: theme.colors.text }]}>
+                              <View style={styles.setNumber}>
+                                <Text style={styles.setNumberText}>{setIndex + 1}</Text>
+                              </View>
+                              <Text style={styles.setDetails}>
                                 {setDetails.join(' · ')}
                               </Text>
                             </View>
@@ -804,9 +818,10 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                     </View>
 
                     {exercise.restBetweenExercises ? (
-                      <View style={{ marginTop: 6, paddingTop: 6, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.border }}>
-                        <Text style={{ fontSize: 11, color: theme.colors.textSecondary, fontWeight: '600' }}>
-                          Repos fin d'exercice : {exercise.restBetweenExercises >= 60 ? `${Math.floor(exercise.restBetweenExercises / 60)} min` : `${exercise.restBetweenExercises}s`}
+                      <View style={styles.exerciseRestRow}>
+                        <Feather name="pause-circle" size={12} color={theme.colors.textSecondary} />
+                        <Text style={styles.exerciseRestText}>
+                          Repos fin d’exercice : {exercise.restBetweenExercises >= 60 ? `${Math.floor(exercise.restBetweenExercises / 60)} min` : `${exercise.restBetweenExercises}s`}
                         </Text>
                       </View>
                     ) : null}
@@ -820,97 +835,65 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
 
         {/* ========== ATHLETE BOTTOM SECTION ========== */}
         {!isCoach && (
-          <View style={{ marginTop: 24, gap: 16 }}>
+          <View style={styles.athleteBottom}>
             {/* Comment / Notes */}
             <View>
-              <Text style={{ fontSize: 15, fontWeight: '700', marginBottom: 8, color: theme.colors.text }}>
-                Commentaires {sessionCategory === 'other' ? '' : '(Optionnel)'}
+              <Text style={styles.sectionLabel}>
+                {sessionCategory === 'other' ? 'Commentaire' : 'Commentaire (facultatif)'}
               </Text>
               <TextInput
-                style={{
-                  backgroundColor: theme.colors.surface,
-                  borderRadius: 12,
-                  padding: 16,
-                  color: theme.colors.text,
-                  borderWidth: 1,
-                  borderColor: theme.colors.border,
-                  minHeight: 80,
-                  textAlignVertical: 'top',
-                  fontSize: 15,
-                }}
+                style={styles.notesInput}
                 placeholder={
                   sessionCategory === 'other'
-                    ? "Comment s'est passée la séance ? Notes, ressentis..."
-                    : "Comment s'est passée la séance ?"
+                    ? 'Comment s’est passée la séance ? Notes, ressentis…'
+                    : 'Comment s’est passée la séance ?'
                 }
                 placeholderTextColor={theme.colors.textMuted}
+                selectionColor={theme.colors.sprintyBlue}
                 multiline
                 value={athleteNotes}
                 onChangeText={setAthleteNotes}
               />
             </View>
 
-            {/* Success Banner when just saved */}
-            {justSaved && (
-              <View style={{
-                backgroundColor: '#D1FAE5',
-                borderColor: '#6EE7B7',
-                borderWidth: 1,
-                borderRadius: 14,
-                paddingVertical: 12,
-                paddingHorizontal: 16,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-              }}>
-                <Feather name="check-circle" size={18} color="#047857" />
-                <Text style={{ fontSize: 14, fontWeight: '700', color: '#047857' }}>
-                  Données enregistrées avec succès !
-                </Text>
-              </View>
-            )}
-
             {/* Submit / Update button */}
-            <TouchableOpacity
-              style={[styles.submitBtn, {
-                backgroundColor: justSaved
-                  ? '#10B981'
-                  : isValidated
-                    ? theme.colors.accent
-                    : '#10B981',
-                opacity: isSubmitting ? 0.6 : 1,
-              }]}
+            <PressableScale
+              haptic="medium"
+              style={[
+                styles.submitBtn,
+                { backgroundColor: justSaved || !isValidated ? theme.colors.success : theme.colors.sprintyBlue },
+                isSubmitting && styles.submitBtnBusy,
+              ]}
               onPress={submitAthleteWorkout}
               disabled={isSubmitting}
-              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityState={{ busy: isSubmitting, disabled: isSubmitting }}
             >
               {isSubmitting ? (
-                <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+                <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
                 <Feather
                   name={justSaved ? 'check' : isValidated ? 'refresh-cw' : 'check-circle'}
                   size={19}
-                  color="#fff"
-                  style={{ marginRight: 8 }}
+                  color="#FFFFFF"
                 />
               )}
-              <Text style={styles.submitBtnText}>
+              <Text style={styles.submitBtnText} numberOfLines={1}>
                 {isSubmitting
-                  ? 'Mise à jour en cours...'
+                  ? 'Enregistrement…'
                   : justSaved
-                    ? 'Données à jour ✓'
+                    ? 'Données à jour'
                     : isValidated
-                      ? 'Mettre à jour mes chronos & données'
+                      ? 'Mettre à jour mes données'
                       : 'Valider la séance'}
               </Text>
-            </TouchableOpacity>
+            </PressableScale>
 
             {isValidated && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingBottom: 8 }}>
+              <View style={styles.validatedHint}>
                 <Feather name="check-circle" size={14} color={theme.colors.success} />
-                <Text style={{ fontSize: 13, color: theme.colors.success, fontWeight: '600' }}>
-                  Séance validée — tu peux modifier tes données à tout moment
+                <Text style={styles.validatedHintText}>
+                  Séance validée. Tu peux modifier tes données à tout moment.
                 </Text>
               </View>
             )}
@@ -919,16 +902,18 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
 
         {/* ========== COACH BOTTOM DELETE ACTION ========== */}
         {isCoach && (
-          <TouchableOpacity
+          <PressableScale
+            haptic="none"
             style={styles.coachDeleteFooterBtn}
             onPress={handleDelete}
-            activeOpacity={0.7}
+            accessibilityRole="button"
           >
-            <Feather name="trash-2" size={16} color="#DC2626" style={{ marginRight: 8 }} />
+            <Feather name="trash-2" size={16} color={theme.colors.error} />
             <Text style={styles.coachDeleteFooterText}>Supprimer cette séance</Text>
-          </TouchableOpacity>
+          </PressableScale>
         )}
         </ScrollView>
+        </KeyboardAvoidingView>
 
         {activeKeypad && (
           <AthleteValueKeypadModal
@@ -979,84 +964,132 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: theme.colors.backdrop,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 16,
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
   headerTitle: {
+    flex: 1,
+    textAlign: 'center',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '800',
+    letterSpacing: -0.3,
+    color: theme.colors.text,
   },
-  closeButtonPlaceholder: {
-    width: 40,
+  headerPlaceholder: {
+    width: 38,
   },
   scrollContent: {
-    padding: 24,
+    paddingHorizontal: 16,
+    paddingTop: 8,
     paddingBottom: 100,
   },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: theme.colors.textSecondary,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  // Title card
   titleContainer: {
-    padding: 22,
-    borderRadius: 22,
+    ...glassCard,
+    padding: 20,
     marginBottom: 16,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
   workoutName: {
+    flex: 1,
     fontSize: 24,
     fontWeight: '800',
     letterSpacing: -0.5,
-    marginBottom: 10,
+    color: theme.colors.text,
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    marginTop: 3,
+  },
+  statusPillDone: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+  },
+  statusPillTodo: {
+    backgroundColor: 'rgba(245, 158, 11, 0.14)',
+  },
+  statusPillText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 16,
+    marginTop: 12,
   },
   metaPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 12,
+    borderRadius: 10,
+    borderCurve: 'continuous',
+    backgroundColor: 'rgba(0, 105, 232, 0.08)',
   },
   metaPillText: {
     fontSize: 12,
     fontWeight: '700',
+    color: theme.colors.sprintyBlue,
   },
   actionsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginTop: 16,
+  },
+  actionBtnContainer: {
+    flex: 1,
   },
   actionBtn: {
-    flex: 1,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    gap: 6,
     borderRadius: 14,
-    backgroundColor: '#F1F5F9',
+    borderCurve: 'continuous',
+    backgroundColor: theme.colors.glassFill,
   },
   actionBtnText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#0F172A',
+    color: theme.colors.text,
   },
+  // Consignes
   consignesCard: {
-    padding: 18,
-    borderRadius: 22,
+    ...glassCard,
     marginBottom: 20,
     borderLeftWidth: 4,
-    borderLeftColor: '#0069E8',
+    borderLeftColor: theme.colors.sprintyBlue,
   },
   consignesHeader: {
     flexDirection: 'row',
@@ -1065,17 +1098,20 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   consignesCaption: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.8,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: theme.colors.sprintyBlue,
   },
   consignesBody: {
-    fontSize: 14,
+    fontSize: 15,
     lineHeight: 22,
-    fontWeight: '500',
+    color: theme.colors.text,
   },
+  // Rest day
   restDayCard: {
-    borderRadius: 22,
+    ...glassCard,
     padding: 32,
     alignItems: 'center',
     marginBottom: 24,
@@ -1087,10 +1123,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
+    backgroundColor: theme.colors.glassFill,
   },
   restDayTitle: {
     fontSize: 19,
     fontWeight: '800',
+    letterSpacing: -0.3,
+    color: theme.colors.text,
     marginBottom: 6,
   },
   restDaySubtitle: {
@@ -1098,196 +1137,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     paddingHorizontal: 12,
+    color: theme.colors.textSecondary,
   },
-  targetBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 10,
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(99, 102, 241, 0.08)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  targetBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  blocksContainer: {
-    gap: 32,
-  },
-  block: {
-    gap: 16,
-  },
-  blockHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 8,
-  },
-  blockNumber: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  blockNumberText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  blockName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    flexShrink: 1,
-  },
-  blockTargetBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginLeft: 'auto',
-  },
-  blockTargetBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  exerciseCard: {
-    padding: 20,
-    borderRadius: 22,
-    marginBottom: 8,
-  },
-  exerciseName: {
-    fontSize: 17,
-    fontWeight: '800',
-    marginBottom: 12,
-    color: '#0F172A',
-  },
-  exerciseNotes: {
-    fontSize: 13,
-    marginBottom: 14,
-    fontStyle: 'italic',
-  },
-  setsContainer: {
-    gap: 8,
-  },
-  setRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 4,
-  },
-  setNumber: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#F1F5F9',
-    textAlign: 'center',
-    textAlignVertical: 'center',
-    fontSize: 12,
-    fontWeight: '700',
-    overflow: 'hidden',
-    lineHeight: 22,
-  },
-  setDetails: {
-    fontSize: 14,
-    fontWeight: '600',
-    flex: 1,
-  },
-  // Athlete data entry styles
-  athleteSetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingBottom: 8,
-    marginBottom: 4,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    gap: 8,
-  },
-  athleteHeaderText: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-  },
-  athleteSetRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  athleteSetNum: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  athleteInput: {
-    borderRadius: 8,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  athleteValueButton: {
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  athleteValueButtonFilled: {
-    backgroundColor: 'rgba(99, 102, 241, 0.14)',
-    borderColor: 'rgba(99, 102, 241, 0.5)',
-  },
-  athleteValueButtonText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  athleteValuePlaceholder: {
-    fontWeight: '500',
-    opacity: 0.6,
-  },
-  repsToggle: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  submitBtn: {
-    padding: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  submitBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+  // Technical / competition
   technicalContainer: {
-    gap: 14,
+    gap: 12,
   },
   technicalSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 4,
+    marginBottom: 2,
+    paddingHorizontal: 4,
   },
   technicalIconBox: {
     width: 28,
@@ -1297,19 +1158,46 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   technicalSectionTitle: {
+    flex: 1,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: theme.colors.textSecondary,
   },
   technicalCard: {
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
+    ...glassCard,
+  },
+  competitionName: {
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+    color: theme.colors.text,
+    marginBottom: 12,
+  },
+  competitionInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  competitionInfoIcon: {
+    marginRight: 8,
+    marginTop: 2,
+  },
+  competitionInfoText: {
+    flex: 1,
+    fontSize: 15,
+    color: theme.colors.textSecondary,
+  },
+  competitionLink: {
+    flex: 1,
+    fontSize: 15,
+    color: theme.colors.sprintyBlue,
+    textDecorationLine: 'underline',
+  },
+  emptyInfoText: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
   },
   technicalCardTop: {
     flexDirection: 'row',
@@ -1323,7 +1211,8 @@ const styles = StyleSheet.create({
     gap: 5,
     paddingHorizontal: 9,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 10,
+    borderCurve: 'continuous',
   },
   technicalBadgeText: {
     fontSize: 12,
@@ -1332,34 +1221,287 @@ const styles = StyleSheet.create({
   technicalIndex: {
     fontSize: 12,
     fontWeight: '600',
+    color: theme.colors.textSecondary,
   },
   technicalNoteTitle: {
     fontSize: 15,
     fontWeight: '700',
+    color: theme.colors.text,
     marginBottom: 6,
   },
   technicalNoteContent: {
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 15,
+    lineHeight: 22,
+    color: theme.colors.text,
   },
-  coachDeleteFooterBtn: {
+  // Blocks & exercises
+  loadingBox: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  blocksContainer: {
+    gap: 28,
+  },
+  block: {
+    gap: 12,
+  },
+  blockHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 4,
+  },
+  blockNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.sprintyBlue,
+  },
+  blockNumberText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  blockName: {
+    fontSize: 15,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    color: theme.colors.text,
+    flexShrink: 1,
+  },
+  blockTargetBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderCurve: 'continuous',
+    marginLeft: 'auto',
+    backgroundColor: 'rgba(0, 105, 232, 0.1)',
+  },
+  blockTargetBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: theme.colors.sprintyBlue,
+  },
+  exerciseCard: {
+    ...glassCard,
+  },
+  exerciseName: {
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+    marginBottom: 10,
+    color: theme.colors.text,
+  },
+  targetBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 10,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(0, 105, 232, 0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderCurve: 'continuous',
+  },
+  targetBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.sprintyBlue,
+  },
+  exerciseNotes: {
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: 12,
+    fontStyle: 'italic',
+    color: theme.colors.textSecondary,
+  },
+  setsContainer: {
+    gap: 8,
+  },
+  setRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 4,
+  },
+  setNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: theme.colors.glassFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  setNumberText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+  },
+  setDetails: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.colors.text,
+    flex: 1,
+  },
+  exerciseRestRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.hairline,
+  },
+  exerciseRestText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+  },
+  // Athlete data entry
+  athleteSetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingBottom: 8,
+    marginBottom: 2,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.hairline,
+    gap: 8,
+  },
+  athleteHeaderText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: theme.colors.textMuted,
+  },
+  athleteSetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.hairline,
+  },
+  athleteSetNum: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.glassFill,
+  },
+  athleteSetNumText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  athleteObjective: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '500',
+    color: theme.colors.textSecondary,
+  },
+  athleteValueButton: {
+    minHeight: 40,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    borderWidth: 1,
+    borderColor: 'transparent',
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 5,
+    backgroundColor: theme.colors.glassFill,
+  },
+  athleteValueButtonFilled: {
+    backgroundColor: 'rgba(0, 105, 232, 0.1)',
+    borderColor: 'rgba(0, 105, 232, 0.3)',
+  },
+  athleteValueButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  athleteValueFilledText: {
+    color: theme.colors.sprintyBlue,
+  },
+  athleteValuePlaceholder: {
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+  },
+  athleteBottom: {
+    marginTop: 24,
+    gap: 16,
+  },
+  notesInput: {
+    minHeight: 96,
+    borderRadius: 14,
+    borderCurve: 'continuous',
+    backgroundColor: theme.colors.glassFill,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 12,
+    color: theme.colors.text,
+    fontSize: 15,
+    textAlignVertical: 'top',
+  },
+  submitBtn: {
+    height: 52,
+    borderRadius: 16,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+  submitBtnBusy: {
+    opacity: 0.7,
+  },
+  submitBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+    flexShrink: 1,
+  },
+  validatedHint: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 18,
-    backgroundColor: '#FEF2F2',
+    gap: 6,
+    paddingBottom: 8,
+    paddingHorizontal: 8,
+  },
+  validatedHintText: {
+    flexShrink: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.success,
+    textAlign: 'center',
+  },
+  coachDeleteFooterBtn: {
+    height: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 16,
+    borderCurve: 'continuous',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
     marginTop: 24,
     marginBottom: 20,
   },
   coachDeleteFooterText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
-    color: '#DC2626',
+    color: theme.colors.error,
   },
 });
-
-
-
-

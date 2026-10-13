@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Modal,
   ScrollView,
-  TouchableOpacity,
   TextInput,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -15,7 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
-import { useTheme } from '../../../core/theme';
+import { useTheme, theme } from '../../../core/theme';
 import * as Haptics from 'expo-haptics';
 import uuid from 'react-native-uuid';
 import { useAuthStore } from '../../../store/authStore';
@@ -32,7 +31,14 @@ import {
   MultiTarget,
 } from '../../../shared/components/MultiTargetSelectorModal';
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
-import { appAlert } from '../../../shared/feedback/appAlert';
+import { appAlert, toast, confirmAsync } from '../../../shared/feedback/appAlert';
+import { glassCard } from '../../../core/glass';
+import { PressableScale } from '../../../shared/components/PressableScale';
+import { IconButton } from '../../../shared/components/IconButton';
+import { Input } from '../../../shared/components/Input';
+import { Button } from '../../../shared/components/Button';
+import { EmptyState } from '../../../shared/components/EmptyState';
+import { SegmentedControl } from '../../../shared/components/SegmentedControl';
 
 export interface StrengthSetItem {
   id: string;
@@ -137,6 +143,17 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
   const [isManageLibraryVisible, setIsManageLibraryVisible] = useState(false);
   const [editingLibraryEx, setEditingLibraryEx] = useState<CoachExercise | null>(null);
   const [editingLibraryName, setEditingLibraryName] = useState('');
+
+  // Inline validation messages (shown under the related field instead of popups)
+  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [exerciseNameError, setExerciseNameError] = useState<string | null>(null);
+  const [setsError, setSetsError] = useState<string | null>(null);
+  const [libraryNameError, setLibraryNameError] = useState<string | null>(null);
+
+  const resetSheetErrors = () => {
+    setExerciseNameError(null);
+    setSetsError(null);
+  };
 
   const activeTeam = teams[0];
   const approvedMembers = useMemo(
@@ -341,6 +358,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
   // Open "Ajouter un exercice" sheet
   const handleOpenAddSheet = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    resetSheetErrors();
     setEditingId(null);
     setExerciseName('');
     setExerciseNameEn(undefined);
@@ -358,6 +376,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
 
   const handleStartEdit = (item: StrengthExerciseItem) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    resetSheetErrors();
     setEditingId(item.id);
     setExerciseName(item.name);
     setExerciseNameEn(item.name_en);
@@ -388,6 +407,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
     setExerciseName(ex.name);
     setExerciseNameEn(ex.name_en);
     setCatalogId(ex.id);
+    setExerciseNameError(null);
     // Reload library in case a new custom exercise was created
     if (ex.is_custom) {
       loadLibrary();
@@ -397,6 +417,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
   // Select quick chip from coach library
   const handleSelectFromLibraryChip = (ex: CoachExercise) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    resetSheetErrors();
     setEditingId(null);
     setExerciseName(ex.name);
     setExerciseNameEn(undefined);
@@ -428,13 +449,12 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
   // Save exercise to current session
   const handleSaveExerciseToSession = () => {
     const trimmed = exerciseName.trim();
-    if (!trimmed) {
-      appAlert('Exercice requis', "Veuillez choisir ou saisir le nom de l'exercice.");
-      return;
-    }
-
-    if (setsData.length === 0) {
-      appAlert('Séries requises', 'Veuillez renseigner au moins 1 série.');
+    const nameError = trimmed ? null : 'Choisis un exercice dans la base ou crée le tien.';
+    const setsMissing = setsData.length === 0 ? 'Ajoute au moins une série.' : null;
+    setExerciseNameError(nameError);
+    setSetsError(setsMissing);
+    if (nameError || setsMissing) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       return;
     }
 
@@ -486,6 +506,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
       };
       setSessionExercises((prev) => [...prev, newEx]);
     }
+    setSessionError(null);
 
     setIsExerciseSheetVisible(false);
   };
@@ -509,32 +530,32 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
   };
 
   // Coach Library Actions
-  const handleDeleteFromLibrary = (ex: CoachExercise) => {
-    appAlert(
-      'Supprimer de ma bibliothèque',
-      `Supprimer « ${ex.name} » de votre bibliothèque personnelle de musculation ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
-          onPress: async () => {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            await coachExerciseService.deleteExercise(ex.id);
-            loadLibrary();
-          },
-        },
-      ]
-    );
+  const handleDeleteFromLibrary = async (ex: CoachExercise) => {
+    const confirmed = await confirmAsync({
+      title: 'Supprimer de ta bibliothèque ?',
+      message: `« ${ex.name} » sera retiré de ta bibliothèque de musculation.`,
+      confirmText: 'Supprimer',
+      destructive: true,
+      icon: 'trash-2',
+    });
+    if (!confirmed) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    await coachExerciseService.deleteExercise(ex.id);
+    loadLibrary();
   };
 
   const handleStartEditLibraryEx = (ex: CoachExercise) => {
     setEditingLibraryEx(ex);
     setEditingLibraryName(ex.name);
+    setLibraryNameError(null);
   };
 
   const handleSaveLibraryEdit = async () => {
-    if (!editingLibraryEx || !editingLibraryName.trim()) return;
+    if (!editingLibraryEx) return;
+    if (!editingLibraryName.trim()) {
+      setLibraryNameError('Donne un nom à cet exercice.');
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     await coachExerciseService.updateExercise(editingLibraryEx.id, {
       name: editingLibraryName.trim(),
@@ -547,9 +568,11 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
   // Submit and assign workout to Supabase
   const handleSaveWorkout = async () => {
     if (sessionExercises.length === 0) {
-      appAlert('Séance vide', "Veuillez ajouter au moins un exercice avant d'enregistrer.");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      setSessionError('Ajoute au moins un exercice avant d’enregistrer.');
       return;
     }
+    setSessionError(null);
 
     if (!user?.id) return;
 
@@ -596,7 +619,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
       const payloadsToUpdate: any[] = [];
 
       if (!activeTeamId) {
-        appAlert('Erreur', 'Aucune équipe trouvée.');
+        appAlert('Aucune équipe', 'Crée ou rejoins une équipe pour programmer cette séance.');
         setIsSubmitting(false);
         return;
       }
@@ -604,7 +627,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
       if (approvedMembers.length === 0) {
         appAlert(
           'Aucun athlète',
-          "Aucun athlète validé n'a été trouvé dans votre équipe pour recevoir cette séance."
+          'Aucun athlète validé dans ton équipe ne peut recevoir cette séance.'
         );
         setIsSubmitting(false);
         return;
@@ -668,16 +691,19 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
       }
 
       if (payloadsToUpdate.length === 0) {
-        appAlert('Attention', 'Aucun athlète ne correspond aux ciblages sélectionnés.');
+        appAlert('Attention', 'Aucun athlète ne correspond aux ciblages choisis.');
         setIsSubmitting(false);
         return;
       }
 
       await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      appAlert(
-        'Séance enregistrée !',
-        `La séance a été programmée pour ${payloadsToUpdate.length} athlète(s) de votre équipe.`
+      // The first payload is the coach's master copy
+      const athleteCount = payloadsToUpdate.length - 1;
+      toast(
+        'success',
+        `Programmée pour ${athleteCount} athlète${athleteCount > 1 ? 's' : ''} de ton équipe.`,
+        'Séance enregistrée'
       );
 
       onSave();
@@ -686,11 +712,41 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
       console.error('Erreur enregistrement musculation:', err);
       appAlert(
         'Erreur',
-        err.message || "Impossible d'enregistrer la séance. Veuillez réessayer."
+        err.message || 'Impossible d’enregistrer la séance. Réessaie dans un instant.'
       );
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+
+  // Immutable updates of the sets table (never mutate objects shared with saved exercises)
+  const updateSetAt = (idx: number, patch: Partial<StrengthSetItem>) => {
+    setSetsData((prev) => prev.map((s, i) => (i === idx ? { ...s, ...patch } : s)));
+  };
+
+  const handleRemoveSetAt = (idx: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSetsData((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleAddSet = () => {
+    const lastSet = setsData[setsData.length - 1];
+    setSetsData([
+      ...setsData,
+      {
+        id: String(uuid.v4()),
+        reps: lastSet ? lastSet.reps : 10,
+        weight: lastSet ? lastSet.weight : 0,
+      },
+    ]);
+    setSetsError(null);
+  };
+
+  const closeLibrary = () => {
+    setIsManageLibraryVisible(false);
+    setEditingLibraryEx(null);
+    setLibraryNameError(null);
   };
 
   if (!visible) return null;
@@ -698,38 +754,41 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
       <FeedbackHost />
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={styles.container}>
         {/* ========================================================================= */}
         {/* HEADER                                                                    */}
         {/* ========================================================================= */}
-        <View style={[styles.header, { paddingTop: safeTop, borderBottomColor: theme.colors.border }]}>
-          <TouchableOpacity onPress={onClose} style={styles.iconBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Feather name="x" size={22} color={theme.colors.text} />
-          </TouchableOpacity>
+        <View style={[styles.header, { paddingTop: safeTop }]}>
+          <IconButton icon="x" onPress={onClose} accessibilityLabel="Fermer" />
 
           <View style={styles.headerTitleContainer}>
             <TextInput
-              style={[styles.headerTitleInput, { color: theme.colors.text }]}
+              style={styles.headerTitleInput}
               value={sessionTitle}
               onChangeText={setSessionTitle}
               placeholder="Séance Musculation"
               placeholderTextColor={theme.colors.textMuted}
+              selectionColor={theme.colors.sprintyBlue}
               maxLength={35}
+              accessibilityLabel="Titre de la séance"
             />
           </View>
 
-          <TouchableOpacity
-            style={[styles.saveHeaderBtn, { backgroundColor: theme.colors.accent }]}
+          <PressableScale
+            haptic="none"
             onPress={handleSaveWorkout}
             disabled={isSubmitting}
-            activeOpacity={0.8}
+            hitSlop={4}
+            accessibilityRole="button"
+            accessibilityLabel="Enregistrer la séance"
+            style={[styles.headerPill, isSubmitting && styles.headerPillBusy]}
           >
             {isSubmitting ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+              <ActivityIndicator size="small" color={theme.colors.surface} />
             ) : (
-              <Text style={styles.saveHeaderBtnText}>Enregistrer</Text>
+              <Text style={styles.headerPillText}>Enregistrer</Text>
             )}
-          </TouchableOpacity>
+          </PressableScale>
         </View>
 
         {/* ========================================================================= */}
@@ -739,16 +798,17 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
           style={styles.scroll}
           contentContainerStyle={[styles.scrollContent, { paddingBottom: safeBottom + 40 }]}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
         >
           {/* SECTION: CONSIGNES DE SÉANCE */}
-          <View style={[styles.sectionHeader, { marginTop: 16 }]}>
-            <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>CONSIGNES DE SÉANCE</Text>
-          </View>
-          <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, marginBottom: 8 }]}>
+          <Text style={[styles.sectionCaption, styles.sectionHeader]}>Consignes de séance</Text>
+          <View style={[styles.card, styles.notesCard]}>
             <TextInput
-              style={[styles.notesInput, { color: theme.colors.text }]}
-              placeholder="Ajouter une note ou des consignes pour cette séance..."
+              style={styles.notesInput}
+              placeholder="Ajoute une note ou des consignes pour cette séance…"
               placeholderTextColor={theme.colors.textMuted}
+              selectionColor={theme.colors.sprintyBlue}
               multiline
               value={sessionNotes}
               onChangeText={setSessionNotes}
@@ -757,168 +817,168 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
           </View>
 
           {/* SECTION: LISTE DES EXERCICES DE LA SÉANCE */}
-          <View style={[styles.sectionHeader, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
-            <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>
-              EXERCICES DE LA SÉANCE ({sessionExercises.length})
-            </Text>
-          </View>
+          <Text style={[styles.sectionCaption, styles.sectionHeader]}>
+            Exercices de la séance ({sessionExercises.length})
+          </Text>
 
           {sessionExercises.length === 0 ? (
-            <View style={[styles.emptyStateCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              <View style={[styles.emptyIconCircle, { backgroundColor: theme.colors.background }]}>
-                <Feather name="zap" size={42} color="#0069E8" />
-              </View>
-              <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Votre séance est vide, commencez à pousser !</Text>
-              <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary, marginBottom: 20 }]}>
-                Composez votre séance en piochant dans la base d'exercices ou votre bibliothèque coach.
-              </Text>
-              <TouchableOpacity
-                style={{ backgroundColor: '#0F172A', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center' }}
-                onPress={handleOpenAddSheet}
-              >
-                <Feather name="plus" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-                <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 15 }}>Ajouter un exercice</Text>
-              </TouchableOpacity>
+            <View style={[styles.card, styles.emptyCard, !!sessionError && styles.cardError]}>
+              <EmptyState
+                compact
+                icon="activity"
+                title="Ta séance est vide"
+                message="Pioche dans la base d’exercices ou dans ta bibliothèque pour composer ta séance."
+              />
             </View>
           ) : (
-            <View style={{ gap: 10, marginBottom: 12 }}>
-              {sessionExercises.map((item, index) => (
-                <View
-                  key={item.id}
-                  style={[styles.exerciseCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-                >
-                  <View style={styles.exerciseCardHeader}>
-                    <View style={styles.indexCircle}>
-                      <Text style={styles.indexText}>{index + 1}</Text>
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={[styles.exerciseName, { color: theme.colors.text }]}>{item.name}</Text>
-                      {item.name_en && (
-                        <Text style={[styles.exerciseNameEn, { color: theme.colors.textSecondary }]}>
-                          {item.name_en}
-                        </Text>
-                      )}
-                    </View>
+            <View style={styles.exerciseList}>
+              {sessionExercises.map((item, index) => {
+                const targetLabel = getTargetsLabel(item.targets);
+                const isFirst = index === 0;
+                const isLast = index === sessionExercises.length - 1;
+                return (
+                  <View key={item.id} style={[styles.card, styles.exerciseCard]}>
+                    <PressableScale
+                      haptic="none"
+                      activeScale={0.98}
+                      onPress={() => handleStartEdit(item)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Modifier ${item.name}`}
+                      style={styles.exerciseCardHeader}
+                    >
+                      <View style={styles.indexCircle}>
+                        <Text style={styles.indexText}>{index + 1}</Text>
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={styles.exerciseName}>{item.name}</Text>
+                        {!!item.name_en && <Text style={styles.exerciseNameEn}>{item.name_en}</Text>}
+                      </View>
 
-                    {/* Target tag if specific */}
-                    {(() => {
-                      const targetLabel = getTargetsLabel(item.targets);
-                      if (!targetLabel) return null;
-                      return (
-                        <View style={[styles.targetBadge, { backgroundColor: theme.colors.accent + '15' }]}>
-                          <Feather name="users" size={10} color={theme.colors.accent} style={{ marginRight: 4 }} />
-                          <Text style={[styles.targetBadgeText, { color: theme.colors.accent }]}>
+                      {/* Target tag if specific */}
+                      {!!targetLabel && (
+                        <View style={styles.targetBadge}>
+                          <Feather name="users" size={11} color={theme.colors.sprintyBlue} style={{ marginRight: 4 }} />
+                          <Text style={styles.targetBadgeText} numberOfLines={1}>
                             {targetLabel}
                           </Text>
                         </View>
-                      );
-                    })()}
-                  </View>
+                      )}
+                    </PressableScale>
 
-                  {/* Summary details row */}
-                  <View style={[styles.exerciseSummaryRow, { backgroundColor: theme.colors.background }]}>
-                    <View style={styles.summaryItem}>
-                      <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>SÉRIES</Text>
-                      <Text style={[styles.summaryValue, { color: theme.colors.text }]}>{item.setsCount}</Text>
-                    </View>
-                    <View style={styles.summaryDivider} />
-                    <View style={styles.summaryItem}>
-                      <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>REPS</Text>
-                      <Text style={[styles.summaryValue, { color: theme.colors.text }]}>{item.repsCount}</Text>
-                    </View>
-                    <View style={styles.summaryDivider} />
-                    <View style={styles.summaryItem}>
-                      <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>CHARGE</Text>
-                      <Text style={[styles.summaryValue, { color: theme.colors.accent }]}>
-                        {formatWeightDisplay(item.weight, item.weightType)}
-                      </Text>
-                    </View>
-                    <View style={styles.summaryDivider} />
-                    <View style={styles.summaryItem}>
-                      <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>REPOS</Text>
-                      <Text style={[styles.summaryValue, { color: theme.colors.text }]}>
-                        {formatRestDisplay(item.restSets)}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Card Actions */}
-                  <View style={[styles.exerciseActionsRow, { borderTopColor: theme.colors.border }]}>
-                    <View style={{ flexDirection: 'row', gap: 6 }}>
-                      <TouchableOpacity
-                        onPress={() => handleMoveExercise(index, 'up')}
-                        disabled={index === 0}
-                        style={[styles.smallActionBtn, index === 0 && { opacity: 0.3 }]}
-                      >
-                        <Feather name="chevron-up" size={18} color={theme.colors.text} />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => handleMoveExercise(index, 'down')}
-                        disabled={index === sessionExercises.length - 1}
-                        style={[styles.smallActionBtn, index === sessionExercises.length - 1 && { opacity: 0.3 }]}
-                      >
-                        <Feather name="chevron-down" size={18} color={theme.colors.text} />
-                      </TouchableOpacity>
+                    {/* Summary details row */}
+                    <View style={styles.exerciseSummaryRow}>
+                      <View style={styles.summaryItem}>
+                        <Text style={styles.summaryLabel}>Séries</Text>
+                        <Text style={styles.summaryValue}>{item.setsCount}</Text>
+                      </View>
+                      <View style={styles.summaryDivider} />
+                      <View style={styles.summaryItem}>
+                        <Text style={styles.summaryLabel}>Reps</Text>
+                        <Text style={styles.summaryValue}>{item.repsCount}</Text>
+                      </View>
+                      <View style={styles.summaryDivider} />
+                      <View style={styles.summaryItem}>
+                        <Text style={styles.summaryLabel}>Charge</Text>
+                        <Text style={[styles.summaryValue, { color: theme.colors.sprintyBlue }]} numberOfLines={1}>
+                          {formatWeightDisplay(item.weight, item.weightType)}
+                        </Text>
+                      </View>
+                      <View style={styles.summaryDivider} />
+                      <View style={styles.summaryItem}>
+                        <Text style={styles.summaryLabel}>Repos</Text>
+                        <Text style={styles.summaryValue}>{formatRestDisplay(item.restSets)}</Text>
+                      </View>
                     </View>
 
-                    <View style={{ flexDirection: 'row', gap: 12 }}>
-                      <TouchableOpacity onPress={() => handleStartEdit(item)} style={styles.smallActionBtn}>
-                        <Feather name="edit-2" size={16} color={theme.colors.textSecondary} />
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleRemoveExercise(item.id)} style={styles.smallActionBtn}>
-                        <Feather name="trash-2" size={16} color={theme.colors.error} />
-                      </TouchableOpacity>
+                    {/* Card Actions */}
+                    <View style={styles.exerciseActionsRow}>
+                      <View style={styles.actionsGroup}>
+                        <IconButton
+                          icon="chevron-up"
+                          tone="plain"
+                          size={34}
+                          color={theme.colors.text}
+                          disabled={isFirst}
+                          onPress={() => handleMoveExercise(index, 'up')}
+                          accessibilityLabel="Monter l’exercice"
+                        />
+                        <IconButton
+                          icon="chevron-down"
+                          tone="plain"
+                          size={34}
+                          color={theme.colors.text}
+                          disabled={isLast}
+                          onPress={() => handleMoveExercise(index, 'down')}
+                          accessibilityLabel="Descendre l’exercice"
+                        />
+                      </View>
+
+                      <View style={styles.actionsGroup}>
+                        <IconButton
+                          icon="edit-2"
+                          size={34}
+                          onPress={() => handleStartEdit(item)}
+                          accessibilityLabel={`Modifier ${item.name}`}
+                        />
+                        <IconButton
+                          icon="trash-2"
+                          tone="danger"
+                          size={34}
+                          onPress={() => handleRemoveExercise(item.id)}
+                          accessibilityLabel={`Retirer ${item.name}`}
+                        />
+                      </View>
                     </View>
                   </View>
-                </View>
-              ))}
+                );
+              })}
+            </View>
+          )}
+
+          {!!sessionError && (
+            <View style={styles.errorNotice}>
+              <Feather name="alert-circle" size={16} color={theme.colors.error} />
+              <Text style={styles.errorNoticeText}>{sessionError}</Text>
             </View>
           )}
 
           {/* ACTION BUTTONS GROUP */}
           <View style={styles.actionButtonsContainer}>
             {/* BOUTON PRINCIPAL : AJOUTER UN EXERCICE */}
-            <TouchableOpacity
-              style={[styles.primaryActionBtn, { backgroundColor: theme.colors.accent }]}
+            <PressableScale
+              haptic="none"
+              style={styles.primaryActionBtn}
               onPress={handleOpenAddSheet}
-              activeOpacity={0.8}
+              accessibilityRole="button"
             >
               <View style={styles.primaryActionIconBox}>
-                <Feather name="plus" size={17} color="#FFFFFF" />
+                <Feather name="plus" size={17} color={theme.colors.surface} />
               </View>
               <Text style={styles.primaryActionText}>Ajouter un exercice</Text>
-            </TouchableOpacity>
+            </PressableScale>
 
             {/* BOUTON SECONDAIRE : CHOISIR DEPUIS LA BIBLIOTHÈQUE */}
             {coachSavedExercises.length > 0 && (
-              <TouchableOpacity
-                style={[
-                  styles.secondaryActionBtn,
-                  { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-                ]}
+              <PressableScale
+                haptic="light"
+                style={[styles.card, styles.secondaryActionBtn]}
                 onPress={() => setIsManageLibraryVisible(true)}
-                activeOpacity={0.7}
+                accessibilityRole="button"
               >
-                <View style={[styles.secondaryActionIconBox, { backgroundColor: theme.colors.accent + '15' }]}>
-                  <Feather name="bookmark" size={15} color={theme.colors.accent} />
+                <View style={styles.secondaryActionIconBox}>
+                  <Feather name="bookmark" size={15} color={theme.colors.sprintyBlue} />
                 </View>
-                <Text style={[styles.secondaryActionText, { color: theme.colors.text }]}>
-                  Depuis ma bibliothèque
-                </Text>
-                <View style={[styles.countBadge, { backgroundColor: theme.colors.accent + '15' }]}>
-                  <Text style={[styles.countBadgeText, { color: theme.colors.accent }]}>
-                    {coachSavedExercises.length}
-                  </Text>
+                <Text style={styles.secondaryActionText}>Depuis ma bibliothèque</Text>
+                <View style={styles.countBadge}>
+                  <Text style={styles.countBadgeText}>{coachSavedExercises.length}</Text>
                 </View>
-              </TouchableOpacity>
+              </PressableScale>
             )}
           </View>
-
-          <View style={{ height: 40 }} />
         </ScrollView>
 
         {/* ========================================================================= */}
-        {/* SHEET MODAL: ADD / EDIT EXERCISE (Dedicated Apple Form Sheet)             */}
+        {/* SHEET MODAL: ADD / EDIT EXERCISE                                          */}
         {/* ========================================================================= */}
         <Modal
           visible={isExerciseSheetVisible}
@@ -928,215 +988,193 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
         >
           <FeedbackHost />
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-            <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+            <View style={styles.container}>
               {/* Sheet Header */}
-              <View style={[styles.header, { paddingTop: safeTop, borderBottomColor: theme.colors.border }]}>
-                <TouchableOpacity onPress={() => setIsExerciseSheetVisible(false)} style={styles.headerTextBtn}>
-                  <Text style={[styles.headerCancelText, { color: theme.colors.textSecondary }]}>Annuler</Text>
-                </TouchableOpacity>
+              <View style={[styles.header, { paddingTop: safeTop }]}>
+                <IconButton icon="x" onPress={() => setIsExerciseSheetVisible(false)} accessibilityLabel="Fermer" />
 
-                <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-                  {editingId ? "Modifier l'exercice" : 'Nouvel exercice'}
+                <Text style={styles.headerTitle} numberOfLines={1}>
+                  {editingId ? 'Modifier l’exercice' : 'Nouvel exercice'}
                 </Text>
 
-                {/* Right spacer to keep title centered, single action button at bottom */}
-                <View style={{ width: 60 }} />
+                <PressableScale
+                  haptic="none"
+                  onPress={handleSaveExerciseToSession}
+                  hitSlop={4}
+                  accessibilityRole="button"
+                  accessibilityLabel={editingId ? 'Valider l’exercice' : 'Ajouter l’exercice à la séance'}
+                  style={styles.headerPill}
+                >
+                  <Text style={styles.headerPillText}>{editingId ? 'Valider' : 'Ajouter'}</Text>
+                </PressableScale>
               </View>
 
-              <ScrollView 
-                style={styles.scroll} 
-                contentContainerStyle={[styles.scrollContent, { paddingBottom: 280 }]} 
+              <ScrollView
+                style={styles.scroll}
+                contentContainerStyle={[styles.scrollContent, { paddingBottom: 280 }]}
                 showsVerticalScrollIndicator={false}
                 keyboardDismissMode="interactive"
                 keyboardShouldPersistTaps="handled"
               >
                 {/* Field 1: Nom de l'exercice / Sélecteur Catalogue */}
-                <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>EXERCICE</Text>
-                </View>
-                <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                  <TouchableOpacity
-                    style={styles.exerciseSelectorRow}
-                    onPress={() => setIsSearchModalVisible(true)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={{ flex: 1, paddingRight: 10 }}>
-                      <Text style={[styles.selectorMainText, { color: exerciseName ? theme.colors.text : theme.colors.textMuted }]}>
-                        {exerciseName || "Sélectionner dans la base d'exercices..."}
-                      </Text>
-                      {exerciseNameEn ? (
-                        <Text style={[styles.selectorSubText, { color: theme.colors.textSecondary }]}>
-                          {exerciseNameEn}
-                        </Text>
-                      ) : null}
-                    </View>
-                    <View style={[styles.searchPill, { backgroundColor: theme.colors.accent + '15' }]}>
-                      <Feather name="search" size={14} color={theme.colors.accent} style={{ marginRight: 4 }} />
-                      <Text style={[styles.searchPillText, { color: theme.colors.accent }]}>
-                        {exerciseName ? 'Changer' : 'Choisir'}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                </View>
+                <Text style={[styles.sectionCaption, styles.sectionHeader]}>Exercice</Text>
+                <PressableScale
+                  haptic="selection"
+                  activeScale={0.98}
+                  style={[styles.card, styles.exerciseSelectorRow, !!exerciseNameError && styles.cardError]}
+                  onPress={() => setIsSearchModalVisible(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={exerciseName ? `Exercice : ${exerciseName}. Changer` : 'Choisir un exercice'}
+                >
+                  <View style={{ flex: 1, paddingRight: 10 }}>
+                    <Text
+                      style={[
+                        styles.selectorMainText,
+                        { color: exerciseName ? theme.colors.text : theme.colors.textMuted },
+                      ]}
+                    >
+                      {exerciseName || 'Choisis dans la base d’exercices…'}
+                    </Text>
+                    {!!exerciseNameEn && <Text style={styles.selectorSubText}>{exerciseNameEn}</Text>}
+                  </View>
+                  <View style={styles.searchPill}>
+                    <Feather name="search" size={14} color={theme.colors.sprintyBlue} style={{ marginRight: 4 }} />
+                    <Text style={styles.searchPillText}>{exerciseName ? 'Changer' : 'Choisir'}</Text>
+                  </View>
+                </PressableScale>
+                {!!exerciseNameError && <Text style={styles.fieldError}>{exerciseNameError}</Text>}
 
                 {/* Field 2: Cible (Optionnel) */}
-                <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>CIBLE (OPTIONNEL)</Text>
-                </View>
-                <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                  <TouchableOpacity
-                    style={[styles.settingRow, { borderBottomWidth: 0 }]}
-                    onPress={() => setIsMultiTargetModalVisible(true)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Cibler cet exercice</Text>
-                      <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 4 }}>
-                        {(exTargets.subgroups.length === 0 && exTargets.athletes.length === 0) 
-                          ? 'Tout le groupe' 
-                          : `${exTargets.subgroups.length} sous-groupe(s), ${exTargets.athletes.length} athlète(s)`}
-                      </Text>
-                    </View>
-                    <Feather name="chevron-right" size={20} color={theme.colors.textSecondary} />
-                  </TouchableOpacity>
-                </View>
+                <Text style={[styles.sectionCaption, styles.sectionHeader]}>Cible (optionnel)</Text>
+                <PressableScale
+                  haptic="selection"
+                  activeScale={0.98}
+                  style={[styles.card, styles.settingRow]}
+                  onPress={() => setIsMultiTargetModalVisible(true)}
+                  accessibilityRole="button"
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.settingLabel}>Cibler cet exercice</Text>
+                    <Text style={styles.settingHint}>
+                      {exTargets.subgroups.length === 0 && exTargets.athletes.length === 0
+                        ? 'Tout le groupe'
+                        : `${exTargets.subgroups.length} sous-groupe${exTargets.subgroups.length > 1 ? 's' : ''}, ${exTargets.athletes.length} athlète${exTargets.athletes.length > 1 ? 's' : ''}`}
+                    </Text>
+                  </View>
+                  <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />
+                </PressableScale>
 
                 {/* Field 3: Séries, Répétitions & Charge (Tableur) */}
-                <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>SÉRIES, RÉPÉTITIONS & CHARGE</Text>
-                </View>
-                <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, padding: 0, overflow: 'hidden' }]}>
+                <Text style={[styles.sectionCaption, styles.sectionHeader]}>Séries, répétitions et charge</Text>
+                <View style={[styles.card, styles.tableCard, !!setsError && styles.cardError]}>
                   {/* Mode de charge toggle at top */}
-                  <View style={[styles.settingRow, { paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: theme.colors.border }]}>
-                    <Text style={[styles.settingLabel, { color: theme.colors.text, fontSize: 13 }]}>Format de la charge</Text>
-                    <View style={{ flexDirection: 'row', backgroundColor: theme.colors.background, borderRadius: 8, padding: 2 }}>
-                      <TouchableOpacity
-                        style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: 6, backgroundColor: weightType === 'kg' ? theme.colors.accent : 'transparent' }}
-                        onPress={() => { Haptics.selectionAsync(); setWeightType('kg'); }}
-                      >
-                        <Text style={{ fontSize: 12, fontWeight: '600', color: weightType === 'kg' ? '#FFF' : theme.colors.textSecondary }}>kg</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: 6, backgroundColor: weightType === 'percent_1rm' ? theme.colors.accent : 'transparent' }}
-                        onPress={() => { Haptics.selectionAsync(); setWeightType('percent_1rm'); }}
-                      >
-                        <Text style={{ fontSize: 12, fontWeight: '600', color: weightType === 'percent_1rm' ? '#FFF' : theme.colors.textSecondary }}>%1RM</Text>
-                      </TouchableOpacity>
-                    </View>
+                  <View style={styles.tableTopRow}>
+                    <Text style={styles.settingLabel}>Format de la charge</Text>
+                    <SegmentedControl
+                      options={[
+                        { key: 'kg', label: 'kg' },
+                        { key: 'percent_1rm', label: '% 1RM' },
+                      ]}
+                      value={weightType}
+                      onChange={setWeightType}
+                      style={styles.weightTypeSegment}
+                    />
                   </View>
 
                   {/* Table Header */}
-                  <View style={{ flexDirection: 'row', paddingVertical: 8, paddingHorizontal: 14, backgroundColor: theme.colors.background + '50', borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
-                    <Text style={{ flex: 0.5, fontSize: 11, fontWeight: '700', color: theme.colors.textSecondary, textAlign: 'center' }}>SÉRIE</Text>
-                    <Text style={{ flex: 1, fontSize: 11, fontWeight: '700', color: theme.colors.textSecondary, textAlign: 'center' }}>REPS</Text>
-                    <Text style={{ flex: 1, fontSize: 11, fontWeight: '700', color: theme.colors.textSecondary, textAlign: 'center' }}>{weightType === 'kg' ? 'KG' : '%'}</Text>
-                    <View style={{ width: 30 }} />
+                  <View style={styles.tableHeaderRow}>
+                    <Text style={[styles.tableHeaderText, { flex: 0.5 }]}>Série</Text>
+                    <Text style={[styles.tableHeaderText, { flex: 1 }]}>Reps</Text>
+                    <Text style={[styles.tableHeaderText, { flex: 1 }]}>{weightType === 'kg' ? 'kg' : '% 1RM'}</Text>
+                    <View style={{ width: 36 }} />
                   </View>
 
                   {/* Table Rows */}
                   {setsData.map((set, idx) => (
-                    <View key={set.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 14, borderBottomWidth: idx < setsData.length - 1 ? 1 : 0, borderBottomColor: theme.colors.border }}>
+                    <View key={set.id} style={[styles.tableRow, idx < setsData.length - 1 && styles.rowBorder]}>
                       <View style={{ flex: 0.5, alignItems: 'center' }}>
-                        <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: theme.colors.background, alignItems: 'center', justifyContent: 'center' }}>
-                          <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.text }}>{idx + 1}</Text>
+                        <View style={styles.setIndexBubble}>
+                          <Text style={styles.setIndexText}>{idx + 1}</Text>
                         </View>
                       </View>
-                      <View style={{ flex: 1, paddingHorizontal: 8 }}>
+                      <View style={styles.tableCell}>
                         <TextInput
-                          style={{ backgroundColor: theme.colors.background, borderRadius: 6, paddingVertical: 6, textAlign: 'center', color: theme.colors.text, fontSize: 14, fontWeight: '600' }}
+                          style={styles.tableInput}
                           keyboardType="number-pad"
                           value={String(set.reps || '')}
-                          onChangeText={(val) => {
-                            const newSets = [...setsData];
-                            newSets[idx].reps = parseInt(val) || 0;
-                            setSetsData(newSets);
-                          }}
+                          placeholder="0"
+                          placeholderTextColor={theme.colors.textMuted}
+                          selectionColor={theme.colors.sprintyBlue}
+                          accessibilityLabel={`Répétitions de la série ${idx + 1}`}
+                          onChangeText={(val) => updateSetAt(idx, { reps: parseInt(val) || 0 })}
                         />
                       </View>
-                      <View style={{ flex: 1, paddingHorizontal: 8 }}>
+                      <View style={styles.tableCell}>
                         <TextInput
-                          style={{ backgroundColor: theme.colors.background, borderRadius: 6, paddingVertical: 6, textAlign: 'center', color: theme.colors.text, fontSize: 14, fontWeight: '600' }}
+                          style={styles.tableInput}
                           keyboardType="decimal-pad"
                           value={set.weight ? String(set.weight) : ''}
                           placeholder="0"
                           placeholderTextColor={theme.colors.textMuted}
-                          onChangeText={(val) => {
-                            const newSets = [...setsData];
-                            newSets[idx].weight = parseFloat(val.replace(',', '.')) || 0;
-                            setSetsData(newSets);
-                          }}
+                          selectionColor={theme.colors.sprintyBlue}
+                          accessibilityLabel={`Charge de la série ${idx + 1}`}
+                          onChangeText={(val) => updateSetAt(idx, { weight: parseFloat(val.replace(',', '.')) || 0 })}
                         />
                       </View>
-                      <TouchableOpacity
-                        style={{ width: 30, alignItems: 'center' }}
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          setSetsData(setsData.filter((_, i) => i !== idx));
-                        }}
-                      >
-                        <Feather name="x" size={16} color={theme.colors.textMuted} />
-                      </TouchableOpacity>
+                      <IconButton
+                        icon="x"
+                        tone="plain"
+                        size={32}
+                        color={theme.colors.textMuted}
+                        onPress={() => handleRemoveSetAt(idx)}
+                        accessibilityLabel={`Supprimer la série ${idx + 1}`}
+                        style={{ marginLeft: 4 }}
+                      />
                     </View>
                   ))}
 
                   {/* Add Row Button */}
-                  <TouchableOpacity
-                    style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderTopWidth: setsData.length > 0 ? 1 : 0, borderTopColor: theme.colors.border, backgroundColor: theme.colors.surface }}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      const lastSet = setsData[setsData.length - 1];
-                      setSetsData([...setsData, {
-                        id: String(uuid.v4()),
-                        reps: lastSet ? lastSet.reps : 10,
-                        weight: lastSet ? lastSet.weight : 0,
-                      }]);
-                    }}
+                  <PressableScale
+                    haptic="light"
+                    activeScale={0.98}
+                    style={[styles.addSetBtn, setsData.length > 0 && styles.addSetBtnBorder]}
+                    onPress={handleAddSet}
+                    accessibilityRole="button"
                   >
-                    <Feather name="plus" size={16} color={theme.colors.accent} />
-                    <Text style={{ marginLeft: 6, fontSize: 13, fontWeight: '600', color: theme.colors.accent }}>Ajouter une série</Text>
-                  </TouchableOpacity>
+                    <Feather name="plus" size={16} color={theme.colors.sprintyBlue} />
+                    <Text style={styles.addSetText}>Ajouter une série</Text>
+                  </PressableScale>
                 </View>
+                {!!setsError && <Text style={styles.fieldError}>{setsError}</Text>}
 
                 {/* Field 5: Temps de Repos */}
-                <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>RÉCUPÉRATION</Text>
-                </View>
-                <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                  <TouchableOpacity
-                    style={styles.settingRow}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setIsRestPickerVisible(true);
-                    }}
-                    activeOpacity={0.6}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Repos entre les séries</Text>
-                      <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>
-                        Temps alloué pour récupérer entre chaque série
-                      </Text>
-                    </View>
-                    <View style={styles.settingRight}>
-                      <Text style={[styles.settingValueText, { color: theme.colors.accent }]}>
-                        {formatRestDisplay(restSets)}
-                      </Text>
-                      <Feather name="chevron-right" size={16} color={theme.colors.textMuted} />
-                    </View>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Bottom Add Action Button (Single button, no header duplicate) */}
-                <TouchableOpacity
-                  style={[styles.submitSheetBtn, { backgroundColor: theme.colors.accent }]}
-                  onPress={handleSaveExerciseToSession}
-                  activeOpacity={0.8}
+                <Text style={[styles.sectionCaption, styles.sectionHeader]}>Récupération</Text>
+                <PressableScale
+                  haptic="none"
+                  activeScale={0.98}
+                  style={[styles.card, styles.settingRow]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setIsRestPickerVisible(true);
+                  }}
+                  accessibilityRole="button"
                 >
-                  <Text style={styles.submitSheetBtnText}>
-                    {editingId ? "Mettre à jour l'exercice" : 'Ajouter à la séance'}
-                  </Text>
-                </TouchableOpacity>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.settingLabel}>Repos entre les séries</Text>
+                    <Text style={styles.settingHint}>Temps de récupération entre chaque série</Text>
+                  </View>
+                  <View style={styles.settingRight}>
+                    <Text style={styles.settingValueText}>{formatRestDisplay(restSets)}</Text>
+                    <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />
+                  </View>
+                </PressableScale>
 
-                <View style={{ height: 40 }} />
+                {/* Bottom action, mirrors the header pill for long tables */}
+                <Button
+                  title={editingId ? 'Mettre à jour l’exercice' : 'Ajouter à la séance'}
+                  onPress={handleSaveExerciseToSession}
+                  style={styles.submitSheetBtn}
+                />
               </ScrollView>
             </View>
           </KeyboardAvoidingView>
@@ -1166,104 +1204,115 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
           visible={isManageLibraryVisible}
           animationType="slide"
           presentationStyle="formSheet"
-          onRequestClose={() => setIsManageLibraryVisible(false)}
+          onRequestClose={closeLibrary}
         >
           <FeedbackHost />
-          <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-            <View style={[styles.header, { paddingTop: safeTop, borderBottomColor: theme.colors.border }]}>
-              <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Ma bibliothèque de musculation</Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setIsManageLibraryVisible(false);
-                  setEditingLibraryEx(null);
-                }}
-                style={styles.headerTextBtn}
-              >
-                <Text style={[styles.headerCancelText, { color: theme.colors.accent }]}>Fermer</Text>
-              </TouchableOpacity>
+          <View style={styles.container}>
+            <View style={[styles.header, { paddingTop: safeTop }]}>
+              <IconButton icon="x" onPress={closeLibrary} accessibilityLabel="Fermer" />
+              <Text style={styles.headerTitle} numberOfLines={1}>
+                Ma bibliothèque
+              </Text>
+              <View style={styles.headerSpacer} />
             </View>
 
-            <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+            <ScrollView
+              style={styles.scroll}
+              contentContainerStyle={[styles.scrollContent, { paddingBottom: safeBottom + 24 }]}
+              keyboardShouldPersistTaps="handled"
+            >
               {editingLibraryEx && (
-                <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, marginBottom: 16 }]}>
-                  <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary, marginBottom: 8 }]}>RENOMMER</Text>
-                  <TextInput
-                    style={[styles.sheetInput, { color: theme.colors.text, marginBottom: 12 }]}
+                <View style={[styles.card, { marginTop: 16 }]}>
+                  <Input
+                    label="Renommer l’exercice"
                     value={editingLibraryName}
-                    onChangeText={setEditingLibraryName}
+                    onChangeText={(t) => {
+                      setEditingLibraryName(t);
+                      if (libraryNameError) setLibraryNameError(null);
+                    }}
+                    error={libraryNameError || undefined}
+                    autoFocus
+                    returnKeyType="done"
+                    onSubmitEditing={handleSaveLibraryEdit}
+                    containerStyle={{ marginBottom: 12 }}
                   />
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <TouchableOpacity
-                      style={[styles.headerSaveBtn, { backgroundColor: theme.colors.accent, flex: 1 }]}
-                      onPress={handleSaveLibraryEdit}
-                    >
-                      <Text style={styles.headerSaveBtnText}>Enregistrer</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.headerSaveBtn, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}
-                      onPress={() => setEditingLibraryEx(null)}
-                    >
-                      <Text style={[styles.headerSaveBtnText, { color: theme.colors.text }]}>Annuler</Text>
-                    </TouchableOpacity>
+                  <View style={styles.renameActions}>
+                    <Button
+                      title="Annuler"
+                      variant="secondary"
+                      onPress={() => {
+                        setEditingLibraryEx(null);
+                        setLibraryNameError(null);
+                      }}
+                      style={styles.renameBtn}
+                    />
+                    <Button title="Enregistrer" onPress={handleSaveLibraryEdit} style={styles.renameBtn} />
                   </View>
                 </View>
               )}
 
               {coachSavedExercises.length === 0 ? (
-                <Text style={[styles.emptySubtitle, { color: theme.colors.textMuted, textAlign: 'center', marginTop: 40 }]}>
-                  Aucun exercice personnalisé dans votre bibliothèque.
-                </Text>
+                <EmptyState
+                  icon="bookmark"
+                  title="Ta bibliothèque est vide"
+                  message="Crée un exercice depuis la recherche pour le retrouver ici."
+                />
               ) : (
                 <>
-                  <View style={{ marginBottom: 12, marginHorizontal: 4 }}>
-                    <Text style={{ fontSize: 13, color: theme.colors.textSecondary, fontWeight: '500' }}>
-                      Touchez un exercice pour l'ajouter à votre séance :
-                    </Text>
-                  </View>
-                  <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                  <Text style={[styles.sectionCaption, styles.sectionHeader]}>
+                    Touche un exercice pour l’ajouter
+                  </Text>
+                  <View style={[styles.card, styles.listCard]}>
                     {coachSavedExercises.map((ex, idx) => {
                       const isLast = idx === coachSavedExercises.length - 1;
+                      const pick = () => {
+                        handleSelectFromLibraryChip(ex);
+                        setIsManageLibraryVisible(false);
+                      };
                       return (
-                        <View
-                          key={ex.id}
-                          style={[
-                            styles.libraryManageRow,
-                            !isLast && [styles.rowBorder, { borderBottomColor: theme.colors.border }],
-                          ]}
-                        >
-                          <TouchableOpacity
-                            style={{ flex: 1 }}
-                            onPress={() => {
-                              handleSelectFromLibraryChip(ex);
-                              setIsManageLibraryVisible(false);
-                            }}
-                            activeOpacity={0.7}
+                        <View key={ex.id} style={[styles.libraryManageRow, !isLast && styles.rowBorder]}>
+                          <PressableScale
+                            haptic="none"
+                            activeScale={0.98}
+                            containerStyle={{ flex: 1 }}
+                            style={styles.libraryManageBody}
+                            onPress={pick}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Ajouter ${ex.name}`}
                           >
-                            <Text style={[styles.libraryManageName, { color: theme.colors.text }]}>{ex.name}</Text>
-                            <Text style={[styles.libraryManageSub, { color: theme.colors.textSecondary }]}>
-                              {ex.default_sets || 4} séries • {ex.default_reps || 10} reps
+                            <Text style={styles.libraryManageName}>{ex.name}</Text>
+                            <Text style={styles.libraryManageSub}>
+                              {ex.default_sets || 4} séries · {ex.default_reps || 10} reps
                             </Text>
-                          </TouchableOpacity>
+                          </PressableScale>
 
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                            <TouchableOpacity
-                              style={[styles.libraryPickRowBtn, { backgroundColor: theme.colors.accent + '15' }]}
-                              onPress={() => {
-                                handleSelectFromLibraryChip(ex);
-                                setIsManageLibraryVisible(false);
-                              }}
-                              activeOpacity={0.7}
+                          <View style={styles.actionsGroup}>
+                            <PressableScale
+                              haptic="none"
+                              hitSlop={6}
+                              style={styles.libraryPickRowBtn}
+                              onPress={pick}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Choisir ${ex.name}`}
                             >
-                              <Feather name="plus" size={13} color={theme.colors.accent} style={{ marginRight: 4 }} />
-                              <Text style={[styles.libraryPickRowText, { color: theme.colors.accent }]}>Choisir</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity onPress={() => handleStartEditLibraryEx(ex)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                              <Feather name="edit-2" size={16} color={theme.colors.textSecondary} />
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={() => handleDeleteFromLibrary(ex)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                              <Feather name="trash-2" size={16} color={theme.colors.error} />
-                            </TouchableOpacity>
+                              <Feather name="plus" size={13} color={theme.colors.sprintyBlue} style={{ marginRight: 4 }} />
+                              <Text style={styles.libraryPickRowText}>Choisir</Text>
+                            </PressableScale>
+                            <IconButton
+                              icon="edit-2"
+                              tone="plain"
+                              size={34}
+                              onPress={() => handleStartEditLibraryEx(ex)}
+                              accessibilityLabel={`Renommer ${ex.name}`}
+                            />
+                            <IconButton
+                              icon="trash-2"
+                              tone="plain"
+                              size={34}
+                              color={theme.colors.error}
+                              onPress={() => handleDeleteFromLibrary(ex)}
+                              accessibilityLabel={`Supprimer ${ex.name}`}
+                            />
                           </View>
                         </View>
                       );
@@ -1275,21 +1324,25 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
           </View>
         </Modal>
       </View>
-    
-        <MultiTargetSelectorModal
-          visible={isMultiTargetModalVisible}
-          onClose={() => setIsMultiTargetModalVisible(false)}
-          onSave={setExTargets}
-          initialTarget={exTargets}
-          title="Cibler l'exercice"
-        />
-      </Modal>
+
+      <MultiTargetSelectorModal
+        visible={isMultiTargetModalVisible}
+        onClose={() => setIsMultiTargetModalVisible(false)}
+        onSave={setExTargets}
+        initialTarget={exTargets}
+        title="Cibler l’exercice"
+      />
+    </Modal>
   );
 };
+
+const BLUE_TINT = 'rgba(0, 105, 232, 0.1)';
+const RED_TINT = 'rgba(239, 68, 68, 0.1)';
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: theme.colors.backdrop,
   },
   header: {
     flexDirection: 'row',
@@ -1298,185 +1351,174 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderBottomColor: theme.colors.hairline,
   },
   headerTitleContainer: {
     flex: 1,
     marginHorizontal: 8,
   },
   headerTitleInput: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.4,
     textAlign: 'center',
     paddingVertical: 4,
+    color: theme.colors.text,
   },
   headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    flex: 1,
+    marginHorizontal: 8,
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.4,
     textAlign: 'center',
+    color: theme.colors.text,
   },
-  saveHeaderBtn: {
+  headerSpacer: {
+    width: 38,
+  },
+  headerPill: {
+    minWidth: 76,
+    height: 36,
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 18,
+    backgroundColor: theme.colors.sprintyBlue,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  saveHeaderBtnText: {
-    color: '#FFF',
-    fontSize: 13,
-    fontWeight: '700',
+  headerPillBusy: {
+    opacity: 0.8,
   },
-  headerTextBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-  },
-  headerCancelText: {
-    fontSize: 16,
-    fontWeight: '500',
+  headerPillText: {
+    color: theme.colors.surface,
+    fontSize: 14,
+    fontWeight: '800',
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
     padding: 16,
+    paddingTop: 4,
   },
   sectionHeader: {
-    marginTop: 16,
+    marginTop: 20,
     marginBottom: 8,
     marginLeft: 4,
   },
   sectionCaption: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
-    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    color: theme.colors.textSecondary,
   },
-  groupedCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 14,
+  card: {
+    ...glassCard,
   },
-  segmentContainer: {
-    flexDirection: 'row',
-    borderRadius: 10,
-    padding: 3,
+  cardError: {
+    borderColor: 'rgba(239, 68, 68, 0.45)',
   },
-  segmentBtn: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  segmentBtnActive: {
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  segmentBtnText: {
-    fontSize: 13,
-  },
-  subScroll: {
-    marginTop: 8,
-  },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginRight: 8,
-  },
-  chipText: {
+  fieldError: {
     fontSize: 13,
     fontWeight: '600',
+    color: theme.colors.error,
+    marginTop: 6,
+    marginLeft: 4,
+  },
+  errorNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: RED_TINT,
+    borderRadius: 14,
+    borderCurve: 'continuous',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginTop: 12,
+  },
+  errorNoticeText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.error,
+  },
+  notesCard: {
+    padding: 0,
   },
   notesInput: {
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 15,
-    minHeight: 80,
-    lineHeight: 20,
+    minHeight: 88,
+    lineHeight: 21,
+    color: theme.colors.text,
   },
-  emptyHint: {
-    fontSize: 12,
-    textAlign: 'center',
-    paddingVertical: 8,
+  emptyCard: {
+    padding: 0,
   },
-  emptyStateCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 24,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  emptyIconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    textAlign: 'center',
-    lineHeight: 18,
+  exerciseList: {
+    gap: 12,
   },
   exerciseCard: {
-    borderRadius: 16,
-    borderWidth: 1,
+    padding: 0,
     overflow: 'hidden',
   },
   exerciseCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 10,
   },
   indexCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#00000010',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: BLUE_TINT,
     alignItems: 'center',
     justifyContent: 'center',
   },
   indexText: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#888',
+    color: theme.colors.sprintyBlue,
   },
   exerciseName: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: -0.2,
+    color: theme.colors.text,
   },
   exerciseNameEn: {
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 2,
-    fontStyle: 'italic',
+    color: theme.colors.textSecondary,
   },
   targetBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    maxWidth: 120,
+    marginLeft: 8,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 10,
+    backgroundColor: BLUE_TINT,
   },
   targetBadgeText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
+    color: theme.colors.sprintyBlue,
   },
   exerciseSummaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginHorizontal: 12,
     paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 6,
+    borderRadius: 14,
+    borderCurve: 'continuous',
+    backgroundColor: theme.colors.glassFill,
   },
   summaryItem: {
     flex: 1,
@@ -1486,125 +1528,77 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     marginBottom: 2,
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: theme.colors.textSecondary,
   },
   summaryValue: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+    color: theme.colors.text,
   },
   summaryDivider: {
     width: StyleSheet.hairlineWidth,
-    height: 20,
-    backgroundColor: '#88888830',
+    height: 22,
+    backgroundColor: theme.colors.hairline,
   },
   exerciseActionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  smallActionBtn: {
-    padding: 6,
-  },
-  addExerciseMainBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    marginBottom: 24,
-    gap: 10,
-  },
-  addIconCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addExerciseMainText: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  librarySection: {
-    marginTop: 8,
-  },
-  libraryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-    marginLeft: 4,
-  },
-  libraryTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-  },
-  manageLibraryBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  libraryScroll: {
-    flexDirection: 'row',
-  },
-  libraryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 14,
-    borderWidth: 1,
-    marginRight: 8,
   },
-  libraryChipText: {
-    fontSize: 13,
-    fontWeight: '600',
+  actionsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   exerciseSelectorRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 6,
+    minHeight: 64,
   },
   selectorMainText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   selectorSubText: {
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 2,
-    fontStyle: 'italic',
+    color: theme.colors.textSecondary,
   },
   searchPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    height: 34,
     borderRadius: 12,
+    borderCurve: 'continuous',
+    backgroundColor: BLUE_TINT,
   },
   searchPillText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
-  },
-  sheetInput: {
-    fontSize: 16,
-    fontWeight: '600',
-    paddingVertical: 6,
+    color: theme.colors.sprintyBlue,
   },
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    minHeight: 64,
   },
   settingLabel: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
+    color: theme.colors.text,
+  },
+  settingHint: {
+    fontSize: 13,
+    marginTop: 2,
+    color: theme.colors.textSecondary,
   },
   settingRight: {
     flexDirection: 'row',
@@ -1613,127 +1607,147 @@ const styles = StyleSheet.create({
   },
   settingValueText: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
+    color: theme.colors.sprintyBlue,
   },
-  rowDivider: {
-    height: StyleSheet.hairlineWidth,
-    marginVertical: 8,
+  tableCard: {
+    padding: 0,
+    overflow: 'hidden',
   },
-  stepperContainer: {
+  tableTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.hairline,
   },
-  stepperActionBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+  weightTypeSegment: {
+    width: 150,
+  },
+  tableHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: theme.colors.glassFill,
+  },
+  tableHeaderText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    textAlign: 'center',
+    color: theme.colors.textSecondary,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  tableCell: {
+    flex: 1,
+    paddingHorizontal: 6,
+  },
+  tableInput: {
+    height: 40,
+    borderRadius: 10,
+    borderCurve: 'continuous',
+    backgroundColor: theme.colors.glassFill,
+    textAlign: 'center',
+    color: theme.colors.text,
+    fontSize: 16,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+    paddingVertical: 0,
+  },
+  setIndexBubble: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: theme.colors.glassFill,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepperNumberText: {
-    fontSize: 16,
+  setIndexText: {
+    fontSize: 12,
     fontWeight: '800',
-    minWidth: 32,
-    textAlign: 'center',
+    color: theme.colors.text,
   },
-  stairsModeWrapper: {
-    flexDirection: 'row',
-    borderRadius: 10,
-    padding: 3,
-    backgroundColor: '#00000010',
-  },
-  stairsPillBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  stairsPillActive: {
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  stairsPillText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  weightInputContainer: {
+  addSetBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
+    minHeight: 48,
   },
-  weightDetailedInput: {
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    fontSize: 16,
-    fontWeight: '700',
-    minWidth: 64,
-    textAlign: 'center',
+  addSetBtnBorder: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.hairline,
   },
-  weightSuffixText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  submitSheetBtn: {
-    marginTop: 24,
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  submitSheetBtnText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  headerSaveBtn: {
-    paddingVertical: 10,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  headerSaveBtnText: {
-    color: '#FFF',
+  addSetText: {
+    marginLeft: 6,
     fontSize: 14,
     fontWeight: '700',
+    color: theme.colors.sprintyBlue,
+  },
+  submitSheetBtn: {
+    marginTop: 28,
+  },
+  listCard: {
+    paddingVertical: 0,
   },
   libraryManageRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    minHeight: 60,
+  },
+  libraryManageBody: {
     paddingVertical: 12,
+    paddingRight: 8,
   },
   libraryManageName: {
     fontSize: 15,
     fontWeight: '600',
+    color: theme.colors.text,
   },
   libraryManageSub: {
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 2,
+    color: theme.colors.textSecondary,
   },
   rowBorder: {
     borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.hairline,
+  },
+  renameActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  renameBtn: {
+    flex: 1,
   },
   actionButtonsContainer: {
     gap: 10,
-    marginTop: 4,
-    marginBottom: 8,
+    marginTop: 16,
     width: '100%',
   },
   primaryActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    height: 52,
     paddingHorizontal: 20,
     borderRadius: 16,
-    width: '100%',
+    borderCurve: 'continuous',
+    backgroundColor: theme.colors.sprintyBlue,
     gap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowColor: theme.colors.sprintyBlue,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
     elevation: 3,
   },
   primaryActionIconBox: {
@@ -1745,50 +1759,55 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   primaryActionText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
+    color: theme.colors.surface,
+    fontSize: 16,
+    fontWeight: '800',
   },
   secondaryActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 13,
-    paddingHorizontal: 16,
+    minHeight: 52,
+    paddingVertical: 12,
     borderRadius: 16,
-    borderWidth: 1,
-    width: '100%',
     gap: 8,
   },
   secondaryActionIconBox: {
     width: 26,
     height: 26,
     borderRadius: 13,
+    backgroundColor: BLUE_TINT,
     alignItems: 'center',
     justifyContent: 'center',
   },
   secondaryActionText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
+    color: theme.colors.text,
   },
   countBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
+    backgroundColor: BLUE_TINT,
   },
   countBadgeText: {
     fontSize: 12,
     fontWeight: '800',
+    color: theme.colors.sprintyBlue,
   },
   libraryPickRowBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    height: 32,
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
+    borderRadius: 10,
+    borderCurve: 'continuous',
+    backgroundColor: BLUE_TINT,
   },
   libraryPickRowText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
+    color: theme.colors.sprintyBlue,
   },
 });

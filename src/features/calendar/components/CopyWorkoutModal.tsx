@@ -4,18 +4,19 @@ import {
   Text,
   StyleSheet,
   Modal,
-  TouchableOpacity,
-  ActivityIndicator,
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '../../../core/theme';
 import { workoutService } from '../../../services/workoutService';
 import { useSprintyStore } from '../../../store/sprintyStore';
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
+import { glassCard } from '../../../core/glass';
+import { IconButton } from '../../../shared/components/IconButton';
+import { PressableScale } from '../../../shared/components/PressableScale';
+import { Button } from '../../../shared/components/Button';
 
 interface CopyWorkoutModalProps {
   visible: boolean;
@@ -127,63 +128,68 @@ export const CopyWorkoutModal: React.FC<CopyWorkoutModalProps> = ({
   const styles = StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.backdrop,
     },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 16,
-      paddingTop: Platform.OS === 'ios' ? 16 : 24,
-      paddingBottom: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border,
-    },
-    closeButton: {
-      padding: 8,
+      paddingTop: Platform.OS === 'ios' ? 14 : 20,
+      paddingBottom: 12,
     },
     headerTitle: {
+      flex: 1,
+      textAlign: 'center',
       fontSize: 18,
-      fontWeight: '600',
+      fontWeight: '800',
+      letterSpacing: -0.3,
       color: theme.colors.text,
     },
     rightPlaceholder: {
-      width: 40,
+      width: 38,
     },
     content: {
       flex: 1,
       padding: 16,
     },
+    subtitle: {
+      fontSize: 15,
+      lineHeight: 21,
+      color: theme.colors.textSecondary,
+      marginBottom: 16,
+      paddingHorizontal: 4,
+    },
+    calendarCard: {
+      ...glassCard,
+    },
     monthSelector: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginBottom: 24,
-    },
-    monthSelectorBtn: {
-      padding: 8,
-      borderRadius: 8,
-      backgroundColor: theme.colors.surface,
+      marginBottom: 16,
     },
     monthTitle: {
-      fontSize: 16,
-      fontWeight: '600',
+      fontSize: 17,
+      fontWeight: '800',
+      letterSpacing: -0.3,
       color: theme.colors.text,
       textTransform: 'capitalize',
     },
     weekDays: {
       flexDirection: 'row',
-      marginBottom: 8,
+      marginBottom: 4,
     },
     weekDayCell: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      height: 30,
+      height: 28,
     },
     weekDayText: {
       fontSize: 12,
-      fontWeight: '500',
+      fontWeight: '700',
+      letterSpacing: 0.6,
       color: theme.colors.textSecondary,
     },
     calendarGrid: {
@@ -193,50 +199,44 @@ export const CopyWorkoutModal: React.FC<CopyWorkoutModalProps> = ({
     dayCellContainer: {
       width: '14.28%', // 100 / 7
       aspectRatio: 1,
-      padding: 4,
+    },
+    dayCellInner: {
+      flex: 1,
+      padding: 3,
     },
     dayCell: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 20, // Circular
+      borderRadius: 999,
     },
     dayText: {
-      fontSize: 14,
+      fontSize: 15,
+      fontWeight: '600',
       color: theme.colors.text,
     },
     dayTextPast: {
       color: theme.colors.textMuted,
+      fontWeight: '500',
+    },
+    dayTextToday: {
+      color: theme.colors.sprintyBlue,
+      fontWeight: '800',
     },
     dayTextSelected: {
       color: '#FFFFFF',
-      fontWeight: '600',
+      fontWeight: '800',
     },
     dayCellSelected: {
-      backgroundColor: theme.colors.accent,
+      backgroundColor: theme.colors.sprintyBlue,
     },
     dayCellToday: {
-      borderWidth: 1,
-      borderColor: theme.colors.accent,
+      backgroundColor: 'rgba(0, 105, 232, 0.1)',
     },
     footer: {
-      padding: 16,
+      paddingHorizontal: 16,
+      paddingTop: 12,
       paddingBottom: insets.bottom + 16,
-      borderTopWidth: 1,
-      borderTopColor: theme.colors.border,
-    },
-    copyButton: {
-      backgroundColor: theme.colors.accent,
-      paddingVertical: 14,
-      borderRadius: 12,
-      alignItems: 'center',
-      justifyContent: 'center',
-      opacity: !selectedDate || isSubmitting ? 0.6 : 1,
-    },
-    copyButtonText: {
-      color: '#FFFFFF',
-      fontSize: 16,
-      fontWeight: '600',
     },
   });
 
@@ -250,89 +250,88 @@ export const CopyWorkoutModal: React.FC<CopyWorkoutModalProps> = ({
       <FeedbackHost />
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Feather name="x" size={24} color={theme.colors.text} />
-          </TouchableOpacity>
+          <IconButton icon="x" onPress={onClose} accessibilityLabel="Fermer" />
           <Text style={styles.headerTitle}>Copier la séance</Text>
           <View style={styles.rightPlaceholder} />
         </View>
 
         <View style={styles.content}>
-          <View style={styles.monthSelector}>
-            <TouchableOpacity onPress={handlePrevMonth} style={styles.monthSelectorBtn}>
-              <Feather name="chevron-left" size={20} color={theme.colors.text} />
-            </TouchableOpacity>
-            
-            <Text style={styles.monthTitle}>
-              {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-            </Text>
+          <Text style={styles.subtitle}>Choisis le jour où planifier une copie de cette séance.</Text>
 
-            <TouchableOpacity onPress={handleNextMonth} style={styles.monthSelectorBtn}>
-              <Feather name="chevron-right" size={20} color={theme.colors.text} />
-            </TouchableOpacity>
-          </View>
+          <View style={styles.calendarCard}>
+            <View style={styles.monthSelector}>
+              <IconButton icon="chevron-left" onPress={handlePrevMonth} accessibilityLabel="Mois précédent" />
 
-          <View style={styles.weekDays}>
-            {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((day, i) => (
-              <View key={i} style={styles.weekDayCell}>
-                <Text style={styles.weekDayText}>{day}</Text>
-              </View>
-            ))}
-          </View>
+              <Text style={styles.monthTitle}>
+                {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+              </Text>
 
-          <View style={styles.calendarGrid}>
-            {calendarDays.map((date, i) => {
-              if (!date) {
-                return <View key={`empty-${i}`} style={styles.dayCellContainer} />;
-              }
+              <IconButton icon="chevron-right" onPress={handleNextMonth} accessibilityLabel="Mois suivant" />
+            </View>
 
-              const isPast = date.getTime() < today.getTime();
-              const isSelected = isSameDay(selectedDate, date);
-              const isToday = isSameDay(today, date);
+            <View style={styles.weekDays}>
+              {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((day, i) => (
+                <View key={i} style={styles.weekDayCell}>
+                  <Text style={styles.weekDayText}>{day}</Text>
+                </View>
+              ))}
+            </View>
 
-              return (
-                <TouchableOpacity
-                  key={i}
-                  style={styles.dayCellContainer}
-                  onPress={() => handleSelectDate(date)}
-                  disabled={isPast}
-                  activeOpacity={0.7}
-                >
-                  <View
-                    style={[
-                      styles.dayCell,
-                      isToday && !isSelected && styles.dayCellToday,
-                      isSelected && styles.dayCellSelected,
-                    ]}
+            <View style={styles.calendarGrid}>
+              {calendarDays.map((date, i) => {
+                if (!date) {
+                  return <View key={`empty-${i}`} style={styles.dayCellContainer} />;
+                }
+
+                const isPast = date.getTime() < today.getTime();
+                const isSelected = isSameDay(selectedDate, date);
+                const isToday = isSameDay(today, date);
+
+                return (
+                  <PressableScale
+                    key={i}
+                    containerStyle={styles.dayCellContainer}
+                    style={styles.dayCellInner}
+                    onPress={() => handleSelectDate(date)}
+                    disabled={isPast}
+                    haptic="none"
+                    activeScale={0.9}
+                    accessibilityRole="button"
+                    accessibilityLabel={date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    accessibilityState={{ selected: isSelected, disabled: isPast }}
                   >
-                    <Text
+                    <View
                       style={[
-                        styles.dayText,
-                        isPast && styles.dayTextPast,
-                        isSelected && styles.dayTextSelected,
+                        styles.dayCell,
+                        isToday && !isSelected && styles.dayCellToday,
+                        isSelected && styles.dayCellSelected,
                       ]}
                     >
-                      {date.getDate()}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+                      <Text
+                        style={[
+                          styles.dayText,
+                          isPast && styles.dayTextPast,
+                          isToday && !isSelected && styles.dayTextToday,
+                          isSelected && styles.dayTextSelected,
+                        ]}
+                      >
+                        {date.getDate()}
+                      </Text>
+                    </View>
+                  </PressableScale>
+                );
+              })}
+            </View>
           </View>
         </View>
 
         <View style={styles.footer}>
-          <TouchableOpacity
-            style={[styles.copyButton, (!selectedDate || isSubmitting) && { opacity: 0.6 }]}
+          <Button
+            title="Copier"
             onPress={handleCopy}
-            disabled={!selectedDate || isSubmitting}
-          >
-            {isSubmitting ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.copyButtonText}>Copier</Text>
-            )}
-          </TouchableOpacity>
+            loading={isSubmitting}
+            disabled={!selectedDate}
+          />
         </View>
       </View>
     </Modal>

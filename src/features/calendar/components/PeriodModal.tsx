@@ -4,14 +4,14 @@ import {
   Text,
   StyleSheet,
   Modal,
-  TextInput,
-  TouchableOpacity,
   ScrollView,
   ActivityIndicator,
   Platform,
+  Pressable,
 } from 'react-native';
-import { Feather, Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../../core/theme';
+import { Feather } from '@expo/vector-icons';
+import { theme } from '../../../core/theme';
+import { glassCard } from '../../../core/glass';
 import * as Haptics from 'expo-haptics';
 import {
   TrainingPeriod,
@@ -23,7 +23,10 @@ import { periodService } from '../../../services/periodService';
 import { useAuthStore } from '../../../store/authStore';
 import { useCoachStore } from '../../../store/coach/coachStore';
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
-import { appAlert } from '../../../shared/feedback/appAlert';
+import { appAlert, confirmAsync, toast } from '../../../shared/feedback/appAlert';
+import { IconButton } from '../../../shared/components/IconButton';
+import { PressableScale } from '../../../shared/components/PressableScale';
+import { Input } from '../../../shared/components/Input';
 
 interface PeriodModalProps {
   visible: boolean;
@@ -53,7 +56,6 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
   periodToEdit,
   onSuccess,
 }) => {
-  const theme = useTheme();
   const { user } = useAuthStore();
   const { teams, subgroups, teamMembers } = useCoachStore();
 
@@ -68,6 +70,8 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [existingPeriods, setExistingPeriods] = useState<TrainingPeriod[]>([]);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Fetch coach's existing periods when modal opens
   useEffect(() => {
@@ -89,6 +93,8 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
   // Initialize or reset modal data
   useEffect(() => {
     if (visible) {
+      setNameError(null);
+      setFormError(null);
       if (periodToEdit) {
         setName(periodToEdit.name);
         setColor(periodToEdit.color);
@@ -208,37 +214,42 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
     return null;
   }, [startDateStr, endDateStr, targetType, selectedSubgroupId, selectedAthleteId, existingPeriods, periodToEdit, teams, teamMembers]);
 
+  // Une erreur de formulaire disparaît dès que l'utilisateur modifie les champs concernés
+  useEffect(() => {
+    setFormError(null);
+  }, [startDateStr, endDateStr, targetType, selectedSubgroupId, selectedAthleteId]);
+
   const handleSave = async () => {
     if (!name.trim()) {
-      appAlert('Nom requis', 'Veuillez saisir un intitulé pour la période.');
+      setNameError('Donne un nom à la phase.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       return;
     }
 
     if (!startDateStr || !endDateStr) {
-      appAlert('Dates requises', 'Veuillez vérifier les dates de début et de fin.');
+      setFormError('Vérifie les dates de début et de fin.');
       return;
     }
 
     if (startDateStr > endDateStr) {
-      appAlert('Dates invalides', 'La date de fin doit être postérieure à la date de début.');
+      setFormError('La date de fin doit être postérieure à la date de début.');
       return;
     }
 
     if (conflictInfo) {
-      appAlert(
-        'Chevauchement interdit',
-        `Cette phase chevauche la phase "${conflictInfo.conflictingPeriod.name}" ${conflictInfo.formattedOverlap}.\n\nVeuillez ajuster les dates pour que les phases ne se croisent pas.`
+      setFormError(
+        `Cette phase chevauche « ${conflictInfo.conflictingPeriod.name} » ${conflictInfo.formattedOverlap}. Ajuste les dates pour que les phases ne se croisent pas.`
       );
       return;
     }
 
     if (targetType === 'subgroup' && !selectedSubgroupId) {
-      appAlert('Sous-groupe requis', 'Veuillez sélectionner un sous-groupe.');
+      setFormError('Choisis un sous-groupe.');
       return;
     }
 
     if (targetType === 'athlete' && !selectedAthleteId) {
-      appAlert('Athlète requis', 'Veuillez sélectionner un athlète.');
+      setFormError('Choisis un athlète.');
       return;
     }
 
@@ -272,116 +283,116 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
         });
       }
 
+      toast('success', periodToEdit ? 'Phase mise à jour' : 'Phase créée');
       onSuccess();
       onClose();
     } catch (err) {
-      appAlert('Erreur', "Impossible d'enregistrer la période. Veuillez réessayer.");
+      appAlert('Erreur', 'Impossible d’enregistrer la phase. Réessaie dans un instant.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!periodToEdit) return;
 
-    appAlert(
-      'Supprimer la période',
-      `Êtes-vous sûr de vouloir supprimer la phase "${periodToEdit.name}" ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
-          onPress: async () => {
-            setIsDeleting(true);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            try {
-              await periodService.deletePeriod(periodToEdit.id);
-              onSuccess();
-              onClose();
-            } catch (err) {
-              appAlert('Erreur', 'Impossible de supprimer cette période.');
-            } finally {
-              setIsDeleting(false);
-            }
-          },
-        },
-      ]
-    );
+    const confirmed = await confirmAsync({
+      title: 'Supprimer la phase ?',
+      message: `La phase « ${periodToEdit.name} » sera supprimée du calendrier.`,
+      confirmText: 'Supprimer',
+      destructive: true,
+      icon: 'trash-2',
+    });
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    try {
+      await periodService.deletePeriod(periodToEdit.id);
+      toast('success', 'Phase supprimée');
+      onSuccess();
+      onClose();
+    } catch (err) {
+      appAlert('Erreur', 'Impossible de supprimer cette phase. Réessaie dans un instant.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
-  const activeTeam = teams[0];
   const approvedMembers = useMemo(
     () => teamMembers.filter((m) => m.status === 'approved'),
     [teamMembers]
   );
 
+  const busy = isSubmitting || isDeleting;
+  const saveDisabled = busy || !!conflictInfo;
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <FeedbackHost />
       <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Fermer" />
+        <View style={styles.modalContent}>
+          <View style={styles.handle} />
+
           {/* Header */}
           <View style={styles.modalHeader}>
-            <View>
-              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-                {periodToEdit ? 'Modifier la phase' : 'Nouvelle phase d\'entraînement'}
+            <View style={styles.modalHeaderText}>
+              <Text style={styles.modalTitle}>
+                {periodToEdit ? 'Modifier la phase' : 'Nouvelle phase d’entraînement'}
               </Text>
-              <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>
-                Cycle d'entraînement (ex : Vitesse, Affûtage, Aérobie)
+              <Text style={styles.modalSubtitle}>
+                Cycle d’entraînement (ex. Vitesse, Affûtage, Aérobie)
               </Text>
             </View>
 
-            <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { backgroundColor: theme.colors.background }]}>
-              <Feather name="x" size={20} color={theme.colors.text} />
-            </TouchableOpacity>
+            <IconButton icon="x" onPress={onClose} accessibilityLabel="Fermer" />
           </View>
 
-          <ScrollView style={styles.scrollBody} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.scrollBody}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
             {/* Field: Period Name */}
             <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { color: theme.colors.text }]}>Nom de la phase (ou cycle)</Text>
-              <TextInput
-                style={[
-                  styles.textInput,
-                  {
-                    backgroundColor: theme.colors.background,
-                    color: theme.colors.text,
-                    borderColor: theme.colors.border,
-                  },
-                ]}
-                placeholder="Ex. Vitesse, Affûtage, Force, Aérobie..."
-                placeholderTextColor={theme.colors.textMuted}
+              <Text style={styles.sectionLabel}>Nom de la phase</Text>
+              <Input
+                placeholder="Ex. Vitesse, Affûtage, Force, Aérobie…"
                 value={name}
-                onChangeText={setName}
+                onChangeText={(text) => {
+                  setName(text);
+                  if (nameError) setNameError(null);
+                }}
                 maxLength={35}
+                error={nameError ?? undefined}
+                containerStyle={styles.inputContainer}
+                returnKeyType="done"
               />
-
-
             </View>
 
             {/* Field: 8 Signature Color Swatches */}
             <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { color: theme.colors.text }]}>Couleur de la période</Text>
+              <Text style={styles.sectionLabel}>Couleur</Text>
               <View style={styles.colorsRow}>
                 {PERIOD_COLORS.map((col, i) => {
                   const isColorActive = color.toLowerCase() === col.hex.toLowerCase();
                   return (
-                    <TouchableOpacity
+                    <PressableScale
                       key={i}
-                      style={[
-                        styles.colorSwatch,
-                        { backgroundColor: col.hex },
-                        isColorActive && styles.colorSwatchActive,
-                      ]}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setColor(col.hex);
-                      }}
-                      activeOpacity={0.8}
+                      haptic="selection"
+                      activeScale={0.9}
+                      hitSlop={4}
+                      style={[styles.colorSwatchRing, isColorActive && { borderColor: col.hex }]}
+                      onPress={() => setColor(col.hex)}
+                      accessibilityRole="radio"
+                      accessibilityLabel={col.name}
+                      accessibilityState={{ selected: isColorActive }}
                     >
-                      {isColorActive && <Feather name="check" size={16} color="#FFFFFF" />}
-                    </TouchableOpacity>
+                      <View style={[styles.colorSwatch, { backgroundColor: col.hex }]}>
+                        {isColorActive && <Feather name="check" size={16} color="#FFFFFF" />}
+                      </View>
+                    </PressableScale>
                   );
                 })}
               </View>
@@ -389,176 +400,180 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
 
             {/* Field: Dates & Quick Duration Presets */}
             <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { color: theme.colors.text }]}>Plage de dates</Text>
+              <Text style={styles.sectionLabel}>Dates</Text>
 
               {/* Message d'avertissement et aide au repositionnement si chevauchement */}
               {conflictInfo && (
-                <View style={[styles.conflictBanner, { backgroundColor: '#FEF2F2', borderColor: '#FCA5A5' }]}>
+                <View style={styles.conflictBanner}>
                   <View style={styles.conflictHeaderRow}>
-                    <Ionicons name="alert-circle" size={18} color="#EF4444" style={{ marginRight: 6 }} />
+                    <Feather name="alert-circle" size={16} color={theme.colors.error} />
                     <Text style={styles.conflictTitle}>Période déjà occupée</Text>
                   </View>
-                  <Text style={[styles.conflictMessage, { color: theme.colors.text }]}>
+                  <Text style={styles.conflictMessage}>
                     Cette période chevauche la phase{' '}
-                    <Text style={{ fontWeight: '700', color: '#DC2626' }}>« {conflictInfo.conflictingPeriod.name} »</Text>{' '}
+                    <Text style={styles.conflictName}>« {conflictInfo.conflictingPeriod.name} »</Text>{' '}
                     ({conflictInfo.formattedOverlap}).
                   </Text>
 
                   {/* Bouton d'action en 1 clic pour résoudre le conflit */}
-                  <TouchableOpacity
+                  <PressableScale
+                    haptic="medium"
+                    containerStyle={styles.conflictQuickFixContainer}
                     style={styles.conflictQuickFixBtn}
                     onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                       const nextAvailableStart = addDays(new Date(conflictInfo.conflictingPeriod.end_date), 1);
                       const durationInDays = Math.max(1, Math.round((endDateObj.getTime() - startDateObj.getTime()) / (1000 * 60 * 60 * 24)));
                       const nextAvailableEnd = addDays(nextAvailableStart, durationInDays);
                       setStartDateStr(formatDateToIso(nextAvailableStart));
                       setEndDateStr(formatDateToIso(nextAvailableEnd));
                     }}
-                    activeOpacity={0.8}
+                    accessibilityRole="button"
                   >
-                    <Feather name="fast-forward" size={14} color="#B91C1C" />
-                    <Text style={styles.conflictQuickFixText}>
-                      Positionner juste après « {conflictInfo.conflictingPeriod.name} »
+                    <Feather name="fast-forward" size={14} color={theme.colors.error} />
+                    <Text style={styles.conflictQuickFixText} numberOfLines={1}>
+                      Placer juste après « {conflictInfo.conflictingPeriod.name} »
                     </Text>
-                  </TouchableOpacity>
+                  </PressableScale>
                 </View>
               )}
 
-              <View style={styles.dateInputsRow}>
-                <View style={styles.dateInputCol}>
-                  <Text style={[styles.dateSubLabel, { color: theme.colors.textSecondary }]}>Début</Text>
-                  {Platform.OS === 'android' ? (
-                    <>
-                      <TouchableOpacity
-                        style={[styles.dateInput, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
-                        onPress={() => setShowStartPicker(true)}
-                      >
-                        <Text style={{ color: theme.colors.text, fontWeight: '600' }}>{startDateObj.toLocaleDateString('fr-FR')}</Text>
-                      </TouchableOpacity>
-                      {showStartPicker && (
-                        <DateTimePicker
-                          value={startDateObj}
-                          mode="date"
-                          display="default"
-                          onChange={(event, date) => {
-                            setShowStartPicker(false);
-                            if (event.type === 'set' && date) {
-                              setStartDateStr(formatDateToIso(date));
-                              if (date > endDateObj) setEndDateStr(formatDateToIso(date));
-                            }
-                          }}
-                        />
-                      )}
-                    </>
-                  ) : (
-                    <DateTimePicker
-                      value={startDateObj}
-                      mode="date"
-                      display="default"
-                      onChange={(event, date) => {
-                        if (date) {
-                          setStartDateStr(formatDateToIso(date));
-                          if (date > endDateObj) setEndDateStr(formatDateToIso(date));
-                        }
-                      }}
-                      style={{ marginTop: 4 }}
-                    />
-                  )}
+              <View style={styles.datesCard}>
+                <View style={styles.dateInputsRow}>
+                  <View style={styles.dateInputCol}>
+                    <Text style={styles.dateSubLabel}>Début</Text>
+                    {Platform.OS === 'android' ? (
+                      <>
+                        <PressableScale
+                          haptic="selection"
+                          style={styles.dateInput}
+                          onPress={() => setShowStartPicker(true)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Date de début, ${startDateObj.toLocaleDateString('fr-FR')}`}
+                        >
+                          <Feather name="calendar" size={14} color={theme.colors.textSecondary} />
+                          <Text style={styles.dateInputText}>{startDateObj.toLocaleDateString('fr-FR')}</Text>
+                        </PressableScale>
+                        {showStartPicker && (
+                          <DateTimePicker
+                            value={startDateObj}
+                            mode="date"
+                            display="default"
+                            onChange={(event, date) => {
+                              setShowStartPicker(false);
+                              if (event.type === 'set' && date) {
+                                setStartDateStr(formatDateToIso(date));
+                                if (date > endDateObj) setEndDateStr(formatDateToIso(date));
+                              }
+                            }}
+                          />
+                        )}
+                      </>
+                    ) : (
+                      <DateTimePicker
+                        value={startDateObj}
+                        mode="date"
+                        display="default"
+                        locale="fr-FR"
+                        accentColor={theme.colors.sprintyBlue}
+                        onChange={(event, date) => {
+                          if (date) {
+                            setStartDateStr(formatDateToIso(date));
+                            if (date > endDateObj) setEndDateStr(formatDateToIso(date));
+                          }
+                        }}
+                        style={styles.iosPicker}
+                      />
+                    )}
+                  </View>
+
+                  <Feather name="arrow-right" size={18} color={theme.colors.textMuted} style={styles.dateArrow} />
+
+                  <View style={styles.dateInputCol}>
+                    <Text style={styles.dateSubLabel}>Fin</Text>
+                    {Platform.OS === 'android' ? (
+                      <>
+                        <PressableScale
+                          haptic="selection"
+                          style={styles.dateInput}
+                          onPress={() => setShowEndPicker(true)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Date de fin, ${endDateObj.toLocaleDateString('fr-FR')}`}
+                        >
+                          <Feather name="calendar" size={14} color={theme.colors.textSecondary} />
+                          <Text style={styles.dateInputText}>{endDateObj.toLocaleDateString('fr-FR')}</Text>
+                        </PressableScale>
+                        {showEndPicker && (
+                          <DateTimePicker
+                            value={endDateObj}
+                            mode="date"
+                            display="default"
+                            minimumDate={startDateObj}
+                            onChange={(event, date) => {
+                              setShowEndPicker(false);
+                              if (event.type === 'set' && date) {
+                                setEndDateStr(formatDateToIso(date));
+                              }
+                            }}
+                          />
+                        )}
+                      </>
+                    ) : (
+                      <DateTimePicker
+                        value={endDateObj}
+                        mode="date"
+                        display="default"
+                        locale="fr-FR"
+                        accentColor={theme.colors.sprintyBlue}
+                        minimumDate={startDateObj}
+                        onChange={(event, date) => {
+                          if (date) {
+                            setEndDateStr(formatDateToIso(date));
+                          }
+                        }}
+                        style={styles.iosPicker}
+                      />
+                    )}
+                  </View>
                 </View>
 
-                <Feather name="arrow-right" size={18} color={theme.colors.textMuted} style={{ marginTop: 22 }} />
+                {/* Raccourcis de durée rapide (Apple Fitness / Athletic presets) */}
+                <View style={styles.presetsRow}>
+                  {[
+                    { label: '1 sem.', days: 6 },
+                    { label: '2 sem.', days: 13 },
+                    { label: '3 sem.', days: 20 },
+                    { label: '4 sem.', days: 27 },
+                    { label: '6 sem.', days: 41 },
+                  ].map((preset) => {
+                    const targetEnd = addDays(startDateObj, preset.days);
+                    const isCurrentPreset =
+                      !!startDateStr &&
+                      !!endDateStr &&
+                      formatDateToIso(targetEnd) === endDateStr;
 
-                <View style={styles.dateInputCol}>
-                  <Text style={[styles.dateSubLabel, { color: theme.colors.textSecondary }]}>Fin</Text>
-                  {Platform.OS === 'android' ? (
-                    <>
-                      <TouchableOpacity
-                        style={[styles.dateInput, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
-                        onPress={() => setShowEndPicker(true)}
+                    return (
+                      <PressableScale
+                        key={preset.label}
+                        haptic="selection"
+                        containerStyle={styles.presetBtnContainer}
+                        style={[styles.presetBtn, isCurrentPreset && styles.presetBtnActive]}
+                        onPress={() => setEndDateStr(formatDateToIso(targetEnd))}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: isCurrentPreset }}
                       >
-                        <Text style={{ color: theme.colors.text, fontWeight: '600' }}>{endDateObj.toLocaleDateString('fr-FR')}</Text>
-                      </TouchableOpacity>
-                      {showEndPicker && (
-                        <DateTimePicker
-                          value={endDateObj}
-                          mode="date"
-                          display="default"
-                          minimumDate={startDateObj}
-                          onChange={(event, date) => {
-                            setShowEndPicker(false);
-                            if (event.type === 'set' && date) {
-                              setEndDateStr(formatDateToIso(date));
-                            }
-                          }}
-                        />
-                      )}
-                    </>
-                  ) : (
-                    <DateTimePicker
-                      value={endDateObj}
-                      mode="date"
-                      display="default"
-                      minimumDate={startDateObj}
-                      onChange={(event, date) => {
-                        if (date) {
-                          setEndDateStr(formatDateToIso(date));
-                        }
-                      }}
-                      style={{ marginTop: 4 }}
-                    />
-                  )}
+                        <Text style={[styles.presetBtnText, isCurrentPreset && styles.presetBtnTextActive]}>
+                          {preset.label}
+                        </Text>
+                      </PressableScale>
+                    );
+                  })}
                 </View>
-              </View>
-
-              {/* Raccourcis de durée rapide (Apple Fitness / Athletic presets) */}
-              <View style={styles.presetsRow}>
-                {[
-                  { label: '1 sem.', days: 6 },
-                  { label: '2 sem.', days: 13 },
-                  { label: '3 sem.', days: 20 },
-                  { label: '4 sem.', days: 27 },
-                  { label: '6 sem.', days: 41 },
-                ].map((preset) => {
-                  const targetEnd = addDays(startDateObj, preset.days);
-                  const isCurrentPreset =
-                    startDateStr &&
-                    endDateStr &&
-                    formatDateToIso(targetEnd) === endDateStr;
-
-                  return (
-                    <TouchableOpacity
-                      key={preset.label}
-                      style={[
-                        styles.presetBtn,
-                        {
-                          backgroundColor: isCurrentPreset ? theme.colors.accent + '15' : theme.colors.background,
-                          borderColor: isCurrentPreset ? theme.colors.accent : theme.colors.border,
-                        },
-                      ]}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setEndDateStr(formatDateToIso(targetEnd));
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <Text
-                        style={[
-                          styles.presetBtnText,
-                          { color: isCurrentPreset ? theme.colors.accent : theme.colors.textSecondary },
-                        ]}
-                      >
-                        {preset.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
               </View>
             </View>
 
             {/* Field: Target (Groupe, Sous-groupe, Athlète) */}
             <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { color: theme.colors.text }]}>Cible de la période</Text>
+              <Text style={styles.sectionLabel}>Pour qui ?</Text>
 
               <View style={styles.targetTypeRow}>
                 {[
@@ -568,17 +583,12 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
                 ].map((t) => {
                   const isSelected = targetType === t.id;
                   return (
-                    <TouchableOpacity
+                    <PressableScale
                       key={t.id}
-                      style={[
-                        styles.targetTypeBtn,
-                        {
-                          backgroundColor: isSelected ? theme.colors.accent : theme.colors.background,
-                          borderColor: isSelected ? theme.colors.accent : theme.colors.border,
-                        },
-                      ]}
+                      haptic="selection"
+                      containerStyle={styles.targetTypeBtnContainer}
+                      style={[styles.targetTypeBtn, isSelected && styles.targetTypeBtnActive]}
                       onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         setTargetType(t.id as any);
                         if (t.id === 'subgroup' && !selectedSubgroupId && subgroups.length > 0) {
                           setSelectedSubgroupId(subgroups[0].id);
@@ -587,6 +597,8 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
                           setSelectedAthleteId(approvedMembers[0].user_id);
                         }
                       }}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: isSelected }}
                     >
                       <Feather
                         name={t.icon as any}
@@ -594,14 +606,12 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
                         color={isSelected ? '#FFFFFF' : theme.colors.textSecondary}
                       />
                       <Text
-                        style={[
-                          styles.targetTypeBtnText,
-                          { color: isSelected ? '#FFFFFF' : theme.colors.text },
-                        ]}
+                        style={[styles.targetTypeBtnText, isSelected && styles.targetTypeBtnTextActive]}
+                        numberOfLines={1}
                       >
                         {t.label}
                       </Text>
-                    </TouchableOpacity>
+                    </PressableScale>
                   );
                 })}
               </View>
@@ -610,35 +620,26 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
               {targetType === 'subgroup' && (
                 <View style={styles.subSelectorContainer}>
                   {subgroups.length === 0 ? (
-                    <Text style={[styles.emptyHintText, { color: theme.colors.textMuted }]}>
-                      Aucun sous-groupe configuré dans votre équipe.
+                    <Text style={styles.emptyHintText}>
+                      Aucun sous-groupe configuré dans ton équipe.
                     </Text>
                   ) : (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
                       {subgroups.map((sg) => {
                         const isSubSelected = selectedSubgroupId === sg.id;
                         return (
-                          <TouchableOpacity
+                          <PressableScale
                             key={sg.id}
-                            style={[
-                              styles.chip,
-                              {
-                                backgroundColor: isSubSelected ? theme.colors.accent + '22' : theme.colors.background,
-                                borderColor: isSubSelected ? theme.colors.accent : theme.colors.border,
-                                marginRight: 8,
-                              },
-                            ]}
+                            haptic="selection"
+                            style={[styles.chip, isSubSelected && styles.chipActive]}
                             onPress={() => setSelectedSubgroupId(sg.id)}
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected: isSubSelected }}
                           >
-                            <Text
-                              style={[
-                                styles.chipText,
-                                { color: isSubSelected ? theme.colors.accent : theme.colors.text },
-                              ]}
-                            >
+                            <Text style={[styles.chipText, isSubSelected && styles.chipTextActive]}>
                               {sg.name}
                             </Text>
-                          </TouchableOpacity>
+                          </PressableScale>
                         );
                       })}
                     </ScrollView>
@@ -650,11 +651,11 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
               {targetType === 'athlete' && (
                 <View style={styles.subSelectorContainer}>
                   {approvedMembers.length === 0 ? (
-                    <Text style={[styles.emptyHintText, { color: theme.colors.textMuted }]}>
-                      Aucun athlète dans votre équipe.
+                    <Text style={styles.emptyHintText}>
+                      Aucun athlète dans ton équipe.
                     </Text>
                   ) : (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
                       {approvedMembers.map((m) => {
                         const isAthSelected = selectedAthleteId === m.user_id;
                         const prof = (Array.isArray(m.profile) ? m.profile[0] : m.profile) as any;
@@ -665,27 +666,18 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
                           prof?.last_name?.trim() ||
                           'Athlète';
                         return (
-                          <TouchableOpacity
+                          <PressableScale
                             key={m.user_id}
-                            style={[
-                              styles.chip,
-                              {
-                                backgroundColor: isAthSelected ? theme.colors.accent + '22' : theme.colors.background,
-                                borderColor: isAthSelected ? theme.colors.accent : theme.colors.border,
-                                marginRight: 8,
-                              },
-                            ]}
+                            haptic="selection"
+                            style={[styles.chip, isAthSelected && styles.chipActive]}
                             onPress={() => setSelectedAthleteId(m.user_id)}
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected: isAthSelected }}
                           >
-                            <Text
-                              style={[
-                                styles.chipText,
-                                { color: isAthSelected ? theme.colors.accent : theme.colors.text },
-                              ]}
-                            >
+                            <Text style={[styles.chipText, isAthSelected && styles.chipTextActive]}>
                               {nameDisplay}
                             </Text>
-                          </TouchableOpacity>
+                          </PressableScale>
                         );
                       })}
                     </ScrollView>
@@ -694,48 +686,55 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
               )}
             </View>
 
+            {!!formError && (
+              <View style={styles.errorNotice}>
+                <Feather name="alert-circle" size={15} color={theme.colors.error} />
+                <Text style={styles.errorNoticeText}>{formError}</Text>
+              </View>
+            )}
+
             {/* Action Buttons */}
             <View style={styles.actionsContainer}>
-              <TouchableOpacity
+              <PressableScale
+                haptic="none"
                 style={[
                   styles.saveBtn,
-                  { backgroundColor: conflictInfo ? theme.colors.border : color },
-                  conflictInfo && { opacity: 0.55 },
+                  { backgroundColor: conflictInfo ? theme.colors.textMuted : color },
+                  saveDisabled && styles.btnDisabled,
                 ]}
                 onPress={handleSave}
-                disabled={isSubmitting || isDeleting || !!conflictInfo}
-                activeOpacity={0.8}
+                disabled={saveDisabled}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: saveDisabled, busy: isSubmitting }}
               >
                 {isSubmitting ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
                   <>
-                    <Feather name="check" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                    <Feather name="check" size={18} color="#FFFFFF" />
                     <Text style={styles.saveBtnText}>
                       {periodToEdit ? 'Enregistrer les modifications' : 'Créer la phase'}
                     </Text>
                   </>
                 )}
-              </TouchableOpacity>
+              </PressableScale>
 
               {periodToEdit && (
-                <TouchableOpacity
-                  style={[styles.deleteBtn, { borderColor: theme.colors.error + '40' }]}
+                <PressableScale
+                  style={[styles.deleteBtn, busy && styles.btnDisabled]}
                   onPress={handleDelete}
-                  disabled={isSubmitting || isDeleting}
-                  activeOpacity={0.7}
+                  disabled={busy}
+                  accessibilityRole="button"
                 >
                   {isDeleting ? (
                     <ActivityIndicator size="small" color={theme.colors.error} />
                   ) : (
                     <>
-                      <Feather name="trash-2" size={16} color={theme.colors.error} style={{ marginRight: 6 }} />
-                      <Text style={[styles.deleteBtnText, { color: theme.colors.error }]}>
-                        Supprimer cette période
-                      </Text>
+                      <Feather name="trash-2" size={16} color={theme.colors.error} />
+                      <Text style={styles.deleteBtnText}>Supprimer cette phase</Text>
                     </>
                   )}
-                </TouchableOpacity>
+                </PressableScale>
               )}
             </View>
           </ScrollView>
@@ -748,42 +747,48 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(15, 23, 42, 0.35)',
     justifyContent: 'flex-end',
   },
   modalContent: {
     maxHeight: '90%',
+    backgroundColor: theme.colors.backdrop,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    paddingHorizontal: 22,
-    paddingTop: 20,
-    paddingBottom: 36,
+    borderCurve: 'continuous',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 28,
+  },
+  handle: {
+    alignSelf: 'center',
+    width: 38,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(15, 23, 42, 0.15)',
+    marginBottom: 12,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 16,
-    paddingBottom: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.06)',
+    gap: 12,
+    paddingHorizontal: 4,
+    marginBottom: 12,
+  },
+  modalHeaderText: {
+    flex: 1,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '800',
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
+    color: theme.colors.text,
   },
   modalSubtitle: {
     fontSize: 13,
     marginTop: 2,
-    fontWeight: '500',
-  },
-  closeBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
+    color: theme.colors.textSecondary,
   },
   scrollBody: {
     marginTop: 4,
@@ -792,62 +797,42 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   sectionLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  textInput: {
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  chipsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 10,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  chipDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 6,
-  },
-  chipText: {
     fontSize: 12,
     fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: theme.colors.textSecondary,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  inputContainer: {
+    marginBottom: 0,
   },
   colorsRow: {
+    ...glassCard,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
   },
-  colorSwatch: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  colorSwatchRing: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  colorSwatchActive: {
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 4,
+  colorSwatch: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  datesCard: {
+    ...glassCard,
   },
   dateInputsRow: {
     flexDirection: 'row',
@@ -859,61 +844,140 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dateSubLabel: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '600',
-    marginBottom: 4,
+    color: theme.colors.textSecondary,
+    marginBottom: 6,
   },
   dateInput: {
-    borderRadius: 12,
-    borderWidth: 1,
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 14,
+    borderCurve: 'continuous',
+    backgroundColor: theme.colors.glassFill,
     paddingHorizontal: 10,
-    paddingVertical: 10,
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
+  },
+  dateInputText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  iosPicker: {
+    alignSelf: 'flex-start',
+    marginLeft: -8,
+  },
+  dateArrow: {
+    marginTop: 22,
   },
   presetsRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 10,
+    gap: 6,
+    marginTop: 14,
+  },
+  presetBtnContainer: {
+    flex: 1,
   },
   presetBtn: {
-    flex: 1,
-    paddingVertical: 8,
+    minHeight: 36,
     borderRadius: 10,
-    borderWidth: 1,
+    borderCurve: 'continuous',
+    backgroundColor: theme.colors.glassFill,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  presetBtnActive: {
+    backgroundColor: 'rgba(0, 105, 232, 0.12)',
+  },
   presetBtnText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
+    color: theme.colors.textSecondary,
+  },
+  presetBtnTextActive: {
+    color: theme.colors.sprintyBlue,
   },
   targetTypeRow: {
     flexDirection: 'row',
     gap: 8,
   },
-  targetTypeBtn: {
+  targetTypeBtnContainer: {
     flex: 1,
+  },
+  targetTypeBtn: {
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
+    paddingHorizontal: 6,
+    borderRadius: 14,
+    borderCurve: 'continuous',
+    backgroundColor: theme.colors.glassFill,
     gap: 6,
   },
+  targetTypeBtnActive: {
+    backgroundColor: theme.colors.sprintyBlue,
+  },
   targetTypeBtnText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
+    color: theme.colors.text,
+    flexShrink: 1,
+  },
+  targetTypeBtnTextActive: {
+    color: '#FFFFFF',
   },
   subSelectorContainer: {
-    marginTop: 8,
+    marginTop: 10,
+  },
+  chipsRow: {
+    gap: 8,
+    paddingHorizontal: 2,
+  },
+  chip: {
+    minHeight: 36,
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    backgroundColor: theme.colors.glassFill,
+  },
+  chipActive: {
+    backgroundColor: 'rgba(0, 105, 232, 0.12)',
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  chipTextActive: {
+    color: theme.colors.sprintyBlue,
   },
   emptyHintText: {
-    fontSize: 12,
-    fontStyle: 'italic',
+    fontSize: 13,
+    color: theme.colors.textMuted,
     marginTop: 4,
+    paddingHorizontal: 4,
+  },
+  errorNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    marginBottom: 4,
+  },
+  errorNoticeText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
+    color: theme.colors.error,
   },
   actionsContainer: {
     marginTop: 12,
@@ -924,69 +988,81 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
+    gap: 6,
+    height: 52,
     borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 3,
+    borderCurve: 'continuous',
   },
   saveBtnText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '800',
   },
+  btnDisabled: {
+    opacity: 0.5,
+  },
   deleteBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    gap: 6,
+    height: 48,
     borderRadius: 16,
-    borderWidth: 1,
+    borderCurve: 'continuous',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
   },
   deleteBtnText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
+    color: theme.colors.error,
   },
   conflictBanner: {
-    borderWidth: 1,
     borderRadius: 14,
+    borderCurve: 'continuous',
     padding: 12,
-    marginBottom: 14,
+    marginBottom: 12,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
   },
   conflictHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
     marginBottom: 4,
   },
   conflictTitle: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#DC2626',
-    letterSpacing: 0.3,
+    color: theme.colors.error,
   },
   conflictMessage: {
     fontSize: 13,
     lineHeight: 18,
+    color: theme.colors.text,
     marginBottom: 8,
+  },
+  conflictName: {
+    fontWeight: '700',
+    color: theme.colors.error,
+  },
+  conflictQuickFixContainer: {
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
   },
   conflictQuickFixBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: '#FEE2E2',
-    borderWidth: 1,
-    borderColor: '#F87171',
+    minHeight: 36,
+    backgroundColor: theme.colors.surface,
     borderRadius: 10,
+    borderCurve: 'continuous',
     paddingHorizontal: 12,
-    paddingVertical: 7,
     gap: 6,
     marginTop: 4,
   },
   conflictQuickFixText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
-    color: '#991B1B',
+    color: theme.colors.error,
+    flexShrink: 1,
   },
 });

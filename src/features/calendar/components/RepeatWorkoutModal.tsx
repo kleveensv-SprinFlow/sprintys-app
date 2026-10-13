@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  Modal, 
-  TouchableOpacity, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
   TextInput,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   TouchableWithoutFeedback,
@@ -16,10 +14,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
-import { useTheme } from '../../../core/theme';
+import { theme } from '../../../core/theme';
+import { glassCard } from '../../../core/glass';
 import { workoutService } from '../../../services/workoutService';
 import { useSprintyStore } from '../../../store/sprintyStore';
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
+import { IconButton } from '../../../shared/components/IconButton';
+import { PressableScale } from '../../../shared/components/PressableScale';
+import { Button } from '../../../shared/components/Button';
 
 interface RepeatWorkoutModalProps {
   visible: boolean;
@@ -44,7 +46,6 @@ export const RepeatWorkoutModal: React.FC<RepeatWorkoutModalProps> = ({
   workout,
   onRepeated,
 }) => {
-  const theme = useTheme();
   const insets = useSafeAreaInsets();
   const showFeedback = useSprintyStore((state) => state.showFeedback);
 
@@ -56,16 +57,19 @@ export const RepeatWorkoutModal: React.FC<RepeatWorkoutModalProps> = ({
     yearly: '1',
   });
   const [loading, setLoading] = useState(false);
+  const [countError, setCountError] = useState<string | null>(null);
 
   const handleModeSelect = (selectedMode: RepeatMode) => {
     Haptics.selectionAsync();
     setMode(selectedMode);
+    setCountError(null);
   };
 
   const handleCountChange = (id: string, value: string) => {
     // Only allow numbers
     const cleanValue = value.replace(/[^0-9]/g, '');
     setCounts(prev => ({ ...prev, [id]: cleanValue }));
+    setCountError(null);
   };
 
   const handlePlanifier = async () => {
@@ -76,7 +80,7 @@ export const RepeatWorkoutModal: React.FC<RepeatWorkoutModalProps> = ({
     
     const count = parseInt(counts[mode], 10);
     if (isNaN(count) || count <= 0) {
-      showFeedback('error', 'Indique un nombre valide.');
+      setCountError('Indique un nombre de répétitions valide (au moins 1).');
       return;
     }
 
@@ -90,7 +94,7 @@ export const RepeatWorkoutModal: React.FC<RepeatWorkoutModalProps> = ({
       onClose();
     } catch (error) {
       console.error('Failed to repeat workout:', error);
-      showFeedback('error', "Une erreur s'est produite lors de la planification.");
+      showFeedback('error', "Une erreur s’est produite lors de la planification.");
     } finally {
       setLoading(false);
     }
@@ -98,7 +102,7 @@ export const RepeatWorkoutModal: React.FC<RepeatWorkoutModalProps> = ({
 
   // Dynamic header text
   const getHeaderText = () => {
-    if (mode === 'none') return 'Cet événement ne se répète pas.';
+    if (mode === 'none') return 'Cette séance ne se répète pas.';
     const count = parseInt(counts[mode], 10) || 1;
     let periodStr = '';
     switch (mode) {
@@ -107,7 +111,7 @@ export const RepeatWorkoutModal: React.FC<RepeatWorkoutModalProps> = ({
       case 'monthly': periodStr = 'tous les mois'; break;
       case 'yearly': periodStr = 'tous les ans'; break;
     }
-    return `Cet événement se répètera ${periodStr}, ${count} fois.`;
+    return `Cette séance se répétera ${periodStr}, ${count} fois.`;
   };
 
   return (
@@ -118,99 +122,90 @@ export const RepeatWorkoutModal: React.FC<RepeatWorkoutModalProps> = ({
       presentationStyle="pageSheet"
     >
       <FeedbackHost />
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <KeyboardAvoidingView 
-          style={[styles.container, { backgroundColor: theme.colors.background }]} 
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <KeyboardAvoidingView
+          style={styles.container}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={onClose} style={styles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Feather name="chevron-left" size={28} color={theme.colors.text} />
-            </TouchableOpacity>
-            <Text style={[styles.title, { color: theme.colors.text }]}>Répéter</Text>
+            <IconButton icon="x" onPress={onClose} accessibilityLabel="Fermer" />
+            <Text style={styles.title}>Répéter</Text>
             <View style={styles.headerSpacer} />
           </View>
 
           {/* Description */}
-          <Text style={[styles.description, { color: theme.colors.textSecondary }]}>
-            {getHeaderText()}
-          </Text>
+          <Text style={styles.description}>{getHeaderText()}</Text>
+
+          <Text style={styles.sectionLabel}>Fréquence</Text>
 
           {/* Options Card */}
-          <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+          <View style={styles.card}>
             {REPEAT_OPTIONS.map((option, index) => {
               const isSelected = mode === option.id;
               const isLast = index === REPEAT_OPTIONS.length - 1;
 
               return (
-                <TouchableOpacity
+                <PressableScale
                   key={option.id}
-                  style={[styles.optionRow, !isLast && { borderBottomColor: theme.colors.border, borderBottomWidth: StyleSheet.hairlineWidth }]}
+                  haptic="none"
+                  activeScale={0.98}
+                  style={[styles.optionRow, !isLast && styles.optionRowDivider]}
                   onPress={() => handleModeSelect(option.id as RepeatMode)}
-                  activeOpacity={0.7}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: isSelected }}
+                  accessibilityLabel={option.label}
                 >
                   <View style={styles.optionLeft}>
-                    {isSelected ? (
-                      <View style={styles.radioSelected}>
-                        <View style={[styles.radioInner, { backgroundColor: '#3B82F6' }]} />
-                      </View>
-                    ) : (
-                      <View style={[styles.radioUnselected, { borderColor: theme.colors.textMuted }]} />
-                    )}
-                    <Text style={[styles.optionLabel, { color: theme.colors.text }]}>
+                    <View style={[styles.radio, isSelected && styles.radioSelected]}>
+                      {isSelected && <View style={styles.radioInner} />}
+                    </View>
+                    <Text style={[styles.optionLabel, isSelected && styles.optionLabelSelected]}>
                       {option.label}
                     </Text>
                   </View>
 
                   {option.id !== 'none' && (
                     <View style={styles.optionRight}>
-                      <Text style={{ color: theme.colors.textMuted, fontSize: 16 }}>( </Text>
                       <TextInput
                         style={[
-                          styles.numberInput, 
-                          { color: theme.colors.text, borderBottomColor: theme.colors.border }
+                          styles.numberInput,
+                          isSelected && styles.numberInputActive,
+                          isSelected && !!countError && styles.numberInputError,
                         ]}
                         keyboardType="number-pad"
                         value={counts[option.id]}
                         onChangeText={(val) => handleCountChange(option.id, val)}
                         maxLength={3}
+                        selectTextOnFocus
+                        accessibilityLabel={`Nombre de répétitions, ${option.label.toLowerCase()}`}
                         onFocus={() => { if (!isSelected) handleModeSelect(option.id as RepeatMode); }}
                       />
-                      <Text style={{ color: theme.colors.textMuted, fontSize: 16 }}> )</Text>
+                      <Text style={styles.timesLabel}>fois</Text>
                     </View>
                   )}
-                </TouchableOpacity>
+                </PressableScale>
               );
             })}
           </View>
 
+          {!!countError && (
+            <View style={styles.errorNotice}>
+              <Feather name="alert-circle" size={15} color={theme.colors.error} />
+              <Text style={styles.errorText}>{countError}</Text>
+            </View>
+          )}
+
           <View style={{ flex: 1 }} />
 
           {/* Footer Button */}
-          <View style={[
-            styles.footer, 
-            { 
-              paddingBottom: Math.max(insets.bottom, 24), 
-              backgroundColor: theme.colors.background
-            }
-          ]}>
-            <TouchableOpacity
-              style={[
-                styles.submitButton, 
-                { backgroundColor: theme.colors.accent }, 
-                loading && { opacity: 0.6 }
-              ]}
+          <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 24) }]}>
+            <Button
+              title={mode === 'none' ? 'Fermer' : 'Planifier'}
+              variant={mode === 'none' ? 'secondary' : 'primary'}
               onPress={handlePlanifier}
-              disabled={loading}
-              activeOpacity={0.8}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.submitButtonText}>{mode === 'none' ? 'Fermer' : 'Planifier'}</Text>
-              )}
-            </TouchableOpacity>
+              loading={loading}
+            />
           </View>
         </KeyboardAvoidingView>
       </TouchableWithoutFeedback>
@@ -221,97 +216,147 @@ export const RepeatWorkoutModal: React.FC<RepeatWorkoutModalProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: theme.colors.backdrop,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 24,
-    paddingBottom: 24,
-  },
-  backButton: {
-    marginRight: 16,
+    paddingTop: Platform.OS === 'ios' ? 14 : 20,
+    paddingBottom: 12,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '700',
     flex: 1,
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+    color: theme.colors.text,
   },
   headerSpacer: {
-    width: 28,
+    width: 38,
   },
   description: {
     fontSize: 15,
-    paddingHorizontal: 24,
-    marginBottom: 24,
+    lineHeight: 21,
+    color: theme.colors.textSecondary,
+    paddingHorizontal: 20,
+    marginTop: 4,
+    marginBottom: 20,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: theme.colors.textSecondary,
+    paddingHorizontal: 20,
+    marginBottom: 8,
   },
   card: {
+    ...glassCard,
     marginHorizontal: 16,
-    borderRadius: 16,
-    paddingVertical: 4,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
     overflow: 'hidden',
   },
   optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    minHeight: 56,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  optionRowDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.hairline,
   },
   optionLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
-  radioSelected: {
+  radio: {
     width: 22,
     height: 22,
     borderRadius: 11,
-    borderWidth: 2,
-    borderColor: '#3B82F6',
+    borderWidth: 1.5,
+    borderColor: theme.colors.textMuted,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    marginRight: 14,
+  },
+  radioSelected: {
+    borderWidth: 2,
+    borderColor: theme.colors.sprintyBlue,
   },
   radioInner: {
     width: 10,
     height: 10,
     borderRadius: 5,
-  },
-  radioUnselected: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 1,
-    marginRight: 16,
+    backgroundColor: theme.colors.sprintyBlue,
   },
   optionLabel: {
-    fontSize: 16,
+    fontSize: 15,
+    color: theme.colors.text,
+  },
+  optionLabelSelected: {
+    fontWeight: '700',
   },
   optionRight: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginLeft: 12,
   },
   numberInput: {
-    fontSize: 16,
-    width: 30,
+    minWidth: 48,
+    height: 36,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    borderCurve: 'continuous',
+    backgroundColor: theme.colors.glassFill,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    fontSize: 15,
+    fontWeight: '700',
     textAlign: 'center',
-    borderBottomWidth: 1,
-    paddingBottom: 2,
-    marginHorizontal: 4,
+    color: theme.colors.text,
+  },
+  numberInputActive: {
+    backgroundColor: 'rgba(0, 105, 232, 0.08)',
+    color: theme.colors.sprintyBlue,
+  },
+  numberInputError: {
+    borderColor: theme.colors.error,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    color: theme.colors.error,
+  },
+  timesLabel: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+    marginLeft: 6,
+  },
+  errorNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.error,
   },
   footer: {
     paddingTop: 16,
-    paddingHorizontal: 24,
-  },
-  submitButton: {
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  submitButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
+    paddingHorizontal: 16,
   },
 });

@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   Modal,
-  TouchableOpacity,
   ScrollView,
   NativeSyntheticEvent,
   NativeScrollEvent,
@@ -13,6 +12,8 @@ import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import * as Haptics from 'expo-haptics';
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
+import { PressableScale } from '../../../shared/components/PressableScale';
+import { IconButton } from '../../../shared/components/IconButton';
 
 interface RestTimePickerModalProps {
   visible: boolean;
@@ -108,26 +109,28 @@ export const RestTimePickerModal: React.FC<RestTimePickerModalProps> = ({
           {/* Header */}
           <View style={styles.header}>
             <Text style={[styles.title, { color: theme.colors.text }]}>{title}</Text>
-            <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { backgroundColor: theme.colors.background }]}>
-              <Feather name="x" size={18} color={theme.colors.text} />
-            </TouchableOpacity>
+            <IconButton icon="x" onPress={onClose} accessibilityLabel="Fermer" size={36} />
           </View>
 
           {/* Presets Row */}
+          <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>Raccourcis</Text>
           <View style={styles.presetsContainer}>
             {presets.map((preset) => (
-              <TouchableOpacity
+              <PressableScale
                 key={preset.value}
-                style={[styles.presetBtn, { backgroundColor: theme.colors.background }]}
+                haptic="none"
+                accessibilityRole="button"
+                accessibilityLabel={`Repos de ${preset.label}`}
+                style={[styles.presetBtn, { backgroundColor: theme.colors.glassFill }]}
                 onPress={() => handlePresetTap(preset.value)}
               >
                 <Text style={[styles.presetText, { color: theme.colors.text }]}>{preset.label}</Text>
-              </TouchableOpacity>
+              </PressableScale>
             ))}
           </View>
 
           {/* Divider */}
-          <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
+          <View style={[styles.divider, { backgroundColor: theme.colors.hairline }]} />
 
           {/* Column Headers */}
           <View style={styles.columnsHeader}>
@@ -141,9 +144,9 @@ export const RestTimePickerModal: React.FC<RestTimePickerModalProps> = ({
               style={[
                 styles.activeHighlightBar,
                 {
-                  backgroundColor: theme.colors.background,
-                  borderColor: '#0069E8', // Bleu électrique border for selection
-                  borderWidth: 2,
+                  backgroundColor: 'rgba(0, 105, 232, 0.08)',
+                  borderColor: theme.colors.sprintyBlue,
+                  borderWidth: 1.5,
                 },
               ]}
               pointerEvents="none"
@@ -163,8 +166,11 @@ export const RestTimePickerModal: React.FC<RestTimePickerModalProps> = ({
                 {MINUTES_LIST.map((min) => {
                   const isSelected = selectedMinutes === min;
                   return (
-                    <TouchableOpacity
+                    <PressableScale
                       key={min}
+                      haptic="none"
+                      activeScale={0.94}
+                      accessibilityLabel={`${min} minute${min > 1 ? 's' : ''}`}
                       style={styles.itemRow}
                       onPress={() => {
                         setSelectedMinutes(min);
@@ -179,7 +185,7 @@ export const RestTimePickerModal: React.FC<RestTimePickerModalProps> = ({
                         style={[
                           styles.itemText,
                           {
-                            color: isSelected ? '#0069E8' : theme.colors.textMuted,
+                            color: isSelected ? theme.colors.sprintyBlue : theme.colors.textMuted,
                             fontWeight: isSelected ? '800' : '400',
                             opacity: isSelected ? 1 : 0.4,
                           },
@@ -187,7 +193,7 @@ export const RestTimePickerModal: React.FC<RestTimePickerModalProps> = ({
                       >
                         {format2Digits(min)}
                       </Text>
-                    </TouchableOpacity>
+                    </PressableScale>
                   );
                 })}
               </ScrollView>
@@ -205,8 +211,11 @@ export const RestTimePickerModal: React.FC<RestTimePickerModalProps> = ({
                 {SECONDS_LIST.map((sec) => {
                   const isSelected = selectedSeconds === sec;
                   return (
-                    <TouchableOpacity
+                    <PressableScale
                       key={sec}
+                      haptic="none"
+                      activeScale={0.94}
+                      accessibilityLabel={`${sec} seconde${sec > 1 ? 's' : ''}`}
                       style={styles.itemRow}
                       onPress={() => {
                         setSelectedSeconds(sec);
@@ -221,7 +230,7 @@ export const RestTimePickerModal: React.FC<RestTimePickerModalProps> = ({
                         style={[
                           styles.itemText,
                           {
-                            color: isSelected ? '#0069E8' : theme.colors.textMuted,
+                            color: isSelected ? theme.colors.sprintyBlue : theme.colors.textMuted,
                             fontWeight: isSelected ? '800' : '400',
                             opacity: isSelected ? 1 : 0.4,
                           },
@@ -229,20 +238,25 @@ export const RestTimePickerModal: React.FC<RestTimePickerModalProps> = ({
                       >
                         {format2Digits(sec)}
                       </Text>
-                    </TouchableOpacity>
+                    </PressableScale>
                   );
                 })}
               </ScrollView>
             </View>
           </View>
 
-          <TouchableOpacity
-            style={[styles.confirmBtn, { backgroundColor: '#0F172A' }]}
+          <PressableScale
+            haptic="none"
+            accessibilityRole="button"
+            containerStyle={styles.confirmBtnContainer}
+            style={[styles.confirmBtn, { backgroundColor: theme.colors.sprintyBlue }]}
             onPress={handleConfirm}
-            activeOpacity={0.8}
           >
-            <Text style={styles.confirmBtnText}>Valider ce temps</Text>
-          </TouchableOpacity>
+            <Feather name="check" size={18} color={theme.colors.surface} />
+            <Text style={[styles.confirmBtnText, { color: theme.colors.surface }]}>
+              Valider {format2Digits(selectedMinutes)}:{format2Digits(selectedSeconds)}
+            </Text>
+          </PressableScale>
         </View>
       </View>
     </Modal>
@@ -252,7 +266,7 @@ export const RestTimePickerModal: React.FC<RestTimePickerModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
@@ -260,13 +274,14 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 360,
-    borderRadius: 24,
+    borderRadius: 22,
+    borderCurve: 'continuous',
     padding: 20,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
     elevation: 8,
   },
   header: {
@@ -277,17 +292,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   title: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '800',
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
     flex: 1,
+    marginRight: 12,
   },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+  sectionLabel: {
+    alignSelf: 'flex-start',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 8,
   },
   presetsContainer: {
     flexDirection: 'row',
@@ -297,9 +314,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   presetBtn: {
+    minHeight: 44,
     paddingHorizontal: 16,
-    paddingVertical: 10,
     borderRadius: 12,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   presetText: {
     fontSize: 14,
@@ -317,8 +337,10 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   columnLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
     textAlign: 'center',
     width: 100,
   },
@@ -338,6 +360,7 @@ const styles = StyleSheet.create({
     right: 10,
     height: ITEM_HEIGHT,
     borderRadius: 14,
+    borderCurve: 'continuous',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -359,17 +382,22 @@ const styles = StyleSheet.create({
     fontSize: 30,
     letterSpacing: 1,
   },
-  confirmBtn: {
+  confirmBtnContainer: {
     width: '100%',
-    paddingVertical: 14,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginTop: 10,
   },
+  confirmBtn: {
+    height: 52,
+    borderRadius: 16,
+    borderCurve: 'continuous',
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   confirmBtnText: {
-    color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '800',
+    fontVariant: ['tabular-nums'],
   },
 });

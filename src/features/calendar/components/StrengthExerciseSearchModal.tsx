@@ -4,9 +4,6 @@ import {
   Text,
   StyleSheet,
   Modal,
-  TextInput,
-  TouchableOpacity,
-  FlatList,
   ActivityIndicator,
   Platform,
   StatusBar,
@@ -21,6 +18,11 @@ import { coachExerciseService, CoachExercise } from '../../../services/coachExer
 import { useAuthStore } from '../../../store/authStore';
 import * as Haptics from 'expo-haptics';
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
+import { glassCard } from '../../../core/glass';
+import { PressableScale } from '../../../shared/components/PressableScale';
+import { IconButton } from '../../../shared/components/IconButton';
+import { Input } from '../../../shared/components/Input';
+import { EmptyState } from '../../../shared/components/EmptyState';
 
 export interface SelectedStrengthExercise {
   id?: string;
@@ -215,208 +217,214 @@ export const StrengthExerciseSearchModal: React.FC<StrengthExerciseSearchModalPr
         (c.name_en && c.name_en.toLowerCase() === searchQuery.trim().toLowerCase())
     );
 
-  const FilterPill = ({ label, value }: { label: string; value: ExerciseFilter }) => {
-    const isActive = activeFilter === value;
-    return (
-      <TouchableOpacity
-        style={[
-          styles.filterPill,
-          { backgroundColor: isActive ? theme.colors.accent : theme.colors.surface },
-          !isActive && { borderColor: theme.colors.border, borderWidth: 1 }
-        ]}
-        onPress={() => {
-          Haptics.selectionAsync();
-          setActiveFilter(value);
-        }}
-        activeOpacity={0.7}
-      >
-        <Text style={[
-          styles.filterText,
-          { color: isActive ? '#fff' : theme.colors.textSecondary }
-        ]}>
-          {label}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
+  const trimmedQuery = searchQuery.trim();
+  const showCoachSection = filteredCoachExercises.length > 0 && activeFilter === 'all';
+  const hasNoResults = catalogResults.length === 0 && !showCoachSection;
+
+  const FILTERS: { label: string; value: ExerciseFilter }[] = [
+    { label: 'Tous', value: 'all' },
+    { label: 'Haut du corps', value: 'haut' },
+    { label: 'Bas du corps', value: 'bas' },
+    { label: 'Haltérophilie', value: 'haltero' },
+  ];
+
+  const renderAddBadge = () => (
+    <View style={styles.addBadge}>
+      <Feather name="plus" size={16} color={theme.colors.sprintyBlue} />
+    </View>
+  );
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <FeedbackHost />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.container}>
           {/* Header */}
-          <View style={[styles.header, { paddingTop: safeTop, borderBottomColor: theme.colors.border }]}>
-            <View style={[styles.searchBar, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              <Feather name="search" size={18} color={theme.colors.textSecondary} />
-              <TextInput
-                style={[styles.searchInput, { color: theme.colors.text }]}
-                placeholder="Rechercher (ex: Squat, Bench...)"
-                placeholderTextColor={theme.colors.textMuted}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                autoFocus
-                returnKeyType="search"
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                  <Feather name="x-circle" size={18} color={theme.colors.textSecondary} />
-                </TouchableOpacity>
-              )}
+          <View style={[styles.header, { paddingTop: safeTop }]}>
+            <View style={styles.headerRow}>
+              <IconButton icon="x" onPress={onClose} accessibilityLabel="Fermer" />
+              <Text style={styles.headerTitle} numberOfLines={1}>
+                Ajouter un exercice
+              </Text>
+              <View style={styles.headerSpacer} />
             </View>
 
-            <TouchableOpacity onPress={onClose} style={styles.cancelBtn}>
-              <Text style={[styles.cancelText, { color: theme.colors.accent }]}>Annuler</Text>
-            </TouchableOpacity>
+            <Input
+              placeholder="Rechercher (ex. squat, développé couché…)"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoFocus
+              autoCorrect={false}
+              returnKeyType="search"
+              containerStyle={styles.searchInputContainer}
+              leftIcon={<Feather name="search" size={18} color={theme.colors.textSecondary} />}
+              rightIcon={
+                searchQuery.length > 0 ? (
+                  <PressableScale
+                    haptic="selection"
+                    onPress={() => setSearchQuery('')}
+                    accessibilityRole="button"
+                    accessibilityLabel="Effacer la recherche"
+                    style={styles.clearSearchBtn}
+                  >
+                    <Feather name="x-circle" size={18} color={theme.colors.textMuted} />
+                  </PressableScale>
+                ) : undefined
+              }
+            />
           </View>
 
           {/* Filters */}
-          <View style={[styles.filtersContainer, { borderBottomColor: theme.colors.border }]}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersScroll}>
-              <FilterPill label="Tous" value="all" />
-              <FilterPill label="Haut du corps" value="haut" />
-              <FilterPill label="Bas du corps" value="bas" />
-              <FilterPill label="Haltérophilie" value="haltero" />
+          <View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.filtersScroll}
+            >
+              {FILTERS.map(({ label, value }) => {
+                const isActive = activeFilter === value;
+                return (
+                  <PressableScale
+                    key={value}
+                    haptic="selection"
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isActive }}
+                    style={[styles.filterPill, isActive && styles.filterPillActive]}
+                    onPress={() => setActiveFilter(value)}
+                  >
+                    <Text style={[styles.filterText, isActive && styles.filterTextActive]}>{label}</Text>
+                  </PressableScale>
+                );
+              })}
             </ScrollView>
           </View>
 
-          {/* Quick Action: Create Custom Exercise if query is typed */}
-          {searchQuery.trim().length > 1 && !exactMatchExists && (
-            <TouchableOpacity
-              style={[styles.createRow, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}
-              onPress={handleCreateCustom}
-              disabled={isCreatingCustom}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.createIconBadge, { backgroundColor: theme.colors.accent + '20' }]}>
-                {isCreatingCustom ? (
-                  <ActivityIndicator size="small" color={theme.colors.accent} />
-                ) : (
-                  <Feather name="plus" size={18} color={theme.colors.accent} />
-                )}
-              </View>
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={[styles.createTitle, { color: theme.colors.text }]}>
-                  Créer « {searchQuery.trim()} »
-                </Text>
-                <Text style={[styles.createSubtitle, { color: theme.colors.textSecondary }]}>
-                  Ajouter à ma bibliothèque coach (visible uniquement par moi)
-                </Text>
-              </View>
-              <Feather name="arrow-right" size={16} color={theme.colors.textMuted} />
-            </TouchableOpacity>
-          )}
-
-          {/* List of Results */}
-          {isLoading ? (
-            <View style={styles.loaderContainer}>
-              <ActivityIndicator size="small" color={theme.colors.accent} />
-              <Text style={[styles.loaderText, { color: theme.colors.textSecondary }]}>Recherche...</Text>
-            </View>
-          ) : (
-            <FlatList
-              data={[]}
-              keyExtractor={() => ''}
-              renderItem={null}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.listContent}
-              ListHeaderComponent={
-                <View>
-                  {/* Coach Custom Exercises Section */}
-                  {filteredCoachExercises.length > 0 && activeFilter === 'all' && (
-                    <View style={styles.sectionBlock}>
-                      <View style={styles.sectionHeader}>
-                        <Feather name="bookmark" size={14} color={theme.colors.accent} style={{ marginRight: 6 }} />
-                        <Text style={[styles.sectionTitle, { color: theme.colors.accent }]}>
-                          MES EXERCICES PERSONNALISÉS ({filteredCoachExercises.length})
-                        </Text>
-                      </View>
-                      <View style={[styles.cardGroup, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                        {filteredCoachExercises.map((item, idx) => {
-                          const isLast = idx === filteredCoachExercises.length - 1;
-                          return (
-                            <TouchableOpacity
-                              key={item.id}
-                              style={[
-                                styles.itemRow,
-                                !isLast && [styles.rowBorder, { borderBottomColor: theme.colors.border }],
-                              ]}
-                              onPress={() => handleSelectCoach(item)}
-                              activeOpacity={0.6}
-                            >
-                              <View style={{ flex: 1 }}>
-                                <Text style={[styles.itemName, { color: theme.colors.text }]}>{item.name}</Text>
-                                <Text style={[styles.itemSub, { color: theme.colors.textSecondary }]}>
-                                  Exercice personnalisé coach
-                                </Text>
-                              </View>
-                              <View style={{ backgroundColor: theme.colors.accent + '20', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
-                                <Text style={{ color: theme.colors.accent, fontWeight: '700', fontSize: 13 }}>Ajouter</Text>
-                              </View>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-                    </View>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+          >
+            {/* Quick Action: Create Custom Exercise if query is typed */}
+            {trimmedQuery.length > 1 && !exactMatchExists && (
+              <PressableScale
+                haptic="none"
+                style={[styles.createCard, isCreatingCustom && { opacity: 0.7 }]}
+                onPress={handleCreateCustom}
+                disabled={isCreatingCustom}
+                accessibilityRole="button"
+                accessibilityLabel={`Créer l’exercice ${trimmedQuery}`}
+              >
+                <View style={styles.createIconBadge}>
+                  {isCreatingCustom ? (
+                    <ActivityIndicator size="small" color={theme.colors.surface} />
+                  ) : (
+                    <Feather name="plus" size={18} color={theme.colors.surface} />
                   )}
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.createTitle} numberOfLines={2}>
+                    Créer « {trimmedQuery} »
+                  </Text>
+                  <Text style={styles.createSubtitle}>Ajouté à ta bibliothèque, visible par toi seul</Text>
+                </View>
+                <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />
+              </PressableScale>
+            )}
 
-                  {/* Catalog Exercises Section */}
+            {isLoading ? (
+              <View style={styles.loaderContainer}>
+                <ActivityIndicator size="small" color={theme.colors.sprintyBlue} />
+                <Text style={styles.loaderText}>Recherche…</Text>
+              </View>
+            ) : hasNoResults ? (
+              <EmptyState
+                icon="search"
+                title="Aucun exercice trouvé"
+                message={
+                  trimmedQuery
+                    ? `Rien pour « ${trimmedQuery} » avec ce filtre. Essaie un autre mot-clé ou crée ton propre exercice.`
+                    : 'Essaie un autre filtre ou tape le nom d’un exercice.'
+                }
+                actionLabel={activeFilter !== 'all' ? 'Voir tous les exercices' : undefined}
+                onAction={activeFilter !== 'all' ? () => setActiveFilter('all') : undefined}
+              />
+            ) : (
+              <>
+                {/* Coach Custom Exercises Section */}
+                {showCoachSection && (
                   <View style={styles.sectionBlock}>
                     <View style={styles.sectionHeader}>
-                      <Feather name="database" size={14} color={theme.colors.textSecondary} style={{ marginRight: 6 }} />
-                      <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>
-                        CATALOGUE D'EXERCICES ({catalogResults.length})
+                      <Feather name="bookmark" size={13} color={theme.colors.sprintyBlue} style={{ marginRight: 6 }} />
+                      <Text style={[styles.sectionTitle, { color: theme.colors.sprintyBlue }]}>
+                        Mes exercices ({filteredCoachExercises.length})
                       </Text>
                     </View>
-                    {catalogResults.length === 0 ? (
-                      <View style={[styles.emptyBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                        <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>
-                          Aucun exercice trouvé dans le catalogue pour « {searchQuery} » avec le filtre sélectionné.
-                        </Text>
-                      </View>
-                    ) : (
-                      <View style={[styles.cardGroup, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                        {catalogResults.map((item, idx) => {
-                          const isLast = idx === catalogResults.length - 1;
-                          return (
-                            <TouchableOpacity
-                              key={item.id}
-                              style={[
-                                styles.itemRow,
-                                !isLast && [styles.rowBorder, { borderBottomColor: theme.colors.border }],
-                              ]}
-                              onPress={() => handleSelectCatalog(item)}
-                              activeOpacity={0.6}
-                            >
-                              <View style={{ flex: 1, paddingRight: 10 }}>
-                                <Text style={[styles.itemName, { color: theme.colors.text }]}>{item.name_fr}</Text>
-                                {item.name_en && (
-                                  <Text style={[styles.itemNameEn, { color: theme.colors.textSecondary }]}>
-                                    {item.name_en}
-                                  </Text>
-                                )}
-                                {item.equipment && (
-                                  <View style={{ alignSelf: 'flex-start', backgroundColor: theme.colors.border, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginTop: 4 }}>
-                                    <Text style={{ fontSize: 10, color: theme.colors.textSecondary, fontWeight: '600', textTransform: 'capitalize' }}>
-                                      {item.equipment}
-                                    </Text>
-                                  </View>
-                                )}
-                              </View>
-                              <View style={{ backgroundColor: theme.colors.accent + '20', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
-                                <Text style={{ color: theme.colors.accent, fontWeight: '700', fontSize: 13 }}>Ajouter</Text>
-                              </View>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-                    )}
+                    <View style={styles.cardGroup}>
+                      {filteredCoachExercises.map((item, idx) => {
+                        const isLast = idx === filteredCoachExercises.length - 1;
+                        return (
+                          <PressableScale
+                            key={item.id}
+                            haptic="none"
+                            activeScale={0.98}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Ajouter ${item.name}`}
+                            style={[styles.itemRow, !isLast && styles.rowBorder]}
+                            onPress={() => handleSelectCoach(item)}
+                          >
+                            <View style={{ flex: 1, paddingRight: 10 }}>
+                              <Text style={styles.itemName}>{item.name}</Text>
+                              <Text style={styles.itemSub}>Exercice personnalisé</Text>
+                            </View>
+                            {renderAddBadge()}
+                          </PressableScale>
+                        );
+                      })}
+                    </View>
                   </View>
-                </View>
-              }
-            />
-          )}
+                )}
+
+                {/* Catalog Exercises Section */}
+                {catalogResults.length > 0 && (
+                  <View style={styles.sectionBlock}>
+                    <View style={styles.sectionHeader}>
+                      <Feather name="book-open" size={13} color={theme.colors.textSecondary} style={{ marginRight: 6 }} />
+                      <Text style={styles.sectionTitle}>Catalogue ({catalogResults.length})</Text>
+                    </View>
+                    <View style={styles.cardGroup}>
+                      {catalogResults.map((item, idx) => {
+                        const isLast = idx === catalogResults.length - 1;
+                        return (
+                          <PressableScale
+                            key={item.id}
+                            haptic="none"
+                            activeScale={0.98}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Ajouter ${item.name_fr}`}
+                            style={[styles.itemRow, !isLast && styles.rowBorder]}
+                            onPress={() => handleSelectCatalog(item)}
+                          >
+                            <View style={{ flex: 1, paddingRight: 10 }}>
+                              <Text style={styles.itemName}>{item.name_fr}</Text>
+                              {!!item.name_en && <Text style={styles.itemNameEn}>{item.name_en}</Text>}
+                              {!!item.equipment && (
+                                <View style={styles.equipmentChip}>
+                                  <Text style={styles.equipmentText}>{item.equipment}</Text>
+                                </View>
+                              )}
+                            </View>
+                            {renderAddBadge()}
+                          </PressableScale>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+              </>
+            )}
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -426,79 +434,89 @@ export const StrengthExerciseSearchModal: React.FC<StrengthExerciseSearchModalPr
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: theme.colors.backdrop,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingBottom: 4,
   },
-  searchBar: {
-    flex: 1,
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    height: 42,
-    borderRadius: 12,
-    borderWidth: 1,
+    marginBottom: 12,
   },
-  searchInput: {
+  headerTitle: {
     flex: 1,
-    fontSize: 15,
-    marginLeft: 8,
-    paddingVertical: 0,
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+    color: theme.colors.text,
+    marginHorizontal: 8,
   },
-  cancelBtn: {
-    marginLeft: 12,
-    paddingVertical: 6,
-    paddingHorizontal: 4,
+  headerSpacer: {
+    width: 38,
   },
-  cancelText: {
-    fontSize: 15,
-    fontWeight: '600',
+  searchInputContainer: {
+    marginBottom: 0,
   },
-  filtersContainer: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    backgroundColor: 'transparent',
+  clearSearchBtn: {
+    width: 36,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   filtersScroll: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
     gap: 8,
     flexDirection: 'row',
   },
   filterPill: {
+    height: 38,
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 0,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    backgroundColor: theme.colors.glassFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterPillActive: {
+    backgroundColor: theme.colors.sprintyBlue,
   },
   filterText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
   },
-  createRow: {
+  filterTextActive: {
+    color: theme.colors.surface,
+  },
+  createCard: {
+    ...glassCard,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 14,
+    marginBottom: 20,
+    borderColor: 'rgba(0, 105, 232, 0.25)',
   },
   createIconBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: theme.colors.sprintyBlue,
     alignItems: 'center',
     justifyContent: 'center',
   },
   createTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
+    color: theme.colors.text,
   },
   createSubtitle: {
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 2,
+    color: theme.colors.textSecondary,
   },
   loaderContainer: {
     paddingTop: 40,
@@ -507,9 +525,11 @@ const styles = StyleSheet.create({
   },
   loaderText: {
     fontSize: 13,
+    color: theme.colors.textSecondary,
   },
   listContent: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 4,
     paddingBottom: 40,
   },
   sectionBlock: {
@@ -522,46 +542,64 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   sectionTitle: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
-    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    color: theme.colors.textSecondary,
   },
   cardGroup: {
-    borderRadius: 14,
-    borderWidth: 1,
+    ...glassCard,
+    padding: 0,
     overflow: 'hidden',
   },
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    minHeight: 56,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
   rowBorder: {
     borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.hairline,
   },
   itemName: {
     fontSize: 15,
     fontWeight: '600',
+    color: theme.colors.text,
   },
   itemNameEn: {
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 2,
-    fontStyle: 'italic',
+    color: theme.colors.textSecondary,
   },
   itemSub: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  emptyBox: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 20,
-    alignItems: 'center',
-  },
-  emptyText: {
     fontSize: 13,
-    textAlign: 'center',
+    marginTop: 2,
+    color: theme.colors.textSecondary,
+  },
+  equipmentChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: theme.colors.glassFill,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    marginTop: 6,
+  },
+  equipmentText: {
+    fontSize: 11,
+    color: theme.colors.textSecondary,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  addBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(0, 105, 232, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
