@@ -5,13 +5,13 @@ import { useTheme } from '../../core/theme';
 import * as Location from 'expo-location';
 import { weatherService, WeatherData } from '../../services/weatherService';
 import { PressableScale } from './PressableScale';
-import { dashboardCard, glassCard, DashboardCardHeader } from './DashboardCard';
+import { glassCard, DashboardCardHeader } from './DashboardCard';
 
 const WEATHER_TINT = '#0284C7';
 
-export const WeatherCard = ({ variant = 'solid' }: { variant?: 'solid' | 'glass' }) => {
+export const WeatherCard = () => {
   const theme = useTheme();
-  const cardStyle = variant === 'glass' ? glassCard : dashboardCard;
+  const cardStyle = glassCard;
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [locationName, setLocationName] = useState<string>('Recherche...');
   const [isLoading, setIsLoading] = useState(true);

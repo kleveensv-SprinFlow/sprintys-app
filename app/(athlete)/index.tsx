@@ -7,8 +7,9 @@ import { AthleteGauges } from '../../src/features/athlete/components/AthleteGaug
 import { SessionCarousel } from '../../src/features/athlete/components/SessionCarousel';
 import { BodyCompositionCard } from '../../src/features/athlete/components/BodyCompositionCard';
 import { WeatherCard } from '../../src/shared/components/WeatherCard';
-import { GlowBackground } from '../../src/shared/components/GlowBackground';
-import { GLASS_BACKDROP } from '../../src/shared/components/DashboardCard';
+import { GlassScreen } from '../../src/shared/components/GlassScreen';
+import { glassBar } from '../../src/core/glass';
+import { useTabBarSpace } from '../../src/shared/hooks/useTabBarSpace';
 import { useNutritionStore } from '../../src/store/nutrition/nutritionStore';
 import { useAuthStore } from '../../src/store/authStore';
 import { useWorkoutStore } from '../../src/store/workoutStore';
@@ -32,6 +33,7 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
+  const tabBarSpace = useTabBarSpace(24);
   // iOS-like nav bar: transparent at rest, glass once content slides under it
   const headerBarOpacity = scrollY.interpolate({ inputRange: [0, 24], outputRange: [0, 1], extrapolate: 'clamp' });
 
@@ -63,19 +65,16 @@ export default function DashboardScreen() {
   const firstName = user?.firstName || user?.name?.split(' ')[0] || '';
 
   return (
-    <View style={[styles.container, { backgroundColor: GLASS_BACKDROP }]}>
-      <GlowBackground scrollY={scrollY} />
-
+    <GlassScreen scrollY={scrollY}>
       <View style={[styles.headerWrap, { paddingTop: insets.top }]}>
-        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.headerBar, { opacity: headerBarOpacity }]} />
+        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, glassBar, { opacity: headerBarOpacity }]} />
         <AthleteHeader />
       </View>
 
-      {/* Runs to the bottom of the screen: on this tab the tab bar floats (frosted) over the content */}
-      <View style={styles.safeArea}>
-
+      {/* Runs to the bottom of the screen: the tab bar floats (frosted) over the content */}
+      <View style={styles.body}>
         <Animated.ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={{ paddingBottom: tabBarSpace }}
           showsVerticalScrollIndicator={false}
           onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
           scrollEventThrottle={16}
@@ -98,29 +97,21 @@ export default function DashboardScreen() {
           <AthleteGauges refreshKey={refreshKey} />
           <SessionCarousel />
           <View style={styles.cardGutter}>
-            <WeatherCard variant="glass" />
+            <WeatherCard />
           </View>
           <BodyCompositionCard refreshKey={refreshKey} />
         </Animated.ScrollView>
       </View>
-    </View>
+    </GlassScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
+  body: {
     flex: 1,
   },
   headerWrap: {
     zIndex: 10,
-  },
-  headerBar: {
-    backgroundColor: 'rgba(255, 255, 255, 0.72)',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(15, 23, 42, 0.1)',
   },
   greeting: {
     paddingHorizontal: 20,
@@ -141,8 +132,5 @@ const styles = StyleSheet.create({
   cardGutter: {
     // WeatherCard has no horizontal margin (the coach screen pads its scroll view)
     marginHorizontal: 16,
-  },
-  scrollContent: {
-    paddingBottom: 130, // The frosted tab bar floats over the end of the content
   },
 });

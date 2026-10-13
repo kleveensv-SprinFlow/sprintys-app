@@ -6,6 +6,8 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../../core/theme';
 import { useCoachStore } from '../../../store/coach/coachStore';
+import { GlassTabBarBackground, glassTabBar } from '../../../shared/components/GlassTabBarBackground';
+import { useTabBarStore } from '../../../shared/hooks/useTabBarSpace';
 
 interface TabConfig {
   name: string;
@@ -140,6 +142,7 @@ export const CoachTabBar: React.FC<BottomTabBarProps> = ({
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const [containerWidth, setContainerWidth] = useState(0);
+  const setTabBarHeight = useTabBarStore((s) => s.setHeight);
   const translateXAnim = useRef(new Animated.Value(0)).current;
 
   const PRIMARY_COACH_TABS = ['index', 'group', 'calendar', 'chat'];
@@ -176,15 +179,12 @@ export const CoachTabBar: React.FC<BottomTabBarProps> = ({
   };
 
   return (
+    // Floats over the screens as frosted glass; screens pad their content with useTabBarSpace()
     <View
-      style={[
-        styles.barContainer,
-        {
-          backgroundColor: theme.colors.surface,
-          paddingBottom: Math.max(insets.bottom, 12),
-        },
-      ]}
+      style={[styles.barContainer, glassTabBar, { paddingBottom: Math.max(insets.bottom, 12) }]}
+      onLayout={(e) => setTabBarHeight(e.nativeEvent.layout.height)}
     >
+      <GlassTabBarBackground />
       <View style={styles.tabList} onLayout={handleLayout}>
         {/* Sliding Background Pill */}
         {tabWidth > 0 && activeVisibleIndex >= 0 && (
@@ -241,14 +241,7 @@ export const CoachTabBar: React.FC<BottomTabBarProps> = ({
 
 const styles = StyleSheet.create({
   barContainer: {
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(226, 232, 240, 0.6)',
     paddingTop: 8,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.04,
-    shadowRadius: 16,
-    elevation: 6,
   },
   tabList: {
     flexDirection: 'row',

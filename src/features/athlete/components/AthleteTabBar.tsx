@@ -4,7 +4,8 @@ import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { BlurView } from 'expo-blur';
+import { GlassTabBarBackground, glassTabBar } from '../../../shared/components/GlassTabBarBackground';
+import { useTabBarStore } from '../../../shared/hooks/useTabBarSpace';
 import { useTheme } from '../../../core/theme';
 
 interface TabConfig {
@@ -172,8 +173,7 @@ export const AthleteTabBar: React.FC<BottomTabBarProps> = ({
 
   const PRIMARY_TABS = ['index', 'calendar', 'nutrition', 'message'];
   const isPrimaryTab = PRIMARY_TABS.includes(currentRoute?.name);
-  // Dashboard prototype: the bar floats over the content as frosted glass (other tabs stay solid for now)
-  const isGlass = currentRoute?.name === 'index';
+  const setTabBarHeight = useTabBarStore((s) => s.setHeight);
 
   // Fetch des non-lus
   const [unreadCount, setUnreadCount] = React.useState(0);
@@ -217,25 +217,12 @@ export const AthleteTabBar: React.FC<BottomTabBarProps> = ({
   }
 
   return (
+    // Floats over the screens as frosted glass; screens pad their content with useTabBarSpace()
     <View
-      style={[
-        styles.barContainer,
-        isGlass
-          ? styles.barGlass
-          : { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border },
-        { paddingBottom: Math.max(insets.bottom, 12) },
-      ]}
+      style={[styles.barContainer, glassTabBar, { paddingBottom: Math.max(insets.bottom, 12) }]}
+      onLayout={(e) => setTabBarHeight(e.nativeEvent.layout.height)}
     >
-      {isGlass && (
-        // Real blur here: the content actually scrolls under the bar.
-        // Android only blurs with the Dimezis method, otherwise it is a flat tint.
-        <BlurView
-          tint="light"
-          intensity={Platform.OS === 'ios' ? 80 : 70}
-          experimentalBlurMethod="dimezisBlurView"
-          style={StyleSheet.absoluteFill}
-        />
-      )}
+      <GlassTabBarBackground />
       <View style={styles.tabList}>
         {state.routes.map((route: any, index: number) => {
           const tabConfig = ATHLETE_TABS[route.name];
@@ -280,25 +267,7 @@ export const AthleteTabBar: React.FC<BottomTabBarProps> = ({
 
 const styles = StyleSheet.create({
   barContainer: {
-    borderTopWidth: StyleSheet.hairlineWidth,
     paddingTop: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  barGlass: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    overflow: 'hidden',
-    backgroundColor: 'transparent',
-    borderTopColor: 'rgba(15, 23, 42, 0.08)',
-    // A shadow/elevation under a translucent bar shows through it as a grey band
-    shadowOpacity: 0,
-    elevation: 0,
   },
   tabList: {
     flexDirection: 'row',

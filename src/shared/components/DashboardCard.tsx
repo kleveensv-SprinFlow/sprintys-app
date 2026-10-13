@@ -1,52 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, ViewStyle, Platform } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../../core/theme';
 
-/**
- * Shared look of the athlete dashboard cards (Apple Health-like summary tiles):
- * white surface, no border, soft shadow, continuous corners.
- */
-export const dashboardCard: ViewStyle = {
-  backgroundColor: theme.colors.surface,
-  borderRadius: 22,
-  borderCurve: 'continuous',
-  padding: 16,
-  ...theme.shadows.soft,
-  // No border anymore: a slightly stronger shadow keeps the card edge readable
-  shadowOpacity: 0.06,
-};
-
-/** Page color behind the glows: slightly tinted so translucent white cards stand out. */
-export const GLASS_BACKDROP = '#EDF1F7';
-
-/** Neutral fill for elements inside a glass card (progress tracks, rest tiles…). */
-export const glassFill = 'rgba(15, 23, 42, 0.05)';
-
-/**
- * Light-theme "glass" card: translucent white over the glow background with a
- * bright rim. No real blur on purpose: behind cards there are only static,
- * already-soft glows, so a blur would look the same and cost a lot on Android.
- * No elevation on Android: it draws a grey halo through translucent views.
- */
-export const glassCard: ViewStyle = {
-  backgroundColor: 'rgba(255, 255, 255, 0.68)',
-  borderRadius: 22,
-  borderCurve: 'continuous',
-  borderWidth: 1,
-  borderColor: 'rgba(255, 255, 255, 0.9)',
-  padding: 16,
-  ...Platform.select<ViewStyle>({
-    ios: {
-      shadowColor: '#1E3A8A',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.05,
-      shadowRadius: 20,
-    },
-    android: { elevation: 0 },
-    default: {},
-  }),
-};
+// Glass styles live in core/glass; re-exported for the dashboard components
+export { GLASS_BACKDROP, glassFill, glassCard } from '../../core/glass';
 
 interface DashboardCardHeaderProps {
   icon: React.ReactNode;

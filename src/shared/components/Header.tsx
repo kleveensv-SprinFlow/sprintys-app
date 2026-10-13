@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../core/theme';
 import { Feather } from '@expo/vector-icons';
+import { glassBar } from '../../core/glass';
 
 interface HeaderProps {
   title: string;
@@ -16,7 +17,7 @@ export const Header: React.FC<HeaderProps> = ({ title, rightComponent, showBackB
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.container, { paddingTop: Math.max(insets.top, 16) + 6, backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, glassBar, { paddingTop: Math.max(insets.top, 16) + 6 }]}>
       {showBackButton && (
         <TouchableOpacity style={styles.leftContainer} onPress={onBackPress}>
           <Feather name="chevron-left" size={28} color={theme.colors.text} />
@@ -37,8 +38,6 @@ export const Header: React.FC<HeaderProps> = ({ title, rightComponent, showBackB
 const styles = StyleSheet.create({
   container: {
     paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)', // Very subtle separator, or remove if preferred
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
