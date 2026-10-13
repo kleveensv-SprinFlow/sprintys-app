@@ -17,6 +17,7 @@ import { GlowBackground } from '../../src/shared/components/GlowBackground';
 import { PressableScale } from '../../src/shared/components/PressableScale';
 import { glassSurface } from '../../src/core/glass';
 import { useTabBarSpace } from '../../src/shared/hooks/useTabBarSpace';
+import { Grain } from '../../src/shared/components/Grain';
 
 export default function CoachDashboardScreen() {
   const todayStr = (() => {
@@ -103,6 +104,7 @@ export default function CoachDashboardScreen() {
             activeOpacity={0.9}
             onPress={() => setTeamHealthVisible(true)}
           >
+            <Grain radius={22} />
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <View style={[styles.microStatusDot, { backgroundColor: healthColor }]} />
@@ -127,6 +129,7 @@ export default function CoachDashboardScreen() {
         
         {todayWorkouts.length === 0 ? (
           <View style={[styles.emptyCard, glassSurface]}>
+            <Grain radius={22} />
             <Feather name="calendar" size={24} color={theme.colors.textMuted} style={{ marginBottom: 12 }} />
             <Text style={styles.emptyText}>Aucune séance planifiée pour aujourd'hui.</Text>
             <TouchableOpacity onPress={() => router.push('/(coach)/day/' + todayStr)} style={{ marginTop: 16 }}>
@@ -140,6 +143,7 @@ export default function CoachDashboardScreen() {
               style={[styles.sessionCard, glassSurface]}
               onPress={() => router.push('/(coach)/day/' + (workout.date_prevue ? workout.date_prevue.split('T')[0] : todayStr))}
             >
+              <Grain radius={22} />
               <View style={styles.sessionCardHeader}>
                 <View style={[styles.sessionBadge, { backgroundColor: workout.type_seance === 'musculation' ? 'rgba(0, 105, 232, 0.08)' : 'rgba(245, 158, 11, 0.1)' }]}>
                   <Text style={[styles.sessionBadgeText, { color: workout.type_seance === 'musculation' ? ((theme.colors as any).sprintyBlue || '#0069E8') : '#F59E0B' }]}>

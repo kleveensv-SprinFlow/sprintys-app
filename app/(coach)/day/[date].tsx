@@ -20,7 +20,7 @@ import { TrainingPeriod } from '../../../src/types/period';
 import { getWorkoutColor } from '../../../src/shared/components/MonthlyCalendar';
 import { useCoachStore } from '../../../src/store/coach/coachStore';
 import { GlassScreen } from '../../../src/shared/components/GlassScreen';
-import { glassSurface } from '../../../src/core/glass';
+import { glassSurface, glassRim } from '../../../src/core/glass';
 
 const MONTH_NAMES_FULL = [
   'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
@@ -317,6 +317,7 @@ export default function CoachDayScreen() {
                 styles.sprintyQuickActionCard,
                 glassSurface,
                 { borderColor: theme.colors.accent + '30' },
+                glassRim,
               ]}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

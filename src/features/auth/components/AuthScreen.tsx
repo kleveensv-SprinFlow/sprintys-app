@@ -16,6 +16,7 @@ import { LoginForm } from './LoginForm';
 import { RegisterMultiStep } from './RegisterMultiStep';
 import { GlowBackground } from '../../../shared/components/GlowBackground';
 import { glassSurface } from '../../../core/glass';
+import { Grain } from '../../../shared/components/Grain';
 
 interface AuthScreenProps {
   initialTab?: 'login' | 'signup';
@@ -98,6 +99,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ initialTab = 'login' }) 
           glassSurface,
         ]}
       >
+        <Grain radius={20} />
         {activeTab === 'login' ? (
           <LoginForm onSwitchToSignup={() => handleTabChange('signup')} />
         ) : (

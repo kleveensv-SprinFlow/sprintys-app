@@ -60,12 +60,14 @@ export const universalColors = {
   success: '#10B981',
   warning: '#F59E0B',
   glow: 'rgba(0, 0, 0, 0.05)',
-  // Light "glass" theme (see core/glass.ts)
-  backdrop: '#EDF1F7', // Page color behind the glows, slightly tinted so translucent cards stand out
-  glass: 'rgba(255, 255, 255, 0.68)', // Translucent card fill
-  glassBorder: 'rgba(255, 255, 255, 0.9)', // Bright rim of glass cards
+  // Light frosted-glass theme (see core/glass.ts)
+  backdrop: '#EDF1F7', // Page color behind the glows, slightly tinted so frosted cards stand out
+  glass: 'rgba(255, 255, 255, 0.76)', // Milky frosted card fill
+  glassBorder: 'rgba(255, 255, 255, 0.75)', // Rim of frosted cards
+  glassRimTop: 'rgba(255, 255, 255, 0.98)', // Lit top edge (thickness of the pane)
+  glassRimBottom: 'rgba(15, 23, 42, 0.06)', // Shaded bottom edge
   glassFill: 'rgba(15, 23, 42, 0.05)', // Neutral fill inside glass (tracks, chips, inputs)
-  glassBar: 'rgba(255, 255, 255, 0.72)', // Headers sitting over the glows
+  glassBar: 'rgba(255, 255, 255, 0.8)', // Frosted bars (headers) over the glows
   hairline: 'rgba(15, 23, 42, 0.08)',
 };
 

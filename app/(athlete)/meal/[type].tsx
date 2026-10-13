@@ -24,6 +24,7 @@ import { supabase } from '../../../src/services/supabase';
 import { GlowBackground } from '../../../src/shared/components/GlowBackground';
 import { glassSurface } from '../../../src/core/glass';
 import { GlassTabBarBackground } from '../../../src/shared/components/GlassTabBarBackground';
+import { Grain } from '../../../src/shared/components/Grain';
 
 const mealInfo = {
   petit_dejeuner: { label: 'Petit déjeuner', icon: 'coffee', color: '#00C9A7', bg: '#E8FBF7' },
@@ -241,6 +242,7 @@ export default function MealDetailScreen() {
 
         {/* GRILLE 2x2 MACROS STYLE YAZIO */}
         <View style={[styles.gridCard, glassSurface]}>
+          <Grain radius={20} />
           <View style={styles.gridRow}>
             <View style={[styles.gridCell, { borderRightWidth: 1, borderRightColor: theme.colors.hairline }]}>
               <Text style={[styles.gridValue, { color: theme.colors.text }]}>{Math.round(consumedKcal)} kcal</Text>
@@ -266,6 +268,7 @@ export default function MealDetailScreen() {
         {/* LISTE DES ALIMENTS DU REPAS */}
         {logs.length > 0 ? (
           <View style={[styles.foodCardContainer, glassSurface]}>
+            <Grain radius={20} />
             {logs.map((log, index) => {
               const displayName = log.custom_food_name || 'Aliment';
               const isLast = index === logs.length - 1;
@@ -319,6 +322,7 @@ export default function MealDetailScreen() {
           </View>
         ) : (
           <View style={[styles.emptyMealCard, glassSurface]}>
+            <Grain radius={20} />
             <Text style={[styles.emptyMealTitle, { color: theme.colors.text }]}>
               Aucun aliment dans ce repas
             </Text>
@@ -349,6 +353,7 @@ export default function MealDetailScreen() {
         </View>
 
         <View style={[styles.nutritionCard, glassSurface]}>
+          <Grain radius={20} />
           {renderProgressBar('Calories', consumedKcal, targetKcal, 'kcal', '#00C9A7')}
           {renderProgressBar('Glucides', consumedGlu, targetGlu, 'g', '#00C9A7')}
           {renderProgressBar('Protéines', consumedPro, targetPro, 'g', '#00C9A7')}

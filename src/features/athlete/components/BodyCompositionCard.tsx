@@ -8,6 +8,7 @@ import { useAuthStore } from '../../../store/authStore';
 import { PressableScale } from '../../../shared/components/PressableScale';
 import { glassCard, DashboardCardHeader } from '../../../shared/components/DashboardCard';
 import { WeightSparkline, movingAverage, TrendPoint } from '../../body/components/WeightChart';
+import { Grain } from '../../../shared/components/Grain';
 
 const day = 86400000;
 
@@ -71,6 +72,7 @@ export const BodyCompositionCard = ({ refreshKey = 0 }: { refreshKey?: number })
     return (
       <View style={styles.wrapper}>
         <PressableScale style={glassCard} onPress={open}>
+          <Grain radius={22} />
           <DashboardCardHeader
             icon={<Feather name="trending-down" size={15} color={blue} />}
             label="Poids"
@@ -96,6 +98,7 @@ export const BodyCompositionCard = ({ refreshKey = 0 }: { refreshKey?: number })
   return (
     <View style={styles.wrapper}>
       <PressableScale style={glassCard} onPress={open}>
+        <Grain radius={22} />
         <DashboardCardHeader
           icon={<Feather name="trending-down" size={15} color={blue} />}
           label="Poids"

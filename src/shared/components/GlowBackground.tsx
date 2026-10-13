@@ -14,12 +14,14 @@ interface Glow {
   opacity: number;
 }
 
-// Brand palette only (Sprinty blue / cyan + a hint of violet), kept pastel for the light theme
+// Brand palette only (Sprinty blue / cyan + a hint of violet), kept pastel for the light theme.
+// Spread down the whole screen so frosted cards always have some color to diffuse.
 const GLOWS: Glow[] = [
   { id: 'glowBlue', color: universalColors.sprintyBlue, x: 0.05, y: 0.03, r: 0.95, opacity: 0.2 },
   { id: 'glowCyan', color: universalColors.sprintyCyan, x: 1.0, y: 0.13, r: 0.85, opacity: 0.24 },
-  { id: 'glowViolet', color: '#8B5CF6', x: 0.1, y: 0.6, r: 0.8, opacity: 0.08 },
-  { id: 'glowBottom', color: universalColors.sprintyBlue, x: 0.95, y: 0.95, r: 0.8, opacity: 0.07 },
+  { id: 'glowCyanMid', color: universalColors.sprintyCyan, x: 0.95, y: 0.5, r: 0.7, opacity: 0.12 },
+  { id: 'glowViolet', color: '#8B5CF6', x: 0.05, y: 0.62, r: 0.8, opacity: 0.11 },
+  { id: 'glowBottom', color: universalColors.sprintyBlue, x: 0.9, y: 0.92, r: 0.85, opacity: 0.12 },
 ];
 
 // Extra height so the layer still covers the screen once the parallax has moved it up

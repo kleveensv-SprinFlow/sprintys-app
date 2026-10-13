@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import { GlowBackground } from '../../src/shared/components/GlowBackground';
 import { glassSurface } from '../../src/core/glass';
 import { useTabBarSpace } from '../../src/shared/hooks/useTabBarSpace';
+import { Grain } from '../../src/shared/components/Grain';
 
 export default function CoachGroupsScreen() {
   const router = useRouter();
@@ -99,6 +100,7 @@ export default function CoachGroupsScreen() {
           activeOpacity={0.8}
           onPress={() => setActiveTeamId(team.id)}
         >
+          <Grain radius={20} />
           <View style={styles.teamCardHeader}>
             <View style={{ flex: 1 }}>
               <Text style={styles.teamCardTitle}>{team.name}</Text>
@@ -203,6 +205,7 @@ export default function CoachGroupsScreen() {
                       }}
                       activeOpacity={0.7}
                     >
+                      <Grain radius={16} />
                       <View style={styles.avatar}>
                         {member.profile?.avatar_url ? (
                           <Image source={{ uri: member.profile.avatar_url }} style={styles.avatarImage} />
@@ -263,6 +266,7 @@ export default function CoachGroupsScreen() {
               ) : (
                 subgroups.map(sg => (
                   <View key={sg.id} style={styles.rowCard}>
+                    <Grain radius={16} />
                     <View style={styles.sgTagIcon}>
                       <Feather name="tag" size={16} color="#0069E8" />
                     </View>
@@ -309,6 +313,7 @@ export default function CoachGroupsScreen() {
               ) : (
                 currentTeamPending.map(member => (
                   <View key={member.user_id} style={styles.rowCard}>
+                    <Grain radius={16} />
                     <View style={styles.avatar}>
                       {member.profile?.avatar_url ? (
                         <Image source={{ uri: member.profile.avatar_url }} style={styles.avatarImage} />
@@ -338,6 +343,7 @@ export default function CoachGroupsScreen() {
             <View style={{ gap: 14 }}>
               {/* Card Group Info */}
               <View style={styles.settingsCard}>
+                <Grain radius={20} />
                 <View style={styles.settingsCardHeader}>
                   <Feather name="info" size={18} color="#0069E8" />
                   <Text style={styles.settingsCardTitle}>Informations du groupe</Text>

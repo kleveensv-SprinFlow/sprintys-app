@@ -23,6 +23,7 @@ import { LegalNoticeModal } from '../../src/features/auth/components/LegalNotice
 import { supabase } from '../../src/services/supabase';
 import { GlowBackground } from '../../src/shared/components/GlowBackground';
 import { glassSurface } from '../../src/core/glass';
+import { Grain } from '../../src/shared/components/Grain';
 
 function base64ToUint8Array(base64: string): Uint8Array {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
@@ -285,6 +286,7 @@ export default function ProfileScreen() {
 
         <Text style={styles.sectionTitle}>Mon Compte</Text>
         <View style={styles.card}>
+          <Grain radius={18} />
           <SettingsItem
             icon="user"
             title="Mes informations"
@@ -295,6 +297,7 @@ export default function ProfileScreen() {
 
         <Text style={styles.sectionTitle}>Application</Text>
         <View style={styles.card}>
+          <Grain radius={18} />
           <SettingsItem
             icon="help-circle"
             title="FAQ & Centre d'aide"

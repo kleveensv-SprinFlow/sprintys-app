@@ -14,6 +14,7 @@ import { LegalNoticeModal } from '../../src/features/auth/components/LegalNotice
 import { healthConsent } from '../../src/services/healthConsent';
 import { GlowBackground } from '../../src/shared/components/GlowBackground';
 import { glassSurface } from '../../src/core/glass';
+import { Grain } from '../../src/shared/components/Grain';
 
 // Helper to convert base64 to Uint8Array for binary upload
 function base64ToUint8Array(base64: string): Uint8Array {
@@ -326,6 +327,7 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.infoCard}>
+          <Grain radius={18} />
           <TouchableOpacity 
             style={styles.infoRow} 
             onPress={() => setIsEditModalVisible(true)}
@@ -384,6 +386,7 @@ export default function SettingsScreen() {
 
         <Text style={styles.sectionTitle}>Application</Text>
         <View style={styles.card}>
+          <Grain radius={18} />
           <SettingsItem icon="help-circle" title="FAQ & Centre d'aide" onPress={() => setIsFaqModalVisible(true)} />
           <SettingsItem icon="file-text" title="Mentions et conditions" onPress={() => setIsLegalVisible(true)} />
           <SettingsItem icon="shield" title="Retirer l’accord sur les douleurs" onPress={handleRevokeHealth} />

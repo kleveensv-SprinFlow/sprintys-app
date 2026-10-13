@@ -2,19 +2,24 @@ import React from 'react';
 import { Platform, StyleSheet, ViewStyle } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { universalColors } from '../../core/theme';
+import { Grain } from './Grain';
 
 /**
- * Frosted background of the floating tab bars. Real blur here: content actually
+ * Frosted background of the floating tab bars (and other bottom bars). Real blur here: content actually
  * scrolls under the bar. Android only blurs with the Dimezis method (otherwise it
  * is a flat tint).
  */
 export const GlassTabBarBackground = () => (
-  <BlurView
-    tint="light"
-    intensity={Platform.OS === 'ios' ? 80 : 70}
-    experimentalBlurMethod="dimezisBlurView"
-    style={StyleSheet.absoluteFill}
-  />
+  <>
+    <BlurView
+      tint="light"
+      intensity={Platform.OS === 'ios' ? 80 : 70}
+      experimentalBlurMethod="dimezisBlurView"
+      style={StyleSheet.absoluteFill}
+    />
+    {/* Frosted ("dépoli") grain on top of the blur */}
+    <Grain sheen={false} />
+  </>
 );
 
 /** Container style of a floating glass tab bar. */

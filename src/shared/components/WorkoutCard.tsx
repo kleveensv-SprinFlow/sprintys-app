@@ -5,6 +5,7 @@ import { useTheme } from '../../core/theme';
 import { getWorkoutTypeConfig } from './MonthlyCalendar';
 import { glassSurface } from '../../core/glass';
 import { PressableScale } from './PressableScale';
+import { Grain } from './Grain';
 
 export interface WorkoutCardProps {
   time?: string;
@@ -43,6 +44,7 @@ export const WorkoutCard: React.FC<WorkoutCardProps> = ({
         disabled={!onPress}
         haptic={onPress ? 'light' : 'none'}
       >
+        <Grain radius={22} />
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <View style={[styles.iconBox, { backgroundColor: typeConfig.bg }]}>

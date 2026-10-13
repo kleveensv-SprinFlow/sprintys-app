@@ -9,7 +9,8 @@ import { useAuthStore } from '../../src/store/authStore';
 import { chatService, GroupDiscussionsSummary } from '../../src/services/chatService';
 import { useRouter } from 'expo-router';
 import { GlowBackground } from '../../src/shared/components/GlowBackground';
-import { glassSurface } from '../../src/core/glass';
+import { glassSurface, glassRim } from '../../src/core/glass';
+import { Grain } from '../../src/shared/components/Grain';
 
 interface MyGroupData {
   team_id: string;
@@ -242,6 +243,7 @@ export default function GroupsScreen() {
         {!myGroup && (
           <>
             <View style={styles.joinCard}>
+              <Grain radius={22} />
               <View style={styles.joinIconCircle}>
                 <Feather name="users" size={32} color={theme.colors.accent} />
               </View>
@@ -296,6 +298,7 @@ export default function GroupsScreen() {
         {/* === ÉTAT 2 : Demande en attente === */}
         {myGroup && myGroup.status === 'pending' && (
           <View style={styles.pendingCard}>
+            <Grain radius={22} />
             <View style={styles.pendingIconCircle}>
               <Feather name="clock" size={32} color={theme.colors.warning} />
             </View>
@@ -318,6 +321,7 @@ export default function GroupsScreen() {
           <View style={styles.approvedContainer}>
             {/* Carte du groupe */}
             <View style={styles.groupMainCard}>
+              <Grain radius={22} />
               <View style={styles.groupHeader}>
                 <View style={styles.groupIconCircle}>
                   <Feather name="shield" size={28} color={theme.colors.accent} />
@@ -352,6 +356,7 @@ export default function GroupsScreen() {
                 }
               }}
             >
+              <Grain radius={18} />
               <View style={[styles.actionIconCircle, { backgroundColor: theme.colors.accent + '20' }]}>
                 <Feather name="message-circle" size={22} color={theme.colors.accent} />
               </View>
@@ -376,6 +381,7 @@ export default function GroupsScreen() {
                 }
               }}
             >
+              <Grain radius={18} />
               <View style={[styles.actionIconCircle, { backgroundColor: theme.colors.success + '20' }]}>
                 <Feather name="users" size={22} color={theme.colors.success} />
               </View>
@@ -443,7 +449,7 @@ const styles = StyleSheet.create({
   // Pending Card
   pendingCard: {
     ...glassSurface, padding: 24, borderRadius: 22, borderCurve: 'continuous',
-    borderColor: theme.colors.warning + '40', alignItems: 'center',
+    borderColor: theme.colors.warning + '40', ...glassRim, alignItems: 'center',
   },
   pendingIconCircle: {
     width: 64, height: 64, borderRadius: 32, backgroundColor: theme.colors.warning + '20',

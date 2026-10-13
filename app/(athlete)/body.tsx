@@ -14,6 +14,7 @@ import { BodyMetric } from '../../src/services/bodyService';
 import { WeightTrendChart, movingAverage, TrendPoint } from '../../src/features/body/components/WeightChart';
 import { GlassScreen } from '../../src/shared/components/GlassScreen';
 import { glassCard, glassSurface } from '../../src/core/glass';
+import { Grain } from '../../src/shared/components/Grain';
 
 type MetricKey = 'weight' | 'fat' | 'muscle';
 type RangeKey = '1S' | '1M' | '3M' | '1A' | 'Tout';
@@ -240,6 +241,7 @@ export default function BodyCompositionScreen() {
           </View>
 
           <View style={glassCard}>
+            <Grain radius={22} />
             {series.length >= 2 ? (
               <WeightTrendChart
                 raw={raw}
@@ -277,6 +279,7 @@ export default function BodyCompositionScreen() {
           )}
           {history.length > 0 && (
             <View style={[glassCard, styles.historyCard]}>
+              <Grain radius={22} />
               {history.map((m, i) => {
                 const d = m.created_at ? new Date(m.created_at) : null;
                 const label = d ? d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
