@@ -22,7 +22,8 @@ export const FoodSearchModal: React.FC = () => {
   const { 
     isSearchModalOpen, closeSearchModal, activeSearchMealType, 
     addMealLog, currentDate,
-    fetchHistory, recentFoods, frequentFoods, savedMeals
+    fetchHistory, recentFoods, frequentFoods, savedMeals,
+    quickAddFood, logSavedMeal, deleteSavedMeal
   } = useNutritionStore();
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,6 +39,8 @@ export const FoodSearchModal: React.FC = () => {
   const [replaceSearchQuery, setReplaceSearchQuery] = useState('');
   const [replaceResults, setReplaceResults] = useState<HybridFoodResult[]>([]);
   const [isReplacingLoading, setIsReplacingLoading] = useState(false);
+  const [sessionAddedCount, setSessionAddedCount] = useState(0);
+  const [notificationMessage, setNotificationMessage] = useState<string | null>(null);
   
   const [permission, requestPermission] = useCameraPermissions();
   const debouncedQuery = useDebounce(searchQuery, 500);
@@ -53,6 +56,8 @@ export const FoodSearchModal: React.FC = () => {
       setAiQuery('');
       setMode('text');
       setResults([]);
+      setSessionAddedCount(0);
+      setNotificationMessage(null);
     }
   }, [isSearchModalOpen]);
 
@@ -298,15 +303,16 @@ export const FoodSearchModal: React.FC = () => {
     if (newArr.length === 0) setMode('text');
   };
 
-  const handleConfirmAdd = async (payload: FoodAddPayload) => {
+  const handleConfirmAdd = async (payload: FoodAddPayload, keepSearching: boolean = false) => {
     if (!activeSearchMealType || !selectedProduct) return;
     
     setIsLoading(true);
+    const displayName = selectedProduct.display_name || selectedProduct.nom || selectedProduct.name || 'Aliment';
     await addMealLog({
       meal_type: activeSearchMealType,
       consumed_at: currentDate,
       food_id: selectedProduct.id,
-      custom_food_name: selectedProduct.display_name || selectedProduct.nom || selectedProduct.name || 'Aliment',
+      custom_food_name: displayName,
       quantity_g: payload.totalGrams,
       calories: payload.calories,
       proteines: payload.pro,
@@ -320,7 +326,97 @@ export const FoodSearchModal: React.FC = () => {
     
     setIsLoading(false);
     setSelectedProduct(null);
-    closeSearchModal();
+    setSessionAddedCount((prev) => prev + 1);
+    setNotificationMessage(`${displayName} ajouté (${payload.calories} kcal)`);
+    setTimeout(() => setNotificationMessage(null), 3000);
+
+    if (!keepSearching) {
+      closeSearchModal();
+    }
+  };
+
+  const handleQuickAddRecent = async (item: any) => {
+    if (!activeSearchMealType) return;
+    const ok = await quickAddFood(item, activeSearchMealType);
+    if (ok) {
+      const name = item.food_name || item.name || 'Aliment';
+      setSessionAddedCount((prev) => prev + 1);
+      setNotificationMessage(`${name} ajouté (${Math.round(item.last_calories || 0)} kcal)`);
+      setTimeout(() => setNotificationMessage(null), 3000);
+    }
+  };
+
+  const handleLogSavedMeal = async (savedMeal: any) => {
+    if (!activeSearchMealType) return;
+    const ok = await logSavedMeal(savedMeal, activeSearchMealType);
+    if (ok) {
+      const itemsCount = savedMeal.saved_meal_items?.length || 0;
+      setSessionAddedCount((prev) => prev + itemsCount);
+      setNotificationMessage(`Repas "${savedMeal.name}" ajouté !`);
+      setTimeout(() => setNotificationMessage(null), 3000);
+    }
+  };
+
+  const handleDeleteSavedMeal = (id: string, name: string) => {
+    Alert.alert(
+      'Supprimer ce repas',
+      `Voulez-vous supprimer le repas sauvegardé "${name}" ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: () => deleteSavedMeal(id),
+        },
+      ]
+    );
+  };
+
+  const renderSavedMealItem = ({ item }: { item: any }) => {
+    const items = item.saved_meal_items || [];
+    const totalKcal = Math.round(items.reduce((sum: number, it: any) => sum + Number(it.calories || 0), 0));
+    const totalPro = Math.round(items.reduce((sum: number, it: any) => sum + Number(it.proteines || 0), 0));
+    const totalGlu = Math.round(items.reduce((sum: number, it: any) => sum + Number(it.glucides || 0), 0));
+    const totalLip = Math.round(items.reduce((sum: number, it: any) => sum + Number(it.lipides || 0), 0));
+    const namesSummary = items.map((it: any) => it.custom_food_name || 'Aliment').join(', ');
+
+    return (
+      <View style={[styles.savedMealCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        <View style={styles.savedMealHeader}>
+          <View style={{ flex: 1, paddingRight: 8 }}>
+            <Text style={[styles.savedMealName, { color: theme.colors.text }]} numberOfLines={1}>
+              {item.name}
+            </Text>
+            <Text style={[styles.savedMealSummary, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+              {namesSummary || 'Aucun aliment'}
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => handleDeleteSavedMeal(item.id, item.name)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={{ padding: 4 }}
+          >
+            <Feather name="trash-2" size={16} color={theme.colors.textMuted} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.savedMealFooter}>
+          <Text style={[styles.savedMealMacros, { color: theme.colors.textSecondary }]}>
+            <Text style={{ fontWeight: '700', color: theme.colors.text }}>{totalKcal} kcal</Text>
+            {` · ${totalPro}g P · ${totalGlu}g G · ${totalLip}g L`}
+          </Text>
+
+          <TouchableOpacity
+            style={[styles.savedMealAddBtn, { backgroundColor: theme.colors.accent }]}
+            onPress={() => handleLogSavedMeal(item)}
+            activeOpacity={0.8}
+          >
+            <Feather name="plus" size={15} color="#FFF" />
+            <Text style={styles.savedMealAddText}>Ajouter tout</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
   };
 
   const renderProductItem = ({ item }: { item: HybridFoodResult | any }) => {
@@ -407,7 +503,20 @@ export const FoodSearchModal: React.FC = () => {
         {kcalLabel ? (
           <Text style={{ color: theme.colors.text, fontWeight: '700', marginRight: 10 }}>{kcalLabel}</Text>
         ) : null}
-        <Feather name="plus-circle" size={24} color={theme.colors.accent} />
+        <TouchableOpacity
+          onPress={(e) => {
+            e.stopPropagation();
+            if (kind === 'recent') {
+              handleQuickAddRecent(item);
+            } else {
+              setSelectedProduct(item.type ? item.item : item);
+            }
+          }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          style={{ padding: 4 }}
+        >
+          <Feather name="plus-circle" size={24} color={theme.colors.accent} />
+        </TouchableOpacity>
       </TouchableOpacity>
     );
   };
@@ -840,12 +949,50 @@ export const FoodSearchModal: React.FC = () => {
                     )
                   )}
                   {activeTab === 'repas' && (
-                    <Text style={[styles.noResults, { color: theme.colors.textSecondary }]}>Vos repas sauvegardés apparaîtront ici.</Text>
+                    savedMeals.length > 0 ? (
+                      <FlatList
+                        data={savedMeals}
+                        keyExtractor={(item, index) => `saved-meal-${item.id}-${index}`}
+                        keyboardShouldPersistTaps="handled"
+                        renderItem={renderSavedMealItem}
+                        contentContainerStyle={{ paddingBottom: sessionAddedCount > 0 ? 80 : 20 }}
+                      />
+                    ) : (
+                      <View style={{ padding: 24, alignItems: 'center' }}>
+                        <Feather name="bookmark" size={36} color={theme.colors.textMuted} style={{ marginBottom: 12 }} />
+                        <Text style={[styles.noResults, { color: theme.colors.textSecondary, textAlign: 'center' }]}>
+                          Aucun repas sauvegardé.{"\n"}Ouvrez un repas avec vos aliments et touchez « Enregistrer comme repas » pour le retrouver ici en 1 clic !
+                        </Text>
+                      </View>
+                    )
                   )}
                 </>
               )}
             </View>
           </KeyboardAvoidingView>
+        )}
+
+        {/* BANDEAU FLOTTANT DE VALIDATION MULTI-AJOUT */}
+        {sessionAddedCount > 0 && (
+          <View style={[styles.sessionFloatingBar, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={[styles.sessionBarCount, { color: theme.colors.text }]}>
+                {sessionAddedCount} aliment{sessionAddedCount > 1 ? 's' : ''} ajouté{sessionAddedCount > 1 ? 's' : ''}
+              </Text>
+              {notificationMessage && (
+                <Text style={[styles.sessionBarMessage, { color: theme.colors.accent }]} numberOfLines={1}>
+                  {notificationMessage}
+                </Text>
+              )}
+            </View>
+            <TouchableOpacity
+              style={[styles.sessionDoneBtn, { backgroundColor: theme.colors.accent }]}
+              onPress={closeSearchModal}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.sessionDoneText}>Terminer</Text>
+            </TouchableOpacity>
+          </View>
         )}
       </SafeAreaView>
     </Modal>
@@ -1070,5 +1217,85 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: 'bold',
-  }
+  },
+  savedMealCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 12,
+  },
+  savedMealHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  savedMealName: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  savedMealSummary: {
+    fontSize: 13,
+  },
+  savedMealFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.06)',
+  },
+  savedMealMacros: {
+    fontSize: 13,
+  },
+  savedMealAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+  },
+  savedMealAddText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  sessionFloatingBar: {
+    position: 'absolute',
+    bottom: 20,
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 24,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  sessionBarCount: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  sessionBarMessage: {
+    fontSize: 12,
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  sessionDoneBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 16,
+  },
+  sessionDoneText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
 });

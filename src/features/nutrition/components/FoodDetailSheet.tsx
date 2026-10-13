@@ -20,7 +20,7 @@ interface FoodDetailSheetProps {
   product: any | null; // CiqualFood | OFFProduct
   visible: boolean;
   onClose: () => void;
-  onAdd: (data: FoodAddPayload) => void;
+  onAdd: (data: FoodAddPayload, keepSearching?: boolean) => void;
 }
 
 export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visible, onClose, onAdd }) => {
@@ -112,7 +112,14 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
     setUserEdited(true);
   };
 
-  const handleAdd = () => {
+  const quickPresets = React.useMemo(() => {
+    if (unit === 'piece') return ['1', '2', '3', '4'];
+    if (unit === 'ml') return ['100', '200', '250', '330'];
+    if (unit === 'serving') return ['1', '2', '3'];
+    return ['50', '100', '150', '200'];
+  }, [unit]);
+
+  const handleAdd = (keepSearching: boolean = false) => {
     if (totalGrams <= 0 || numericValue <= 0) return;
     onAdd({
       totalGrams: Math.round(totalGrams),
@@ -124,7 +131,7 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
       inputUnit: unit,
       gramsPerUnit,
       unitLabel,
-    });
+    }, keepSearching);
   };
 
   // Libellé de traduction dynamique
@@ -218,6 +225,31 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
               )}
             </View>
 
+            {/* Puces de portions rapides */}
+            <View style={styles.presetsRow}>
+              {quickPresets.map((preset) => {
+                const isSelected = inputValue === preset;
+                return (
+                  <TouchableOpacity
+                    key={preset}
+                    onPress={() => {
+                      setUserEdited(true);
+                      setInputValue(preset);
+                    }}
+                    style={[
+                      styles.presetChip,
+                      { borderColor: isSelected ? theme.colors.accent : theme.colors.border },
+                      isSelected && { backgroundColor: `${theme.colors.accent}18` }
+                    ]}
+                  >
+                    <Text style={[styles.presetText, { color: isSelected ? theme.colors.accent : theme.colors.textSecondary }]}>
+                      {unit === 'piece' ? `${preset} ${portionInfo?.pieceLabel || 'pce'}` : `${preset} ${unit}`}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
             {/* Ligne de traduction claire */}
             <Text style={[styles.translationText, { color: theme.colors.textSecondary }]}>
               {renderTranslationText()}
@@ -285,13 +317,23 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
             </View>
           </View>
 
-          {/* BOUTON D'ACTION */}
-          <TouchableOpacity 
-            style={[styles.submitButton, { backgroundColor: theme.colors.accent }]} 
-            onPress={handleAdd}
-          >
-            <Text style={styles.submitText}>Ajouter au journal</Text>
-          </TouchableOpacity>
+          {/* BOUTONS D'ACTION (CONTINUER OU VALIDER) */}
+          <View style={styles.actionButtonGroup}>
+            <TouchableOpacity 
+              style={[styles.secondaryButton, { borderColor: theme.colors.border }]} 
+              onPress={() => handleAdd(true)}
+            >
+              <Feather name="plus" size={16} color={theme.colors.text} style={{ marginRight: 6 }} />
+              <Text style={[styles.secondaryButtonText, { color: theme.colors.text }]}>Ajouter & continuer</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.submitButton, { backgroundColor: theme.colors.accent }]} 
+              onPress={() => handleAdd(false)}
+            >
+              <Text style={styles.submitText}>Ajouter</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -427,14 +469,49 @@ const styles = StyleSheet.create({
     fontSize: 11,
     textTransform: 'uppercase',
   },
-  submitButton: {
+  presetsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  presetChip: {
+    borderWidth: 1,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+  },
+  presetText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  actionButtonGroup: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  secondaryButton: {
+    flex: 1,
+    flexDirection: 'row',
+    borderWidth: 1,
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  submitButton: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   submitText: {
     color: '#FFF',
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });

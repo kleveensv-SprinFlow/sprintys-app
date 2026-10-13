@@ -2,11 +2,12 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
-import { useNutritionStore } from '../../../store/nutrition/nutritionStore';
+import { useNutritionStore, getLocalDateString } from '../../../store/nutrition/nutritionStore';
 import { MealType } from '../types';
 import { useAuthStore } from '../../../store/authStore';
 import { useRouter } from 'expo-router';
 import Svg, { Circle } from 'react-native-svg';
+import { supabase } from '../../../services/supabase';
 
 interface MealSectionProps {
   readonly?: boolean;
@@ -17,8 +18,39 @@ interface MealSectionProps {
 export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athleteId, athleteProfile }) => {
   const theme = useTheme();
   const router = useRouter();
-  const { mealLogs, openSearchModal } = useNutritionStore();
+  const { mealLogs, openSearchModal, currentDate, copyMealFromDate } = useNutritionStore();
   const user = useAuthStore((state) => state.user);
+
+  const yesterdayDate = React.useMemo(() => {
+    if (!currentDate) return '';
+    const [y, m, d] = currentDate.split('-').map(Number);
+    const prev = new Date(y, m - 1, d - 1);
+    return getLocalDateString(prev);
+  }, [currentDate]);
+
+  const [yesterdayMeals, setYesterdayMeals] = React.useState<Record<string, { count: number; kcal: number }>>({});
+
+  React.useEffect(() => {
+    const targetUserId = athleteId || user?.id;
+    if (!targetUserId || !yesterdayDate) return;
+
+    supabase
+      .from('meal_logs')
+      .select('meal_type, calories')
+      .eq('user_id', targetUserId)
+      .eq('consumed_at', yesterdayDate)
+      .then(({ data }) => {
+        if (data) {
+          const map: Record<string, { count: number; kcal: number }> = {};
+          data.forEach((item) => {
+            if (!map[item.meal_type]) map[item.meal_type] = { count: 0, kcal: 0 };
+            map[item.meal_type].count += 1;
+            map[item.meal_type].kcal += Number(item.calories || 0);
+          });
+          setYesterdayMeals(map);
+        }
+      });
+  }, [currentDate, yesterdayDate, athleteId, user?.id]);
 
   const activeProfile = athleteProfile || user;
   const mealDistribution = activeProfile?.mealDistribution || activeProfile?.meal_distribution || {
@@ -133,11 +165,25 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
                   {Math.round(consumedKcal)} <Text style={{ color: theme.colors.textMuted }}>/ {targetKcal} kcal</Text>
                 </Text>
 
-                {foodsSummary.length > 0 && (
+                {foodsSummary.length > 0 ? (
                   <Text style={[styles.foodSummaryText, { color: theme.colors.textMuted }]} numberOfLines={1}>
                     {foodsSummary}
                   </Text>
-                )}
+                ) : (!readonly && (yesterdayMeals[meal.type]?.count ?? 0) > 0 ? (
+                  <TouchableOpacity
+                    style={[styles.repeatYesterdayBtn, { borderColor: `${meal.color}50`, backgroundColor: `${meal.color}14` }]}
+                    onPress={async (e) => {
+                      e.stopPropagation();
+                      await copyMealFromDate(yesterdayDate, meal.type, athleteId);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Feather name="rotate-ccw" size={11} color={meal.color} style={{ marginRight: 4 }} />
+                    <Text style={[styles.repeatYesterdayText, { color: meal.color }]}>
+                      Répéter hier ({Math.round(yesterdayMeals[meal.type]?.kcal ?? 0)} kcal)
+                    </Text>
+                  </TouchableOpacity>
+                ) : null)}
               </View>
 
               {/* Bouton '+' compact et cerclé assorti à la couleur du repas */}
@@ -242,5 +288,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  repeatYesterdayBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    marginTop: 4,
+  },
+  repeatYesterdayText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
 });

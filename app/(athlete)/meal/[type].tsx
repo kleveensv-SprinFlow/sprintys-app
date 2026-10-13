@@ -16,7 +16,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../src/core/theme';
-import { useNutritionStore } from '../../../src/store/nutrition/nutritionStore';
+import { useNutritionStore, getLocalDateString } from '../../../src/store/nutrition/nutritionStore';
 import { MealType, MealLog } from '../../../src/features/nutrition/types';
 import { useAuthStore } from '../../../src/store/authStore';
 import { FoodSearchModal } from '../../../src/features/nutrition/components/FoodSearchModal';
@@ -40,11 +40,18 @@ export default function MealDetailScreen() {
   const user = useAuthStore(state => state.user);
   
   const [athleteProfile, setAthleteProfile] = useState<any>(null);
-  const { mealLogs, openSearchModal, deleteMealLog, updateMealLog } = useNutritionStore();
+  const { 
+    mealLogs, openSearchModal, deleteMealLog, updateMealLog,
+    currentDate, copyMealFromDate, saveCurrentMealAsTemplate 
+  } = useNutritionStore();
 
   const [editingLog, setEditingLog] = useState<MealLog | null>(null);
   const [editQty, setEditQty] = useState<string>('');
   const [editUnit, setEditUnit] = useState<'g' | 'ml' | 'piece' | 'serving'>('g');
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [savedTemplateName, setSavedTemplateName] = useState('');
+  const [yesterdayCount, setYesterdayCount] = useState(0);
+  const [yesterdayKcal, setYesterdayKcal] = useState(0);
 
   useEffect(() => {
     if (athleteId) {
@@ -60,6 +67,43 @@ export default function MealDetailScreen() {
       setAthleteProfile(null);
     }
   }, [athleteId]);
+
+  const yesterdayDate = React.useMemo(() => {
+    if (!currentDate) return '';
+    const [y, m, d] = currentDate.split('-').map(Number);
+    const prev = new Date(y, m - 1, d - 1);
+    return getLocalDateString(prev);
+  }, [currentDate]);
+
+  useEffect(() => {
+    const targetUserId = athleteId || user?.id;
+    if (!targetUserId || !yesterdayDate || !type) return;
+    supabase
+      .from('meal_logs')
+      .select('calories')
+      .eq('user_id', targetUserId)
+      .eq('consumed_at', yesterdayDate)
+      .eq('meal_type', type)
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setYesterdayCount(data.length);
+          setYesterdayKcal(Math.round(data.reduce((sum, item) => sum + Number(item.calories || 0), 0)));
+        } else {
+          setYesterdayCount(0);
+          setYesterdayKcal(0);
+        }
+      });
+  }, [currentDate, yesterdayDate, athleteId, user?.id, type]);
+
+  const handleSaveMealTemplate = async () => {
+    if (!savedTemplateName.trim()) return;
+    const ok = await saveCurrentMealAsTemplate(savedTemplateName.trim(), type, athleteId);
+    if (ok) {
+      setShowSaveModal(false);
+      setSavedTemplateName('');
+      Alert.alert('Succès', 'Repas sauvegardé ! Vous pouvez le retrouver dans l\'onglet "Mes Repas".');
+    }
+  };
 
   if (!type || !mealInfo[type]) {
     return (
@@ -168,7 +212,18 @@ export default function MealDetailScreen() {
           <Feather name="arrow-left" size={24} color={theme.colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.colors.text }]}>{info.label}</Text>
-        <View style={{ width: 40 }} />
+        {!readonly && logs.length > 0 ? (
+          <TouchableOpacity 
+            onPress={() => setShowSaveModal(true)} 
+            style={[styles.saveHeaderBtn, { backgroundColor: `${theme.colors.accent}15` }]}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Feather name="bookmark" size={16} color={theme.colors.accent} style={{ marginRight: 4 }} />
+            <Text style={[styles.saveHeaderText, { color: theme.colors.accent }]}>Enregistrer</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 40 }} />
+        )}
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -205,7 +260,7 @@ export default function MealDetailScreen() {
         </View>
 
         {/* LISTE DES ALIMENTS DU REPAS */}
-        {logs.length > 0 && (
+        {logs.length > 0 ? (
           <View style={[styles.foodCardContainer, { backgroundColor: theme.colors.surface }]}>
             {logs.map((log, index) => {
               const displayName = log.custom_food_name || 'Aliment';
@@ -257,6 +312,30 @@ export default function MealDetailScreen() {
                 </TouchableOpacity>
               );
             })}
+          </View>
+        ) : (
+          <View style={[styles.emptyMealCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+            <Text style={[styles.emptyMealTitle, { color: theme.colors.text }]}>
+              Aucun aliment dans ce repas
+            </Text>
+            <Text style={[styles.emptyMealSubtitle, { color: theme.colors.textSecondary }]}>
+              Ajoutez vos aliments ou répétez votre repas de la veille.
+            </Text>
+
+            {yesterdayCount > 0 && !readonly && (
+              <TouchableOpacity
+                style={[styles.repeatYesterdayBigBtn, { backgroundColor: `${info.color}18`, borderColor: `${info.color}45` }]}
+                onPress={async () => {
+                  await copyMealFromDate(yesterdayDate, type, athleteId);
+                }}
+                activeOpacity={0.8}
+              >
+                <Feather name="rotate-ccw" size={16} color={info.color} style={{ marginRight: 8 }} />
+                <Text style={[styles.repeatYesterdayBigText, { color: info.color }]}>
+                  Répéter le {info.label.toLowerCase()} d'hier ({yesterdayKcal} kcal)
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -340,6 +419,65 @@ export default function MealDetailScreen() {
                   <TouchableOpacity 
                     style={[styles.editActionBtn, { backgroundColor: '#111827' }]}
                     onPress={handleSaveEdit}
+                  >
+                    <Text style={{ color: '#FFF', fontWeight: '700' }}>Enregistrer</Text>
+                  </TouchableOpacity>
+                </View>
+              </KeyboardAvoidingView>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* MODAL DE SAUVEGARDE DE REPAS TYPE */}
+      <Modal visible={showSaveModal} transparent animationType="fade">
+        <TouchableWithoutFeedback onPress={() => setShowSaveModal(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <KeyboardAvoidingView 
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                style={[styles.editModalContent, { backgroundColor: theme.colors.surface }]}
+              >
+                <Text style={[styles.editModalTitle, { color: theme.colors.text }]} numberOfLines={1}>
+                  Enregistrer ce repas
+                </Text>
+                <Text style={[styles.saveModalSubtitle, { color: theme.colors.textSecondary }]}>
+                  Donnez un nom à ce repas pour l'ajouter en 1 clic plus tard.
+                </Text>
+
+                <View style={styles.editInputRow}>
+                  <TextInput
+                    style={[
+                      styles.editTextInput, 
+                      { 
+                        color: theme.colors.text, 
+                        borderColor: theme.colors.border,
+                        fontSize: 16,
+                        textAlign: 'left',
+                        paddingHorizontal: 16,
+                        width: '100%',
+                        fontWeight: '500'
+                      }
+                    ]}
+                    placeholder="Ex: Mon déjeuner type"
+                    placeholderTextColor={theme.colors.textMuted}
+                    value={savedTemplateName}
+                    onChangeText={setSavedTemplateName}
+                    autoFocus
+                  />
+                </View>
+
+                <View style={styles.modalButtonsRow}>
+                  <TouchableOpacity 
+                    style={[styles.editCancelBtn, { borderColor: theme.colors.border }]}
+                    onPress={() => setShowSaveModal(false)}
+                  >
+                    <Text style={{ color: theme.colors.text, fontWeight: '600' }}>Annuler</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.editActionBtn, { backgroundColor: theme.colors.accent }]}
+                    onPress={handleSaveMealTemplate}
+                    disabled={!savedTemplateName.trim()}
                   >
                     <Text style={{ color: '#FFF', fontWeight: '700' }}>Enregistrer</Text>
                   </TouchableOpacity>
@@ -607,5 +745,61 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-  }
+  },
+  editCancelBtn: {
+    flex: 1,
+    borderWidth: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  saveHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+  },
+  saveHeaderText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  emptyMealCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  emptyMealTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  emptyMealSubtitle: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  repeatYesterdayBigBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 24,
+  },
+  repeatYesterdayBigText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  saveModalSubtitle: {
+    fontSize: 13,
+    marginBottom: 16,
+  },
 });

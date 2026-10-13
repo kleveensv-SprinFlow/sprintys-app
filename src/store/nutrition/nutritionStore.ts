@@ -45,6 +45,11 @@ interface NutritionState {
 
   openSearchModal: (mealType: MealType) => void;
   closeSearchModal: () => void;
+  copyMealFromDate: (sourceDate: string, mealType: MealType, athleteId?: string) => Promise<boolean>;
+  saveCurrentMealAsTemplate: (name: string, mealType: MealType, athleteId?: string) => Promise<boolean>;
+  deleteSavedMeal: (id: string) => Promise<boolean>;
+  logSavedMeal: (savedMeal: any, mealType: MealType, athleteId?: string) => Promise<boolean>;
+  quickAddFood: (food: any, mealType: MealType, athleteId?: string) => Promise<boolean>;
 }
 
 export const useNutritionStore = create<NutritionState>((set, get) => ({
@@ -272,6 +277,264 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
       return true;
     } catch (err: any) {
       set({ error: err.message, isLoading: false });
+      return false;
+    }
+  },
+
+  copyMealFromDate: async (sourceDate: string, mealType: MealType, athleteId?: string) => {
+    const authStore = useAuthStore.getState();
+    const user = authStore.user;
+    if (!user) return false;
+    const targetUserId = athleteId || user.id;
+
+    try {
+      set({ isLoading: true, error: null });
+      const { data, error } = await supabase
+        .from('meal_logs')
+        .select('*')
+        .eq('user_id', targetUserId)
+        .eq('consumed_at', sourceDate)
+        .eq('meal_type', mealType);
+
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        set({ isLoading: false });
+        return false;
+      }
+
+      const currentDate = get().currentDate;
+      const newRows = data.map((item) => ({
+        user_id: targetUserId,
+        meal_type: mealType,
+        consumed_at: currentDate,
+        food_id: item.food_id,
+        custom_food_name: item.custom_food_name,
+        quantity_g: item.quantity_g,
+        calories: item.calories,
+        proteines: item.proteines,
+        glucides: item.glucides,
+        lipides: item.lipides,
+        input_qty: item.input_qty,
+        input_unit: item.input_unit,
+        grams_per_unit: item.grams_per_unit,
+        unit_label: item.unit_label,
+      }));
+
+      const { data: inserted, error: insertErr } = await supabase
+        .from('meal_logs')
+        .insert(newRows)
+        .select();
+
+      if (insertErr) throw insertErr;
+
+      set((state) => ({
+        mealLogs: [...state.mealLogs, ...(inserted as MealLog[])],
+        isLoading: false,
+      }));
+
+      // Streak update
+      const todayStr = getLocalDateString();
+      if (currentDate === todayStr && user.lastFlowDate !== todayStr) {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = getLocalDateString(yesterday);
+        const newStreak = user.lastFlowDate === yesterdayStr ? (user.currentFlowStreak || 0) + 1 : 1;
+        await authStore.updateProfile({ currentFlowStreak: newStreak, lastFlowDate: todayStr });
+        set({ showStreakCelebration: true, currentStreakVal: newStreak });
+      }
+
+      return true;
+    } catch (err: any) {
+      set({ error: err.message, isLoading: false });
+      Alert.alert('Erreur', "Impossible de copier le repas : " + (err.message || 'Erreur réseau'));
+      return false;
+    }
+  },
+
+  saveCurrentMealAsTemplate: async (name: string, mealType: MealType, athleteId?: string) => {
+    const authStore = useAuthStore.getState();
+    const user = authStore.user;
+    if (!user) return false;
+    const targetUserId = athleteId || user.id;
+
+    const currentLogs = get().mealLogs.filter((l) => l.meal_type === mealType);
+    if (!currentLogs.length) {
+      Alert.alert('Repas vide', 'Ajoutez au moins un aliment avant de sauvegarder ce repas.');
+      return false;
+    }
+
+    try {
+      set({ isLoading: true, error: null });
+      const { data: mealData, error: mealErr } = await supabase
+        .from('saved_meals')
+        .insert([{ user_id: targetUserId, name: name.trim() }])
+        .select()
+        .single();
+
+      if (mealErr) throw mealErr;
+
+      const items = currentLogs.map((log) => ({
+        saved_meal_id: mealData.id,
+        food_id: log.food_id,
+        custom_food_name: log.custom_food_name || 'Aliment',
+        quantity_g: log.quantity_g,
+        calories: log.calories,
+        proteines: log.proteines,
+        glucides: log.glucides,
+        lipides: log.lipides,
+      }));
+
+      const { error: itemsErr } = await supabase
+        .from('saved_meal_items')
+        .insert(items);
+
+      if (itemsErr) throw itemsErr;
+
+      await get().fetchHistory(athleteId);
+      set({ isLoading: false });
+      return true;
+    } catch (err: any) {
+      set({ error: err.message, isLoading: false });
+      Alert.alert('Erreur', "Impossible de sauvegarder ce repas : " + (err.message || 'Erreur réseau'));
+      return false;
+    }
+  },
+
+  deleteSavedMeal: async (id: string) => {
+    try {
+      const { error } = await supabase.from('saved_meals').delete().eq('id', id);
+      if (error) throw error;
+      set((state) => ({
+        savedMeals: state.savedMeals.filter((m) => m.id !== id),
+      }));
+      return true;
+    } catch (err: any) {
+      Alert.alert('Erreur', "Impossible de supprimer ce repas : " + (err.message || 'Erreur réseau'));
+      return false;
+    }
+  },
+
+  logSavedMeal: async (savedMeal: any, mealType: MealType, athleteId?: string) => {
+    const authStore = useAuthStore.getState();
+    const user = authStore.user;
+    if (!user) return false;
+    const targetUserId = athleteId || user.id;
+
+    const items = savedMeal.saved_meal_items || [];
+    if (!items.length) {
+      Alert.alert('Repas vide', 'Ce repas sauvegardé ne contient aucun aliment.');
+      return false;
+    }
+
+    try {
+      set({ isLoading: true, error: null });
+      const currentDate = get().currentDate;
+      const rows = items.map((item: any) => ({
+        user_id: targetUserId,
+        meal_type: mealType,
+        consumed_at: currentDate,
+        food_id: item.food_id,
+        custom_food_name: item.custom_food_name || 'Aliment',
+        quantity_g: item.quantity_g,
+        calories: item.calories,
+        proteines: item.proteines,
+        glucides: item.glucides,
+        lipides: item.lipides,
+      }));
+
+      const { data, error } = await supabase
+        .from('meal_logs')
+        .insert(rows)
+        .select();
+
+      if (error) throw error;
+
+      set((state) => ({
+        mealLogs: [...state.mealLogs, ...(data as MealLog[])],
+        isLoading: false,
+      }));
+
+      // Streak update
+      const todayStr = getLocalDateString();
+      if (currentDate === todayStr && user.lastFlowDate !== todayStr) {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = getLocalDateString(yesterday);
+        const newStreak = user.lastFlowDate === yesterdayStr ? (user.currentFlowStreak || 0) + 1 : 1;
+        await authStore.updateProfile({ currentFlowStreak: newStreak, lastFlowDate: todayStr });
+        set({ showStreakCelebration: true, currentStreakVal: newStreak });
+      }
+
+      return true;
+    } catch (err: any) {
+      set({ error: err.message, isLoading: false });
+      Alert.alert('Erreur', "Impossible d'ajouter ce repas : " + (err.message || 'Erreur réseau'));
+      return false;
+    }
+  },
+
+  quickAddFood: async (food: any, mealType: MealType, athleteId?: string) => {
+    const authStore = useAuthStore.getState();
+    const user = authStore.user;
+    if (!user) return false;
+    const targetUserId = athleteId || user.id;
+    const currentDate = get().currentDate;
+
+    try {
+      const multiplier = (food.last_quantity_g || 100) / 100;
+      const baseKcal = food.macros_100g?.calories ?? food.energie_kcal ?? 0;
+      const basePro = food.macros_100g?.proteines ?? food.proteines ?? 0;
+      const baseGlu = food.macros_100g?.glucides ?? food.glucides ?? 0;
+      const baseLip = food.macros_100g?.lipides ?? food.lipides ?? 0;
+
+      const calories = food.last_calories ?? Math.round(baseKcal * multiplier);
+      const proteines = Math.round(basePro * multiplier * 10) / 10;
+      const glucides = Math.round(baseGlu * multiplier * 10) / 10;
+      const lipides = Math.round(baseLip * multiplier * 10) / 10;
+
+      const log = {
+        user_id: targetUserId,
+        meal_type: mealType,
+        consumed_at: currentDate,
+        food_id: food.id,
+        custom_food_name: food.name || food.custom_food_name || 'Aliment',
+        quantity_g: food.last_quantity_g || 100,
+        calories,
+        proteines,
+        glucides,
+        lipides,
+        input_qty: food.last_input_qty,
+        input_unit: food.last_input_unit,
+        grams_per_unit: food.last_grams_per_unit,
+        unit_label: food.last_unit_label,
+      };
+
+      const { data, error } = await supabase
+        .from('meal_logs')
+        .insert([log])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      set((state) => ({
+        mealLogs: [...state.mealLogs, data as MealLog],
+      }));
+
+      // Streak update
+      const todayStr = getLocalDateString();
+      if (currentDate === todayStr && user.lastFlowDate !== todayStr) {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = getLocalDateString(yesterday);
+        const newStreak = user.lastFlowDate === yesterdayStr ? (user.currentFlowStreak || 0) + 1 : 1;
+        await authStore.updateProfile({ currentFlowStreak: newStreak, lastFlowDate: todayStr });
+        set({ showStreakCelebration: true, currentStreakVal: newStreak });
+      }
+
+      return true;
+    } catch (err: any) {
+      Alert.alert('Erreur', "Impossible d'ajouter cet aliment : " + (err.message || 'Erreur réseau'));
       return false;
     }
   }
