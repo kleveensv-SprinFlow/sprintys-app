@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, Image, KeyboardAvoidingView, Platform, TouchableWithoutFeedback } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
+import { SegmentedControl } from '../../../shared/components/SegmentedControl';
+import { PressableScale } from '../../../shared/components/PressableScale';
 import { resolveFoodPortion, ResolvedPortion, InputUnit } from '../data/portionDictionary';
+import { MacroLanes } from './MacroLanes';
+import { MEAL_ACCENT, MEAL_ACCENT_TINT } from '../nutritionTheme';
 
 export interface FoodAddPayload {
   totalGrams: number;
@@ -112,12 +116,13 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
     setUserEdited(true);
   };
 
-  const quickPresets = React.useMemo(() => {
-    if (unit === 'piece') return ['1', '2', '3', '4'];
-    if (unit === 'ml') return ['100', '200', '250', '330'];
-    if (unit === 'serving') return ['1', '2', '3'];
-    return ['50', '100', '150', '200'];
-  }, [unit]);
+  // Plain value, not a hook: this runs after the `!product` early return, and a
+  // hook here changed the hook count when a food was opened (crash on tap).
+  const quickPresets =
+    unit === 'piece' ? ['1', '2', '3', '4']
+    : unit === 'ml' ? ['100', '200', '250', '330']
+    : unit === 'serving' ? ['1', '2', '3']
+    : ['50', '100', '150', '200'];
 
   const handleAdd = (keepSearching: boolean = false) => {
     if (totalGrams <= 0 || numericValue <= 0) return;
@@ -133,6 +138,13 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
       unitLabel,
     }, keepSearching);
   };
+
+  const unitOptions: { key: InputUnit; label: string }[] = [
+    ...(portionInfo?.hasPiece ? [{ key: 'piece' as InputUnit, label: portionInfo.pieceLabel || 'pièce' }] : []),
+    { key: 'g' as InputUnit, label: 'g' },
+    ...(portionInfo?.hasLiquid || unit === 'ml' ? [{ key: 'ml' as InputUnit, label: 'ml' }] : []),
+    ...(portionInfo?.hasServing ? [{ key: 'serving' as InputUnit, label: 'Portion' }] : []),
+  ];
 
   // Libellé de traduction dynamique
   const renderTranslationText = () => {
@@ -158,7 +170,7 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
           <View style={styles.backdrop} />
         </TouchableWithoutFeedback>
 
-        <View style={[styles.sheetContent, { backgroundColor: theme.colors.background }]}>
+        <View style={[styles.sheetContent, { backgroundColor: theme.colors.surface }]}>
           {/* Poignée tactile */}
           <View style={styles.handleContainer}>
             <View style={[styles.handle, { backgroundColor: theme.colors.border }]} />
@@ -169,20 +181,29 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
             {product.image_url ? (
               <Image source={{ uri: product.image_url }} style={styles.productImage} />
             ) : (
-              <View style={[styles.placeholderImage, { backgroundColor: product.nom ? 'rgba(76, 175, 80, 0.1)' : theme.colors.surface }]}>
-                <Feather name={product.nom ? 'check-circle' : 'image'} size={30} color={product.nom ? '#4CAF50' : theme.colors.textSecondary} />
+              <View style={[styles.placeholderImage, { backgroundColor: MEAL_ACCENT_TINT }]}>
+                <Text style={styles.placeholderLetter}>
+                  {((product.display_name || product.nom || product.name || '?').trim()[0] || '?').toUpperCase()}
+                </Text>
               </View>
             )}
             <View style={styles.productInfo}>
               <Text style={[styles.productName, { color: theme.colors.text }]} numberOfLines={2}>
                 {product.display_name || product.nom || product.name}
               </Text>
-              <Text style={[styles.productBrand, { color: theme.colors.textSecondary }]}>
-                {product.nom ? `CIQUAL 🛡️ ${product.etat ? `• ${product.etat}` : ''}` : (product.brand || 'Produit industriel 🛒')}
-              </Text>
+              <View style={styles.sourceRow}>
+                <View style={[styles.sourceChip, { backgroundColor: product.nom ? MEAL_ACCENT_TINT : theme.colors.glassFill }]}>
+                  <Text style={[styles.sourceChipText, { color: product.nom ? MEAL_ACCENT : theme.colors.textSecondary }]}>
+                    {product.nom ? 'CIQUAL' : 'Open Food Facts'}
+                  </Text>
+                </View>
+                <Text style={[styles.productBrand, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                  {product.nom ? product.etat || '' : product.brand || ''}
+                </Text>
+              </View>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Feather name="x-circle" size={24} color={theme.colors.textSecondary} />
+            <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { backgroundColor: theme.colors.glassFill }]} hitSlop={8}>
+              <Feather name="x" size={18} color={theme.colors.text} />
             </TouchableOpacity>
           </View>
 
@@ -195,13 +216,13 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
                     setUserEdited(true);
                     setInputValue(String(Math.max(1, numericValue - 1)));
                   }}
-                  style={[styles.stepBtn, { backgroundColor: theme.colors.surfaceLight }]}
+                  style={[styles.stepBtn, { backgroundColor: theme.colors.glassFill }]}
                 >
                   <Feather name="minus" size={18} color={theme.colors.text} />
                 </TouchableOpacity>
               )}
               <TextInput
-                style={[styles.numberInput, { color: theme.colors.text, borderBottomColor: theme.colors.accent }]}
+                style={[styles.numberInput, { color: theme.colors.text }]}
                 keyboardType="numeric"
                 value={inputValue}
                 onChangeText={(value) => {
@@ -218,7 +239,7 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
                     setUserEdited(true);
                     setInputValue(String(numericValue + 1));
                   }}
-                  style={[styles.stepBtn, { backgroundColor: theme.colors.surfaceLight }]}
+                  style={[styles.stepBtn, { backgroundColor: theme.colors.glassFill }]}
                 >
                   <Feather name="plus" size={18} color={theme.colors.text} />
                 </TouchableOpacity>
@@ -238,11 +259,10 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
                     }}
                     style={[
                       styles.presetChip,
-                      { borderColor: isSelected ? theme.colors.accent : theme.colors.border },
-                      isSelected && { backgroundColor: `${theme.colors.accent}18` }
+                      { backgroundColor: isSelected ? MEAL_ACCENT : theme.colors.glassFill },
                     ]}
                   >
-                    <Text style={[styles.presetText, { color: isSelected ? theme.colors.accent : theme.colors.textSecondary }]}>
+                    <Text style={[styles.presetText, { color: isSelected ? '#FFFFFF' : theme.colors.textSecondary }]}>
                       {unit === 'piece' ? `${preset} ${portionInfo?.pieceLabel || 'pce'}` : `${preset} ${unit}`}
                     </Text>
                   </TouchableOpacity>
@@ -250,89 +270,51 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
               })}
             </View>
 
-            {/* Ligne de traduction claire */}
-            <Text style={[styles.translationText, { color: theme.colors.textSecondary }]}>
-              {renderTranslationText()}
-            </Text>
+            {/* Ligne de traduction claire (inutile quand on saisit déjà en grammes) */}
+            {unit !== 'g' && (
+              <Text style={[styles.translationText, { color: theme.colors.textSecondary }]}>
+                {renderTranslationText()}
+              </Text>
+            )}
 
-            {/* Sélecteur d'unités conditionnel */}
-            <View style={styles.unitToggle}>
-              {portionInfo?.hasPiece && (
-                <TouchableOpacity
-                  style={[styles.unitBtn, unit === 'piece' && { backgroundColor: theme.colors.accent }]}
-                  onPress={() => handleSwitchUnit('piece')}
-                >
-                  <Text style={[styles.unitText, { color: unit === 'piece' ? '#FFF' : theme.colors.text }]}>
-                    {portionInfo.pieceLabel}
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity
-                style={[styles.unitBtn, unit === 'g' && { backgroundColor: theme.colors.accent }]}
-                onPress={() => handleSwitchUnit('g')}
-              >
-                <Text style={[styles.unitText, { color: unit === 'g' ? '#FFF' : theme.colors.text }]}>g</Text>
-              </TouchableOpacity>
-
-              {(portionInfo?.hasLiquid || unit === 'ml') && (
-                <TouchableOpacity
-                  style={[styles.unitBtn, unit === 'ml' && { backgroundColor: theme.colors.accent }]}
-                  onPress={() => handleSwitchUnit('ml')}
-                >
-                  <Text style={[styles.unitText, { color: unit === 'ml' ? '#FFF' : theme.colors.text }]}>ml</Text>
-                </TouchableOpacity>
-              )}
-
-              {portionInfo?.hasServing && (
-                <TouchableOpacity 
-                  style={[styles.unitBtn, unit === 'serving' && { backgroundColor: theme.colors.accent }]}
-                  onPress={() => handleSwitchUnit('serving')}
-                >
-                  <Text style={[styles.unitText, { color: unit === 'serving' ? '#FFF' : theme.colors.text }]}>
-                    Portion ({portionInfo.servingWeight}g)
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            {/* Unit choice, only when there is a real choice */}
+            {unitOptions.length > 1 && (
+              <SegmentedControl style={styles.unitToggle} options={unitOptions} value={unit} onChange={handleSwitchUnit} />
+            )}
           </View>
 
-          {/* MACROS EN DIRECT */}
-          <View style={styles.macrosPreview}>
-            <View style={[styles.macroPill, { backgroundColor: theme.colors.surfaceLight }]}>
-              <Text style={[styles.macroValue, { color: theme.colors.text }]}>{currentMacros.calories}</Text>
-              <Text style={[styles.macroLabel, { color: theme.colors.textSecondary }]}>Kcal</Text>
-            </View>
-            <View style={[styles.macroPill, { backgroundColor: '#FF6B6B20' }]}>
-              <Text style={[styles.macroValue, { color: '#FF6B6B' }]}>{currentMacros.proteines}g</Text>
-              <Text style={[styles.macroLabel, { color: theme.colors.textSecondary }]}>Protéines</Text>
-            </View>
-            <View style={[styles.macroPill, { backgroundColor: '#4ECDC420' }]}>
-              <Text style={[styles.macroValue, { color: '#2BA69C' }]}>{currentMacros.glucides}g</Text>
-              <Text style={[styles.macroLabel, { color: theme.colors.textSecondary }]}>Glucides</Text>
-            </View>
-            <View style={[styles.macroPill, { backgroundColor: '#FFE66D20' }]}>
-              <Text style={[styles.macroValue, { color: '#D4B82A' }]}>{currentMacros.lipides}g</Text>
-              <Text style={[styles.macroLabel, { color: theme.colors.textSecondary }]}>Lipides</Text>
-            </View>
+          {/* Live nutrition for the chosen quantity */}
+          <View style={[styles.liveCard, { backgroundColor: theme.colors.glassFill }]}>
+            <Text style={[styles.liveKcal, { color: theme.colors.text }]}>
+              {currentMacros.calories}
+              <Text style={[styles.liveKcalUnit, { color: theme.colors.textSecondary }]}> kcal</Text>
+            </Text>
+            <MacroLanes
+              compact
+              values={{ proteines: currentMacros.proteines, glucides: currentMacros.glucides, lipides: currentMacros.lipides }}
+            />
           </View>
 
           {/* BOUTONS D'ACTION (CONTINUER OU VALIDER) */}
           <View style={styles.actionButtonGroup}>
-            <TouchableOpacity 
-              style={[styles.secondaryButton, { borderColor: theme.colors.border }]} 
+            <PressableScale
+              containerStyle={{ flex: 1.3 }}
+              style={[styles.secondaryButton, { backgroundColor: MEAL_ACCENT_TINT }]}
               onPress={() => handleAdd(true)}
             >
-              <Feather name="plus" size={16} color={theme.colors.text} style={{ marginRight: 6 }} />
-              <Text style={[styles.secondaryButtonText, { color: theme.colors.text }]}>Ajouter & continuer</Text>
-            </TouchableOpacity>
+              <Text style={[styles.secondaryButtonText, { color: MEAL_ACCENT }]} numberOfLines={1} adjustsFontSizeToFit>
+                Ajouter et continuer
+              </Text>
+            </PressableScale>
 
-            <TouchableOpacity 
-              style={[styles.submitButton, { backgroundColor: theme.colors.accent }]} 
+            <PressableScale
+              containerStyle={{ flex: 1 }}
+              haptic="medium"
+              style={[styles.submitButton, { backgroundColor: MEAL_ACCENT }]}
               onPress={() => handleAdd(false)}
             >
               <Text style={styles.submitText}>Ajouter</Text>
-            </TouchableOpacity>
+            </PressableScale>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -384,24 +366,52 @@ const styles = StyleSheet.create({
   placeholderImage: {
     width: 60,
     height: 60,
-    borderRadius: 12,
+    borderRadius: 16,
+    borderCurve: 'continuous',
     marginRight: 16,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  placeholderLetter: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: MEAL_ACCENT,
   },
   productInfo: {
     flex: 1,
   },
   productName: {
     fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 4,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+    marginBottom: 6,
   },
   productBrand: {
-    fontSize: 14,
+    flex: 1,
+    fontSize: 13,
+  },
+  sourceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sourceChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 7,
+  },
+  sourceChipText: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   closeBtn: {
-    padding: 5,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
   },
   inputZone: {
     alignItems: 'center',
@@ -423,10 +433,10 @@ const styles = StyleSheet.create({
     fontSize: 54,
     fontWeight: '900',
     textAlign: 'center',
-    borderBottomWidth: 3,
+    letterSpacing: -1.5,
     minWidth: 140,
-    paddingBottom: 4,
-    marginBottom: 8,
+    paddingVertical: 0,
+    marginBottom: 10,
   },
   translationText: {
     fontSize: 15,
@@ -434,51 +444,39 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   unitToggle: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    borderRadius: 12,
-    padding: 4,
+    alignSelf: 'stretch',
+    marginTop: 2,
   },
-  unitBtn: {
-    paddingVertical: 9,
+  liveCard: {
+    borderRadius: 18,
+    borderCurve: 'continuous',
     paddingHorizontal: 16,
-    borderRadius: 10,
+    paddingTop: 12,
+    paddingBottom: 14,
+    marginBottom: 20,
   },
-  unitText: {
+  liveKcal: {
+    fontSize: 26,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+    fontVariant: ['tabular-nums'],
+    marginBottom: 10,
+  },
+  liveKcalUnit: {
     fontSize: 14,
-    fontWeight: 'bold',
-  },
-  macrosPreview: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-  macroPill: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 12,
-    marginHorizontal: 4,
-    borderRadius: 12,
-  },
-  macroValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  macroLabel: {
-    fontSize: 11,
-    textTransform: 'uppercase',
+    fontWeight: '600',
+    letterSpacing: 0,
   },
   presetsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
+    flexWrap: 'wrap',
     gap: 8,
     marginBottom: 12,
   },
   presetChip: {
-    borderWidth: 1,
-    paddingVertical: 5,
-    paddingHorizontal: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 13,
     borderRadius: 16,
   },
   presetText: {
@@ -490,20 +488,18 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   secondaryButton: {
-    flex: 1,
     flexDirection: 'row',
-    borderWidth: 1,
     paddingVertical: 16,
+    paddingHorizontal: 12,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   secondaryButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
   },
   submitButton: {
-    flex: 1,
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
@@ -512,6 +508,6 @@ const styles = StyleSheet.create({
   submitText: {
     color: '#FFF',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '800',
   },
 });

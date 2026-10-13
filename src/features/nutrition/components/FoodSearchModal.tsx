@@ -14,8 +14,32 @@ import { formatRecentSubtitle, pluralizeLabel, quantityFromAiItem, resolveFoodPo
 import { spokenFoodTitle, foodStateLabel } from '../../../services/foodSearchRank';
 import { aiNutritionService, ParsedFoodItem } from '../../../services/aiNutritionService';
 import { LinearGradient } from 'expo-linear-gradient';
+import { glassSurface } from '../../../core/glass';
+import { GlowBackground } from '../../../shared/components/GlowBackground';
+import { PressableScale } from '../../../shared/components/PressableScale';
+import { SegmentedControl } from '../../../shared/components/SegmentedControl';
+import { MealIcon } from './MealIcon';
+import { MacroLanes } from './MacroLanes';
+import { mealLabel, MACROS, MacroKey, MEAL_ACCENT, MEAL_ACCENT_TINT } from '../nutritionTheme';
 
 type TabType = 'recents' | 'frequents' | 'repas';
+
+const formatMacro = (n: number) =>
+  n > 0 && n < 10 ? (Math.round(n * 10) / 10).toLocaleString('fr-FR') : Math.round(n).toLocaleString('fr-FR');
+
+/** Macros as three colored dots (P / G / L) with their grams. */
+const MacroDots = ({ values }: { values: Record<MacroKey, number> }) => (
+  <View style={styles.macroDots}>
+    {MACROS.map((m) => (
+      <View key={m.key} style={styles.macroDot}>
+        <View style={[styles.macroDotMark, { backgroundColor: m.color }]} />
+        <Text style={styles.macroDotText}>
+          {formatMacro(values[m.key] || 0)} g {m.short}
+        </Text>
+      </View>
+    ))}
+  </View>
+);
 
 export const FoodSearchModal: React.FC = () => {
   const theme = useTheme();
@@ -381,7 +405,7 @@ export const FoodSearchModal: React.FC = () => {
     const namesSummary = items.map((it: any) => it.custom_food_name || 'Aliment').join(', ');
 
     return (
-      <View style={[styles.savedMealCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+      <View style={[styles.savedMealCard, glassSurface]}>
         <View style={styles.savedMealHeader}>
           <View style={{ flex: 1, paddingRight: 8 }}>
             <Text style={[styles.savedMealName, { color: theme.colors.text }]} numberOfLines={1}>
@@ -401,19 +425,15 @@ export const FoodSearchModal: React.FC = () => {
         </View>
 
         <View style={styles.savedMealFooter}>
-          <Text style={[styles.savedMealMacros, { color: theme.colors.textSecondary }]}>
-            <Text style={{ fontWeight: '700', color: theme.colors.text }}>{totalKcal} kcal</Text>
-            {` · ${totalPro}g P · ${totalGlu}g G · ${totalLip}g L`}
-          </Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.savedMealKcal, { color: theme.colors.text }]}>{totalKcal} kcal</Text>
+            <MacroDots values={{ proteines: totalPro, glucides: totalGlu, lipides: totalLip }} />
+          </View>
 
-          <TouchableOpacity
-            style={[styles.savedMealAddBtn, { backgroundColor: theme.colors.accent }]}
-            onPress={() => handleLogSavedMeal(item)}
-            activeOpacity={0.8}
-          >
+          <PressableScale style={styles.savedMealAddBtn} onPress={() => handleLogSavedMeal(item)}>
             <Feather name="plus" size={15} color="#FFF" />
             <Text style={styles.savedMealAddText}>Ajouter tout</Text>
-          </TouchableOpacity>
+          </PressableScale>
         </View>
       </View>
     );
@@ -423,7 +443,7 @@ export const FoodSearchModal: React.FC = () => {
     let name = '';
     let detail = '';
     let kcalLabel = '';
-    let macros = '';
+    let macros: Record<MacroKey, number> | null = null;
     let kind: 'ciqual' | 'off' | 'recent' = 'recent';
 
     if (item.type === 'ciqual' || item.type === 'off') {
@@ -438,7 +458,6 @@ export const FoodSearchModal: React.FC = () => {
             ? portion.defaultQty
             : 100;
         const factor = grams / 100;
-        const round1 = (n: number) => (Math.round(n * factor * 10) / 10).toLocaleString('fr-FR');
         kcalLabel = `${Math.round((c.energie_kcal || 0) * factor)} kcal`;
         const state = foodStateLabel(c.nom, c.etat || '');
         detail = portion.defaultUnit === 'piece'
@@ -446,7 +465,11 @@ export const FoodSearchModal: React.FC = () => {
           : portion.defaultUnit === 'ml'
             ? `Aliment · ${grams} ml`
             : `Aliment${state ? ` · ${state}` : ''} · 100 g`;
-        macros = `${round1(c.glucides || 0)} g G   ${round1(c.proteines || 0)} g P   ${round1(c.lipides || 0)} g L`;
+        macros = {
+          proteines: (c.proteines || 0) * factor,
+          glucides: (c.glucides || 0) * factor,
+          lipides: (c.lipides || 0) * factor,
+        };
       } else {
         const o = item.item as OFFProduct;
         name = o.name;
@@ -468,7 +491,11 @@ export const FoodSearchModal: React.FC = () => {
           : portion.defaultUnit === 'ml'
             ? `${o.brand || 'Produit'} · ${grams} ml`
             : `${o.brand || 'Produit'} · 100 g`;
-        macros = `${Math.round((o.macros_100g.glucides || 0) * factor)} g G   ${Math.round((o.macros_100g.proteines || 0) * factor)} g P   ${Math.round((o.macros_100g.lipides || 0) * factor)} g L`;
+        macros = {
+          proteines: (o.macros_100g.proteines || 0) * factor,
+          glucides: (o.macros_100g.glucides || 0) * factor,
+          lipides: (o.macros_100g.lipides || 0) * factor,
+        };
       }
     } else {
       name = item.food_name || item.name;
@@ -479,11 +506,12 @@ export const FoodSearchModal: React.FC = () => {
 
     return (
       <TouchableOpacity
-        style={[styles.resultItem, { borderBottomColor: theme.colors.border }]}
+        style={[styles.resultItem, { borderBottomColor: theme.colors.hairline }]}
         onPress={() => setSelectedProduct(item.type ? item.item : item)}
+        activeOpacity={0.6}
       >
-        <View style={[styles.productImagePlaceholder, { backgroundColor: kind === 'ciqual' ? 'rgba(0,105,232,0.10)' : theme.colors.surfaceLight }]}>
-          <Text style={{ fontWeight: '800', fontSize: 16, color: kind === 'ciqual' ? theme.colors.accent : theme.colors.textSecondary }}>
+        <View style={[styles.productImagePlaceholder, { backgroundColor: kind === 'ciqual' ? MEAL_ACCENT_TINT : theme.colors.glassFill }]}>
+          <Text style={{ fontWeight: '800', fontSize: 16, color: kind === 'ciqual' ? MEAL_ACCENT : theme.colors.textSecondary }}>
             {(name.trim()[0] || '?').toUpperCase()}
           </Text>
         </View>
@@ -494,29 +522,24 @@ export const FoodSearchModal: React.FC = () => {
           <Text style={[styles.productBrand, { color: theme.colors.textSecondary }]} numberOfLines={1}>
             {detail}
           </Text>
-          {macros ? (
-            <Text style={{ color: theme.colors.textMuted || theme.colors.textSecondary, fontSize: 12, marginTop: 2 }} numberOfLines={1}>
-              {macros}
-            </Text>
-          ) : null}
+          {macros ? <MacroDots values={macros} /> : null}
         </View>
         {kcalLabel ? (
-          <Text style={{ color: theme.colors.text, fontWeight: '700', marginRight: 10 }}>{kcalLabel}</Text>
+          <Text style={[styles.kcalLabel, { color: theme.colors.text }]}>{kcalLabel}</Text>
         ) : null}
-        <TouchableOpacity
-          onPress={(e) => {
-            e.stopPropagation();
+        <PressableScale
+          onPress={() => {
             if (kind === 'recent') {
               handleQuickAddRecent(item);
             } else {
               setSelectedProduct(item.type ? item.item : item);
             }
           }}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          style={{ padding: 4 }}
+          hitSlop={10}
+          style={styles.addCircle}
         >
-          <Feather name="plus-circle" size={24} color={theme.colors.accent} />
-        </TouchableOpacity>
+          <Feather name="plus" size={18} color={MEAL_ACCENT} />
+        </PressableScale>
       </TouchableOpacity>
     );
   };
@@ -527,7 +550,8 @@ export const FoodSearchModal: React.FC = () => {
 
   return (
     <Modal visible={isSearchModalOpen} animationType="slide" presentationStyle="pageSheet">
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.backdrop }]}>
+        <GlowBackground />
         
         <FoodDetailSheet 
           product={selectedProduct} 
@@ -541,7 +565,7 @@ export const FoodSearchModal: React.FC = () => {
             <LinearGradient colors={['#0069E8', '#00DCFD']} style={styles.aiLoaderCircle}>
               <ActivityIndicator size="large" color="#FFF" />
             </LinearGradient>
-            <Text style={styles.aiLoadingText}>L'IA analyse ton repas...</Text>
+            <Text style={styles.aiLoadingText}>Sprinty analyse ton repas…</Text>
           </View>
         )}
 
@@ -561,21 +585,21 @@ export const FoodSearchModal: React.FC = () => {
             </View>
           </View>
         ) : mode === 'ai-loading' ? (
-          <View style={{ flex: 1, padding: 16, backgroundColor: theme.colors.background }}>
+          <View style={{ flex: 1, padding: 16 }}>
              <View style={[styles.header, { marginBottom: 24 }]}>
-               <TouchableOpacity onPress={() => setMode('ai-text')} style={styles.iconButton}>
-                   <Feather name="arrow-left" size={28} color={theme.colors.text} />
+               <TouchableOpacity onPress={() => setMode('ai-text')} style={[styles.closeCircle, glassSurface]}>
+                   <Feather name="chevron-left" size={22} color={theme.colors.text} />
                </TouchableOpacity>
                <Text style={[styles.title, { color: theme.colors.text }]}>Analyse en cours...</Text>
-               <View style={{ width: 28 }} />
+               <View style={{ width: 38 }} />
              </View>
 
-             <View style={{ backgroundColor: '#E8F7F3', padding: 16, borderRadius: 12, marginBottom: 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+             <View style={styles.aiUnderstoodBox}>
                 <View style={{ flex: 1, paddingRight: 8 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#1B5E20', marginBottom: 4 }}>Voici ce que nous avons compris</Text>
-                  <Text style={{ fontSize: 16, color: '#2E7D32', fontStyle: 'italic' }}>"{aiOriginalText}"</Text>
+                  <Text style={styles.aiUnderstoodTitle}>Ce que Sprinty a compris</Text>
+                  <Text style={[styles.aiUnderstoodText, { color: theme.colors.text }]}>"{aiOriginalText}"</Text>
                 </View>
-                <Feather name="message-square" size={24} color="#81C784" />
+                <Feather name="message-square" size={22} color={MEAL_ACCENT} />
              </View>
 
              <View style={{ gap: 16 }}>
@@ -591,24 +615,24 @@ export const FoodSearchModal: React.FC = () => {
              </View>
           </View>
         ) : mode === 'ai-review' ? (
-          <View style={{ flex: 1, padding: 16, backgroundColor: theme.colors.background }}>
+          <View style={{ flex: 1, padding: 16 }}>
              <View style={[styles.header, { marginBottom: 24 }]}>
-               <TouchableOpacity onPress={() => setMode('ai-text')} style={styles.iconButton}>
-                   <Feather name="arrow-left" size={28} color={theme.colors.text} />
+               <TouchableOpacity onPress={() => setMode('ai-text')} style={[styles.closeCircle, glassSurface]}>
+                   <Feather name="chevron-left" size={22} color={theme.colors.text} />
                </TouchableOpacity>
                <Text style={[styles.title, { color: theme.colors.text }]}>
                  {aiParsedMeal.length > 1 ? "Résumé du repas" : ""}
                </Text>
-               <View style={{ width: 28 }} />
+               <View style={{ width: 38 }} />
              </View>
 
              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-               <View style={{ backgroundColor: '#E8F7F3', padding: 16, borderRadius: 12, marginBottom: 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+               <View style={styles.aiUnderstoodBox}>
                   <View style={{ flex: 1, paddingRight: 8 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#1B5E20', marginBottom: 4 }}>Voici ce que nous avons compris</Text>
-                    <Text style={{ fontSize: 16, color: '#2E7D32', fontStyle: 'italic' }}>"{aiOriginalText}"</Text>
+                    <Text style={styles.aiUnderstoodTitle}>Ce que Sprinty a compris</Text>
+                    <Text style={[styles.aiUnderstoodText, { color: theme.colors.text }]}>"{aiOriginalText}"</Text>
                   </View>
-                  <Feather name="message-square" size={24} color="#81C784" />
+                  <Feather name="message-square" size={22} color={MEAL_ACCENT} />
                </View>
 
                {aiParsedMeal.length === 1 && (
@@ -642,32 +666,17 @@ export const FoodSearchModal: React.FC = () => {
                  });
 
                  return (
-                   <View style={{ borderRadius: 16, borderWidth: 1, borderColor: theme.colors.border, overflow: 'hidden', marginBottom: 24 }}>
-                     <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
-                        <View style={{ flex: 1, padding: 16, alignItems: 'center', borderRightWidth: 1, borderRightColor: theme.colors.border }}>
-                           <Text style={{ fontSize: 20, fontWeight: '700', color: theme.colors.text }}>{Math.round(tKcal)} kcal</Text>
-                           <Text style={{ fontSize: 14, color: theme.colors.textSecondary, marginTop: 4 }}>Calories</Text>
-                        </View>
-                        <View style={{ flex: 1, padding: 16, alignItems: 'center' }}>
-                           <Text style={{ fontSize: 20, fontWeight: '700', color: theme.colors.text }}>{tGlu.toFixed(1)} g</Text>
-                           <Text style={{ fontSize: 14, color: theme.colors.textSecondary, marginTop: 4 }}>Glucides</Text>
-                        </View>
+                   <View style={[styles.aiTotalCard, glassSurface]}>
+                     <View style={styles.aiTotalTop}>
+                       <Text style={[styles.aiTotalKcal, { color: theme.colors.text }]}>
+                         {Math.round(tKcal)}
+                         <Text style={[styles.aiTotalUnit, { color: theme.colors.textSecondary }]}> kcal</Text>
+                       </Text>
+                       <Text style={[styles.aiTotalBadge, { color: allCiqual ? theme.colors.success : theme.colors.textSecondary }]}>
+                         {allCiqual ? 'Vérifié CIQUAL' : 'Estimation'}
+                       </Text>
                      </View>
-                     <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: theme.colors.border }}>
-                        <View style={{ flex: 1, padding: 16, alignItems: 'center', borderRightWidth: 1, borderRightColor: theme.colors.border }}>
-                           <Text style={{ fontSize: 20, fontWeight: '700', color: theme.colors.text }}>{tPro.toFixed(1)} g</Text>
-                           <Text style={{ fontSize: 14, color: theme.colors.textSecondary, marginTop: 4 }}>Protéines</Text>
-                        </View>
-                        <View style={{ flex: 1, padding: 16, alignItems: 'center' }}>
-                           <Text style={{ fontSize: 20, fontWeight: '700', color: theme.colors.text }}>{tLip.toFixed(1)} g</Text>
-                           <Text style={{ fontSize: 14, color: theme.colors.textSecondary, marginTop: 4 }}>Matières grasses</Text>
-                        </View>
-                     </View>
-                     <View style={{ padding: 12, backgroundColor: theme.colors.surfaceLight, alignItems: 'center' }}>
-                        <Text style={{ fontSize: 14, color: theme.colors.textSecondary }}>
-                          {allCiqual ? "Vérifié CIQUAL" : "Estimation"}
-                        </Text>
-                     </View>
+                     <MacroLanes compact values={{ proteines: tPro, glucides: tGlu, lipides: tLip }} />
                    </View>
                  );
                })()}
@@ -687,7 +696,7 @@ export const FoodSearchModal: React.FC = () => {
                          : 'g';
 
                        return (
-                         <View key={index} style={{ padding: 12, backgroundColor: theme.colors.surface, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border }}>
+                         <View key={index} style={[{ padding: 12, borderRadius: 16 }, glassSurface]}>
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <View style={{ flex: 1 }}>
                                <TouchableOpacity onPress={() => handleOpenReplace(index, item)}>
@@ -745,7 +754,7 @@ export const FoodSearchModal: React.FC = () => {
              </ScrollView>
 
              <TouchableOpacity 
-                 style={{ backgroundColor: '#1C1C1E', borderRadius: 100, paddingVertical: 16, alignItems: 'center', opacity: isLoading ? 0.7 : 1 }} 
+                 style={{ backgroundColor: MEAL_ACCENT, borderRadius: 100, paddingVertical: 16, alignItems: 'center', opacity: isLoading ? 0.7 : 1 }} 
                  onPress={confirmAIMeal}
                  disabled={isLoading}
              >
@@ -757,26 +766,24 @@ export const FoodSearchModal: React.FC = () => {
              </TouchableOpacity>
           </View>
         ) : mode === 'ai-text' ? (
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, backgroundColor: theme.colors.background }}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
             <View style={{ padding: 16, flex: 1 }}>
               <View style={[styles.header, { marginBottom: 32 }]}>
-                <TouchableOpacity onPress={() => setMode('text')} style={styles.iconButton}>
-                    <Feather name="arrow-left" size={28} color={theme.colors.text} />
+                <TouchableOpacity onPress={() => setMode('text')} style={[styles.closeCircle, glassSurface]}>
+                    <Feather name="chevron-left" size={22} color={theme.colors.text} />
                 </TouchableOpacity>
-                <View style={{ width: 28 }} />
+                <View style={{ width: 38 }} />
               </View>
 
               <Text style={{ fontSize: 32, fontWeight: '800', color: theme.colors.text, marginBottom: 24, lineHeight: 38 }}>
-                Dites-nous ce que{"\n"}vous mangez
+                Décris ton repas
               </Text>
 
               <View style={{ position: 'relative' }}>
                 <TextInput
                   style={{
-                    backgroundColor: theme.colors.surface,
+                    ...glassSurface,
                     borderRadius: 16,
-                    borderWidth: 1,
-                    borderColor: theme.colors.border,
                     padding: 16,
                     paddingBottom: 40,
                     fontSize: 16,
@@ -797,15 +804,15 @@ export const FoodSearchModal: React.FC = () => {
                   {500 - (aiQuery || '').length} caractères restants
                 </Text>
                 
-                <TouchableOpacity style={{ position: 'absolute', bottom: 12, right: 12, width: 32, height: 32, borderRadius: 16, backgroundColor: '#E8F7F3', alignItems: 'center', justifyContent: 'center' }}>
-                  <Feather name="mic" size={16} color="#1B5E20" />
+                <TouchableOpacity style={{ position: 'absolute', bottom: 12, right: 12, width: 32, height: 32, borderRadius: 16, backgroundColor: MEAL_ACCENT_TINT, alignItems: 'center', justifyContent: 'center' }}>
+                  <Feather name="mic" size={16} color={MEAL_ACCENT} />
                 </TouchableOpacity>
               </View>
             </View>
 
             <View style={{ padding: 16, paddingBottom: 32 }}>
               <TouchableOpacity 
-                style={{ backgroundColor: '#1C1C1E', borderRadius: 100, paddingVertical: 16, alignItems: 'center', opacity: (!aiQuery || !aiQuery.trim() || isAILoading) ? 0.5 : 1 }}
+                style={{ backgroundColor: MEAL_ACCENT, borderRadius: 100, paddingVertical: 16, alignItems: 'center', opacity: (!aiQuery || !aiQuery.trim() || isAILoading) ? 0.5 : 1 }}
                 onPress={handleAIText}
                 disabled={!aiQuery || !aiQuery.trim() || isAILoading}
               >
@@ -822,24 +829,23 @@ export const FoodSearchModal: React.FC = () => {
             
             {/* HEADER */}
             <View style={styles.header}>
-              <TouchableOpacity onPress={closeSearchModal} style={styles.iconButton}>
-                <Feather name="chevron-down" size={28} color={theme.colors.text} />
-              </TouchableOpacity>
-              <Text style={[styles.title, { color: theme.colors.text }]}>
-                {activeSearchMealType === 'petit_dejeuner' ? 'Petit Déjeuner' :
-                 activeSearchMealType === 'dejeuner' ? 'Déjeuner' :
-                 activeSearchMealType === 'diner' ? 'Dîner' : 'Collation'}
-              </Text>
-              <View style={{ width: 28 }} />
+              <PressableScale onPress={closeSearchModal} haptic="selection" hitSlop={8} style={[styles.closeCircle, glassSurface]}>
+                <Feather name="chevron-down" size={22} color={theme.colors.text} />
+              </PressableScale>
+              <View style={styles.headerTitleRow}>
+                {activeSearchMealType && <MealIcon type={activeSearchMealType} size={18} tile={false} />}
+                <Text style={[styles.title, { color: theme.colors.text }]}>{mealLabel(activeSearchMealType)}</Text>
+              </View>
+              <View style={{ width: 38 }} />
             </View>
 
             {/* STANDARD SEARCH BAR */}
             <View style={styles.searchSection}>
-              <View style={[styles.searchInputContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+              <View style={[styles.searchInputContainer, glassSurface]}>
                 <Feather name="search" size={20} color={theme.colors.textSecondary} />
                 <TextInput
                   style={[styles.searchInput, { color: theme.colors.text }]}
-                  placeholder="Rechercher un aliment (ex: oeuf, riz)..."
+                  placeholder="Un aliment, un produit… (riz, œuf, skyr)"
                   placeholderTextColor={theme.colors.textSecondary}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
@@ -856,50 +862,38 @@ export const FoodSearchModal: React.FC = () => {
             {/* QUICK ACTIONS ROW */}
             {!isSearching && (
               <View style={styles.aiActionRow}>
-                <TouchableOpacity style={styles.aiActionBtn} onPress={() => setMode('ai-text')}>
-                  <View style={[styles.aiActionGradient, { backgroundColor: theme.colors.surfaceLight }]}>
-                    <Feather name="edit-3" size={16} color={theme.colors.text} />
-                    <Text style={[styles.aiActionText, { color: theme.colors.text }]}>Décrire</Text>
-                  </View>
-                </TouchableOpacity>
-                
-                <TouchableOpacity style={styles.aiActionBtn} onPress={handleAIPhoto}>
-                  <View style={[styles.aiActionGradient, { backgroundColor: theme.colors.surfaceLight }]}>
-                    <Feather name="camera" size={16} color={theme.colors.text} />
-                    <Text style={[styles.aiActionText, { color: theme.colors.text }]}>Photo</Text>
-                  </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.aiActionBtn} onPress={openScanner}>
-                  <View style={[styles.aiActionGradient, { backgroundColor: theme.colors.surfaceLight }]}>
-                    <Feather name="maximize" size={16} color={theme.colors.text} />
-                    <Text style={[styles.aiActionText, { color: theme.colors.text }]}>Scanner</Text>
-                  </View>
-                </TouchableOpacity>
+                {[
+                  { key: 'scan', icon: 'maximize', label: 'Code-barres', onPress: openScanner },
+                  { key: 'photo', icon: 'camera', label: 'Photo', onPress: handleAIPhoto },
+                  { key: 'text', icon: 'edit-3', label: 'Décrire', onPress: () => setMode('ai-text') },
+                ].map((action) => (
+                  <PressableScale
+                    key={action.key}
+                    onPress={action.onPress}
+                    containerStyle={{ flex: 1 }}
+                    style={[styles.aiActionTile, glassSurface]}
+                  >
+                    <View style={styles.aiActionIcon}>
+                      <Feather name={action.icon as any} size={18} color={MEAL_ACCENT} />
+                    </View>
+                    <Text style={[styles.aiActionText, { color: theme.colors.text }]}>{action.label}</Text>
+                  </PressableScale>
+                ))}
               </View>
             )}
 
             {/* TABS */}
             {!isSearching && (
               <View style={styles.tabsContainer}>
-                <TouchableOpacity 
-                  style={[styles.tabBtn, activeTab === 'recents' && { borderBottomColor: theme.colors.accent }]}
-                  onPress={() => setActiveTab('recents')}
-                >
-                  <Text style={[styles.tabText, { color: activeTab === 'recents' ? theme.colors.accent : theme.colors.textSecondary }]}>Récents</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.tabBtn, activeTab === 'frequents' && { borderBottomColor: theme.colors.accent }]}
-                  onPress={() => setActiveTab('frequents')}
-                >
-                  <Text style={[styles.tabText, { color: activeTab === 'frequents' ? theme.colors.accent : theme.colors.textSecondary }]}>Fréquents</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.tabBtn, activeTab === 'repas' && { borderBottomColor: theme.colors.accent }]}
-                  onPress={() => setActiveTab('repas')}
-                >
-                  <Text style={[styles.tabText, { color: activeTab === 'repas' ? theme.colors.accent : theme.colors.textSecondary }]}>Mes Repas</Text>
-                </TouchableOpacity>
+                <SegmentedControl
+                  options={[
+                    { key: 'recents', label: 'Récents' },
+                    { key: 'frequents', label: 'Fréquents' },
+                    { key: 'repas', label: 'Mes repas' },
+                  ]}
+                  value={activeTab}
+                  onChange={(key) => setActiveTab(key)}
+                />
               </View>
             )}
 
@@ -961,7 +955,7 @@ export const FoodSearchModal: React.FC = () => {
                       <View style={{ padding: 24, alignItems: 'center' }}>
                         <Feather name="bookmark" size={36} color={theme.colors.textMuted} style={{ marginBottom: 12 }} />
                         <Text style={[styles.noResults, { color: theme.colors.textSecondary, textAlign: 'center' }]}>
-                          Aucun repas sauvegardé.{"\n"}Ouvrez un repas avec vos aliments et touchez « Enregistrer comme repas » pour le retrouver ici en 1 clic !
+                          Aucun repas enregistré.{"\n"}Ouvre un repas déjà rempli et touche « Enregistrer » pour le retrouver ici en un geste.
                         </Text>
                       </View>
                     )
@@ -974,24 +968,20 @@ export const FoodSearchModal: React.FC = () => {
 
         {/* BANDEAU FLOTTANT DE VALIDATION MULTI-AJOUT */}
         {sessionAddedCount > 0 && (
-          <View style={[styles.sessionFloatingBar, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+          <View style={[styles.sessionFloatingBar, { backgroundColor: theme.colors.surface }]}>
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={[styles.sessionBarCount, { color: theme.colors.text }]}>
-                {sessionAddedCount} aliment{sessionAddedCount > 1 ? 's' : ''} ajouté{sessionAddedCount > 1 ? 's' : ''}
+                {sessionAddedCount} ajouté{sessionAddedCount > 1 ? 's' : ''} à ce repas
               </Text>
               {notificationMessage && (
-                <Text style={[styles.sessionBarMessage, { color: theme.colors.accent }]} numberOfLines={1}>
+                <Text style={[styles.sessionBarMessage, { color: MEAL_ACCENT }]} numberOfLines={1}>
                   {notificationMessage}
                 </Text>
               )}
             </View>
-            <TouchableOpacity
-              style={[styles.sessionDoneBtn, { backgroundColor: theme.colors.accent }]}
-              onPress={closeSearchModal}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.sessionDoneText}>Terminer</Text>
-            </TouchableOpacity>
+            <PressableScale style={styles.sessionDoneBtn} onPress={closeSearchModal} haptic="medium">
+              <Text style={styles.sessionDoneText}>Terminé</Text>
+            </PressableScale>
           </View>
         )}
       </SafeAreaView>
@@ -1010,36 +1000,48 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  iconButton: {
-    padding: 4,
-  },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  closeCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   aiActionRow: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    marginBottom: 12,
-    gap: 12,
+    marginBottom: 14,
+    gap: 10,
   },
-  aiActionBtn: {
-    flex: 1,
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(0,105,232,0.15)',
+  aiActionTile: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderRadius: 18,
+    borderCurve: 'continuous',
+    gap: 6,
   },
-  aiActionGradient: {
-    flexDirection: 'row',
+  aiActionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    gap: 8,
+    backgroundColor: MEAL_ACCENT_TINT,
   },
   aiActionText: {
-    fontWeight: 'bold',
-    fontSize: 14,
+    fontWeight: '700',
+    fontSize: 13,
   },
   searchSection: {
     paddingHorizontal: 16,
@@ -1048,10 +1050,10 @@ const styles = StyleSheet.create({
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    height: 50,
-    borderWidth: 1,
+    borderRadius: 14,
+    borderCurve: 'continuous',
+    paddingHorizontal: 14,
+    height: 48,
   },
   searchInput: {
     flex: 1,
@@ -1059,20 +1061,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   tabsContainer: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  tabBtn: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
+    paddingHorizontal: 16,
+    paddingBottom: 6,
   },
   resultsContainer: {
     flex: 1,
@@ -1080,8 +1070,43 @@ const styles = StyleSheet.create({
   resultItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
+    paddingVertical: 12,
+    marginHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  kcalLabel: {
+    fontSize: 14,
+    fontWeight: '800',
+    marginRight: 10,
+    fontVariant: ['tabular-nums'],
+  },
+  addCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: MEAL_ACCENT_TINT,
+  },
+  macroDots: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  macroDot: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  macroDotMark: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  macroDotText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
   },
   productImage: {
     width: 48,
@@ -1090,9 +1115,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
   },
   productImagePlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    borderCurve: 'continuous',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1163,6 +1189,51 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#0069E8',
   },
+  aiUnderstoodBox: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    padding: 16,
+    borderRadius: 18,
+    borderCurve: 'continuous',
+    marginBottom: 20,
+    backgroundColor: MEAL_ACCENT_TINT,
+  },
+  aiUnderstoodTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: MEAL_ACCENT,
+    marginBottom: 4,
+  },
+  aiUnderstoodText: {
+    fontSize: 16,
+    fontStyle: 'italic',
+  },
+  aiTotalCard: {
+    borderRadius: 20,
+    borderCurve: 'continuous',
+    padding: 16,
+    marginBottom: 20,
+  },
+  aiTotalTop: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  aiTotalKcal: {
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+  },
+  aiTotalUnit: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  aiTotalBadge: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
   aiTextContainer: {
     flex: 1,
     paddingHorizontal: 20,
@@ -1219,10 +1290,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   savedMealCard: {
-    borderRadius: 16,
-    borderWidth: 1,
+    borderRadius: 20,
+    borderCurve: 'continuous',
     padding: 16,
     marginBottom: 12,
+    marginHorizontal: 16,
+  },
+  savedMealKcal: {
+    fontSize: 16,
+    fontWeight: '800',
   },
   savedMealHeader: {
     flexDirection: 'row',
@@ -1244,7 +1320,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.06)',
+    borderTopColor: 'rgba(15, 23, 42, 0.08)',
   },
   savedMealMacros: {
     fontSize: 13,
@@ -1256,6 +1332,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 20,
+    backgroundColor: MEAL_ACCENT,
   },
   savedMealAddText: {
     color: '#FFF',
@@ -1271,13 +1348,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 24,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 8,
+    borderRadius: 22,
+    borderCurve: 'continuous',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 6,
   },
   sessionBarCount: {
     fontSize: 14,
@@ -1290,8 +1367,9 @@ const styles = StyleSheet.create({
   },
   sessionDoneBtn: {
     paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 16,
+    paddingHorizontal: 20,
+    borderRadius: 999,
+    backgroundColor: MEAL_ACCENT,
   },
   sessionDoneText: {
     color: '#FFF',
