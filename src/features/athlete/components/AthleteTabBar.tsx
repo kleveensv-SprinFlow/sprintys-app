@@ -4,6 +4,7 @@ import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { BlurView } from 'expo-blur';
 import { useTheme } from '../../../core/theme';
 
 interface TabConfig {
@@ -171,6 +172,8 @@ export const AthleteTabBar: React.FC<BottomTabBarProps> = ({
 
   const PRIMARY_TABS = ['index', 'calendar', 'nutrition', 'message'];
   const isPrimaryTab = PRIMARY_TABS.includes(currentRoute?.name);
+  // Dashboard prototype: the bar floats over the content as frosted glass (other tabs stay solid for now)
+  const isGlass = currentRoute?.name === 'index';
 
   // Fetch des non-lus
   const [unreadCount, setUnreadCount] = React.useState(0);
@@ -217,13 +220,22 @@ export const AthleteTabBar: React.FC<BottomTabBarProps> = ({
     <View
       style={[
         styles.barContainer,
-        {
-          backgroundColor: theme.colors.surface,
-          borderTopColor: theme.colors.border,
-          paddingBottom: Math.max(insets.bottom, 12),
-        },
+        isGlass
+          ? styles.barGlass
+          : { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border },
+        { paddingBottom: Math.max(insets.bottom, 12) },
       ]}
     >
+      {isGlass && (
+        // Real blur here: the content actually scrolls under the bar.
+        // Android only blurs with the Dimezis method, otherwise it is a flat tint.
+        <BlurView
+          tint="light"
+          intensity={Platform.OS === 'ios' ? 80 : 70}
+          experimentalBlurMethod="dimezisBlurView"
+          style={StyleSheet.absoluteFill}
+        />
+      )}
       <View style={styles.tabList}>
         {state.routes.map((route: any, index: number) => {
           const tabConfig = ATHLETE_TABS[route.name];
@@ -275,6 +287,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 8,
+  },
+  barGlass: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflow: 'hidden',
+    backgroundColor: 'transparent',
+    borderTopColor: 'rgba(15, 23, 42, 0.08)',
+    // A shadow/elevation under a translucent bar shows through it as a grey band
+    shadowOpacity: 0,
+    elevation: 0,
   },
   tabList: {
     flexDirection: 'row',

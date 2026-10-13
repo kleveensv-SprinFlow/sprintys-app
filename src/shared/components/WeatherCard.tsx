@@ -5,12 +5,13 @@ import { useTheme } from '../../core/theme';
 import * as Location from 'expo-location';
 import { weatherService, WeatherData } from '../../services/weatherService';
 import { PressableScale } from './PressableScale';
-import { dashboardCard, DashboardCardHeader } from './DashboardCard';
+import { dashboardCard, glassCard, DashboardCardHeader } from './DashboardCard';
 
 const WEATHER_TINT = '#0284C7';
 
-export const WeatherCard = () => {
+export const WeatherCard = ({ variant = 'solid' }: { variant?: 'solid' | 'glass' }) => {
   const theme = useTheme();
+  const cardStyle = variant === 'glass' ? glassCard : dashboardCard;
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [locationName, setLocationName] = useState<string>('Recherche...');
   const [isLoading, setIsLoading] = useState(true);
@@ -93,7 +94,7 @@ export const WeatherCard = () => {
 
   if (isLoading) {
     return (
-      <View style={[dashboardCard, styles.container, styles.loading]}>
+      <View style={[cardStyle, styles.container, styles.loading]}>
         <ActivityIndicator size="small" color={theme.colors.textMuted} />
       </View>
     );
@@ -120,7 +121,7 @@ export const WeatherCard = () => {
     const denied = failure === 'denied';
     return (
       <PressableScale
-        style={[dashboardCard, styles.container]}
+        style={[cardStyle, styles.container]}
         onPress={async () => {
           if (denied) {
             // Coming back from the OS settings with access granted: just reload
@@ -158,7 +159,7 @@ export const WeatherCard = () => {
 
   return (
     <>
-      <PressableScale style={[dashboardCard, styles.container]} onPress={() => setIsModalVisible(true)}>
+      <PressableScale style={[cardStyle, styles.container]} onPress={() => setIsModalVisible(true)}>
         <DashboardCardHeader
           icon={<Feather name={getWeatherIcon(weather.condition) as any} size={15} color={WEATHER_TINT} />}
           label="Météo"

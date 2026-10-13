@@ -11,7 +11,7 @@ import { getWorkoutTypeConfig } from '../../../shared/components/MonthlyCalendar
 import { WorkoutDetailModal } from '../../calendar/components/WorkoutDetailModal';
 import { WorkoutSession } from '../../workout/types';
 import { PressableScale } from '../../../shared/components/PressableScale';
-import { dashboardCard } from '../../../shared/components/DashboardCard';
+import { glassCard, glassFill } from '../../../shared/components/DashboardCard';
 
 const { width } = Dimensions.get('window');
 const CARD_GAP = 12;
@@ -181,10 +181,10 @@ export const SessionCarousel = () => {
         content: (
           <>
             <View style={styles.cardTopRow}>
-              <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>{dayLabel}</Text>
+              <Text style={[styles.kicker, { color: theme.colors.textSecondary }]}>{dayLabel}</Text>
             </View>
             <View style={styles.cardMainRow}>
-              <View style={[styles.typeTile, { backgroundColor: theme.colors.surfaceLight }]}>
+              <View style={[styles.typeTile, { backgroundColor: glassFill }]}>
                 <Feather name="coffee" size={20} color={theme.colors.textSecondary} />
               </View>
               <View style={styles.cardTitles}>
@@ -194,7 +194,7 @@ export const SessionCarousel = () => {
                 </Text>
               </View>
             </View>
-            <View style={[styles.cardButton, { backgroundColor: theme.colors.surfaceLight }]}>
+            <View style={[styles.cardButton, { backgroundColor: glassFill }]}>
               <Text style={[styles.cardButtonText, { color: theme.colors.textSecondary }]}>
                 {hasRestNote ? 'Voir les consignes' : 'Voir mon calendrier'}
               </Text>
@@ -301,7 +301,7 @@ export const SessionCarousel = () => {
               <Text
                 style={[
                   styles.timelineDayName,
-                  { color: isTodayDate ? theme.colors.sprintyBlue : theme.colors.textMuted },
+                  { color: isTodayDate ? theme.colors.sprintyBlue : theme.colors.textSecondary },
                 ]}
               >
                 {DAY_SHORT[date.getDay()]}
@@ -349,7 +349,7 @@ export const SessionCarousel = () => {
               key={index}
               style={[styles.cardSlot, { opacity, transform: [{ scale }] }]}
             >
-              <PressableScale onPress={onPress} unstable_pressDelay={70} style={[dashboardCard, styles.card]}>
+              <PressableScale onPress={onPress} unstable_pressDelay={70} style={[glassCard, styles.card]}>
                 {content}
               </PressableScale>
             </Animated.View>

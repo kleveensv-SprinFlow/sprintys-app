@@ -10,7 +10,7 @@ import { useCheckInStore } from '../../../store/checkInStore';
 import { useAuthStore } from '../../../store/authStore';
 import { useNutritionStore } from '../../../store/nutrition/nutritionStore';
 import { PressableScale } from '../../../shared/components/PressableScale';
-import { dashboardCard, DashboardCardHeader } from '../../../shared/components/DashboardCard';
+import { glassCard, glassFill, DashboardCardHeader } from '../../../shared/components/DashboardCard';
 import { useFocusEffect } from '@react-navigation/native';
 import { workoutService } from '../../../services/workoutService';
 
@@ -197,7 +197,7 @@ export const AthleteGauges = ({ refreshKey = 0 }: { refreshKey?: number }) => {
   return (
     <View style={styles.container}>
       {/* 1. Hero card: Check-In / Readiness */}
-      <PressableScale onPress={handleCheckInPress} haptic="medium" style={dashboardCard}>
+      <PressableScale onPress={handleCheckInPress} haptic="medium" style={glassCard}>
         {!showScore ? (
           <View style={styles.mainCardInner}>
             <View style={[styles.iconCircleAccent, { backgroundColor: theme.colors.sprintyBlue }]}>
@@ -215,7 +215,7 @@ export const AthleteGauges = ({ refreshKey = 0 }: { refreshKey?: number }) => {
           </View>
         ) : (
           <View style={styles.mainCardInner}>
-            <ScoreRing score={scoreValue} color={scoreColor} track={theme.colors.surfaceLight} />
+            <ScoreRing score={scoreValue} color={scoreColor} track={glassFill} />
             <View style={styles.mainPillText}>
               <Text style={[styles.mainTitle, { color: theme.colors.text }]} numberOfLines={1}>Forme du jour</Text>
               <Text style={[styles.mainSubtitle, { color: scoreColor }]} numberOfLines={1}>
@@ -229,7 +229,7 @@ export const AthleteGauges = ({ refreshKey = 0 }: { refreshKey?: number }) => {
 
       {/* 2. Summary tiles */}
       <View style={styles.secondaryRow}>
-        <PressableScale onPress={handleNutritionPress} containerStyle={styles.tileTouch} style={[dashboardCard, styles.tile]}>
+        <PressableScale onPress={handleNutritionPress} containerStyle={styles.tileTouch} style={[glassCard, styles.tile]}>
           <DashboardCardHeader
             icon={<Ionicons name="restaurant" size={15} color={NUTRITION_TINT} />}
             label="Nutrition"
@@ -250,7 +250,7 @@ export const AthleteGauges = ({ refreshKey = 0 }: { refreshKey?: number }) => {
               <AnimatedBar
                 percent={nutritionPercentage}
                 color={nutritionExceeded ? theme.colors.warning : NUTRITION_TINT}
-                track={theme.colors.surfaceLight}
+                track={glassFill}
               />
               <Text style={[styles.percentBadgeText, { color: nutritionExceeded ? theme.colors.warning : theme.colors.textSecondary }]}>
                 {nutritionPercentage}%
@@ -264,7 +264,7 @@ export const AthleteGauges = ({ refreshKey = 0 }: { refreshKey?: number }) => {
         </PressableScale>
 
         {/* Next competition planned by the coach */}
-        <PressableScale onPress={handleCompetitionPress} containerStyle={styles.tileTouch} style={[dashboardCard, styles.tile]}>
+        <PressableScale onPress={handleCompetitionPress} containerStyle={styles.tileTouch} style={[glassCard, styles.tile]}>
           <DashboardCardHeader
             icon={<Ionicons name="trophy" size={15} color={COMPETITION_TINT} />}
             label="Compétition"
@@ -272,7 +272,7 @@ export const AthleteGauges = ({ refreshKey = 0 }: { refreshKey?: number }) => {
           />
 
           <View style={styles.valueRow}>
-            <Text style={[styles.secondaryValue, { color: nextCompetition ? compColor : theme.colors.textMuted }]}>
+            <Text style={[styles.secondaryValue, { color: nextCompetition ? compColor : theme.colors.textSecondary }]}>
               {compValue}
             </Text>
           </View>

@@ -7,6 +7,7 @@ import { SprintyLogo } from '../../../shared/components/SprintyLogo';
 
 import { useAuthStore } from '../../../store/authStore';
 import { HeaderProfileAvatar } from '../../../shared/components/HeaderProfileAvatar';
+import { glassCard } from '../../../shared/components/DashboardCard';
 
 export const AthleteHeader = () => {
   const theme = useTheme();
@@ -18,7 +19,7 @@ export const AthleteHeader = () => {
       {/* Left: Group Button Minimalist */}
       <TouchableOpacity 
         onPress={() => router.push('/(athlete)/groups')} 
-        style={[styles.iconButton, { backgroundColor: theme.colors.surface, ...theme.shadows.soft }]}
+        style={styles.iconButton}
         activeOpacity={0.7}
       >
         <Feather name="users" size={20} color={theme.colors.text} />
@@ -54,6 +55,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   iconButton: {
+    // Same glass material as the dashboard cards (the header sits on the glows)
+    ...glassCard,
+    padding: 0,
     width: 44,
     height: 44,
     borderRadius: 22,
