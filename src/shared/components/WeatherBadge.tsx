@@ -1,21 +1,40 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ActivityIndicator, 
-  Pressable, 
-  Modal, 
-  TouchableWithoutFeedback,
-  Platform 
-} from 'react-native';
+import { View, Text, StyleSheet, Modal, Pressable, Linking } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { useWeatherStore } from '../../store/weatherStore';
 import { weatherAdviceService } from '../../services/weatherAdviceService';
 import { theme } from '../../core/theme';
-import { GlassView } from './GlassView';
-import { BlurView } from 'expo-blur';
-import Svg, { Path, Circle } from 'react-native-svg';
+import { PressableScale } from './PressableScale';
+import { IconButton } from './IconButton';
+import { Button } from './Button';
+import { Skeleton } from './Skeleton';
 import { FeedbackHost } from '../feedback/FeedbackHost';
+
+const BLUE_TINT = 'rgba(0, 105, 232, 0.1)';
+
+const CONDITION_LABELS: Record<string, string> = {
+  clear: 'Dégagé',
+  cloudy: 'Nuageux',
+  foggy: 'Brouillard',
+  rainy: 'Pluie',
+  showers: 'Averses',
+  snowy: 'Neige',
+  stormy: 'Orage',
+};
+
+const getIconName = (condition?: string): keyof typeof Feather.glyphMap => {
+  switch (condition) {
+    case 'clear': return 'sun';
+    case 'cloudy':
+    case 'foggy': return 'cloud';
+    case 'rainy':
+    case 'showers': return 'cloud-rain';
+    case 'snowy': return 'cloud-snow';
+    case 'stormy': return 'cloud-lightning';
+    default: return 'thermometer';
+  }
+};
 
 export const WeatherBadge: React.FC = () => {
   const { data, isLoading, error, updateWeather } = useWeatherStore();
@@ -25,123 +44,107 @@ export const WeatherBadge: React.FC = () => {
     updateWeather();
   }, []);
 
+  // Location refused: a small, friendly way to fix it instead of disappearing
+  const locationDenied = !data && !isLoading && /localisation refusée/i.test(error ?? '');
+
+  const handleAllow = async () => {
+    const { status, canAskAgain } = await Location.getForegroundPermissionsAsync();
+    if (status !== 'granted' && !canAskAgain) {
+      Linking.openSettings();
+      return;
+    }
+    updateWeather();
+  };
+
+  if (locationDenied) {
+    return (
+      <PressableScale
+        haptic="light"
+        onPress={handleAllow}
+        accessibilityRole="button"
+        hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+        accessibilityLabel="Météo indisponible : autorise ta position"
+        style={styles.container}
+      >
+        <Feather name="map-pin" size={14} color={theme.colors.textSecondary} />
+        <Text style={styles.deniedText}>Météo</Text>
+        <View style={styles.divider} />
+        <Text style={styles.allowText}>Autoriser</Text>
+      </PressableScale>
+    );
+  }
+
   if (error || (!data && !isLoading)) return null;
 
   if (isLoading && !data) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="small" color={theme.colors.accent} />
+      <View style={styles.container} accessibilityLabel="Chargement de la météo">
+        <Skeleton width={14} height={14} radius={7} />
+        <Skeleton width={56} height={10} radius={5} style={{ marginLeft: 8 }} />
       </View>
     );
   }
 
   const advice = data ? weatherAdviceService.getCoachingAdvice(data) : null;
-
-  const renderIcon = () => {
-    const color = theme.colors.accent;
-    switch (data?.condition) {
-      case 'clear':
-        return (
-          <Svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
-            <Circle cx="12" cy="12" r="5" />
-            <Path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-          </Svg>
-        );
-      case 'cloudy':
-        return (
-          <Svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
-            <Path d="M17.5 19c2.5 0 4.5-2 4.5-4.5s-2-4.5-4.5-4.5c-.2 0-.4 0-.6.1-.9-3-3.7-5.1-6.9-5.1-4.1 0-7.5 3.4-7.5 7.5s3.4 7.5 7.5 7.5c.9 0 1.7-.2 2.5-.5.6.3 1.3.5 2.5.5z" />
-          </Svg>
-        );
-      case 'rainy':
-      case 'showers':
-        return (
-          <Svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
-            <Path d="M16 13a4 4 0 0 1-8 0" />
-            <Path d="M8 15v3M12 17v3M16 15v3" />
-            <Path d="M20 10a8 8 0 1 0-16 0" />
-          </Svg>
-        );
-      default:
-        return (
-          <Svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
-            <Circle cx="12" cy="12" r="10" />
-          </Svg>
-        );
-    }
-  };
+  const iconName = getIconName(data?.condition);
+  const conditionLabel = (data?.condition && CONDITION_LABELS[data.condition]) || 'Conditions actuelles';
+  const closeModal = () => setModalVisible(false);
 
   return (
     <>
-      <Pressable 
+      <PressableScale
+        haptic="light"
         onPress={() => setModalVisible(true)}
-        style={({ pressed }) => [
-          styles.container,
-          pressed && { opacity: 0.7, transform: [{ scale: 0.98 }] }
-        ]}
+        accessibilityRole="button"
+        hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+        accessibilityLabel={`Météo : ${data?.temperature} degrés, vent ${data?.windSpeed} km/h. Voir le conseil de Sprinty`}
+        style={styles.container}
       >
-        <View style={styles.iconWrapper}>
-          {renderIcon()}
-        </View>
+        <Feather name={iconName} size={14} color={theme.colors.sprintyBlue} />
         <Text style={styles.temp}>{data?.temperature}°</Text>
         <View style={styles.divider} />
+        <Feather name="wind" size={12} color={theme.colors.textMuted} />
         <Text style={styles.wind}>{data?.windSpeed} km/h</Text>
-      </Pressable>
+      </PressableScale>
 
-      <Modal
-        visible={modalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setModalVisible(false)}
-      >
+      <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={closeModal}>
         <FeedbackHost />
-        <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
-          <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback>
-              <View style={styles.modalContent}>
-                <BlurView intensity={80} tint="dark" style={styles.glassCard}>
-                  <View style={styles.modalHeader}>
-                    <View style={styles.sprintyBadge}>
-                      <Text style={styles.modalTitle}>CONSEIL DE SPRINTY</Text>
-                    </View>
-                    <Pressable onPress={() => setModalVisible(false)}>
-                      <View style={styles.closeIcon} />
-                    </Pressable>
-                  </View>
-                  
-                  <View style={styles.weatherInfoRow}>
-                    <View style={styles.iconBig}>
-                      {renderIcon()}
-                    </View>
-                    <View>
-                      <Text style={styles.conditionText}>
-                        {data?.temperature}°C
-                      </Text>
-                      <Text style={styles.conditionSub}>
-                        {data?.condition?.toUpperCase()} • {data?.windSpeed} KM/H
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.adviceContainer}>
-                    <Text style={styles.adviceMessage}>{advice?.message}</Text>
-                    <View style={styles.proTip}>
-                      <Text style={styles.proTipLabel}>ASTUCE</Text>
-                      <Text style={styles.proTipText}>Ajustez l'échauffement de +5 min.</Text>
-                    </View>
-                  </View>
-
-                  <Pressable 
-                    onPress={() => setModalVisible(false)}
-                    style={styles.closeButton}
-                  >
-                    <Text style={styles.closeButtonText}>COMPRIS</Text>
-                  </Pressable>
-                </BlurView>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={closeModal} accessibilityLabel="Fermer" />
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View style={styles.sprintyBadge}>
+                <Feather name="zap" size={12} color={theme.colors.sprintyBlue} />
+                <Text style={styles.modalTitle}>Conseil de Sprinty</Text>
               </View>
-            </TouchableWithoutFeedback>
+              <IconButton icon="x" size={34} onPress={closeModal} accessibilityLabel="Fermer" />
+            </View>
+
+            <View style={styles.weatherInfoRow}>
+              <View style={styles.iconBig}>
+                <Feather name={iconName} size={26} color={theme.colors.sprintyBlue} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.conditionText}>{data?.temperature}°C</Text>
+                <Text style={styles.conditionSub}>
+                  {conditionLabel} · Vent {data?.windSpeed} km/h
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.adviceMessage}>{advice?.message}</Text>
+
+            <View style={styles.proTip}>
+              <View style={styles.proTipHeader}>
+                <Feather name="info" size={13} color={theme.colors.sprintyBlue} />
+                <Text style={styles.proTipLabel}>Astuce</Text>
+              </View>
+              <Text style={styles.proTipText}>Ajoute 5 min à ton échauffement.</Text>
+            </View>
+
+            <Button title="Compris" onPress={closeModal} />
           </View>
-        </TouchableWithoutFeedback>
+        </View>
       </Modal>
     </>
   );
@@ -151,152 +154,133 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    gap: 6,
+    backgroundColor: theme.colors.glassFill,
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  iconWrapper: {
-    marginRight: 6,
+    minHeight: 32,
+    borderRadius: 16,
+    borderCurve: 'continuous',
   },
   temp: {
     color: theme.colors.text,
-    fontSize: 12,
-    fontWeight: theme.typography.fontWeights.bold as any,
+    fontSize: 13,
+    fontWeight: '700',
   },
   divider: {
     width: 1,
-    height: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    marginHorizontal: 8,
+    height: 12,
+    backgroundColor: theme.colors.hairline,
+    marginHorizontal: 2,
   },
   wind: {
-    color: theme.colors.textMuted,
-    fontSize: 10,
-    fontWeight: theme.typography.fontWeights.medium as any,
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  deniedText: {
+    color: theme.colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  allowText: {
+    color: theme.colors.sprintyBlue,
+    fontSize: 13,
+    fontWeight: '700',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: theme.spacing.xl,
+    padding: 20,
   },
-  modalContent: {
+  modalCard: {
     width: '100%',
     maxWidth: 400,
-  },
-  glassCard: {
-    padding: theme.spacing.xxl,
-    borderRadius: 32,
-    borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.2)',
-    overflow: 'hidden',
+    backgroundColor: theme.colors.surface,
+    borderRadius: 28,
+    borderCurve: 'continuous',
+    padding: 20,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing.xxxl,
+    marginBottom: 20,
   },
   sprintyBadge: {
-    backgroundColor: 'rgba(212, 175, 55, 0.15)',
-    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: BLUE_TINT,
+    paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderRadius: 10,
+    borderCurve: 'continuous',
   },
   modalTitle: {
-    color: theme.colors.accent,
-    fontSize: 10,
-    fontWeight: theme.typography.fontWeights.bold as any,
-    letterSpacing: 2,
-  },
-  closeIcon: {
-    width: 24,
-    height: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 12,
+    color: theme.colors.sprintyBlue,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
   },
   weatherInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: theme.spacing.xxxl,
-    gap: 20,
+    marginBottom: 20,
+    gap: 16,
   },
   iconBig: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: BLUE_TINT,
     justifyContent: 'center',
     alignItems: 'center',
   },
   conditionText: {
     color: theme.colors.text,
-    fontSize: 42,
-    fontWeight: theme.typography.fontWeights.bold as any,
-    lineHeight: 48,
+    fontSize: 36,
+    fontWeight: '800',
+    letterSpacing: -1,
   },
   conditionSub: {
-    color: theme.colors.textMuted,
-    fontSize: 10,
-    fontWeight: theme.typography.fontWeights.bold as any,
-    letterSpacing: 1,
-  },
-  adviceContainer: {
-    marginBottom: theme.spacing.xxxl,
+    color: theme.colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 2,
   },
   adviceMessage: {
     color: theme.colors.text,
-    fontSize: 18,
-    lineHeight: 28,
-    fontWeight: theme.typography.fontWeights.medium as any,
-    marginBottom: theme.spacing.xl,
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '500',
+    marginBottom: 16,
   },
   proTip: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    padding: theme.spacing.lg,
+    backgroundColor: theme.colors.glassFill,
+    padding: 14,
     borderRadius: 16,
-    borderLeftWidth: 3,
-    borderLeftColor: theme.colors.accent,
+    borderCurve: 'continuous',
+    marginBottom: 20,
+  },
+  proTipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
   },
   proTipLabel: {
-    color: theme.colors.accent,
-    fontSize: 8,
-    fontWeight: theme.typography.fontWeights.bold as any,
-    letterSpacing: 1,
-    marginBottom: 4,
+    color: theme.colors.sprintyBlue,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
   },
   proTipText: {
     color: theme.colors.text,
-    fontSize: 13,
-    fontWeight: theme.typography.fontWeights.medium as any,
-  },
-  closeButton: {
-    backgroundColor: theme.colors.accent,
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: theme.colors.accent,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-      },
-      web: {
-        boxShadow: `0 4px 8px ${theme.colors.accent}4D`, // 4D is ~0.3 alpha
-      }
-    }),
-  },
-  closeButtonText: {
-    color: theme.colors.background,
-    fontSize: 12,
-    fontWeight: theme.typography.fontWeights.bold as any,
-    letterSpacing: 1,
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
