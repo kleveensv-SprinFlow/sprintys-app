@@ -7,6 +7,8 @@ import { MonthlyCalendar } from '../../../../src/shared/components/MonthlyCalend
 import { workoutService } from '../../../../src/services/workoutService';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCoachStore } from '../../../../src/store/coach/coachStore';
+import { GlassScreen } from '../../../../src/shared/components/GlassScreen';
+import { glassSurface } from '../../../../src/core/glass';
 
 export default function CoachAthleteCalendarScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -57,7 +59,7 @@ export default function CoachAthleteCalendarScreen() {
   }, [id, router]);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <GlassScreen style={styles.container}>
       <Header
         title={`Entraînement de ${athleteName.split(' ')[0]}`}
         showBackButton
@@ -81,7 +83,7 @@ export default function CoachAthleteCalendarScreen() {
           />
         )}
       </View>
-    </View>
+    </GlassScreen>
   );
 }
 

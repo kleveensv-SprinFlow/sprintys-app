@@ -8,9 +8,13 @@ import { supabase } from '../../src/services/supabase';
 import { useCoachStore } from '../../src/store/coach/coachStore';
 import { useAuthStore } from '../../src/store/authStore';
 import { useRouter } from 'expo-router';
+import { GlowBackground } from '../../src/shared/components/GlowBackground';
+import { glassSurface } from '../../src/core/glass';
+import { useTabBarSpace } from '../../src/shared/hooks/useTabBarSpace';
 
 export default function CoachGroupsScreen() {
   const router = useRouter();
+  const tabBarSpace = useTabBarSpace();
   const { user } = useAuthStore();
   const { 
     teams, fetchTeams, createTeam, updateTeam, deleteTeam,
@@ -85,7 +89,7 @@ export default function CoachGroupsScreen() {
   };
 
   const renderTeamList = () => (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace }]} showsVerticalScrollIndicator={false}>
       <Text style={styles.sectionTitle}>Mes Groupes</Text>
       
       {teams.map(team => (
@@ -147,7 +151,7 @@ export default function CoachGroupsScreen() {
           </View>
           <TouchableOpacity 
              onPress={() => router.push(`/chat/team/${activeTeam.id}`)}
-             style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: theme.colors.surfaceLight, alignItems: 'center', justifyContent: 'center' }}
+             style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: theme.colors.glassFill, alignItems: 'center', justifyContent: 'center' }}
           >
              <Feather name="message-circle" size={20} color={theme.colors.text} />
           </TouchableOpacity>
@@ -179,7 +183,7 @@ export default function CoachGroupsScreen() {
         </View>
 
         {/* Tab Content */}
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace }]} showsVerticalScrollIndicator={false}>
           
           {activeTab === 'members' && (
             <>
@@ -382,6 +386,7 @@ export default function CoachGroupsScreen() {
 
   return (
     <View style={styles.container}>
+      <GlowBackground />
       <Header title="Équipe" />
 
       {activeTeamId ? renderTeamDetails() : renderTeamList()}
@@ -436,7 +441,8 @@ export default function CoachGroupsScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
             
-            <View style={{ alignItems: 'center', marginBottom: 24 }}>                <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: theme.colors.surfaceLight, justifyContent: 'center', alignItems: 'center', marginBottom: 12, overflow: 'hidden' }}>
+            <View style={{ alignItems: 'center', marginBottom: 24 }}>
+                <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: theme.colors.surfaceLight, justifyContent: 'center', alignItems: 'center', marginBottom: 12, overflow: 'hidden' }}>
                   {selectedAthlete?.profile?.avatar_url ? (
                     <Image source={{ uri: selectedAthlete.profile.avatar_url }} style={{ width: 80, height: 80, borderRadius: 40 }} />
                   ) : (
@@ -547,7 +553,7 @@ export default function CoachGroupsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.backdrop,
   },
   header: {
     paddingHorizontal: 24,
@@ -572,17 +578,10 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   teamCard: {
-    backgroundColor: '#FFFFFF',
+    ...glassSurface,
     borderRadius: 20,
     padding: 18,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
     marginBottom: 12,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
   },
   teamCardHeader: {
     flexDirection: 'row',
@@ -605,7 +604,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.glassFill,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -631,20 +630,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   createBtn: {
+    ...glassSurface,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
     paddingHorizontal: 18,
-    backgroundColor: '#FFFFFF',
     borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 5,
-    elevation: 1,
     marginBottom: 14,
   },
   createBtnIconWrap: {
@@ -673,7 +665,7 @@ const styles = StyleSheet.create({
   backBtn: {
     width: 40, height: 40,
     borderRadius: 20,
-    backgroundColor: theme.colors.surfaceLight,
+    backgroundColor: theme.colors.glassFill,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -692,7 +684,7 @@ const styles = StyleSheet.create({
   tabsContainer: {
     marginBottom: 24,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    borderBottomColor: theme.colors.hairline,
   },
   tabsRow: {
     flexDirection: 'row',
@@ -719,19 +711,17 @@ const styles = StyleSheet.create({
   
   // Row Cards
   rowCard: {
+    ...glassSurface,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.surface,
     padding: 16,
     borderRadius: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
   },
   avatar: {
     width: 44, height: 44,
     borderRadius: 22,
-    backgroundColor: theme.colors.surfaceLight,
+    backgroundColor: theme.colors.glassFill,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -765,7 +755,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: theme.colors.surfaceLight,
+    backgroundColor: theme.colors.glassFill,
     marginLeft: 8,
   },
   emptyText: {
@@ -777,14 +767,12 @@ const styles = StyleSheet.create({
 
   // Empty State Box (Athletic clean look)
   emptyStateBox: {
+    ...glassSurface,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 36,
     paddingHorizontal: 20,
-    backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
     marginTop: 8,
   },
   emptyStateIconCircle: {
@@ -823,16 +811,9 @@ const styles = StyleSheet.create({
 
   // Settings Card & Buttons
   settingsCard: {
-    backgroundColor: '#FFFFFF',
+    ...glassSurface,
     borderRadius: 20,
     padding: 18,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
     marginBottom: 4,
   },
   settingsCardHeader: {
@@ -865,7 +846,7 @@ const styles = StyleSheet.create({
   },
   settingsDivider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: theme.colors.hairline,
     marginVertical: 4,
   },
   settingsCodeBadge: {
@@ -885,19 +866,12 @@ const styles = StyleSheet.create({
     color: '#0369A1',
   },
   settingsBtn: {
+    ...glassSurface,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 15,
-    backgroundColor: '#FFFFFF',
     borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 5,
-    elevation: 1,
   },
   settingsDeleteBtn: {
     borderColor: '#FEE2E2',

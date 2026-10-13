@@ -13,9 +13,13 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import { GlassScreen } from '../../src/shared/components/GlassScreen';
+import { useTabBarSpace } from '../../src/shared/hooks/useTabBarSpace';
 
 export default function CoachCalendarScreen() {
   const theme = useTheme();
+  // The grid stops above the floating tab bar
+  const tabBarSpace = useTabBarSpace(8);
   const { user } = useAuthStore();
   const { teams, fetchTeams, fetchSubgroups, fetchTeamMembers } = useCoachStore();
   const router = useRouter();
@@ -98,7 +102,7 @@ export default function CoachCalendarScreen() {
   }, [loadMonthData, selectedDate]);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <GlassScreen style={{ paddingBottom: tabBarSpace }}>
       <Header
         title="Calendrier"
         rightComponent={
@@ -136,7 +140,7 @@ export default function CoachCalendarScreen() {
         periodToEdit={periodToEdit}
         onSuccess={handlePeriodSaved}
       />
-    </View>
+    </GlassScreen>
   );
 }
 

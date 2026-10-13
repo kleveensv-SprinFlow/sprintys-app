@@ -5,6 +5,8 @@ import { theme } from '../../../src/core/theme';
 import { Feather } from '@expo/vector-icons';
 import { checkInService, CheckInData } from '../../../src/services/checkInService';
 import { useCoachStore } from '../../../src/store/coach/coachStore';
+import { GlowBackground } from '../../../src/shared/components/GlowBackground';
+import { glassSurface } from '../../../src/core/glass';
 
 export default function AthleteDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -58,6 +60,7 @@ export default function AthleteDetailScreen() {
 
   return (
     <View style={styles.container}>
+      <GlowBackground />
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
@@ -203,7 +206,7 @@ function getScoreColor(score: number) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background },
+  container: { flex: 1, backgroundColor: theme.colors.backdrop },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   errorText: { color: theme.colors.error, fontSize: 16 },
   
@@ -224,44 +227,43 @@ const styles = StyleSheet.create({
   },
 
   profileSection: { alignItems: 'center', marginBottom: 24 },
-  avatarPlaceholder: { width: 80, height: 80, borderRadius: 40, backgroundColor: theme.colors.surfaceLight, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  avatarPlaceholder: { width: 80, height: 80, borderRadius: 40, backgroundColor: theme.colors.glassFill, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
   avatarImage: { width: 80, height: 80, borderRadius: 40, backgroundColor: theme.colors.surfaceLight, marginBottom: 12 },
   avatarLetter: { fontSize: 32, fontWeight: 'bold', color: theme.colors.textSecondary },
   profileName: { fontSize: 24, fontWeight: 'bold', color: theme.colors.text },
   profileGroup: { fontSize: 14, color: theme.colors.textSecondary, marginTop: 4 },
 
   actionGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 32, gap: 12 },
-  actionGridItem: { flex: 1, backgroundColor: theme.colors.surface, borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: theme.colors.border },
+  actionGridItem: { flex: 1, ...glassSurface, borderRadius: 18, borderCurve: 'continuous', padding: 16, alignItems: 'center' },
   actionIconBg: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
   actionGridText: { fontSize: 13, fontWeight: '600', color: theme.colors.text, textAlign: 'center' },
 
   emptyCard: {
-    backgroundColor: theme.colors.surface, padding: 30, borderRadius: 16,
-    alignItems: 'center', borderWidth: 1, borderColor: theme.colors.border, marginBottom: 24
+    ...glassSurface, padding: 30, borderRadius: 18, borderCurve: 'continuous',
+    alignItems: 'center', marginBottom: 24
   },
   emptyText: { color: theme.colors.textSecondary, marginTop: 12, fontSize: 15 },
 
   checkInCard: {
-    backgroundColor: theme.colors.surface, borderRadius: 20, padding: 20,
-    borderWidth: 1, borderColor: theme.colors.border, marginBottom: 32
+    ...glassSurface, borderRadius: 22, borderCurve: 'continuous', padding: 20, marginBottom: 32
   },
   globalScoreHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   globalScoreTitle: { color: theme.colors.text, fontSize: 18, fontWeight: 'bold' },
   scoreBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
   scoreBadgeText: { fontWeight: 'bold', fontSize: 16 },
   
-  divider: { height: 1, backgroundColor: theme.colors.border, marginVertical: 20 },
+  divider: { height: 1, backgroundColor: theme.colors.hairline, marginVertical: 20 },
 
   scoreRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   scoreLabelRow: { flexDirection: 'row', alignItems: 'center', width: 90, gap: 8 },
   scoreLabel: { color: theme.colors.textSecondary, fontSize: 13, fontWeight: '600' },
-  scoreBarBg: { flex: 1, height: 8, backgroundColor: theme.colors.surfaceLight, borderRadius: 4, marginHorizontal: 12 },
+  scoreBarBg: { flex: 1, height: 8, backgroundColor: theme.colors.glassFill, borderRadius: 4, marginHorizontal: 12 },
   scoreBarFill: { height: 8, borderRadius: 4 },
   scoreValue: { width: 45, textAlign: 'right', fontSize: 13, fontWeight: 'bold' },
 
-  painsContainer: { marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: theme.colors.border },
+  painsContainer: { marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: theme.colors.hairline },
   painsTitle: { color: theme.colors.textSecondary, fontSize: 13, fontWeight: 'bold', marginBottom: 12 },
-  painItem: { backgroundColor: theme.colors.surfaceLight, padding: 12, borderRadius: 12, marginBottom: 8 },
+  painItem: { backgroundColor: theme.colors.glassFill, padding: 12, borderRadius: 12, marginBottom: 8 },
   painItemHeader: { flexDirection: 'row', alignItems: 'center' },
   dot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
   painName: { color: theme.colors.text, fontSize: 15, fontWeight: 'bold', flex: 1 },
@@ -276,8 +278,8 @@ const styles = StyleSheet.create({
   menstruationText: { color: theme.colors.error, fontWeight: 'bold', fontSize: 14 },
 
   actionBtn: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface,
-    padding: 16, borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: theme.colors.border, gap: 12
+    flexDirection: 'row', alignItems: 'center', ...glassSurface,
+    padding: 16, borderRadius: 18, borderCurve: 'continuous', marginBottom: 12, gap: 12
   },
   actionBtnText: { color: theme.colors.text, fontSize: 16, fontWeight: '600' }
 });

@@ -19,6 +19,8 @@ import { periodService } from '../../../src/services/periodService';
 import { TrainingPeriod } from '../../../src/types/period';
 import { getWorkoutColor } from '../../../src/shared/components/MonthlyCalendar';
 import { useCoachStore } from '../../../src/store/coach/coachStore';
+import { GlassScreen } from '../../../src/shared/components/GlassScreen';
+import { glassSurface } from '../../../src/core/glass';
 
 const MONTH_NAMES_FULL = [
   'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
@@ -233,7 +235,7 @@ export default function CoachDayScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <GlassScreen style={styles.container}>
       <Header
         title="Planning"
         showBackButton
@@ -244,7 +246,7 @@ export default function CoachDayScreen() {
       />
 
       {/* Date Navigator */}
-      <View style={[styles.navigatorContainer, { borderBottomColor: theme.colors.border }]}>
+      <View style={[styles.navigatorContainer, { borderBottomColor: theme.colors.hairline }]}>
         <TouchableOpacity onPress={() => navigateDay(-1)} style={styles.navButton}>
           <Feather name="chevron-left" size={24} color={theme.colors.text} />
         </TouchableOpacity>
@@ -291,7 +293,7 @@ export default function CoachDayScreen() {
                   key={item.id}
                   style={[
                     styles.gridCard,
-                    { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+                    glassSurface,
                   ]}
                   onPress={() => openBuilder(item.type, item.title)}
                   activeOpacity={0.7}
@@ -313,7 +315,8 @@ export default function CoachDayScreen() {
             <TouchableOpacity
               style={[
                 styles.sprintyQuickActionCard,
-                { backgroundColor: theme.colors.surface, borderColor: theme.colors.accent + '30' },
+                glassSurface,
+                { borderColor: theme.colors.accent + '30' },
               ]}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -371,7 +374,7 @@ export default function CoachDayScreen() {
                   <View key={w.id || i} style={styles.timelineRow}>
                     {workouts.length > 1 && (
                       <View style={styles.timelineDotContainer}>
-                        <View style={[styles.timelineDot, { backgroundColor: typeColor, borderColor: theme.colors.background }]} />
+                        <View style={[styles.timelineDot, { backgroundColor: typeColor, borderColor: theme.colors.backdrop }]} />
                       </View>
                     )}
                     <View style={[styles.timelineContent, workouts.length === 1 && { paddingLeft: 0 }]}>
@@ -394,7 +397,7 @@ export default function CoachDayScreen() {
             {/* Bouton Unique Principal "＋ Planifier" */}
             {!showAddOptions ? (
               <TouchableOpacity
-                style={[styles.primaryPlanBtn, { ...theme.shadows.soft }]}
+                style={[styles.primaryPlanBtn, glassSurface]}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   setShowAddOptions(true);
@@ -421,7 +424,7 @@ export default function CoachDayScreen() {
                       key={item.id}
                       style={[
                         styles.gridCard,
-                        { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+                        glassSurface,
                       ]}
                       onPress={() => openBuilder(item.type, item.title)}
                       activeOpacity={0.7}
@@ -522,7 +525,7 @@ export default function CoachDayScreen() {
         onDelete={handleDeleteWorkout}
         onEdit={handleEditWorkout}
       />
-    </View>
+    </GlassScreen>
   );
 }
 

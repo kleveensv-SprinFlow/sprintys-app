@@ -7,6 +7,8 @@ import { workoutService } from '../../../../../src/services/workoutService';
 import { useFocusEffect } from '@react-navigation/native';
 import { WorkoutCard } from '../../../../../src/shared/components/WorkoutCard';
 import { WorkoutDetailModal } from '../../../../../src/features/calendar/components/WorkoutDetailModal';
+import { GlassScreen } from '../../../../../src/shared/components/GlassScreen';
+import { glassSurface } from '../../../../../src/core/glass';
 
 const MONTH_NAMES_FULL = [
   'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
@@ -58,7 +60,7 @@ export default function CoachAthleteDayScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <GlassScreen style={styles.container}>
       <Header
         title={dateTitle}
         showBackButton
@@ -73,7 +75,7 @@ export default function CoachAthleteDayScreen() {
         {isLoading ? (
           <ActivityIndicator size="large" color={theme.colors.accent} style={{ marginTop: 40 }} />
         ) : workouts.length === 0 ? (
-          <View style={[styles.emptyCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+          <View style={[styles.emptyCard, glassSurface]}>
             <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>Aucune séance enregistrée ce jour.</Text>
           </View>
         ) : (
@@ -97,7 +99,7 @@ export default function CoachAthleteDayScreen() {
         workout={selectedWorkout}
         readOnlyAthleteId={id}
       />
-    </View>
+    </GlassScreen>
   );
 }
 

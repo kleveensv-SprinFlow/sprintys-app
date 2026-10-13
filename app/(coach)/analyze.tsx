@@ -19,6 +19,9 @@ import { supabase } from '../../src/services/supabase';
 import { useAuthStore } from '../../src/store/authStore';
 import { AnalysisDomain } from '../../src/services/athleteAnalysisContext';
 import { AnalysisDomainSheet, AnalysisAthlete } from '../../src/features/coach/components/AnalysisDomainSheet';
+import { GlowBackground } from '../../src/shared/components/GlowBackground';
+import { glassSurface } from '../../src/core/glass';
+import { theme } from '../../src/core/theme';
 
 interface TeamTab {
   id: string;
@@ -201,6 +204,7 @@ export default function AnalyzeAthleteScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <GlowBackground />
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.navigate('/(coach)/chat')}>
@@ -312,21 +316,20 @@ export default function AnalyzeAthleteScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  container: { flex: 1, backgroundColor: theme.colors.backdrop },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 14 },
   backBtn: {
+    ...glassSurface,
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: { fontSize: 20, fontWeight: '800', color: '#0F172A' },
   subtitle: { fontSize: 12, color: '#64748B', marginTop: 2 },
   searchBox: {
+    ...glassSurface,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -334,14 +337,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
     marginBottom: 12,
   },
   searchInput: { flex: 1, fontSize: 14, color: '#0F172A' },
   tabs: { paddingHorizontal: 20, gap: 8, paddingBottom: 14 },
   tab: {
+    ...glassSurface,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -349,34 +350,24 @@ const styles = StyleSheet.create({
     paddingRight: 8,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
   },
   tabActive: { backgroundColor: '#0F172A', borderColor: '#0F172A' },
   tabText: { fontSize: 13, fontWeight: '700', color: '#475569' },
   tabTextActive: { color: '#FFFFFF' },
-  tabCount: { minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+  tabCount: { minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, backgroundColor: theme.colors.glassFill, alignItems: 'center', justifyContent: 'center' },
   tabCountActive: { backgroundColor: '#FFFFFF' },
   tabCountText: { fontSize: 11, fontWeight: '800', color: '#64748B' },
   list: { paddingHorizontal: 20, paddingBottom: 40 },
   row: { gap: 12, marginBottom: 12 },
   card: {
+    ...glassSurface,
     flex: 1,
     maxWidth: '48.5%',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
     borderRadius: 22,
     paddingTop: 20,
     paddingBottom: 14,
     paddingHorizontal: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
   },
   scoreBadge: {
     position: 'absolute',
@@ -390,11 +381,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   scoreText: { fontSize: 10, fontWeight: '800' },
-  cardAvatar: { width: 76, height: 76, borderRadius: 38, backgroundColor: '#F1F5F9', borderWidth: 2, borderColor: '#E2E8F0', marginBottom: 10 },
+  cardAvatar: { width: 76, height: 76, borderRadius: 38, backgroundColor: theme.colors.glassFill, borderWidth: 2, borderColor: theme.colors.glassBorder, marginBottom: 10 },
   cardAvatarFallback: { alignItems: 'center', justifyContent: 'center' },
   firstName: { fontSize: 15, fontWeight: '800', color: '#0F172A', maxWidth: '100%' },
   lastName: { fontSize: 13, fontWeight: '500', color: '#64748B', marginTop: 1, maxWidth: '100%' },
-  teamLabel: { fontSize: 10, fontWeight: '600', color: '#94A3B8', marginTop: 4, maxWidth: '100%' },
+  teamLabel: { fontSize: 10, fontWeight: '600', color: '#64748B', marginTop: 4, maxWidth: '100%' },
   analyzeHint: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -403,12 +394,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 10,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: theme.colors.glassFill,
   },
   analyzeHintText: { fontSize: 11, fontWeight: '700', color: '#0F172A' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   empty: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 30 },
-  emptyIcon: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  emptyIcon: { width: 60, height: 60, borderRadius: 30, backgroundColor: theme.colors.glassFill, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A', marginBottom: 6 },
   emptyText: { fontSize: 13, color: '#64748B', textAlign: 'center', lineHeight: 19 },
 });

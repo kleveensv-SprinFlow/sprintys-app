@@ -13,6 +13,10 @@ import { BroadcastModal } from '../../src/features/coach/components/BroadcastMod
 import { SprintyLogo } from '../../src/shared/components/SprintyLogo';
 import { TeamHealthModal } from '../../src/features/coach/components/TeamHealthModal';
 import { HeaderProfileAvatar } from '../../src/shared/components/HeaderProfileAvatar';
+import { GlowBackground } from '../../src/shared/components/GlowBackground';
+import { PressableScale } from '../../src/shared/components/PressableScale';
+import { glassSurface } from '../../src/core/glass';
+import { useTabBarSpace } from '../../src/shared/hooks/useTabBarSpace';
 
 export default function CoachDashboardScreen() {
   const todayStr = (() => {
@@ -21,6 +25,7 @@ export default function CoachDashboardScreen() {
   })();
   const { user } = useAuthStore();
   const router = useRouter();
+  const tabBarSpace = useTabBarSpace();
   const { teams, teamMembers, pendingMembers, teamCheckIns, fetchTeamCheckIns, fetchAllPendingRequests } = useCoachStore();
   
   const [broadcastVisible, setBroadcastVisible] = useState(false);
@@ -66,11 +71,13 @@ export default function CoachDashboardScreen() {
   const healthColor = avgHealth === null ? theme.colors.textMuted : avgHealth >= 70 ? theme.colors.success : avgHealth >= 40 ? '#F59E0B' : theme.colors.error;
 
   return (
-    <SafeAreaView style={styles.container}>
+    // No bottom edge: the tab bar floats (frosted) over the end of the content
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <GlowBackground />
       {/* HEADER COACH */}
       <View style={styles.header}>
         {/* Left: Annonce */}
-        <TouchableOpacity onPress={() => setBroadcastVisible(true)} style={[styles.iconButton, { backgroundColor: theme.colors.surfaceLight }]}>
+        <TouchableOpacity onPress={() => setBroadcastVisible(true)} style={[styles.iconButton, glassSurface]}>
           <Feather name="mic" size={24} color={theme.colors.text} />
         </TouchableOpacity>
 
@@ -92,7 +99,7 @@ export default function CoachDashboardScreen() {
         {/* Santé du Groupe (Carte Épurée Apple Fitness) */}
         <View style={styles.statsRow}>
           <TouchableOpacity 
-            style={[styles.statCard, { backgroundColor: theme.colors.surface, ...theme.shadows.soft }]}
+            style={[styles.statCard, glassSurface]}
             activeOpacity={0.9}
             onPress={() => setTeamHealthVisible(true)}
           >
@@ -119,7 +126,7 @@ export default function CoachDashboardScreen() {
         </View>
         
         {todayWorkouts.length === 0 ? (
-          <View style={[styles.emptyCard, { ...theme.shadows.soft }]}>
+          <View style={[styles.emptyCard, glassSurface]}>
             <Feather name="calendar" size={24} color={theme.colors.textMuted} style={{ marginBottom: 12 }} />
             <Text style={styles.emptyText}>Aucune séance planifiée pour aujourd'hui.</Text>
             <TouchableOpacity onPress={() => router.push('/(coach)/day/' + todayStr)} style={{ marginTop: 16 }}>
@@ -128,10 +135,9 @@ export default function CoachDashboardScreen() {
           </View>
         ) : (
           todayWorkouts.map((workout, index) => (
-            <TouchableOpacity 
+            <PressableScale
               key={workout.id || index}
-              style={[styles.sessionCard, { ...theme.shadows.soft }]}
-              activeOpacity={0.8}
+              style={[styles.sessionCard, glassSurface]}
               onPress={() => router.push('/(coach)/day/' + (workout.date_prevue ? workout.date_prevue.split('T')[0] : todayStr))}
             >
               <View style={styles.sessionCardHeader}>
@@ -157,11 +163,11 @@ export default function CoachDashboardScreen() {
                 <Text style={styles.sessionCardAction}>Voir la séance</Text>
                 <Feather name="chevron-right" size={16} color={(theme.colors as any).sprintyBlue || theme.colors.accent} />
               </View>
-            </TouchableOpacity>
+            </PressableScale>
           ))
         )}
 
-        <View style={{ height: 120 }} />
+        <View style={{ height: tabBarSpace }} />
       </ScrollView>
 
       <BroadcastModal 
@@ -179,7 +185,7 @@ export default function CoachDashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.backdrop,
   },
   header: {
     flexDirection: 'row',
@@ -231,7 +237,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 11,
-    color: theme.colors.textMuted,
+    color: theme.colors.textSecondary,
     fontWeight: '700',
     letterSpacing: 0.8,
   },
@@ -242,12 +248,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: theme.colors.textSecondary,
     letterSpacing: 0.8,
   },
   sessionCard: {
-    backgroundColor: theme.colors.surface,
     borderRadius: 22,
+    borderCurve: 'continuous',
     padding: 20,
     marginBottom: 16,
   },
@@ -297,7 +303,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   emptyCard: {
-    backgroundColor: theme.colors.surface,
     padding: 28,
     borderRadius: 22,
     alignItems: 'center',

@@ -21,6 +21,8 @@ import { EditProfileModal } from '../../src/shared/components/EditProfileModal';
 import { FaqModal } from '../../src/shared/components/FaqModal';
 import { LegalNoticeModal } from '../../src/features/auth/components/LegalNoticeModal';
 import { supabase } from '../../src/services/supabase';
+import { GlowBackground } from '../../src/shared/components/GlowBackground';
+import { glassSurface } from '../../src/core/glass';
 
 function base64ToUint8Array(base64: string): Uint8Array {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
@@ -241,6 +243,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <GlowBackground />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={24} color={theme.colors.text} />
@@ -405,7 +408,7 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background },
+  container: { flex: 1, backgroundColor: theme.colors.backdrop },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20 },
   backBtn: { padding: 8, marginLeft: -8 },
   title: { fontSize: 20, fontWeight: 'bold', color: theme.colors.text },
@@ -457,15 +460,13 @@ const styles = StyleSheet.create({
   name: { fontSize: 22, fontWeight: 'bold', color: theme.colors.text, marginBottom: 4 },
   email: { fontSize: 14, color: theme.colors.textSecondary, marginBottom: 8 },
   changePhotoBtn: {
+    ...glassSurface,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
-    backgroundColor: theme.colors.surfaceLight,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
   },
   changePhotoText: {
     fontSize: 12,
@@ -475,16 +476,16 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 13,
     fontWeight: 'bold',
-    color: theme.colors.textMuted,
+    color: theme.colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginTop: 20,
     marginBottom: 10,
     marginLeft: 10,
   },
-  card: { backgroundColor: theme.colors.surface, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: theme.colors.border },
-  item: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
-  iconContainer: { width: 36, height: 36, borderRadius: 18, backgroundColor: theme.colors.surfaceLight, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
+  card: { ...glassSurface, borderRadius: 18, borderCurve: 'continuous', overflow: 'hidden' },
+  item: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: theme.colors.hairline },
+  iconContainer: { width: 36, height: 36, borderRadius: 18, backgroundColor: theme.colors.glassFill, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
   itemTextContainer: { flex: 1 },
   itemTitle: { fontSize: 16, color: theme.colors.text, fontWeight: '500' },
   itemValue: { fontSize: 14, color: theme.colors.textSecondary, marginTop: 2 },

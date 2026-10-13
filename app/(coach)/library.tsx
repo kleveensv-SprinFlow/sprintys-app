@@ -5,6 +5,8 @@ import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../src/core/theme';
 import { Header } from '../../src/shared/components/Header';
 import { useCoachStore } from '../../src/store/coach/coachStore';
+import { GlassScreen } from '../../src/shared/components/GlassScreen';
+import { glassSurface } from '../../src/core/glass';
 
 export default function CoachLibraryScreen() {
   const theme = useTheme();
@@ -27,7 +29,7 @@ export default function CoachLibraryScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <GlassScreen style={styles.container}>
       <Header 
         title="Bibliothèque" 
         rightComponent={
@@ -57,7 +59,7 @@ export default function CoachLibraryScreen() {
           </View>
         ) : (
           workoutTemplates.map((template) => (
-            <View key={template.id} style={[styles.templateCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+            <View key={template.id} style={[styles.templateCard, glassSurface]}>
               <View style={styles.cardHeader}>
                 <View style={styles.cardTitleContainer}>
                   <Text style={[styles.cardTitle, { color: theme.colors.text }]}>{template.name}</Text>
@@ -97,7 +99,7 @@ export default function CoachLibraryScreen() {
           ))
         )}
       </ScrollView>
-    </View>
+    </GlassScreen>
   );
 }
 
