@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { openFoodFactsService, OFFProduct } from './openFoodFactsService';
 import { matchScore, searchTokens, isStateToken, recallForms, tokenInName, normalizeSearchText, searchVariants, spokenFoodTitle, foodStateLabel } from './foodSearchRank';
+import { searchFoodCatalog } from '../features/nutrition/data/foodCatalog';
 
 export { normalizeSearchText };
 
@@ -167,6 +168,11 @@ export const nutritionService = {
         console.error('Barcode fetch error:', err);
         return [];
       }
+    }
+
+    const fromCatalog = searchFoodCatalog(rawQ);
+    if (fromCatalog.length) {
+      return fromCatalog.map((item) => ({ type: 'ciqual' as const, item }));
     }
 
     const [generic, packaged] = await Promise.all([searchCiqual(rawQ), searchPackaged(rawQ)]);

@@ -306,7 +306,7 @@ export const FoodSearchModal: React.FC = () => {
       meal_type: activeSearchMealType,
       consumed_at: currentDate,
       food_id: selectedProduct.id,
-      custom_food_name: selectedProduct.nom || selectedProduct.name || 'Aliment',
+      custom_food_name: selectedProduct.display_name || selectedProduct.nom || selectedProduct.name || 'Aliment',
       quantity_g: payload.totalGrams,
       calories: payload.calories,
       proteines: payload.pro,
