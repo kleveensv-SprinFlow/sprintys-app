@@ -1,19 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-  FlatList,
-} from 'react-native';
+import { Modal, View, Text, StyleSheet, FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import { workoutService } from '../../../services/workoutService';
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
+import { glassCard } from '../../../core/glass';
+import { IconButton } from '../../../shared/components/IconButton';
+import { SegmentedControl } from '../../../shared/components/SegmentedControl';
+import { EmptyState } from '../../../shared/components/EmptyState';
+import { SkeletonCard } from '../../../shared/components/Skeleton';
+import { GlassSheen } from '../../../shared/components/GlassSheen';
 
 interface AthletePerformanceModalProps {
   visible: boolean;
@@ -62,129 +59,62 @@ export const AthletePerformanceModal: React.FC<AthletePerformanceModalProps> = (
 
   const formatTime = (ms?: number | null) => {
     if (!ms) return null;
-    return `${(ms / 1000).toFixed(2)}s`;
+    return `${(ms / 1000).toFixed(2)} s`;
   };
+
+  const completedCount = workouts.filter((w) => w.status === 'completed').length;
+  const pendingCount = workouts.filter((w) => w.status === 'pending').length;
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <FeedbackHost />
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={[styles.container, { backgroundColor: theme.colors.backdrop }]}>
         {/* Header */}
-        <View
-          style={[
-            styles.header,
-            {
-              borderBottomColor: theme.colors.border,
-              paddingTop: Math.max(insets.top, 12) + 8,
-            },
-          ]}
-        >
-          <TouchableOpacity
-            onPress={onClose}
-            style={[styles.closeButton, { backgroundColor: theme.colors.surfaceLight }]}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Feather name="x" size={20} color={theme.colors.text} />
-          </TouchableOpacity>
+        <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 4 }]}>
+          <IconButton icon="x" accessibilityLabel="Fermer" onPress={onClose} />
 
           <View style={styles.headerCenter}>
-            <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+            <Text style={[styles.headerTitle, { color: theme.colors.text }]} numberOfLines={1}>
               Performances
             </Text>
-            <Text style={[styles.headerSubtitle, { color: theme.colors.textSecondary }]}>
+            <Text style={[styles.headerSubtitle, { color: theme.colors.textSecondary }]} numberOfLines={1}>
               {athleteName || 'Athlète'}
             </Text>
           </View>
 
-          <TouchableOpacity
-            onPress={loadHistory}
-            style={[styles.closeButton, { backgroundColor: theme.colors.surfaceLight }]}
-          >
-            <Feather name="refresh-cw" size={16} color={theme.colors.text} />
-          </TouchableOpacity>
+          <IconButton icon="refresh-cw" accessibilityLabel="Actualiser" onPress={loadHistory} disabled={loading} />
         </View>
 
-        {/* Filter Pills */}
-        <View style={styles.filterContainer}>
-          <TouchableOpacity
-            style={[
-              styles.filterPill,
-              {
-                backgroundColor: selectedFilter === 'all' ? theme.colors.accent : theme.colors.surfaceLight,
-              },
-            ]}
-            onPress={() => setSelectedFilter('all')}
-          >
-            <Text
-              style={[
-                styles.filterPillText,
-                { color: selectedFilter === 'all' ? '#FFF' : theme.colors.textSecondary },
-              ]}
-            >
-              Toutes ({workouts.length})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterPill,
-              {
-                backgroundColor: selectedFilter === 'completed' ? theme.colors.success : theme.colors.surfaceLight,
-              },
-            ]}
-            onPress={() => setSelectedFilter('completed')}
-          >
-            <Text
-              style={[
-                styles.filterPillText,
-                { color: selectedFilter === 'completed' ? '#FFF' : theme.colors.textSecondary },
-              ]}
-            >
-              Réalisées ({workouts.filter(w => w.status === 'completed').length})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterPill,
-              {
-                backgroundColor: selectedFilter === 'pending' ? theme.colors.warning : theme.colors.surfaceLight,
-              },
-            ]}
-            onPress={() => setSelectedFilter('pending')}
-          >
-            <Text
-              style={[
-                styles.filterPillText,
-                { color: selectedFilter === 'pending' ? '#FFF' : theme.colors.textSecondary },
-              ]}
-            >
-              En attente ({workouts.filter(w => w.status === 'pending').length})
-            </Text>
-          </TouchableOpacity>
-        </View>
+        {/* Filters */}
+        <SegmentedControl
+          style={styles.filters}
+          options={[
+            { key: 'all' as const, label: `Toutes · ${workouts.length}` },
+            { key: 'completed' as const, label: `Réalisées · ${completedCount}` },
+            { key: 'pending' as const, label: `À venir · ${pendingCount}` },
+          ]}
+          value={selectedFilter}
+          onChange={setSelectedFilter}
+        />
 
         {/* Content */}
         {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color={theme.colors.accent} />
-            <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
-              Chargement des performances...
-            </Text>
+          <View style={styles.listContainer}>
+            <SkeletonCard lines={3} />
+            <SkeletonCard lines={3} />
+            <SkeletonCard lines={3} />
           </View>
         ) : filteredWorkouts.length === 0 ? (
-          <View style={styles.center}>
-            <Feather name="activity" size={48} color={theme.colors.textMuted} />
-            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Aucun résultat</Text>
-            <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
-              Cet athlète n'a pas encore saisi de chronos ou données pour cette catégorie.
-            </Text>
-          </View>
+          <EmptyState
+            icon="activity"
+            title="Aucun résultat"
+            message="Cet athlète n’a pas encore saisi de chronos ou de données pour cette catégorie."
+          />
         ) : (
           <FlatList
             data={filteredWorkouts}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.listContainer}
+            contentContainerStyle={[styles.listContainer, { paddingBottom: insets.bottom + 24 }]}
             showsVerticalScrollIndicator={false}
             renderItem={({ item }) => {
               const dateStr = item.date_prevue
@@ -197,75 +127,55 @@ export const AthletePerformanceModal: React.FC<AthletePerformanceModalProps> = (
 
               const isCompleted = item.status === 'completed';
               const efforts = item.athlete_efforts || [];
+              const statusColor = isCompleted ? theme.colors.success : theme.colors.warning;
 
               return (
-                <View
-                  style={[
-                    styles.workoutCard,
-                    {
-                      backgroundColor: theme.colors.surface,
-                      borderColor: isCompleted ? theme.colors.success + '40' : theme.colors.border,
-                    },
-                  ]}
-                >
+                <View style={glassCard}>
+                  <GlassSheen radius={22} />
                   {/* Header de la séance */}
                   <View style={styles.workoutHeader}>
                     <View style={styles.workoutHeaderLeft}>
                       <View
                         style={[
                           styles.statusBadge,
-                          {
-                            backgroundColor: isCompleted ? theme.colors.success + '20' : theme.colors.warning + '20',
-                          },
+                          { backgroundColor: isCompleted ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)' },
                         ]}
                       >
-                        <Feather
-                          name={isCompleted ? 'check-circle' : 'clock'}
-                          size={12}
-                          color={isCompleted ? theme.colors.success : theme.colors.warning}
-                          style={{ marginRight: 4 }}
-                        />
-                        <Text
-                          style={[
-                            styles.statusBadgeText,
-                            { color: isCompleted ? theme.colors.success : theme.colors.warning },
-                          ]}
-                        >
-                          {isCompleted ? 'RÉALISÉE' : 'PLANIFIÉE'}
+                        <Feather name={isCompleted ? 'check-circle' : 'clock'} size={12} color={statusColor} />
+                        <Text style={[styles.statusBadgeText, { color: statusColor }]}>
+                          {isCompleted ? 'Réalisée' : 'Planifiée'}
                         </Text>
                       </View>
-                      <Text style={[styles.workoutDate, { color: theme.colors.textSecondary }]}>
-                        {dateStr}
-                      </Text>
+                      <Text style={[styles.workoutDate, { color: theme.colors.textSecondary }]}>{dateStr}</Text>
                     </View>
-                    <Text style={[styles.workoutTitle, { color: theme.colors.text }]}>
-                      {item.type_seance}
-                    </Text>
+                    <Text style={[styles.workoutTitle, { color: theme.colors.text }]}>{item.type_seance}</Text>
                   </View>
 
                   {/* Tableau des Chronos / Séries réelles */}
                   {efforts.length > 0 ? (
-                    <View style={[styles.effortsContainer, { backgroundColor: theme.colors.surfaceLight }]}>
-                      <Text style={[styles.effortsHeaderTitle, { color: theme.colors.textMuted }]}>
-                        RÉSULTATS SAISIS PAR L'ATHLÈTE
+                    <View style={[styles.effortsContainer, { backgroundColor: theme.colors.glassFill }]}>
+                      <Text style={[styles.effortsHeaderTitle, { color: theme.colors.textSecondary }]}>
+                        Résultats saisis par l’athlète
                       </Text>
                       {efforts.map((effort: any, idx: number) => {
                         const plannedTime = formatTime(effort.planned_time_ms);
                         const actualTime = formatTime(effort.actual_time_ms) || effort.actual_extra?.chrono || null;
-                        const plannedW = effort.planned_weight_kg ? `${effort.planned_weight_kg}kg` : null;
-                        const actualW = effort.actual_weight_kg ? `${effort.actual_weight_kg}kg` : null;
-                        const plannedReps = effort.planned_reps ? `${effort.planned_reps} reps` : null;
-                        const actualReps = effort.actual_reps ? `${effort.actual_reps} reps` : null;
-                        const plannedDist = effort.planned_distance_m ? `${effort.planned_distance_m}m` : null;
-                        const actualDist = effort.actual_distance_m ? `${effort.actual_distance_m}m` : null;
+                        const plannedW = effort.planned_weight_kg ? `${effort.planned_weight_kg} kg` : null;
+                        const actualW = effort.actual_weight_kg ? `${effort.actual_weight_kg} kg` : null;
+                        const plannedReps = effort.planned_reps ? `${effort.planned_reps} rép.` : null;
+                        const actualReps = effort.actual_reps ? `${effort.actual_reps} rép.` : null;
+                        const plannedDist = effort.planned_distance_m ? `${effort.planned_distance_m} m` : null;
+                        const actualDist = effort.actual_distance_m ? `${effort.actual_distance_m} m` : null;
 
-                        const plannedSummary = [plannedTime, plannedW, plannedReps, plannedDist].filter(Boolean).join(' - ');
-                        const actualSummary = [actualTime, actualW, actualReps, actualDist].filter(Boolean).join(' - ');
+                        const plannedSummary = [plannedTime, plannedW, plannedReps, plannedDist].filter(Boolean).join(' · ');
+                        const actualSummary = [actualTime, actualW, actualReps, actualDist].filter(Boolean).join(' · ');
 
                         return (
                           <View key={effort.id || idx} style={styles.effortRow}>
                             <View style={styles.effortSetBadge}>
-                              <Text style={styles.effortSetText}>Série {effort.set_order || idx + 1}</Text>
+                              <Text style={[styles.effortSetText, { color: theme.colors.sprintyBlue }]}>
+                                Série {effort.set_order || idx + 1}
+                              </Text>
                             </View>
 
                             <View style={styles.effortDetails}>
@@ -274,8 +184,13 @@ export const AthletePerformanceModal: React.FC<AthletePerformanceModalProps> = (
                                   Prévu : {plannedSummary}
                                 </Text>
                               ) : null}
-                              <Text style={[styles.actualText, { color: actualSummary ? theme.colors.accent : theme.colors.textSecondary }]}>
-                                Réalisé : {actualSummary || 'Effectué sans mesure'}
+                              <Text
+                                style={[
+                                  styles.actualText,
+                                  { color: actualSummary ? theme.colors.sprintyBlue : theme.colors.textSecondary },
+                                ]}
+                              >
+                                Réalisé : {actualSummary || 'effectué sans mesure'}
                               </Text>
                             </View>
                           </View>
@@ -283,9 +198,9 @@ export const AthletePerformanceModal: React.FC<AthletePerformanceModalProps> = (
                       })}
                     </View>
                   ) : isCompleted ? (
-                    <View style={[styles.noEffortsBox, { backgroundColor: theme.colors.surfaceLight }]}>
+                    <View style={[styles.noEffortsBox, { backgroundColor: theme.colors.glassFill }]}>
                       <Text style={[styles.noEffortsText, { color: theme.colors.textSecondary }]}>
-                        Séance validée par l'athlète sans détails de chronos spécifiques.
+                        Séance validée par l’athlète, sans chronos détaillés.
                       </Text>
                     </View>
                   ) : null}
@@ -308,50 +223,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-  },
-  closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingBottom: 8,
   },
   headerCenter: {
+    flex: 1,
     alignItems: 'center',
+    paddingHorizontal: 8,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: -0.3,
   },
   headerSubtitle: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '500',
+    marginTop: 1,
   },
-  filterContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 8,
-  },
-  filterPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  filterPillText: {
-    fontSize: 12,
-    fontWeight: '600',
+  filters: {
+    marginHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 4,
   },
   listContainer: {
     padding: 16,
     gap: 12,
-  },
-  workoutCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 16,
   },
   workoutHeader: {
     marginBottom: 12,
@@ -360,37 +256,42 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderCurve: 'continuous',
   },
   statusBadgeText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '700',
   },
   workoutDate: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '500',
   },
   workoutTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: -0.3,
   },
   effortsContainer: {
-    borderRadius: 12,
+    borderRadius: 14,
+    borderCurve: 'continuous',
     padding: 12,
-    gap: 8,
+    gap: 10,
   },
   effortsHeaderTitle: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: '700',
-    letterSpacing: 0.5,
-    marginBottom: 4,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginBottom: 2,
   },
   effortRow: {
     flexDirection: 'row',
@@ -398,52 +299,33 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   effortSetBadge: {
-    backgroundColor: '#3B82F620',
+    backgroundColor: 'rgba(0, 105, 232, 0.1)',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 8,
+    borderCurve: 'continuous',
   },
   effortSetText: {
-    color: '#3B82F6',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
   },
   effortDetails: {
     flex: 1,
   },
   plannedText: {
-    fontSize: 11,
+    fontSize: 12,
   },
   actualText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
   noEffortsBox: {
-    padding: 10,
-    borderRadius: 8,
+    padding: 12,
+    borderRadius: 12,
+    borderCurve: 'continuous',
   },
   noEffortsText: {
-    fontSize: 12,
-    fontStyle: 'italic',
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginTop: 12,
-  },
-  emptySubtitle: {
     fontSize: 13,
-    textAlign: 'center',
-    marginTop: 4,
   },
 });

@@ -1,20 +1,28 @@
-﻿import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Animated, Image } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { theme } from '../../../src/core/theme';
 import { Feather } from '@expo/vector-icons';
 import { checkInService, CheckInData } from '../../../src/services/checkInService';
 import { useCoachStore } from '../../../src/store/coach/coachStore';
-import { GlowBackground } from '../../../src/shared/components/GlowBackground';
-import { glassSurface } from '../../../src/core/glass';
+import { glassCard } from '../../../src/core/glass';
 import { GlassSheen } from '../../../src/shared/components/GlassSheen';
-
+import { GlassScreen } from '../../../src/shared/components/GlassScreen';
+import { Header } from '../../../src/shared/components/Header';
+import { PressableScale } from '../../../src/shared/components/PressableScale';
+import { EmptyState } from '../../../src/shared/components/EmptyState';
+import { Skeleton } from '../../../src/shared/components/Skeleton';
+import { ListRow } from '../../../src/shared/components/ListRow';
+import { useFrostedHeader } from '../../../src/shared/hooks/useFrostedHeader';
 import { useRefresh } from '../../../src/shared/hooks/useRefresh';
+
+type FeatherName = keyof typeof Feather.glyphMap;
 
 export default function AthleteDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  
+  const { scrollY, scrollProps } = useFrostedHeader();
+
   const { teamMembers } = useCoachStore();
   // Find athlete profile from the new store structure
   const athleteMember = teamMembers.find(m => m.user_id === id);
@@ -44,14 +52,29 @@ export default function AthleteDetailScreen() {
     }
   };
 
-  if (!profile) return <View style={styles.center}><Text style={styles.errorText}>Athlète non trouvé</Text></View>;
+  if (!profile) {
+    return (
+      <GlassScreen>
+        <Header title="Athlète" showBackButton onBackPress={() => router.back()} />
+        <EmptyState
+          icon="user-x"
+          title="Athlète introuvable"
+          message="Cet athlète ne fait plus partie de tes groupes."
+          actionLabel="Retour"
+          onAction={() => router.back()}
+        />
+      </GlassScreen>
+    );
+  }
 
-  const renderScoreBar = (label: string, score: number | undefined, icon: string, color: string) => {
+  const name = profile.full_name || 'Athlète';
+
+  const renderScoreBar = (label: string, score: number | undefined, icon: FeatherName, color: string) => {
     const validScore = score || 0;
     return (
       <View style={styles.scoreRow}>
         <View style={styles.scoreLabelRow}>
-          <Feather name={icon as any} size={16} color={theme.colors.textSecondary} />
+          <Feather name={icon} size={16} color={theme.colors.textSecondary} />
           <Text style={styles.scoreLabel}>{label}</Text>
         </View>
         <View style={styles.scoreBarBg}>
@@ -62,104 +85,128 @@ export default function AthleteDetailScreen() {
     );
   };
 
-  return (
-    <View style={styles.container}>
-      <GlowBackground />
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Feather name="arrow-left" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
-        <View style={styles.headerText}>
-          <Text style={styles.title}>{profile.full_name || 'Athlète'}</Text>
-          <Text style={styles.subtitle}>Détail et Forme du jour</Text>
-        </View>
-      </View>
+  const actions: { key: string; label: string; icon: FeatherName; color: string; tint: string; onPress: () => void }[] = [
+    {
+      key: 'nutrition',
+      label: 'Nutrition',
+      icon: 'pie-chart',
+      color: theme.colors.warning,
+      tint: 'rgba(245, 158, 11, 0.12)',
+      onPress: () => router.push(`/(athlete)/nutrition?athleteId=${id}&readonly=true`),
+    },
+    {
+      key: 'training',
+      label: 'Entraînement',
+      icon: 'activity',
+      color: theme.colors.sprintyBlue,
+      tint: 'rgba(0, 105, 232, 0.1)',
+      onPress: () => router.push(`/(coach)/athlete/${id}/calendar`),
+    },
+    {
+      key: 'sessions',
+      label: 'Séances',
+      icon: 'calendar',
+      color: theme.colors.success,
+      tint: 'rgba(16, 185, 129, 0.12)',
+      onPress: () => router.push(`/(coach)/athlete/${id}/calendar`),
+    },
+    {
+      key: 'ai',
+      label: 'Sprinty IA',
+      icon: 'zap',
+      color: theme.colors.sprintyBlue,
+      tint: 'rgba(0, 105, 232, 0.1)',
+      onPress: () =>
+        router.push({
+          pathname: '/(coach)/chat',
+          params: {
+            athleteId: id,
+            athleteName: name,
+            avatarUrl: profile.avatar_url || '',
+            domains: 'training,nutrition,wellness,body',
+            ts: String(Date.now()),
+          },
+        }),
+    },
+  ];
 
-      <ScrollView refreshControl={refreshControl} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        
+  return (
+    <GlassScreen scrollY={scrollY}>
+      <Header title={name} showBackButton onBackPress={() => router.back()} scrollY={scrollY} />
+
+      <Animated.ScrollView
+        {...scrollProps}
+        refreshControl={refreshControl}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* PROFILE INFO */}
         <View style={styles.profileSection}>
-          <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarLetter}>{profile.full_name?.charAt(0) || 'A'}</Text>
-            </View>
-          <Text style={styles.profileName}>{profile.full_name || 'Athlète'}</Text>
-          <Text style={styles.profileGroup}>{profile.subgroups?.join(', ') || 'Aucun sous-groupe'}</Text>
+          <View style={styles.avatar}>
+            {profile.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
+            ) : (
+              <Text style={styles.avatarLetter}>{name.charAt(0).toUpperCase()}</Text>
+            )}
+          </View>
+          <Text style={styles.profileName}>{name}</Text>
+          <Text style={styles.profileGroup}>{profile.subgroups?.join(', ') || 'Sans sous-groupe'}</Text>
         </View>
 
         {/* ACTIONS RAPIDES */}
         <View style={styles.actionGrid}>
-          <TouchableOpacity 
-            style={styles.actionGridItem}
-            onPress={() => router.push(`/(athlete)/nutrition?athleteId=${id}&readonly=true`)}
-          >
-            <GlassSheen radius={18} />
-            <View style={[styles.actionIconBg, { backgroundColor: theme.colors.warning + '20' }]}>
-              <Feather name="pie-chart" size={24} color={theme.colors.warning} />
-            </View>
-            <Text style={styles.actionGridText}>Nutrition</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.actionGridItem}
-            onPress={() => router.push(`/(coach)/athlete/${id}/calendar`)}
-          >
-            <GlassSheen radius={18} />
-            <View style={[styles.actionIconBg, { backgroundColor: theme.colors.accent + '20' }]}>
-              <Feather name="calendar" size={24} color={theme.colors.accent} />
-            </View>
-            <Text style={styles.actionGridText}>Entraînement</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.actionGridItem}
-            onPress={() => router.push(`/(coach)/athlete/${id}/calendar`)}
-          >
-            <GlassSheen radius={18} />
-            <View style={[styles.actionIconBg, { backgroundColor: theme.colors.success + '20' }]}>
-              <Feather name="calendar" size={24} color={theme.colors.success} />
-            </View>
-            <Text style={styles.actionGridText}>Séances</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.actionGridItem}
-            onPress={() => router.push({
-              pathname: '/(coach)/chat',
-              params: {
-                athleteId: id,
-                athleteName: profile.full_name || 'Athlète',
-                avatarUrl: profile.avatar_url || '',
-                domains: 'training,nutrition,wellness,body',
-                ts: String(Date.now()),
-              },
-            })}
-          >
-            <GlassSheen radius={18} />
-            <View style={[styles.actionIconBg, { backgroundColor: theme.colors.accent + '20' }]}>
-              <Feather name="zap" size={22} color={theme.colors.accent} />
-            </View>
-            <Text style={styles.actionGridText}>Sprinty IA</Text>
-          </TouchableOpacity>
+          {actions.map((a) => (
+            <PressableScale
+              key={a.key}
+              onPress={a.onPress}
+              containerStyle={styles.actionGridCell}
+              style={styles.actionGridItem}
+              accessibilityRole="button"
+              accessibilityLabel={a.label}
+            >
+              <GlassSheen radius={18} />
+              <View style={[styles.actionIconBg, { backgroundColor: a.tint }]}>
+                <Feather name={a.icon} size={20} color={a.color} />
+              </View>
+              <Text style={styles.actionGridText} numberOfLines={1} adjustsFontSizeToFit>
+                {a.label}
+              </Text>
+            </PressableScale>
+          ))}
         </View>
 
         {/* CHECK-IN SECTION */}
-        <Text style={styles.sectionTitle}>CHECK-IN DU JOUR</Text>
-        
+        <Text style={styles.sectionTitle}>Forme du jour</Text>
+
         {isLoading ? (
-          <ActivityIndicator color={theme.colors.accent} style={{ marginVertical: 30 }} />
+          <View style={[glassCard, styles.checkInCard]}>
+            <View style={styles.globalScoreHeader}>
+              <Skeleton width="45%" height={18} />
+              <Skeleton width={64} height={30} radius={12} />
+            </View>
+            <View style={styles.divider} />
+            <View style={{ gap: 18 }}>
+              <Skeleton height={10} />
+              <Skeleton height={10} />
+              <Skeleton width="80%" height={10} />
+            </View>
+          </View>
         ) : !latestCheckIn ? (
-          <View style={styles.emptyCard}>
-            <GlassSheen radius={18} />
-            <Feather name="clock" size={32} color={theme.colors.textMuted} />
-            <Text style={styles.emptyText}>Aucun Check-In aujourd'hui</Text>
+          <View style={[glassCard, styles.checkInCard]}>
+            <GlassSheen radius={22} />
+            <EmptyState
+              compact
+              icon="clock"
+              title="Pas encore de bilan"
+              message={`${name} n’a pas encore rempli son ressenti du jour.`}
+            />
           </View>
         ) : (
-          <View style={styles.checkInCard}>
+          <View style={[glassCard, styles.checkInCard]}>
             <GlassSheen radius={22} />
             {/* Global Score */}
             <View style={styles.globalScoreHeader}>
-              <Text style={styles.globalScoreTitle}>Forme du jour</Text>
+              <Text style={styles.globalScoreTitle}>Score de forme</Text>
               <View style={[styles.scoreBadge, { backgroundColor: getScoreColor(latestCheckIn.health_score) + '20' }]}>
                 <Text style={[styles.scoreBadgeText, { color: getScoreColor(latestCheckIn.health_score) }]}>
                   {latestCheckIn.health_score} %
@@ -170,14 +217,14 @@ export default function AthleteDetailScreen() {
             <View style={styles.divider} />
 
             {/* Subscores */}
-            {renderScoreBar('Sommeil', latestCheckIn.sleep_score, 'moon', '#3b82f6')}
+            {renderScoreBar('Sommeil', latestCheckIn.sleep_score, 'moon', theme.colors.sprintyBlue)}
             {renderScoreBar('Physique', latestCheckIn.physical_score, 'activity', getScoreColor(latestCheckIn.physical_score || 0))}
             {renderScoreBar('Mental', latestCheckIn.mental_score, 'smile', '#8b5cf6')}
 
             {/* Pains details */}
             {latestCheckIn.pains && latestCheckIn.pains.length > 0 && (
               <View style={styles.painsContainer}>
-                <Text style={styles.painsTitle}>Douleurs signalées :</Text>
+                <Text style={styles.painsTitle}>Douleurs signalées</Text>
                 {latestCheckIn.pains.map((pain, idx) => (
                   <View key={idx} style={styles.painItem}>
                     <View style={styles.painItemHeader}>
@@ -186,7 +233,7 @@ export default function AthleteDetailScreen() {
                       <Text style={styles.painIntensity}>{pain.intensity}/10</Text>
                     </View>
                     <Text style={styles.painType}>{pain.type}</Text>
-                    {pain.comment && <Text style={styles.painComment}>"{pain.comment}"</Text>}
+                    {!!pain.comment && <Text style={styles.painComment}>« {pain.comment} »</Text>}
                   </View>
                 ))}
               </View>
@@ -195,17 +242,17 @@ export default function AthleteDetailScreen() {
         )}
 
         {/* ACTIONS */}
-        <Text style={styles.sectionTitle}>MESSAGERIE</Text>
-        <TouchableOpacity 
-          style={styles.actionBtn}
-          onPress={() => router.push(`/chat/direct/${id}`)}
-        >
-          <Feather name="message-circle" size={20} color={theme.colors.accent} />
-          <Text style={styles.actionBtnText}>Envoyer un message</Text>
-        </TouchableOpacity>
-
-      </ScrollView>
-    </View>
+        <Text style={styles.sectionTitle}>Messagerie</Text>
+        <View style={[glassCard, styles.listCard]}>
+          <ListRow
+            icon="message-circle"
+            title="Envoyer un message"
+            onPress={() => router.push(`/chat/direct/${id}`)}
+            last
+          />
+        </View>
+      </Animated.ScrollView>
+    </GlassScreen>
   );
 }
 
@@ -216,80 +263,68 @@ function getScoreColor(score: number) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.backdrop },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  errorText: { color: theme.colors.error, fontSize: 16 },
-  
-  header: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingTop: 60, paddingHorizontal: 20, paddingBottom: 20,
-    borderBottomWidth: 1, borderBottomColor: theme.colors.border,
-  },
-  backBtn: { padding: 8, marginLeft: -8, marginRight: 12 },
-  headerText: { flex: 1 },
-  title: { color: theme.colors.text, fontSize: 22, fontWeight: 'bold' },
-  subtitle: { color: theme.colors.textSecondary, fontSize: 13 },
-  
-  scrollContent: { padding: 20 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 48 },
   sectionTitle: {
-    color: theme.colors.textMuted, fontSize: 12, fontWeight: 'bold',
-    letterSpacing: 1.5, marginBottom: 16, marginTop: 8
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+    marginLeft: 4,
   },
 
-  profileSection: { alignItems: 'center', marginBottom: 24 },
-  avatarPlaceholder: { width: 80, height: 80, borderRadius: 40, backgroundColor: theme.colors.glassFill, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-  avatarImage: { width: 80, height: 80, borderRadius: 40, backgroundColor: theme.colors.surfaceLight, marginBottom: 12 },
-  avatarLetter: { fontSize: 32, fontWeight: 'bold', color: theme.colors.textSecondary },
-  profileName: { fontSize: 24, fontWeight: 'bold', color: theme.colors.text },
+  profileSection: { alignItems: 'center', marginTop: 8, marginBottom: 24 },
+  avatar: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: 'rgba(0, 105, 232, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  avatarImage: { width: 84, height: 84 },
+  avatarLetter: { fontSize: 32, fontWeight: '800', color: theme.colors.sprintyBlue },
+  profileName: { fontSize: 24, fontWeight: '800', letterSpacing: -0.5, color: theme.colors.text, textAlign: 'center' },
   profileGroup: { fontSize: 14, color: theme.colors.textSecondary, marginTop: 4 },
 
-  actionGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 32, gap: 12 },
-  actionGridItem: { flex: 1, ...glassSurface, borderRadius: 18, borderCurve: 'continuous', padding: 16, alignItems: 'center' },
-  actionIconBg: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-  actionGridText: { fontSize: 13, fontWeight: '600', color: theme.colors.text, textAlign: 'center' },
-
-  emptyCard: {
-    ...glassSurface, padding: 30, borderRadius: 18, borderCurve: 'continuous',
-    alignItems: 'center', marginBottom: 24
+  actionGrid: { flexDirection: 'row', marginBottom: 28, gap: 10 },
+  actionGridCell: { flex: 1 },
+  actionGridItem: {
+    ...glassCard,
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 6,
+    alignItems: 'center',
   },
-  emptyText: { color: theme.colors.textSecondary, marginTop: 12, fontSize: 15 },
+  actionIconBg: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
+  actionGridText: { fontSize: 12, fontWeight: '700', color: theme.colors.text, textAlign: 'center' },
 
-  checkInCard: {
-    ...glassSurface, borderRadius: 22, borderCurve: 'continuous', padding: 20, marginBottom: 32
-  },
+  checkInCard: { padding: 20, marginBottom: 28 },
+  listCard: { paddingVertical: 4, marginBottom: 12 },
   globalScoreHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  globalScoreTitle: { color: theme.colors.text, fontSize: 18, fontWeight: 'bold' },
-  scoreBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-  scoreBadgeText: { fontWeight: 'bold', fontSize: 16 },
-  
-  divider: { height: 1, backgroundColor: theme.colors.hairline, marginVertical: 20 },
+  globalScoreTitle: { color: theme.colors.text, fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
+  scoreBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderCurve: 'continuous' },
+  scoreBadgeText: { fontWeight: '800', fontSize: 16 },
+
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: theme.colors.hairline, marginVertical: 18 },
 
   scoreRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   scoreLabelRow: { flexDirection: 'row', alignItems: 'center', width: 90, gap: 8 },
   scoreLabel: { color: theme.colors.textSecondary, fontSize: 13, fontWeight: '600' },
-  scoreBarBg: { flex: 1, height: 8, backgroundColor: theme.colors.glassFill, borderRadius: 4, marginHorizontal: 12 },
+  scoreBarBg: { flex: 1, height: 8, backgroundColor: theme.colors.glassFill, borderRadius: 4, marginHorizontal: 12, overflow: 'hidden' },
   scoreBarFill: { height: 8, borderRadius: 4 },
-  scoreValue: { width: 45, textAlign: 'right', fontSize: 13, fontWeight: 'bold' },
+  scoreValue: { width: 52, textAlign: 'right', fontSize: 13, fontWeight: '700', fontVariant: ['tabular-nums'] },
 
-  painsContainer: { marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: theme.colors.hairline },
-  painsTitle: { color: theme.colors.textSecondary, fontSize: 13, fontWeight: 'bold', marginBottom: 12 },
-  painItem: { backgroundColor: theme.colors.glassFill, padding: 12, borderRadius: 12, marginBottom: 8 },
+  painsContainer: { marginTop: 8, paddingTop: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.hairline },
+  painsTitle: { color: theme.colors.textSecondary, fontSize: 13, fontWeight: '700', marginBottom: 10 },
+  painItem: { backgroundColor: theme.colors.glassFill, padding: 12, borderRadius: 12, borderCurve: 'continuous', marginBottom: 8 },
   painItemHeader: { flexDirection: 'row', alignItems: 'center' },
   dot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
-  painName: { color: theme.colors.text, fontSize: 15, fontWeight: 'bold', flex: 1 },
-  painIntensity: { color: theme.colors.textMuted, fontSize: 13, fontWeight: 'bold' },
+  painName: { color: theme.colors.text, fontSize: 15, fontWeight: '700', flex: 1 },
+  painIntensity: { color: theme.colors.textMuted, fontSize: 13, fontWeight: '700' },
   painType: { color: theme.colors.warning, fontSize: 13, marginTop: 4, marginLeft: 16 },
   painComment: { color: theme.colors.textSecondary, fontSize: 13, fontStyle: 'italic', marginTop: 8, marginLeft: 16 },
-
-  menstruationAlert: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.error + '15',
-    padding: 12, borderRadius: 12, marginTop: 16, gap: 8, borderWidth: 1, borderColor: theme.colors.error + '30'
-  },
-  menstruationText: { color: theme.colors.error, fontWeight: 'bold', fontSize: 14 },
-
-  actionBtn: {
-    flexDirection: 'row', alignItems: 'center', ...glassSurface,
-    padding: 16, borderRadius: 18, borderCurve: 'continuous', marginBottom: 12, gap: 12
-  },
-  actionBtnText: { color: theme.colors.text, fontSize: 16, fontWeight: '600' }
 });

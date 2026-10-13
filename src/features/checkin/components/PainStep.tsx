@@ -1,13 +1,18 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Modal, TextInput } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TextInput, LayoutAnimation } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../../core/theme';
+import { glassCard } from '../../../core/glass';
 import { Feather } from '@expo/vector-icons';
 import { useCheckInStore } from '../../../store/checkInStore';
 import Slider from '@react-native-community/slider';
 import { useConsentStore } from '../../../store/consentStore';
 import { ConsentCheck } from '../../legal/ConsentCheck';
 import { CONSENT_TEXTS } from '../../../legal/consents';
-import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
+import { PressableScale } from '../../../shared/components/PressableScale';
+import { Button } from '../../../shared/components/Button';
+import { BottomSheet } from '../../../shared/components/BottomSheet';
+import { StepFooter } from './StepFooter';
 
 interface PainStepProps {
   onBack: () => void;
@@ -92,6 +97,7 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
   const grantConsent = useConsentStore((s) => s.grant);
   const [consentTicked, setConsentTicked] = useState(false);
   const [granting, setGranting] = useState(false);
+  const [commentFocused, setCommentFocused] = useState(false);
   const finish = () => {
     onSubmit();
   };
@@ -133,58 +139,106 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
     return theme.colors.error;
   };
 
+  const toggleSection = (id: string, isExpanded: boolean) => {
+    LayoutAnimation.configureNext(LayoutAnimation.create(220, 'easeInEaseOut', 'opacity'));
+    setExpandedSection(isExpanded ? null : id);
+  };
+
+  const handleIntensityChange = (value: number) => {
+    if (value !== intensity) {
+      try {
+        Haptics.selectionAsync();
+      } catch {
+        // haptics unavailable
+      }
+    }
+    setIntensity(value);
+  };
+
+  const zoneHasPain = currentPains.some(p => p.muscle_id === selectedZone?.id);
+
   return (
     <View style={styles.container}>
-      <Text style={[styles.title, { color: theme.colors.text }]}>Corps & Douleurs</Text>
-      <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-        Signale les zones douloureuses avec précision (Optionnel).
-      </Text>
-
       {!painConsent ? (
-        <View style={[styles.consentCard, { backgroundColor: theme.colors.surface }]}>
-          <View style={styles.consentIcon}>
-            <Feather name="lock" size={20} color={theme.colors.sprintyBlue} />
-          </View>
-          <Text style={[styles.consentTitle, { color: theme.colors.text }]}>Activer le suivi des douleurs</Text>
-          <Text style={[styles.consentText, { color: theme.colors.textSecondary }]}>
-            Les douleurs sont des données de santé : nous ne les enregistrons qu’avec ton accord. Tu peux passer cette étape.
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <Text style={[styles.title, { color: theme.colors.text }]}>Corps & douleurs</Text>
+          <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+            Signale les zones douloureuses avec précision (optionnel).
           </Text>
-          <ConsentCheck checked={consentTicked} onToggle={() => setConsentTicked((v) => !v)}>
-            {CONSENT_TEXTS.health_data}
-          </ConsentCheck>
-          <TouchableOpacity
-            style={[styles.consentButton, { backgroundColor: theme.colors.sprintyBlue }, (!consentTicked || granting) && { opacity: 0.4 }]}
-            disabled={!consentTicked || granting}
-            onPress={async () => {
-              setGranting(true);
-              await grantConsent(['health_data']);
-              setGranting(false);
-            }}
-          >
-            <Text style={styles.consentButtonText}>{granting ? 'Activation…' : 'Activer'}</Text>
-          </TouchableOpacity>
-        </View>
+          <View style={[glassCard, styles.consentCard]}>
+            <View style={styles.consentIcon}>
+              <Feather name="lock" size={20} color={theme.colors.sprintyBlue} />
+            </View>
+            <Text style={[styles.consentTitle, { color: theme.colors.text }]}>Activer le suivi des douleurs</Text>
+            <Text style={[styles.consentText, { color: theme.colors.textSecondary }]}>
+              Les douleurs sont des données de santé : nous ne les enregistrons qu’avec ton accord. Tu peux passer cette étape.
+            </Text>
+            <ConsentCheck checked={consentTicked} onToggle={() => setConsentTicked((v) => !v)}>
+              {CONSENT_TEXTS.health_data}
+            </ConsentCheck>
+            <Button
+              title="Activer"
+              style={styles.consentButton}
+              disabled={!consentTicked || granting}
+              loading={granting}
+              onPress={async () => {
+                setGranting(true);
+                await grantConsent(['health_data']);
+                setGranting(false);
+              }}
+            />
+          </View>
+        </ScrollView>
       ) : (
-        <>
-  <ScrollView style={styles.sectionsList} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <Text style={[styles.title, { color: theme.colors.text }]}>Corps & douleurs</Text>
+          <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+            Signale les zones douloureuses avec précision (optionnel).
+          </Text>
+
+          {currentPains.length > 0 && (
+            <View style={styles.summaryContainer}>
+              <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>
+                Zones signalées ({currentPains.length})
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.summaryList}>
+                {currentPains.map(pain => (
+                  <View key={pain.muscle_id} style={[styles.painChip, { backgroundColor: theme.colors.surface, borderColor: theme.colors.hairline }]}>
+                    <View style={[styles.intensityDot, { backgroundColor: getIntensityColor(pain.intensity) }]} />
+                    <Text style={[styles.painChipText, { color: theme.colors.text }]}>{pain.muscle_name}</Text>
+                    <PressableScale
+                      haptic="selection"
+                      onPress={() => removePain(pain.muscle_id)}
+                      style={[styles.removePainBtn, { backgroundColor: theme.colors.glassFill }]}
+                      hitSlop={12}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Retirer ${pain.muscle_name}`}
+                    >
+                      <Feather name="x" size={12} color={theme.colors.textSecondary} />
+                    </PressableScale>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
           {BODY_SECTIONS.map((section) => {
             const isExpanded = expandedSection === section.id;
             const painsInSection = currentPains.filter(p => section.zones.some(z => z.id === p.muscle_id));
 
             return (
-              <View key={section.id} style={styles.sectionContainer}>
-                <TouchableOpacity 
-                  style={[
-                    styles.sectionHeader, 
-                    { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border },
-                    isExpanded && { borderColor: theme.colors.accent, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }
-                  ]}
-                  activeOpacity={0.7}
-                  onPress={() => setExpandedSection(isExpanded ? null : section.id)}
+              <View key={section.id} style={[glassCard, styles.sectionCard, isExpanded && { borderColor: 'rgba(0, 105, 232, 0.35)' }]}>
+                <PressableScale
+                  haptic="selection"
+                  activeScale={0.98}
+                  style={styles.sectionHeader}
+                  onPress={() => toggleSection(section.id, isExpanded)}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: isExpanded }}
                 >
                   <View style={styles.sectionHeaderLeft}>
-                    <View style={[styles.iconBox, { backgroundColor: theme.colors.background }]}>
-                      <Feather name={section.icon as any} size={20} color={theme.colors.text} />
+                    <View style={[styles.iconBox, { backgroundColor: isExpanded ? theme.colors.sprintyBlue : 'rgba(0, 105, 232, 0.1)' }]}>
+                      <Feather name={section.icon as any} size={17} color={isExpanded ? '#FFFFFF' : theme.colors.sprintyBlue} />
                     </View>
                     <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>{section.name}</Text>
                     {painsInSection.length > 0 && (
@@ -193,34 +247,38 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
                       </View>
                     )}
                   </View>
-                  <Feather name={isExpanded ? "chevron-up" : "chevron-down"} size={20} color={theme.colors.textMuted} />
-                </TouchableOpacity>
+                  <Feather name={isExpanded ? 'chevron-up' : 'chevron-down'} size={20} color={theme.colors.textMuted} />
+                </PressableScale>
 
                 {isExpanded && (
-                  <View style={[styles.zonesContainer, { borderColor: theme.colors.border, borderTopWidth: 0 }]}>
+                  <View style={[styles.zonesContainer, { borderTopColor: theme.colors.hairline }]}>
                     {section.zones.map((zone, index) => {
                       const pain = currentPains.find(p => p.muscle_id === zone.id);
                       const isLast = index === section.zones.length - 1;
 
                       return (
-                        <TouchableOpacity 
-                          key={zone.id} 
-                          style={[styles.zoneRow, !isLast && { borderBottomWidth: 1, borderBottomColor: theme.colors.background }]}
+                        <PressableScale
+                          key={zone.id}
+                          haptic="selection"
+                          activeScale={0.98}
+                          style={[styles.zoneRow, !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.hairline }]}
                           onPress={() => handleZonePress(zone)}
+                          accessibilityRole="button"
+                          accessibilityLabel={pain ? `${zone.name}, ${pain.intensity} sur 10, ${pain.type}` : `Signaler ${zone.name}`}
                         >
                           <Text style={[styles.zoneName, { color: theme.colors.text }]}>{zone.name}</Text>
-                          
+
                           {pain ? (
-                            <View style={styles.zoneStateBadge}>
+                            <View style={[styles.zoneStateBadge, { backgroundColor: theme.colors.glassFill }]}>
                               <View style={[styles.intensityDot, { backgroundColor: getIntensityColor(pain.intensity) }]} />
                               <Text style={[styles.zoneStateText, { color: theme.colors.textSecondary }]}>
-                                {pain.intensity}/10 - {pain.type}
+                                {pain.intensity}/10 · {pain.type}
                               </Text>
                             </View>
                           ) : (
                             <Feather name="plus-circle" size={20} color={theme.colors.textMuted} />
                           )}
-                        </TouchableOpacity>
+                        </PressableScale>
                       );
                     })}
                   </View>
@@ -229,172 +287,137 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
             );
           })}
         </ScrollView>
-
-        {currentPains.length > 0 && (
-          <View style={styles.summaryContainer}>
-            <Text style={[styles.summaryTitle, { color: theme.colors.textSecondary }]}>Zones signalées ({currentPains.length})</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.summaryList}>
-              {currentPains.map(pain => (
-                <View key={pain.muscle_id} style={[styles.painChip, { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border }]}>
-                  <View style={[styles.intensityDot, { backgroundColor: getIntensityColor(pain.intensity) }]} />
-                  <Text style={[styles.painChipText, { color: theme.colors.text }]}>{pain.muscle_name}</Text>
-                  <TouchableOpacity onPress={() => removePain(pain.muscle_id)} style={styles.removePainBtn}>
-                    <Feather name="x" size={14} color={theme.colors.textMuted} />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        </>
       )}
 
-      <View style={styles.footer}>
-        <TouchableOpacity style={styles.backBtn} onPress={onBack}>
-          <Feather name="arrow-left" size={24} color={theme.colors.textSecondary} />
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.submitBtn, { backgroundColor: theme.colors.success }, isLoading && { opacity: 0.7 }]} 
-          onPress={finish}
-          disabled={isLoading}
-        >
-          <Text style={styles.submitBtnText}>{isLoading ? 'Envoi...' : 'Terminer le Check-In'}</Text>
-        </TouchableOpacity>
-      </View>
+      <StepFooter title="Terminer le check-in" onPress={finish} onBack={onBack} loading={isLoading} />
 
+      <BottomSheet visible={!!selectedZone} onClose={() => setSelectedZone(null)} title={selectedZone?.name}>
+        <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          {/* Intensity Slider */}
+          <View style={styles.sliderSection}>
+            <View style={styles.sliderHeader}>
+              <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary, marginBottom: 0 }]}>Intensité</Text>
+              <Text style={[styles.sliderValue, { color: getIntensityColor(intensity) }]}>{intensity}/10</Text>
+            </View>
+            <Slider
+              style={styles.slider}
+              minimumValue={1}
+              maximumValue={10}
+              step={1}
+              value={intensity}
+              onValueChange={handleIntensityChange}
+              minimumTrackTintColor={getIntensityColor(intensity)}
+              maximumTrackTintColor={theme.colors.border}
+              thumbTintColor={getIntensityColor(intensity)}
+            />
+          </View>
 
+          {/* Type Selection */}
+          <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>Type de gêne</Text>
+          <View style={styles.typesGrid}>
+            {PAIN_TYPES.map(type => {
+              const isActive = activeType === type;
+              return (
+                <PressableScale
+                  key={type}
+                  haptic="selection"
+                  style={[styles.typeChip, { backgroundColor: isActive ? theme.colors.sprintyBlue : theme.colors.glassFill }]}
+                  onPress={() => setActiveType(type)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: isActive }}
+                >
+                  <Text style={[styles.chipText, { color: isActive ? '#FFFFFF' : theme.colors.text }, isActive && styles.chipTextActive]}>
+                    {type}
+                  </Text>
+                </PressableScale>
+              );
+            })}
+          </View>
 
-      <Modal visible={!!selectedZone} transparent animationType="slide">
-        <FeedbackHost />
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: theme.colors.text }]}>{selectedZone?.name}</Text>
-                <TouchableOpacity onPress={() => setSelectedZone(null)}>
-                  <Feather name="x" size={24} color={theme.colors.textSecondary} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Intensity Slider */}
-              <View style={styles.sliderSection}>
-                <View style={styles.sliderHeader}>
-                  <Text style={[styles.label, { color: theme.colors.textSecondary, marginBottom: 0 }]}>Intensité</Text>
-                  <Text style={[styles.sliderValue, { color: getIntensityColor(intensity) }]}>{intensity}/10</Text>
-                </View>
-                <Slider
-                  style={styles.slider}
-                  minimumValue={1}
-                  maximumValue={10}
-                  step={1}
-                  value={intensity}
-                  onValueChange={setIntensity}
-                  minimumTrackTintColor={getIntensityColor(intensity)}
-                  maximumTrackTintColor={theme.colors.border}
-                  thumbTintColor={getIntensityColor(intensity)}
-                />
-              </View>
-
-              {/* Type Selection */}
-              <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Type de gêne</Text>
-              <View style={styles.typesGrid}>
-                {PAIN_TYPES.map(type => {
-                  const isActive = activeType === type;
+          {/* Side Selection */}
+          {selectedZone?.sides && (
+            <View style={styles.sideSection}>
+              <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>Côté affecté</Text>
+              <View style={[styles.sideGrid, { backgroundColor: theme.colors.glassFill }]}>
+                {[
+                  { id: 'Gauche', label: 'Gauche' },
+                  { id: 'Bilatéral', label: 'Les deux' },
+                  { id: 'Droit', label: 'Droit' }
+                ].map(sideItem => {
+                  const isActive = activeSide === sideItem.id;
                   return (
-                    <TouchableOpacity 
-                      key={type}
-                      style={[
-                        styles.typeChip, 
-                        { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border },
-                        isActive && { borderColor: theme.colors.accent, backgroundColor: theme.colors.accent + '20' }
-                      ]}
-                      onPress={() => setActiveType(type)}
+                    <PressableScale
+                      key={sideItem.id}
+                      haptic="selection"
+                      containerStyle={styles.sideCell}
+                      style={[styles.sideChip, isActive && { backgroundColor: theme.colors.sprintyBlue }]}
+                      onPress={() => setActiveSide(sideItem.id as any)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: isActive }}
                     >
-                      <Text style={[
-                        styles.typeChipText, 
-                        { color: theme.colors.textSecondary },
-                        isActive && { color: theme.colors.accent, fontWeight: 'bold' }
-                      ]}>{type}</Text>
-                    </TouchableOpacity>
+                      <Text style={[styles.chipText, { color: isActive ? '#FFFFFF' : theme.colors.text }, isActive && styles.chipTextActive]}>
+                        {sideItem.label}
+                      </Text>
+                    </PressableScale>
                   );
                 })}
               </View>
+            </View>
+          )}
 
-              {/* Side Selection */}
-              {selectedZone?.sides && (
-                <View style={styles.sideSection}>
-                  <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Côté affecté</Text>
-                  <View style={styles.sideGrid}>
-                    {[
-                      { id: 'Gauche', label: 'Gauche' },
-                      { id: 'Bilatéral', label: 'Les deux' },
-                      { id: 'Droit', label: 'Droit' }
-                    ].map(sideItem => (
-                      <TouchableOpacity 
-                        key={sideItem.id}
-                        style={[
-                          styles.sideChip, 
-                          { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border },
-                          activeSide === sideItem.id && { backgroundColor: theme.colors.accent + '20', borderColor: theme.colors.accent }
-                        ]}
-                        onPress={() => setActiveSide(sideItem.id as any)}
-                      >
-                        <Text style={[
-                          styles.sideChipText, 
-                          { color: theme.colors.textSecondary },
-                          activeSide === sideItem.id && { color: theme.colors.accent, fontWeight: 'bold' }
-                        ]}>{sideItem.label}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              )}
+          {/* Comment */}
+          <Text style={[styles.sectionLabel, { color: commentFocused ? theme.colors.sprintyBlue : theme.colors.textSecondary }]}>
+            {intensity > 5 ? 'Précision pour ton coach (recommandé)' : 'Détail ou ressenti (optionnel)'}
+          </Text>
+          <TextInput
+            style={[
+              styles.textInput,
+              {
+                color: theme.colors.text,
+                backgroundColor: commentFocused ? theme.colors.surface : theme.colors.glassFill,
+                borderColor: commentFocused ? theme.colors.sprintyBlue : 'transparent',
+              },
+            ]}
+            placeholder={intensity > 5 ? 'Dis-lui ce que tu ressens pour qu’il adapte ta séance…' : 'Ex. : tiraillement après les accélérations…'}
+            placeholderTextColor={theme.colors.textMuted}
+            selectionColor={theme.colors.sprintyBlue}
+            value={comment}
+            onChangeText={setComment}
+            onFocus={() => setCommentFocused(true)}
+            onBlur={() => setCommentFocused(false)}
+            multiline
+            textAlignVertical="top"
+          />
 
-              {/* Comment */}
-              <Text style={[styles.label, { color: theme.colors.textSecondary, marginTop: 10 }]}>
-                {intensity > 5 ? 'Précision pour ton coach (recommandé)' : 'Détail ou ressenti (optionnel)'}
-              </Text>
-              <TextInput
-                style={[styles.textInput, { backgroundColor: theme.colors.surfaceLight, color: theme.colors.text, borderColor: theme.colors.border }]}
-                placeholder={intensity > 5 ? "Dis-lui ce que tu ressens pour qu'il adapte ta séance..." : "Ex: Tiraillement après les accélérations..."}
-                placeholderTextColor={theme.colors.textMuted}
-                value={comment}
-                onChangeText={setComment}
-                multiline
-                textAlignVertical="top"
+          <View style={styles.modalActions}>
+            {zoneHasPain && (
+              <Button
+                title="Supprimer"
+                variant="ghost"
+                textStyle={{ color: theme.colors.error }}
+                style={styles.removeBtn}
+                onPress={() => {
+                  removePain(selectedZone!.id);
+                  setSelectedZone(null);
+                }}
               />
-
-              <View style={styles.modalActions}>
-                {currentPains.some(p => p.muscle_id === selectedZone?.id) && (
-                  <TouchableOpacity 
-                    style={[styles.removeBtn, { backgroundColor: theme.colors.error + '20' }]} 
-                    onPress={() => {
-                      removePain(selectedZone!.id);
-                      setSelectedZone(null);
-                    }}
-                  >
-                    <Text style={[styles.removeBtnText, { color: theme.colors.error }]}>Supprimer</Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity 
-                  style={[styles.saveBtn, { backgroundColor: theme.colors.accent, flex: 1 }]} 
-                  onPress={handleSaveZone}
-                >
-                  <Text style={styles.saveBtnText}>Enregistrer cette zone</Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
+            )}
+            <Button title="Enregistrer cette zone" onPress={handleSaveZone} style={styles.saveBtn} />
           </View>
-        </View>
-      </Modal>
+        </ScrollView>
+      </BottomSheet>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 24, paddingTop: 40 },
-  consentCard: { borderRadius: 22, borderCurve: 'continuous', padding: 18, marginBottom: 16 },
+  container: { flex: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 16 },
+  title: { fontSize: 26, fontWeight: '800', letterSpacing: -0.6, marginBottom: 4 },
+  subtitle: { fontSize: 15, lineHeight: 21, marginBottom: 20 },
+  sectionLabel: { fontSize: 12, fontWeight: '700', letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 10 },
+
+  consentCard: { padding: 18 },
   consentIcon: {
     width: 40,
     height: 40,
@@ -404,62 +427,59 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 10,
   },
-  consentTitle: { fontSize: 17, fontWeight: '800', marginBottom: 4 },
+  consentTitle: { fontSize: 17, fontWeight: '800', letterSpacing: -0.3, marginBottom: 4 },
   consentText: { fontSize: 14, lineHeight: 20, marginBottom: 10 },
-  consentButton: { marginTop: 10, borderRadius: 14, paddingVertical: 13, alignItems: 'center' },
-  consentButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
-  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 8 },
-  subtitle: { fontSize: 16, marginBottom: 24 },
-  sectionsList: { flex: 1 },
-  sectionContainer: { marginBottom: 12 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderRadius: 16, borderWidth: 1 },
-  sectionHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  iconBox: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  sectionTitle: { fontSize: 18, fontWeight: '600' },
-  badge: { width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  badgeText: { color: '#FFF', fontSize: 12, fontWeight: 'bold' },
-  zonesContainer: { borderWidth: 1, borderBottomLeftRadius: 16, borderBottomRightRadius: 16, paddingHorizontal: 16, paddingVertical: 8 },
-  zoneRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14 },
-  zoneName: { fontSize: 16, fontWeight: '500' },
-  zoneStateBadge: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  consentButton: { marginTop: 14 },
+
+  sectionCard: { padding: 0, marginBottom: 12, overflow: 'hidden' },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, minHeight: 56 },
+  sectionHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flexShrink: 1 },
+  iconBox: { width: 34, height: 34, borderRadius: 10, borderCurve: 'continuous', justifyContent: 'center', alignItems: 'center' },
+  sectionTitle: { fontSize: 16, fontWeight: '700', letterSpacing: -0.2 },
+  badge: { minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, justifyContent: 'center', alignItems: 'center' },
+  badgeText: { color: '#FFF', fontSize: 12, fontWeight: '800' },
+  zonesContainer: { borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 16 },
+  zoneRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 48, paddingVertical: 12 },
+  zoneName: { fontSize: 15, fontWeight: '500' },
+  zoneStateBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
   intensityDot: { width: 8, height: 8, borderRadius: 4 },
-  zoneStateText: { fontSize: 12, fontWeight: '500' },
-  summaryContainer: { marginTop: 16, marginBottom: 24 },
-  summaryTitle: { fontSize: 13, fontWeight: '600', textTransform: 'uppercase', marginBottom: 12 },
-  summaryList: { maxHeight: 50 },
-  painChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, marginRight: 8, gap: 8 },
-  painChipText: { fontSize: 13, fontWeight: '500' },
-  removePainBtn: { padding: 2 },
-  footer: { flexDirection: 'row', gap: 16, marginBottom: 40, marginTop: 'auto' },
-  backBtn: { width: 60, height: 60, borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB', justifyContent: 'center', alignItems: 'center' },
-  submitBtn: { flex: 1, height: 60, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
-  submitBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
-  
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 48, borderTopWidth: 1, maxHeight: '90%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  modalTitle: { fontSize: 22, fontWeight: 'bold' },
-  
-  label: { fontSize: 14, fontWeight: '600', marginBottom: 12, textTransform: 'uppercase' },
-  sliderSection: { marginBottom: 24 },
-  sliderHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  sliderValue: { fontSize: 18, fontWeight: 'bold' },
+  zoneStateText: { fontSize: 12, fontWeight: '600' },
+
+  summaryContainer: { marginBottom: 16 },
+  summaryList: { gap: 8 },
+  painChip: { flexDirection: 'row', alignItems: 'center', paddingLeft: 12, paddingRight: 6, paddingVertical: 6, borderRadius: 12, borderCurve: 'continuous', borderWidth: 1, gap: 8 },
+  painChipText: { fontSize: 13, fontWeight: '600' },
+  removePainBtn: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+
+  sheetScroll: { flexGrow: 0, marginTop: 16 },
+  sliderSection: { marginBottom: 20 },
+  sliderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  sliderValue: { fontSize: 18, fontWeight: '800', fontVariant: ['tabular-nums'] },
   slider: { width: '100%', height: 40 },
-  
-  typesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
-  typeChip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
-  typeChipText: { fontSize: 14 },
-  
-  sideSection: { marginBottom: 24 },
-  sideGrid: { flexDirection: 'row', gap: 8 },
-  sideChip: { flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, alignItems: 'center' },
-  sideChipText: { fontSize: 14 },
-  
-  textInput: { height: 100, borderRadius: 12, borderWidth: 1, padding: 16, fontSize: 15, marginBottom: 24 },
-  
-  modalActions: { flexDirection: 'row', gap: 12 },
-  removeBtn: { paddingVertical: 18, paddingHorizontal: 24, borderRadius: 16, alignItems: 'center' },
-  removeBtnText: { fontWeight: 'bold', fontSize: 16 },
-  saveBtn: { paddingVertical: 18, borderRadius: 16, alignItems: 'center' },
-  saveBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
+
+  typesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
+  typeChip: { paddingHorizontal: 14, minHeight: 40, justifyContent: 'center', borderRadius: 12, borderCurve: 'continuous' },
+  chipText: { fontSize: 14, fontWeight: '600' },
+  chipTextActive: { fontWeight: '800' },
+
+  sideSection: { marginBottom: 20 },
+  sideGrid: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: 14, borderCurve: 'continuous' },
+  sideCell: { flex: 1 },
+  sideChip: { minHeight: 40, borderRadius: 10, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+
+  textInput: {
+    minHeight: 100,
+    borderRadius: 14,
+    borderCurve: 'continuous',
+    borderWidth: 1.5,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 12,
+    fontSize: 15,
+    marginBottom: 20,
+  },
+
+  modalActions: { flexDirection: 'row', gap: 12, marginBottom: 4 },
+  removeBtn: { paddingHorizontal: 20, backgroundColor: 'rgba(239, 68, 68, 0.1)' },
+  saveBtn: { flex: 1 },
 });

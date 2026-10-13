@@ -1,30 +1,37 @@
-import { StyleSheet, Text, View, TouchableOpacity, Switch, ScrollView, Platform, Modal } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Platform } from 'react-native';
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../../core/theme';
+import { glassCard } from '../../../core/glass';
 import { Feather } from '@expo/vector-icons';
 import { useCheckInStore } from '../../../store/checkInStore';
 import { useAuthStore } from '../../../store/authStore';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
+import { PressableScale } from '../../../shared/components/PressableScale';
+import { IconButton } from '../../../shared/components/IconButton';
+import { Button } from '../../../shared/components/Button';
+import { BottomSheet } from '../../../shared/components/BottomSheet';
+import { ScaleCard, ScaleOption } from './ScaleChips';
+import { StepFooter } from './StepFooter';
 
 interface SleepStepProps {
   onNext: () => void;
+  /** Kept for API compatibility: closing is handled by the CheckInModal header. */
   onClose: () => void;
 }
 
-const SLEEP_EMOJIS = [
-  { value: 1, emoji: '😫', label: 'Nuit blanche / Agitée' },
-  { value: 2, emoji: '🥱', label: 'Difficile / Haché' },
-  { value: 3, emoji: '😐', label: 'Correct' },
-  { value: 4, emoji: '😌', label: 'Réparateur' },
-  { value: 5, emoji: '✨', label: 'Au top de ma forme' }
+const SLEEP_OPTIONS: (ScaleOption & { longLabel: string })[] = [
+  { value: 1, icon: 'cloud-lightning', label: 'Agitée', longLabel: 'Nuit blanche / agitée' },
+  { value: 2, icon: 'cloud-drizzle', label: 'Hachée', longLabel: 'Difficile / haché' },
+  { value: 3, icon: 'cloud', label: 'Correcte', longLabel: 'Correct' },
+  { value: 4, icon: 'moon', label: 'Réparatrice', longLabel: 'Réparateur' },
+  { value: 5, icon: 'star', label: 'Au top', longLabel: 'Au top de ma forme' },
 ];
 
-export const SleepStep = ({ onNext, onClose }: SleepStepProps) => {
+export const SleepStep = ({ onNext }: SleepStepProps) => {
   const theme = useTheme();
   const { currentCheckIn, updateSleep } = useCheckInStore();
   const { user, updateSleepGoal } = useAuthStore();
-  
+
   const sleepGoal = user?.sleepGoal || 8;
 
   // Nettoyer les heures au format standard HH:mm (suppression d'éventuelles secondes :00)
@@ -40,7 +47,7 @@ export const SleepStep = ({ onNext, onClose }: SleepStepProps) => {
   const [duration, setDuration] = useState({ hours: 8, minutes: 0, decimal: 8 });
 
   const [showPicker, setShowPicker] = useState<'bedtime' | 'wakeup' | null>(null);
-  
+
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [tempGoal, setTempGoal] = useState(sleepGoal);
 
@@ -76,12 +83,12 @@ export const SleepStep = ({ onNext, onClose }: SleepStepProps) => {
     if (Platform.OS === 'android') {
       setShowPicker(null);
     }
-    
+
     if (selectedDate && event.type !== 'dismissed') {
       const hours = selectedDate.getHours().toString().padStart(2, '0');
       const minutes = selectedDate.getMinutes().toString().padStart(2, '0');
       const timeString = `${hours}:${minutes}`;
-      
+
       if (showPicker === 'bedtime') {
         setBedtime(timeString);
       } else if (showPicker === 'wakeup') {
@@ -99,9 +106,14 @@ export const SleepStep = ({ onNext, onClose }: SleepStepProps) => {
 
   const getDurationColor = () => {
     const diff = duration.decimal - sleepGoal;
-    if (diff >= -0.5) return theme.colors.success; 
+    if (diff >= -0.5) return theme.colors.success;
     if (diff >= -2.0) return theme.colors.warning;
     return theme.colors.error;
+  };
+
+  const openGoal = () => {
+    setTempGoal(sleepGoal);
+    setShowGoalModal(true);
   };
 
   const saveGoal = () => {
@@ -109,155 +121,118 @@ export const SleepStep = ({ onNext, onClose }: SleepStepProps) => {
     setShowGoalModal(false);
   };
 
-  const activeEmojiLabel = SLEEP_EMOJIS.find(e => e.value === sleepQuality)?.label;
+  const activeQualityLabel = SLEEP_OPTIONS.find(e => e.value === sleepQuality)?.longLabel;
+  const durationColor = getDurationColor();
+
+  const renderTimeBlock = (kind: 'bedtime' | 'wakeup') => {
+    const isBed = kind === 'bedtime';
+    return (
+      <PressableScale
+        haptic="selection"
+        containerStyle={styles.timeBlock}
+        style={[glassCard, styles.timeCard]}
+        onPress={() => setShowPicker(kind)}
+        accessibilityRole="button"
+        accessibilityLabel={isBed ? `Heure de coucher, ${bedtime}` : `Heure de réveil, ${wakeup}`}
+      >
+        <View style={[styles.timeIcon, { backgroundColor: isBed ? 'rgba(0, 105, 232, 0.1)' : 'rgba(245, 158, 11, 0.12)' }]}>
+          <Feather name={isBed ? 'moon' : 'sun'} size={18} color={isBed ? theme.colors.sprintyBlue : theme.colors.warning} />
+        </View>
+        <Text style={[styles.label, { color: theme.colors.textSecondary }]}>{isBed ? 'Coucher' : 'Réveil'}</Text>
+        <Text style={[styles.timeText, { color: theme.colors.text }]}>{isBed ? bedtime : wakeup}</Text>
+      </PressableScale>
+    );
+  };
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onClose} style={styles.iconButton}>
-          <Feather name="x" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={[styles.title, { color: theme.colors.text }]}>Sommeil</Text>
-        <View style={styles.iconButton} />
-      </View>
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
           Combien de temps as-tu dormi ?
         </Text>
 
         <View style={styles.inputContainer}>
-          <TouchableOpacity 
-            style={styles.timeBlock} 
-            activeOpacity={0.7}
-            onPress={() => setShowPicker('bedtime')}
-          >
-            <Feather name="moon" size={24} color={theme.colors.accent} />
-            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Coucher</Text>
-            <View style={[styles.timeBox, { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border }]}>
-              <Text style={[styles.timeText, { color: theme.colors.text }]}>{bedtime}</Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.timeBlock} 
-            activeOpacity={0.7}
-            onPress={() => setShowPicker('wakeup')}
-          >
-            <Feather name="sun" size={24} color={theme.colors.warning} />
-            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Réveil</Text>
-            <View style={[styles.timeBox, { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border }]}>
-              <Text style={[styles.timeText, { color: theme.colors.text }]}>{wakeup}</Text>
-            </View>
-          </TouchableOpacity>
+          {renderTimeBlock('bedtime')}
+          {renderTimeBlock('wakeup')}
         </View>
 
-        <View style={[styles.resultCard, { backgroundColor: theme.colors.surfaceLight, borderColor: getDurationColor() }]}>
-          <Text style={[styles.resultLabel, { color: theme.colors.textSecondary }]}>Durée du sommeil</Text>
-          <Text style={[styles.resultValue, { color: getDurationColor() }]}>
+        <View style={[glassCard, styles.resultCard]}>
+          <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Durée du sommeil</Text>
+          <Text style={[styles.resultValue, { color: durationColor }]}>
             {duration.hours}h {duration.minutes > 0 ? `${duration.minutes}m` : ''}
           </Text>
-          <TouchableOpacity onPress={() => setShowGoalModal(true)} style={styles.goalContainer}>
-            <Text style={[styles.goalText, { color: theme.colors.textMuted }]}>
-              Objectif : {sleepGoal}h <Feather name="edit-2" size={12} />
-            </Text>
-          </TouchableOpacity>
+          <PressableScale
+            haptic="selection"
+            onPress={openGoal}
+            style={[styles.goalChip, { backgroundColor: theme.colors.glassFill }]}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`Objectif de sommeil : ${sleepGoal} heures. Modifier`}
+          >
+            <Feather name="target" size={13} color={theme.colors.textSecondary} />
+            <Text style={[styles.goalText, { color: theme.colors.textSecondary }]}>Objectif : {sleepGoal}h</Text>
+            <Feather name="edit-2" size={12} color={theme.colors.textMuted} />
+          </PressableScale>
         </View>
 
-        <View style={[styles.sliderContainer, { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border }]}>
-          <View style={styles.sliderHeader}>
-            <Text style={[styles.sliderLabel, { color: theme.colors.text }]}>Qualité du sommeil</Text>
-            <Text style={[styles.sliderValue, { color: theme.colors.accent }]}>{activeEmojiLabel}</Text>
-          </View>
-          
-          <View style={styles.emojisRow}>
-            {SLEEP_EMOJIS.map((item) => (
-              <TouchableOpacity
-                key={item.value}
-                activeOpacity={0.7}
-                style={[
-                  styles.emojiButton,
-                  sleepQuality === item.value && [styles.emojiButtonActive, { backgroundColor: theme.colors.accent + '30', borderColor: theme.colors.accent }]
-                ]}
-                onPress={() => setSleepQuality(item.value)}
-              >
-                <Text style={[styles.emojiText, sleepQuality === item.value && styles.emojiTextActive]}>{item.emoji}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
+        <ScaleCard
+          title="Qualité du sommeil"
+          icon="moon"
+          value={sleepQuality}
+          onChange={setSleepQuality}
+          options={SLEEP_OPTIONS}
+          valueLabel={activeQualityLabel}
+        />
       </ScrollView>
 
-      <View style={styles.footer}>
-        <TouchableOpacity style={[styles.button, { backgroundColor: theme.colors.accent }]} onPress={handleNext}>
-          <Text style={styles.buttonText}>Suivant</Text>
-          <Feather name="arrow-right" size={20} color="#FFF" />
-        </TouchableOpacity>
-      </View>
+      <StepFooter title="Suivant" onPress={handleNext} />
 
-      {/* Goal Update Modal */}
-      <Modal visible={showGoalModal} transparent animationType="fade">
-        <FeedbackHost />
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
-            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Objectif de sommeil</Text>
-            <Text style={[styles.modalDesc, { color: theme.colors.textSecondary }]}>
-              Ajuste le temps dont tu as besoin pour te sentir pleinement reposé(e).
-            </Text>
-            
-            <View style={styles.goalAdjuster}>
-              <TouchableOpacity 
-                style={[styles.adjustBtn, { backgroundColor: theme.colors.surfaceLight }]}
-                onPress={() => setTempGoal(Math.max(4, tempGoal - 0.5))}
-              >
-                <Feather name="minus" size={24} color={theme.colors.text} />
-              </TouchableOpacity>
-              
-              <Text style={[styles.goalDisplay, { color: theme.colors.text }]}>{tempGoal}h</Text>
-              
-              <TouchableOpacity 
-                style={[styles.adjustBtn, { backgroundColor: theme.colors.surfaceLight }]}
-                onPress={() => setTempGoal(Math.min(12, tempGoal + 0.5))}
-              >
-                <Feather name="plus" size={24} color={theme.colors.text} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalBtn} onPress={() => setShowGoalModal(false)}>
-                <Text style={{ color: theme.colors.textSecondary, fontWeight: 'bold' }}>Annuler</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: theme.colors.accent }]} onPress={saveGoal}>
-                <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Sauvegarder</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+      {/* Goal Update Sheet */}
+      <BottomSheet
+        visible={showGoalModal}
+        onClose={() => setShowGoalModal(false)}
+        title="Objectif de sommeil"
+        subtitle="Ajuste le temps dont tu as besoin pour te sentir pleinement reposé(e)."
+      >
+        <View style={styles.goalAdjuster}>
+          <IconButton
+            icon="minus"
+            size={48}
+            accessibilityLabel="Diminuer l’objectif"
+            onPress={() => setTempGoal(Math.max(4, tempGoal - 0.5))}
+          />
+          <Text style={[styles.goalDisplay, { color: theme.colors.text }]}>{tempGoal}h</Text>
+          <IconButton
+            icon="plus"
+            size={48}
+            accessibilityLabel="Augmenter l’objectif"
+            onPress={() => setTempGoal(Math.min(12, tempGoal + 0.5))}
+          />
         </View>
-      </Modal>
+        <View style={styles.sheetActions}>
+          <Button title="Annuler" variant="ghost" onPress={() => setShowGoalModal(false)} style={styles.sheetBtn} />
+          <Button title="Enregistrer" onPress={saveGoal} style={styles.sheetBtn} />
+        </View>
+      </BottomSheet>
 
-      {/* DateTimePicker for iOS (Modal) or Android */}
-      {Platform.OS === 'ios' && showPicker && (
-        <Modal transparent animationType="slide">
-          <FeedbackHost />
-          <View style={styles.pickerOverlay}>
-            <View style={[styles.pickerContainer, { backgroundColor: theme.colors.surface }]}>
-              <View style={styles.pickerHeader}>
-                <TouchableOpacity onPress={() => setShowPicker(null)}>
-                  <Text style={{ color: theme.colors.accent, fontWeight: 'bold', fontSize: 16 }}>Terminer</Text>
-                </TouchableOpacity>
-              </View>
-              <DateTimePicker
-                value={parseTimeStringToDate(showPicker === 'bedtime' ? bedtime : wakeup)}
-                mode="time"
-                is24Hour={true}
-                display="spinner"
-                onChange={handleTimeChange}
-                textColor={theme.colors.text}
-              />
-            </View>
-          </View>
-        </Modal>
+      {/* DateTimePicker for iOS (sheet) or Android (native dialog) */}
+      {Platform.OS === 'ios' && (
+        <BottomSheet
+          visible={!!showPicker}
+          onClose={() => setShowPicker(null)}
+          title={showPicker === 'wakeup' ? 'Heure de réveil' : 'Heure de coucher'}
+        >
+          <DateTimePicker
+            value={parseTimeStringToDate(showPicker === 'bedtime' ? bedtime : wakeup)}
+            mode="time"
+            is24Hour={true}
+            display="spinner"
+            onChange={handleTimeChange}
+            textColor={theme.colors.text}
+          />
+          <Button title="Terminer" onPress={() => setShowPicker(null)} />
+        </BottomSheet>
       )}
 
       {Platform.OS === 'android' && showPicker && (
@@ -275,59 +250,34 @@ export const SleepStep = ({ onNext, onClose }: SleepStepProps) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10,
-  },
-  iconButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 20, fontWeight: 'bold' },
-  content: { flex: 1, paddingHorizontal: 24, paddingTop: 10 },
-  subtitle: { fontSize: 16, marginBottom: 30, textAlign: 'center' },
-  inputContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20, gap: 16 },
-  timeBlock: { flex: 1, alignItems: 'center' },
-  label: { fontSize: 14, fontWeight: '600', marginTop: 12, marginBottom: 8, textTransform: 'uppercase' },
-  timeBox: {
-    paddingVertical: 12, paddingHorizontal: 10, borderRadius: 12,
-    borderWidth: 1, width: '100%', alignItems: 'center'
-  },
-  timeText: { fontSize: 24, fontWeight: 'bold' },
-  resultCard: { padding: 20, borderRadius: 16, borderWidth: 2, alignItems: 'center', marginBottom: 24 },
-  resultLabel: { fontSize: 14, fontWeight: '500', marginBottom: 4 },
-  resultValue: { fontSize: 32, fontWeight: 'bold' },
-  goalContainer: { marginTop: 8, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.05)' },
-  goalText: { fontSize: 13, fontWeight: '600' },
-  
-  sliderContainer: { padding: 20, borderRadius: 16, marginBottom: 24, borderWidth: 1 },
-  sliderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  sliderLabel: { fontSize: 16, fontWeight: 'bold' },
-  sliderValue: { fontSize: 16, fontWeight: 'bold' },
-  
-  emojisRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  emojiButton: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
-  emojiButtonActive: { transform: [{ scale: 1.1 }] },
-  emojiText: { fontSize: 24, opacity: 0.5 },
-  emojiTextActive: { opacity: 1 },
+  content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 16 },
+  title: { fontSize: 26, fontWeight: '800', letterSpacing: -0.6, marginBottom: 4 },
+  subtitle: { fontSize: 15, lineHeight: 21, marginBottom: 20 },
 
-  footer: { padding: 24, paddingBottom: 40 },
-  button: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    padding: 16, borderRadius: 12, gap: 10,
+  inputContainer: { flexDirection: 'row', marginBottom: 14, gap: 12 },
+  timeBlock: { flex: 1 },
+  timeCard: { alignItems: 'center', paddingVertical: 18 },
+  timeIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  label: { fontSize: 12, fontWeight: '700', letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 4 },
+  timeText: { fontSize: 28, fontWeight: '800', letterSpacing: -0.6, fontVariant: ['tabular-nums'] },
+
+  resultCard: { alignItems: 'center', paddingVertical: 20, marginBottom: 14 },
+  resultValue: { fontSize: 36, fontWeight: '800', letterSpacing: -0.8, fontVariant: ['tabular-nums'] },
+  goalChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+    borderCurve: 'continuous',
   },
-  buttonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+  goalText: { fontSize: 13, fontWeight: '700' },
 
-  // Goal Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modalContent: { width: '100%', padding: 24, borderRadius: 24 },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' },
-  modalDesc: { fontSize: 14, textAlign: 'center', marginBottom: 24 },
-  goalAdjuster: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 24, marginBottom: 32 },
-  adjustBtn: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
-  goalDisplay: { fontSize: 32, fontWeight: 'bold', width: 80, textAlign: 'center' },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12 },
-  modalBtn: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: 12 },
-
-  // DatePicker Overlay
-  pickerOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  pickerContainer: { paddingBottom: 40, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
-  pickerHeader: { flexDirection: 'row', justifyContent: 'flex-end', padding: 16, borderBottomWidth: 1, borderBottomColor: '#eee' }
+  // Goal sheet
+  goalAdjuster: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 24, marginVertical: 24 },
+  goalDisplay: { fontSize: 36, fontWeight: '800', letterSpacing: -0.8, minWidth: 90, textAlign: 'center', fontVariant: ['tabular-nums'] },
+  sheetActions: { flexDirection: 'row', gap: 12 },
+  sheetBtn: { flex: 1 },
 });

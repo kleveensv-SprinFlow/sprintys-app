@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Text, ActivityIndicator, ScrollView, TouchableOpacity, Animated } from 'react-native';
+import { View, StyleSheet, Animated } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useTheme } from '../../../src/core/theme';
 import { Header } from '../../../src/shared/components/Header';
 import { workoutService } from '../../../src/services/workoutService';
 import { useAuthStore } from '../../../src/store/authStore';
-import { Feather, Ionicons } from '@expo/vector-icons';
 import { WorkoutCard } from '../../../src/shared/components/WorkoutCard';
 import { WorkoutDetailModal } from '../../../src/features/calendar/components/WorkoutDetailModal';
 import { WorkoutSession } from '../../../src/features/workout/types';
 import { GlassScreen } from '../../../src/shared/components/GlassScreen';
-import { glassSurface } from '../../../src/core/glass';
+import { glassCard } from '../../../src/core/glass';
+import { EmptyState } from '../../../src/shared/components/EmptyState';
+import { SkeletonCard } from '../../../src/shared/components/Skeleton';
 import { useFrostedHeader } from '../../../src/shared/hooks/useFrostedHeader';
 
 import { useRefresh } from '../../../src/shared/hooks/useRefresh';
@@ -25,7 +25,6 @@ export default function AthleteDayScreen() {
   const { date } = useLocalSearchParams<{ date: string }>();
   const router = useRouter();
   const { scrollY, scrollProps } = useFrostedHeader();
-  const theme = useTheme();
   const { user } = useAuthStore();
 
   const [workouts, setWorkouts] = useState<any[]>([]);
@@ -36,7 +35,7 @@ export default function AthleteDayScreen() {
 
   const dateString = date as string;
   let parsedDate = new Date();
-  let formattedTitle = 'Chargement...';
+  let formattedTitle = 'Chargement…';
   if (dateString && typeof dateString === 'string') {
     let year, month, day;
     if (dateString.includes('-')) {
@@ -99,7 +98,7 @@ export default function AthleteDayScreen() {
   };
 
   return (
-    <GlassScreen>
+    <GlassScreen scrollY={scrollY}>
       <Header
         scrollY={scrollY}
         title={formattedTitle}
@@ -111,36 +110,26 @@ export default function AthleteDayScreen() {
 
       <Animated.ScrollView {...scrollProps} refreshControl={refreshControl} style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {isLoading ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={theme.colors.accent} />
-          </View>
+          <>
+            <SkeletonCard avatar />
+            <SkeletonCard avatar />
+          </>
         ) : workouts.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <View style={[styles.emptyIconBox, glassSurface]}>
-              <Ionicons name="cafe-outline" size={48} color={theme.colors.textMuted} />
-            </View>
-            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Aucune séance</Text>
-            <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
-              Profite de ta journée pour récupérer !
-            </Text>
-            <TouchableOpacity
-              onPress={() => router.push('/(athlete)/calendar')}
-              activeOpacity={0.8}
-              style={[styles.emptyButton, { backgroundColor: theme.colors.accentMuted }]}
-            >
-              <Feather name="calendar" size={16} color={theme.colors.accent} />
-              <Text style={[styles.emptyButtonText, { color: theme.colors.accent }]}>Voir mon calendrier</Text>
-            </TouchableOpacity>
+          <View style={glassCard}>
+            <EmptyState
+              icon="coffee"
+              title="Aucune séance"
+              message="Profite de ta journée pour récupérer !"
+              actionLabel="Voir mon calendrier"
+              onAction={() => router.push('/(athlete)/calendar')}
+            />
           </View>
         ) : (
           <View style={styles.workoutsContainer}>
             {workouts.map((w, i) => {
-              const dateObj = new Date(w.date_prevue);
-              const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
               let summary = '';
-              if (w.blocks && w.blocks.length > 0) summary = `${w.blocks.length} Blocs d'entraînement`;
-              else if (w.exercises && w.exercises.length > 0) summary = `${w.exercises.length} Exercices`;
+              if (w.blocks && w.blocks.length > 0) summary = `${w.blocks.length} bloc${w.blocks.length > 1 ? 's' : ''} d’entraînement`;
+              else if (w.exercises && w.exercises.length > 0) summary = `${w.exercises.length} exercice${w.exercises.length > 1 ? 's' : ''}`;
               else if (w.type_seance?.toLowerCase().includes('technique')) summary = 'Consignes techniques';
               else if (w.type_seance?.toLowerCase().includes('repos')) summary = 'Récupération';
               else if (w.description) summary = w.description.substring(0, 50);
@@ -170,60 +159,15 @@ export default function AthleteDayScreen() {
 }
 
 const styles = StyleSheet.create({
-  emptyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 20,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 14,
-  },
-  emptyButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  container: {
-    flex: 1,
-  },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    padding: 24,
+    paddingHorizontal: 16,
+    paddingTop: 4,
     paddingBottom: 80,
   },
-  centerContainer: {
-    paddingTop: 80,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // Empty State
-  emptyContainer: {
-    alignItems: 'center',
-    paddingTop: 40,
-  },
-  emptyIconBox: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-  },
-
-  // Workouts List
   workoutsContainer: {
-    gap: 16,
+    gap: 12,
   },
 });

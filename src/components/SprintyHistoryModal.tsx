@@ -1,48 +1,93 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, FlatList,} from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, Modal, FlatList } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { theme } from '../core/theme';
-import { useSprintyChatStore, Conversation } from '../store/sprintyChatStore';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import { theme } from '../core/theme';
+import { glassSurface } from '../core/glass';
+import { useSprintyChatStore, Conversation } from '../store/sprintyChatStore';
 import { FeedbackHost } from '../shared/feedback/FeedbackHost';
-import { appAlert } from '../shared/feedback/appAlert';
+import { appAlert, confirmAsync, toast } from '../shared/feedback/appAlert';
+import { PressableScale } from '../shared/components/PressableScale';
+import { IconButton } from '../shared/components/IconButton';
+import { EmptyState } from '../shared/components/EmptyState';
 
 interface Props {
   visible: boolean;
   onClose: () => void;
 }
 
+const MAX_PINNED = 3;
+const BLUE_TINT = 'rgba(0, 105, 232, 0.1)';
+
+/** "À l’instant", "Il y a 5 min", "Hier", "Il y a 3 j", then a short date. */
+const formatRelative = (timestamp: number): string => {
+  const now = new Date();
+  const date = new Date(timestamp);
+  const diffMin = Math.floor((now.getTime() - timestamp) / 60000);
+
+  if (diffMin < 1) return 'À l’instant';
+  if (diffMin < 60) return `Il y a ${diffMin} min`;
+
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const dayDiff = Math.round((startOfDay(now) - startOfDay(date)) / 86400000);
+  const time = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+  if (dayDiff <= 0) return `Il y a ${Math.floor(diffMin / 60)} h`;
+  if (dayDiff === 1) return `Hier, ${time}`;
+  if (dayDiff < 7) return `Il y a ${dayDiff} j`;
+  return date.toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    ...(date.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}),
+  });
+};
+
 export default function SprintyHistoryModal({ visible, onClose }: Props) {
-  const { conversations, loadConversation, togglePinConversation, deleteConversation, renameConversation, startNewConversation } = useSprintyChatStore();
+  const { conversations, loadConversation, togglePinConversation, deleteConversation, startNewConversation } = useSprintyChatStore();
 
   const handleSelect = (id: string) => {
     loadConversation(id);
     onClose();
   };
 
-  const handleLongPress = (conv: Conversation) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  const handleDelete = async (conv: Conversation) => {
+    const confirmed = await confirmAsync({
+      title: 'Supprimer cette conversation ?',
+      message: `« ${conv.title} » sera définitivement supprimée.`,
+      confirmText: 'Supprimer',
+      destructive: true,
+      icon: 'trash-2',
+    });
+    if (!confirmed) return;
+    deleteConversation(conv.id);
+    toast('success', 'Conversation supprimée.');
+  };
+
+  const handleOptions = (conv: Conversation) => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch {
+      // haptics unavailable (web)
+    }
     const pinnedCount = conversations.filter(c => c.isPinned).length;
-    const canPin = conv.isPinned || pinnedCount < 3;
-    
+    const canPin = conv.isPinned || pinnedCount < MAX_PINNED;
+
     appAlert(
-      "Options de la conversation",
+      'Options de la conversation',
       conv.title,
       [
-        { text: "Annuler", style: "cancel" },
-        { 
-          text: conv.isPinned ? "Désépingler" : (canPin ? "Épingler" : "Épinglage max (3) atteint"), 
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: conv.isPinned ? 'Désépingler' : (canPin ? 'Épingler' : `Épinglage max (${MAX_PINNED}) atteint`),
           onPress: () => {
             if (canPin) togglePinConversation(conv.id);
-          }
+          },
         },
-        { 
-          text: "Supprimer", 
-          style: "destructive",
-          onPress: () => deleteConversation(conv.id) 
-        }
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: () => handleDelete(conv),
+        },
       ]
     );
   };
@@ -58,55 +103,89 @@ export default function SprintyHistoryModal({ visible, onClose }: Props) {
     return b.updatedAt - a.updatedAt;
   });
 
+  const renderItem = ({ item }: { item: Conversation }) => (
+    <PressableScale
+      haptic="selection"
+      activeScale={0.98}
+      onPress={() => handleSelect(item.id)}
+      onLongPress={() => handleOptions(item)}
+      delayLongPress={300}
+      accessibilityRole="button"
+      accessibilityLabel={`${item.title}${item.isPinned ? ', épinglée' : ''}`}
+      accessibilityHint="Appui long pour épingler ou supprimer"
+      style={[styles.convCard, item.isPinned && styles.pinnedCard]}
+    >
+      <View style={[styles.convIconBox, item.isPinned && styles.pinnedIconBox]}>
+        <Feather
+          name={item.isPinned ? 'bookmark' : 'message-square'}
+          size={16}
+          color={item.isPinned ? theme.colors.sprintyBlue : theme.colors.textSecondary}
+        />
+      </View>
+      <View style={styles.convBody}>
+        <Text style={styles.convTitle} numberOfLines={1}>{item.title}</Text>
+        <Text style={styles.dateText}>
+          {item.isPinned ? 'Épinglée · ' : ''}
+          {formatRelative(item.updatedAt)}
+        </Text>
+      </View>
+      <IconButton
+        icon="more-horizontal"
+        tone="plain"
+        size={34}
+        onPress={() => handleOptions(item)}
+        accessibilityLabel={`Options de « ${item.title} »`}
+      />
+    </PressableScale>
+  );
+
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <FeedbackHost />
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
+          <View style={styles.grabber} />
+
           <View style={styles.header}>
-            <View>
-              <Text style={styles.title}>Historique Sprinty</Text>
-              <Text style={styles.subtitle}>Retrouve toutes tes sessions d'assistance</Text>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={styles.title}>Historique</Text>
+              <Text style={styles.subtitle}>Retrouve tes échanges avec Sprinty</Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Feather name="x" size={22} color="#0F172A" />
-            </TouchableOpacity>
+            <IconButton icon="x" onPress={onClose} accessibilityLabel="Fermer" />
           </View>
 
-          <TouchableOpacity style={styles.newChatBtn} onPress={handleNewChat} activeOpacity={0.8}>
-            <Feather name="plus" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+          <PressableScale
+            haptic="light"
+            onPress={handleNewChat}
+            accessibilityRole="button"
+            style={styles.newChatBtn}
+          >
+            <Feather name="plus" size={18} color="#FFFFFF" />
             <Text style={styles.newChatText}>Nouvelle conversation</Text>
-          </TouchableOpacity>
+          </PressableScale>
 
           <FlatList
             data={sortedConvs}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 24 }}
+            contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => (
-              <TouchableOpacity 
-                style={[styles.convCard, item.isPinned && styles.pinnedCard]}
-                onPress={() => handleSelect(item.id)}
-                onLongPress={() => handleLongPress(item)}
-                delayLongPress={300}
-                activeOpacity={0.7}
-              >
-                <View style={styles.convHeader}>
-                  <View style={[styles.convIconBox, item.isPinned && styles.pinnedIconBox]}>
-                    <Feather name="message-square" size={16} color={item.isPinned ? '#0069E8' : '#64748B'} />
-                  </View>
-                  <Text style={styles.convTitle} numberOfLines={1}>{item.title}</Text>
-                  {item.isPinned && (
-                    <View style={styles.pinBadge}>
-                      <Feather name="map-pin" size={12} color="#0069E8" />
-                    </View>
-                  )}
-                </View>
-                <Text style={styles.dateText}>
-                  {new Date(item.updatedAt).toLocaleDateString('fr-FR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                </Text>
-              </TouchableOpacity>
-            )}
+            renderItem={renderItem}
+            ListHeaderComponent={
+              sortedConvs.length > 0 ? <Text style={styles.sectionLabel}>Conversations</Text> : null
+            }
+            ListEmptyComponent={
+              <EmptyState
+                icon="message-circle"
+                title="Aucune conversation"
+                message="Pose ta première question à Sprinty : elle apparaîtra ici."
+                compact
+              />
+            }
+            ListFooterComponent={
+              sortedConvs.length > 0 ? (
+                <Text style={styles.footerHint}>Appui long sur une conversation pour l’épingler ou la supprimer.</Text>
+              ) : null
+            }
           />
         </View>
       </View>
@@ -121,108 +200,122 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.backdrop,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
+    borderCurve: 'continuous',
     maxHeight: '85%',
     minHeight: '55%',
-    paddingTop: 8,
+  },
+  grabber: {
+    alignSelf: 'center',
+    width: 36,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(15, 23, 42, 0.15)',
+    marginTop: 8,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: theme.colors.hairline,
   },
   title: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '800',
-    color: '#0F172A',
-    letterSpacing: -0.3,
+    color: theme.colors.text,
+    letterSpacing: -0.4,
   },
   subtitle: {
-    fontSize: 12,
-    color: '#64748B',
+    fontSize: 13,
+    color: theme.colors.textSecondary,
     marginTop: 2,
-  },
-  closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   newChatBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0069E8',
-    marginHorizontal: 18,
+    gap: 8,
+    backgroundColor: theme.colors.sprintyBlue,
+    marginHorizontal: 16,
     marginTop: 16,
-    marginBottom: 16,
-    paddingVertical: 14,
+    marginBottom: 8,
+    height: 52,
     borderRadius: 16,
-    shadowColor: '#0069E8',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 3,
+    borderCurve: 'continuous',
   },
   newChatText: {
     color: '#FFFFFF',
-    fontWeight: '700',
+    fontWeight: '800',
     fontSize: 15,
   },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 32,
+    flexGrow: 1,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    color: theme.colors.textSecondary,
+    marginTop: 8,
+    marginBottom: 8,
+    marginLeft: 4,
+  },
   convCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  pinnedCard: {
-    backgroundColor: '#F0F7FF',
-    borderColor: '#BAE6FD',
-  },
-  convHeader: {
+    ...glassSurface,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    borderRadius: 18,
+    borderCurve: 'continuous',
+    paddingVertical: 12,
+    paddingLeft: 12,
+    paddingRight: 6,
+    marginBottom: 8,
+    minHeight: 64,
+  },
+  pinnedCard: {
+    borderColor: 'rgba(0, 105, 232, 0.22)',
   },
   convIconBox: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: '#E2E8F0',
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    backgroundColor: theme.colors.glassFill,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pinnedIconBox: {
-    backgroundColor: '#0069E815',
+    backgroundColor: BLUE_TINT,
+  },
+  convBody: {
+    flex: 1,
+    marginHorizontal: 12,
   },
   convTitle: {
-    flex: 1,
-    color: '#0F172A',
+    color: theme.colors.text,
     fontSize: 15,
     fontWeight: '700',
-    marginHorizontal: 10,
     letterSpacing: -0.2,
   },
-  pinBadge: {
-    padding: 4,
-    borderRadius: 6,
-    backgroundColor: '#0069E815',
-  },
   dateText: {
-    color: '#94A3B8',
+    color: theme.colors.textSecondary,
+    fontSize: 13,
+    marginTop: 2,
+  },
+  footerHint: {
+    textAlign: 'center',
+    color: theme.colors.textMuted,
     fontSize: 12,
-    marginLeft: 38,
-    fontWeight: '500',
+    marginTop: 12,
   },
 });

@@ -1,5 +1,5 @@
 ﻿import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, Text, ActivityIndicator, ScrollView, Animated } from 'react-native';
+import { View, StyleSheet, Text, Animated } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../../../../../src/core/theme';
 import { Header } from '../../../../../src/shared/components/Header';
@@ -8,7 +8,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import { WorkoutCard } from '../../../../../src/shared/components/WorkoutCard';
 import { WorkoutDetailModal } from '../../../../../src/features/calendar/components/WorkoutDetailModal';
 import { GlassScreen } from '../../../../../src/shared/components/GlassScreen';
-import { glassSurface } from '../../../../../src/core/glass';
+import { glassCard } from '../../../../../src/core/glass';
+import { EmptyState } from '../../../../../src/shared/components/EmptyState';
+import { SkeletonCard } from '../../../../../src/shared/components/Skeleton';
 import { useFrostedHeader } from '../../../../../src/shared/hooks/useFrostedHeader';
 
 import { useRefresh } from '../../../../../src/shared/hooks/useRefresh';
@@ -65,7 +67,7 @@ export default function CoachAthleteDayScreen() {
   };
 
   return (
-    <GlassScreen style={styles.container}>
+    <GlassScreen scrollY={scrollY}>
       <Header
         scrollY={scrollY}
         title={dateTitle}
@@ -74,15 +76,21 @@ export default function CoachAthleteDayScreen() {
       />
 
       <Animated.ScrollView {...scrollProps} refreshControl={refreshControl} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.textMuted }]}>
-          SÉANCES PRÉVUES
-        </Text>
+        <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>Séances prévues</Text>
 
         {isLoading ? (
-          <ActivityIndicator size="large" color={theme.colors.accent} style={{ marginTop: 40 }} />
+          <>
+            <SkeletonCard avatar />
+            <SkeletonCard avatar />
+          </>
         ) : workouts.length === 0 ? (
-          <View style={[styles.emptyCard, glassSurface]}>
-            <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>Aucune séance enregistrée ce jour.</Text>
+          <View style={glassCard}>
+            <EmptyState
+              compact
+              icon="calendar"
+              title="Aucune séance"
+              message="Rien n’est prévu pour ce jour."
+            />
           </View>
         ) : (
           workouts.map((w) => (
@@ -110,22 +118,13 @@ export default function CoachAthleteDayScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scrollContent: { padding: 20, paddingBottom: 100 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 100 },
   sectionTitle: {
     fontSize: 12,
-    fontWeight: 'bold',
-    letterSpacing: 1.5,
-    marginBottom: 16,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+    marginLeft: 4,
   },
-  emptyCard: {
-    padding: 30,
-    borderRadius: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    marginTop: 20,
-  },
-  emptyText: {
-    fontSize: 15,
-  }
 });
