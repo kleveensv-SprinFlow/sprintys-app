@@ -34,7 +34,9 @@ export const CheckInSummaryModal = ({ visible, onClose, onEdit }: Props) => {
     ]).start();
   }, [visible]);
 
-  const today = new Date().toISOString().split('T')[0];
+  // Local calendar day, like the check-in store (UTC would miss late-evening check-ins)
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const todayCheckIn = history.find(c => c.date === today);
 
   if (!todayCheckIn) return null;

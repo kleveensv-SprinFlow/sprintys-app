@@ -23,7 +23,7 @@ const SLEEP_OPTIONS: (ScaleOption & { longLabel: string })[] = [
   { value: 1, icon: 'cloud-lightning', label: 'Agitée', longLabel: 'Nuit blanche / agitée' },
   { value: 2, icon: 'cloud-drizzle', label: 'Hachée', longLabel: 'Difficile / haché' },
   { value: 3, icon: 'cloud', label: 'Correcte', longLabel: 'Correct' },
-  { value: 4, icon: 'moon', label: 'Réparatrice', longLabel: 'Réparateur' },
+  { value: 4, icon: 'moon', label: 'Bonne', longLabel: 'Réparateur' },
   { value: 5, icon: 'star', label: 'Au top', longLabel: 'Au top de ma forme' },
 ];
 

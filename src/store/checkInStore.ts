@@ -180,7 +180,7 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
         isLoading: false 
       });
       
-      useSprintyStore.getState().showFeedback('success', "Check-In enregistré avec succès !");
+      useSprintyStore.getState().showFeedback('success', 'Ton check-in du jour est enregistré.', 3000, 'Check-in terminé');
       return true;
     } catch (error) {
       console.error(error);
