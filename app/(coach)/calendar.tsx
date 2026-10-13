@@ -1,7 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
-import { useTheme } from '../../src/core/theme';
-import { Header } from '../../src/shared/components/Header';
 import { MonthlyCalendar, MonthWorkout } from '../../src/shared/components/MonthlyCalendar';
 import { workoutService } from '../../src/services/workoutService';
 import { periodService } from '../../src/services/periodService';
@@ -9,17 +6,17 @@ import { TrainingPeriod } from '../../src/types/period';
 import { PeriodModal } from '../../src/features/calendar/components/PeriodModal';
 import { useAuthStore } from '../../src/store/authStore';
 import { useCoachStore } from '../../src/store/coach/coachStore';
-import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { GlassScreen } from '../../src/shared/components/GlassScreen';
 import { useTabBarSpace } from '../../src/shared/hooks/useTabBarSpace';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function CoachCalendarScreen() {
-  const theme = useTheme();
-  // The grid stops above the floating tab bar
+  // Content scrolls under the floating tab bar
   const tabBarSpace = useTabBarSpace(8);
+  const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
   const { teams, fetchTeams, fetchSubgroups, fetchTeamMembers } = useCoachStore();
   const router = useRouter();
@@ -102,25 +99,11 @@ export default function CoachCalendarScreen() {
   }, [loadMonthData, selectedDate]);
 
   return (
-    <GlassScreen style={{ paddingBottom: tabBarSpace }}>
-      <Header
-        title="Calendrier"
-        rightComponent={
-          <TouchableOpacity
-            onPress={handleOpenCreatePeriod}
-            style={[
-              styles.periodActionBtn,
-              { backgroundColor: theme.colors.accent + '15', borderColor: theme.colors.accent + '35' },
-            ]}
-            activeOpacity={0.7}
-          >
-            <Feather name="plus" size={14} color={theme.colors.accent} style={{ marginRight: 4 }} />
-            <Text style={[styles.periodActionBtnText, { color: theme.colors.accent }]}>Phase</Text>
-          </TouchableOpacity>
-        }
-      />
-
+    // The month title is the large title; content scrolls under the floating tab bar
+    <GlassScreen>
       <MonthlyCalendar
+        topInset={insets.top}
+        bottomInset={tabBarSpace}
         selectedDate={selectedDate}
         onSelectDate={handleSelectDate}
         onOpenDate={handleOpenDate}
@@ -144,21 +127,3 @@ export default function CoachCalendarScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  periodActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 11,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  periodActionBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: -0.2,
-  },
-});

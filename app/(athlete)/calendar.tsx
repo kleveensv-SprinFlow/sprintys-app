@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Header } from '../../src/shared/components/Header';
 import { MonthlyCalendar, MonthWorkout } from '../../src/shared/components/MonthlyCalendar';
 import { workoutService } from '../../src/services/workoutService';
 import { periodService } from '../../src/services/periodService';
@@ -9,6 +8,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { GlassScreen } from '../../src/shared/components/GlassScreen';
 import { useTabBarSpace } from '../../src/shared/hooks/useTabBarSpace';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function CalendarScreen() {
   const params = useLocalSearchParams();
@@ -18,6 +18,7 @@ export default function CalendarScreen() {
   const { user } = useAuthStore();
   const router = useRouter();
   const tabBarSpace = useTabBarSpace(8);
+  const insets = useSafeAreaInsets();
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [monthWorkouts, setMonthWorkouts] = useState<MonthWorkout[]>([]);
@@ -65,10 +66,11 @@ export default function CalendarScreen() {
   };
 
   return (
-    // Bottom padding: the grid stops above the floating tab bar
-    <GlassScreen style={{ paddingBottom: tabBarSpace }}>
-      <Header title="Calendrier" />
+    // The month title is the large title; content scrolls under the floating tab bar
+    <GlassScreen>
       <MonthlyCalendar
+        topInset={insets.top}
+        bottomInset={tabBarSpace}
         selectedDate={selectedDate}
         onSelectDate={handleSelectDate}
         onOpenDate={handleOpenDate}

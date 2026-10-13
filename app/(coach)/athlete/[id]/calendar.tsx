@@ -9,11 +9,15 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useCoachStore } from '../../../../src/store/coach/coachStore';
 import { GlassScreen } from '../../../../src/shared/components/GlassScreen';
 import { glassSurface } from '../../../../src/core/glass';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFrostedHeader } from '../../../../src/shared/hooks/useFrostedHeader';
 
 export default function CoachAthleteCalendarScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const { scrollY } = useFrostedHeader();
   
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [workouts, setWorkouts] = useState<any[]>([]);
@@ -61,6 +65,7 @@ export default function CoachAthleteCalendarScreen() {
   return (
     <GlassScreen style={styles.container}>
       <Header
+        scrollY={scrollY}
         title={`Entraînement de ${athleteName.split(' ')[0]}`}
         showBackButton
         onBackPress={() => router.back()}
@@ -79,7 +84,8 @@ export default function CoachAthleteCalendarScreen() {
             onSelectDate={handleSelectDate}
             onOpenDate={handleOpenDate}
             onMonthChange={handleMonthChange}
-            onPressCreatePeriod={() => {}} // Disabled
+            scrollY={scrollY}
+            bottomInset={insets.bottom + 24}
           />
         )}
       </View>

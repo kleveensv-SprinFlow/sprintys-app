@@ -3,19 +3,22 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   PanResponder,
   Animated,
-  LayoutChangeEvent,
   LayoutAnimation,
   Platform,
   UIManager,
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../core/theme';
-import { glassSurface } from '../../core/glass';
+import { glassCard, glassSurface } from '../../core/glass';
 import * as Haptics from 'expo-haptics';
 import { TrainingPeriod } from '../../types/period';
+import { Grain } from './Grain';
+import { FrostedBar } from './FrostedBar';
+import { PressableScale } from './PressableScale';
+import { useFrostedHeader } from '../hooks/useFrostedHeader';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -85,9 +88,23 @@ interface MonthlyCalendarProps {
   onPressCreatePeriod?: (date: Date) => void;
   isCoach?: boolean;
   onMonthChange?: (year: number, month: number) => void;
+  /**
+   * Safe-area top inset when the calendar is the top of the screen (no <Header />):
+   * the month title then acts as the large title, with a frosted bar on scroll.
+   */
+  topInset?: number;
+  /** Bottom padding of the scroll content (e.g. room for the floating tab bar). */
+  bottomInset?: number;
+  /** Extra control next to the phase line (e.g. the coach's "+ Phase" button). */
+  headerAccessory?: React.ReactNode;
+  /** External scroll position, to drive a <Header /> placed above the calendar. */
+  scrollY?: Animated.Value;
 }
 
-const DAYS_OF_WEEK = ['LUN.', 'MAR.', 'MER.', 'JEU.', 'VEN.', 'SAM.', 'DIM.'];
+const DAYS_OF_WEEK = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+const DAY_NAMES = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+const BLUE = '#0069E8';
+const SUNDAY_RED = '#E11D48';
 const MONTH_NAMES = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
@@ -110,12 +127,22 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
   onPressCreatePeriod,
   isCoach = false,
   onMonthChange,
+  topInset,
+  bottomInset = 24,
+  headerAccessory,
+  scrollY: externalScrollY,
 }) => {
   const theme = useTheme();
   const [currentMonth, setCurrentMonth] = useState(
     new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1)
   );
-  const [gridHeight, setGridHeight] = useState(0);
+
+  const frosted = useFrostedHeader();
+  const scrollY = externalScrollY || frosted.scrollY;
+  const onScroll = useMemo(
+    () => Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true }),
+    [scrollY]
+  );
 
   const opacityAnim = useRef(new Animated.Value(1)).current;
   const today = useMemo(() => new Date(), []);
@@ -246,8 +273,10 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
     for (let i = 1; i <= lastDay.getDate(); i++) {
       allDays.push({ date: new Date(year, month, i), isCurrentMonth: true });
     }
-    const totalNeeded = 42;
-    for (let i = 1; i <= totalNeeded - allDays.length; i++) {
+    // Only complete the last week (5 or 6 rows like iOS, never a half-empty 6th row).
+    // The count is computed once: the old loop re-read allDays.length while pushing.
+    const trailing = (7 - (allDays.length % 7)) % 7;
+    for (let i = 1; i <= trailing; i++) {
       allDays.push({ date: new Date(year, month + 1, i), isCurrentMonth: false });
     }
 
@@ -277,235 +306,268 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
     }
   }, [isSameDay, selectedDate, onOpenDate, onSelectDate, currentMonth, navigateMonth]);
 
-  const totalWeeks = weeks.length;
+  const goToToday = useCallback(() => {
+    const now = new Date();
+    Haptics.selectionAsync();
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    if (now.getFullYear() !== currentMonth.getFullYear() || now.getMonth() !== currentMonth.getMonth()) {
+      setCurrentMonth(new Date(now.getFullYear(), now.getMonth(), 1));
+      onMonthChange?.(now.getFullYear(), now.getMonth());
+    }
+    onSelectDate(now);
+  }, [currentMonth, onMonthChange, onSelectDate]);
+
+  const isViewingToday =
+    isSameDay(selectedDate, today) &&
+    currentMonth.getFullYear() === today.getFullYear() &&
+    currentMonth.getMonth() === today.getMonth();
+
+  const selectedWorkouts = getWorkoutsForDay(selectedDate);
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const selectedLabel = `${DAY_NAMES[selectedDate.getDay()]} ${selectedDate.getDate()} ${MONTH_NAMES[selectedDate.getMonth()].toLowerCase()}`;
+
+  const formatShort = (iso: string) => {
+    const d = new Date(iso);
+    return `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0, 4).toLowerCase()}.`;
+  };
+
+  const headerBarOpacity = scrollY.interpolate({ inputRange: [0, 16], outputRange: [0, 1], extrapolate: 'clamp' });
 
   return (
-    // Transparent: sits on the screen's glass backdrop
-    <View style={styles.container} {...panResponder.panHandlers}>
-      {/* === Header (< Septembre 2026 >) === */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={[styles.monthTitle, { color: theme.colors.text }]}>
-            {MONTH_NAMES[currentMonth.getMonth()]}
-          </Text>
-          <Text style={[styles.yearSubtitle, { color: theme.colors.textSecondary }]}>
-            {currentMonth.getFullYear()}
-          </Text>
+    <View style={styles.container}>
+      {/* === Month header: large title + navigation (fixed, frosted on scroll) === */}
+      <View style={[styles.header, topInset !== undefined && { paddingTop: topInset + 10 }]}>
+        {topInset !== undefined && <FrostedBar opacity={headerBarOpacity} />}
+        <View style={styles.headerRow}>
+          <View style={styles.headerLeft}>
+            <Text style={[styles.monthTitle, { color: theme.colors.text }]}>
+              {MONTH_NAMES[currentMonth.getMonth()]}
+            </Text>
+            <Text style={[styles.yearSubtitle, { color: theme.colors.textSecondary }]}>
+              {currentMonth.getFullYear()}
+            </Text>
+          </View>
+
+          <View style={styles.headerRight}>
+            {!isViewingToday && (
+              <PressableScale haptic="none" onPress={goToToday} style={[styles.todayPill, glassSurface]}>
+                <Text style={styles.todayPillText}>Aujourd'hui</Text>
+              </PressableScale>
+            )}
+            <View style={[styles.navPills, glassSurface]}>
+              <Pressable onPress={() => navigateMonth('prev')} style={styles.navArrow} hitSlop={8}>
+                <Feather name="chevron-left" size={18} color={theme.colors.text} />
+              </Pressable>
+              <View style={[styles.navDivider, { backgroundColor: theme.colors.hairline }]} />
+              <Pressable onPress={() => navigateMonth('next')} style={styles.navArrow} hitSlop={8}>
+                <Feather name="chevron-right" size={18} color={theme.colors.text} />
+              </Pressable>
+            </View>
+          </View>
         </View>
 
-          <View style={[styles.navPills, glassSurface]}>
-          <TouchableOpacity
-            onPress={() => navigateMonth('prev')}
-            style={styles.navArrow}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Feather name="chevron-left" size={16} color={theme.colors.text} />
-          </TouchableOpacity>
-
-          <View style={[styles.navDivider, { backgroundColor: theme.colors.border + '80' }]} />
-
-          <TouchableOpacity
-            onPress={() => navigateMonth('next')}
-            style={styles.navArrow}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Feather name="chevron-right" size={16} color={theme.colors.text} />
-          </TouchableOpacity>
-        </View>
+        {/* Phase line (coach: tap to edit / create) */}
+        {(activeSelectedPeriod || (isCoach && onPressCreatePeriod) || headerAccessory) && (
+          <View style={styles.phaseRow}>
+            {activeSelectedPeriod ? (
+              <Pressable
+                style={styles.phaseInfo}
+                disabled={!(isCoach && onPressPeriodBadge)}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  onPressPeriodBadge?.(activeSelectedPeriod);
+                }}
+              >
+                <View style={[styles.phaseDot, { backgroundColor: activeSelectedPeriod.color }]} />
+                <Text style={[styles.phaseName, { color: activeSelectedPeriod.color }]} numberOfLines={1}>
+                  {activeSelectedPeriod.name}
+                </Text>
+                {activeSelectedPeriod.start_date && activeSelectedPeriod.end_date && (
+                  <Text style={[styles.phaseDates, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                    {formatShort(activeSelectedPeriod.start_date)} – {formatShort(activeSelectedPeriod.end_date)}
+                  </Text>
+                )}
+                {isCoach && onPressPeriodBadge && (
+                  <Feather name="edit-2" size={12} color={theme.colors.textSecondary} style={{ marginLeft: 6 }} />
+                )}
+              </Pressable>
+            ) : isCoach && onPressCreatePeriod ? (
+              <Pressable
+                style={styles.phaseInfo}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  onPressCreatePeriod(selectedDate);
+                }}
+              >
+                <Feather name="plus" size={13} color={BLUE} />
+                <Text style={[styles.phaseCreate, { color: BLUE }]}>Définir une phase</Text>
+              </Pressable>
+            ) : (
+              <View style={{ flex: 1 }} />
+            )}
+            {/* Coach: start another phase while one is shown */}
+            {activeSelectedPeriod && isCoach && onPressCreatePeriod && (
+              <PressableScale
+                haptic="light"
+                onPress={() => onPressCreatePeriod(selectedDate)}
+                hitSlop={8}
+                style={[styles.phaseAddBtn, glassSurface]}
+              >
+                <Feather name="plus" size={14} color={BLUE} />
+                <Text style={styles.phaseAddText}>Phase</Text>
+              </PressableScale>
+            )}
+            {headerAccessory}
+          </View>
+        )}
       </View>
 
-      {/* === Active Phase Pill (Clean Apple Fitness athletic badge with dates) === */}
-      {activeSelectedPeriod ? (
-        <TouchableOpacity
-          style={[
-            styles.periodBadgeRow,
-            {
-              backgroundColor: theme.colors.glass,
-              borderColor: activeSelectedPeriod.color + '40',
-              // iOS only: an Android elevation would show through the translucent pill
-              shadowColor: activeSelectedPeriod.color,
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.12,
-              shadowRadius: 6,
-            },
-          ]}
-          onPress={() => {
-            if (isCoach && onPressPeriodBadge) {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              onPressPeriodBadge(activeSelectedPeriod);
-            }
-          }}
-          activeOpacity={isCoach ? 0.7 : 1}
-        >
-          <View style={[styles.periodDot, { backgroundColor: activeSelectedPeriod.color }]} />
-          <View style={styles.periodTextContainer}>
-            <Text style={styles.periodBadgeTitle} numberOfLines={1}>
-              Phase : <Text style={{ fontWeight: '800', color: activeSelectedPeriod.color }}>{activeSelectedPeriod.name}</Text>
-            </Text>
-            {activeSelectedPeriod.start_date && activeSelectedPeriod.end_date && (
-              <Text style={styles.periodBadgeDates}>
-                {(() => {
-                  const s = new Date(activeSelectedPeriod.start_date);
-                  const e = new Date(activeSelectedPeriod.end_date);
-                  return `${s.getDate()} ${MONTH_NAMES[s.getMonth()].slice(0, 4)}. - ${e.getDate()} ${MONTH_NAMES[e.getMonth()].slice(0, 4)}.`;
-                })()}
-              </Text>
-            )}
-          </View>
-          {isCoach && (
-            <View style={[styles.periodEditHint, { backgroundColor: activeSelectedPeriod.color + '15' }]}>
-              <Feather name="edit-2" size={11} color={activeSelectedPeriod.color} />
-            </View>
-          )}
-        </TouchableOpacity>
-      ) : isCoach && onPressCreatePeriod ? (
-        <TouchableOpacity
-          style={[
-            styles.periodBadgeRow,
-            styles.periodBadgeRowEmpty,
-            {
-              backgroundColor: theme.colors.glassFill,
-              borderColor: theme.colors.border + '80',
-            },
-          ]}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            onPressCreatePeriod(selectedDate);
-          }}
-          activeOpacity={0.7}
-        >
-          <Feather name="plus" size={13} color={theme.colors.textSecondary} />
-          <Text style={[styles.periodBadgeTitle, { color: theme.colors.textSecondary }]}>
-            Définir une phase d'entraînement
-          </Text>
-        </TouchableOpacity>
-      ) : null}
-
-      {/* === Days of Week Header === */}
-      <View style={styles.dayLabelsRow}>
-        {DAYS_OF_WEEK.map((day, index) => {
-          const isSunday = index === 6;
-          return (
-            <View key={index} style={styles.dayLabelCell}>
+      <Animated.ScrollView
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomInset }]}
+      >
+        {/* === Month grid: one frosted card, iOS-style clean days === */}
+        <View style={[glassCard, styles.gridCard]} {...panResponder.panHandlers}>
+          <Grain radius={22} />
+          <View style={styles.dayLabelsRow}>
+            {DAYS_OF_WEEK.map((day, index) => (
               <Text
-                style={[
-                  styles.dayLabelText,
-                  { color: isSunday ? '#E11D48' : theme.colors.textSecondary },
-                ]}
+                key={index}
+                style={[styles.dayLabelText, { color: index === 6 ? SUNDAY_RED : theme.colors.textSecondary }]}
               >
                 {day}
               </Text>
-            </View>
-          );
-        })}
-      </View>
+            ))}
+          </View>
 
-      {/* === Calendar Grid (with 15% tinted period backgrounds) === */}
-      <Animated.View
-        style={[
-          styles.gridContainer,
-          { opacity: opacityAnim },
-        ]}
-      >
-        {weeks.map((week, weekIndex) => (
-          <View key={weekIndex} style={styles.weekRow}>
-            {week.map((item, dayIndex) => {
-              const selected = isSameDay(item.date, selectedDate);
-              const isTodayCell = isToday(item.date);
-              const dayWorkouts = getWorkoutsForDay(item.date);
-              const isSunday = dayIndex === 6;
-              const hasWorkouts = dayWorkouts.length > 0;
+          <Animated.View style={{ opacity: opacityAnim }}>
+            {weeks.map((week, weekIndex) => (
+              <View
+                key={weekIndex}
+                style={[styles.weekRow, weekIndex > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.hairline }]}
+              >
+                {week.map((item, dayIndex) => {
+                  if (!item.isCurrentMonth) {
+                    return <View key={dayIndex} style={styles.cell} />;
+                  }
+                  const selected = isSameDay(item.date, selectedDate);
+                  const isTodayCell = isToday(item.date);
+                  const dayWorkouts = getWorkoutsForDay(item.date);
+                  const period = getPeriodForDate(item.date);
 
-              // Glass cells for the current month, nothing for the overflow days
-              const cellBgColor = !item.isCurrentMonth
-                ? 'transparent'
-                : theme.colors.glass;
+                  // Phase strip: continuous across the week, rounded where the phase starts / ends
+                  let stripStyle = null;
+                  if (period) {
+                    const prev = new Date(item.date.getFullYear(), item.date.getMonth(), item.date.getDate() - 1);
+                    const next = new Date(item.date.getFullYear(), item.date.getMonth(), item.date.getDate() + 1);
+                    const startsHere = dayIndex === 0 || getPeriodForDate(prev)?.id !== period.id;
+                    const endsHere = dayIndex === 6 || getPeriodForDate(next)?.id !== period.id;
+                    stripStyle = {
+                      backgroundColor: period.color,
+                      left: startsHere ? 6 : 0,
+                      right: endsHere ? 6 : 0,
+                      borderTopLeftRadius: startsHere ? 2 : 0,
+                      borderBottomLeftRadius: startsHere ? 2 : 0,
+                      borderTopRightRadius: endsHere ? 2 : 0,
+                      borderBottomRightRadius: endsHere ? 2 : 0,
+                    };
+                  }
 
-              const visibleWorkouts = dayWorkouts.slice(0, 3);
-              const extraCount = dayWorkouts.length - 3;
+                  const circleBg = selected ? (isTodayCell ? BLUE : theme.colors.text) : 'transparent';
+                  const numberColor = selected
+                    ? '#FFFFFF'
+                    : isTodayCell
+                      ? BLUE
+                      : dayIndex === 6
+                        ? SUNDAY_RED
+                        : theme.colors.text;
 
-              return (
-                <TouchableOpacity
-                  key={dayIndex}
-                  style={[
-                    styles.cell,
-                    {
-                      backgroundColor: cellBgColor,
-                      borderColor: selected
-                        ? '#0069E8' // Sprintflow electric blue
-                        : theme.colors.glassBorder,
-                      borderWidth: selected ? 2 : 1,
-                      opacity: item.isCurrentMonth ? 1 : 0.28,
-                    },
-                    selected && styles.selectedCellShadow,
-                  ]}
-                  onPress={() => handleDayPress(item.date)}
-                  activeOpacity={0.7}
-                >
-                  {/* Date number header */}
-                  <View style={styles.dateHeaderRow}>
-                    {isTodayCell ? (
-                      <View style={[styles.todayNumberBadge, { backgroundColor: '#0069E8' }]}>
-                        <Text style={[styles.todayNumberText, { color: '#FFFFFF' }]}>
+                  return (
+                    <Pressable key={dayIndex} style={styles.cell} onPress={() => handleDayPress(item.date)}>
+                      <View style={[styles.dayCircle, { backgroundColor: circleBg }]}>
+                        <Text
+                          style={[
+                            styles.dayNumberText,
+                            { color: numberColor, fontWeight: selected || isTodayCell ? '800' : '600' },
+                          ]}
+                        >
                           {item.date.getDate()}
                         </Text>
                       </View>
-                    ) : (
-                      <Text
-                        style={[
-                          styles.dayNumberText,
-                          {
-                            color: !item.isCurrentMonth
-                              ? theme.colors.border
-                              : selected
-                                ? '#0069E8'
-                                : isSunday
-                                  ? '#E11D48'
-                                  : theme.colors.text,
-                            fontWeight: selected ? '800' : '600',
-                          },
-                        ]}
-                      >
-                        {item.date.getDate()}
-                      </Text>
-                    )}
-                  </View>
-
-                  {/* Horizontal pastel session icons */}
-                  {item.isCurrentMonth && hasWorkouts && (
-                    <View style={styles.bannersContainer}>
-                      {visibleWorkouts.map((w, i) => {
-                        const config = getWorkoutTypeConfig(w.type_seance);
-                        return (
+                      <View style={styles.dotsRow}>
+                        {dayWorkouts.slice(0, 3).map((w, i) => (
                           <View
                             key={i}
-                            style={[
-                              styles.sessionIconPill,
-                              { backgroundColor: config.bg },
-                            ]}
-                          >
-                            <Ionicons
-                              name={config.icon}
-                              size={12}
-                              color={config.text}
-                            />
-                          </View>
-                        );
-                      })}
+                            style={[styles.dot, { backgroundColor: getWorkoutTypeConfig(w.type_seance).text }]}
+                          />
+                        ))}
+                      </View>
+                      {stripStyle && <View style={[styles.phaseStrip, stripStyle, { opacity: 0.55 }]} />}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ))}
+          </Animated.View>
+        </View>
 
-                      {extraCount > 0 && (
-                        <Text style={[styles.extraCountText, { color: theme.colors.textSecondary }]}>
-                          +{extraCount}
-                        </Text>
-                      )}
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
+        {/* === Agenda of the selected day === */}
+        <View style={styles.agendaHeader}>
+          <Text style={[styles.agendaTitle, { color: theme.colors.text }]}>{selectedLabel}</Text>
+          {onOpenDate && (
+            <Pressable onPress={() => onOpenDate(selectedDate)} hitSlop={8} style={styles.agendaLink}>
+              <Text style={styles.agendaLinkText}>{isCoach ? 'Planifier' : 'Ouvrir'}</Text>
+              <Feather name="chevron-right" size={15} color={BLUE} />
+            </Pressable>
+          )}
+        </View>
+
+        {selectedWorkouts.length > 0 ? (
+          selectedWorkouts.map((w, i) => {
+            const config = getWorkoutTypeConfig(w.type_seance);
+            const isCompleted = w.status === 'completed';
+            const isCompetition = (w.type_seance || '').toLowerCase().startsWith('comp');
+            const isRest = (w.type_seance || '').toLowerCase().includes('repos');
+            const isMissed = !isCompleted && !isCompetition && !isRest && selectedDate < todayStart;
+            const status = isCompleted
+              ? { label: 'Faite', color: theme.colors.success }
+              : isMissed
+                ? { label: 'Manquée', color: theme.colors.error }
+                : { label: isRest ? 'Récupération' : 'Prévue', color: theme.colors.textSecondary };
+            return (
+              <PressableScale
+                key={w.id || i}
+                onPress={() => onOpenDate?.(selectedDate)}
+                disabled={!onOpenDate}
+                haptic={onOpenDate ? 'light' : 'none'}
+                style={[glassCard, styles.agendaItem]}
+              >
+                <Grain radius={22} />
+                <View style={[styles.agendaIcon, { backgroundColor: config.bg }]}>
+                  <Ionicons name={config.icon} size={20} color={config.text} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.agendaItemTitle, { color: theme.colors.text }]} numberOfLines={1}>
+                    {w.type_seance}
+                  </Text>
+                  <Text style={[styles.agendaItemStatus, { color: status.color }]}>{status.label}</Text>
+                </View>
+                {onOpenDate && <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />}
+              </PressableScale>
+            );
+          })
+        ) : (
+          <View style={[glassCard, styles.agendaEmpty]}>
+            <Grain radius={22} />
+            <Feather name="coffee" size={18} color={theme.colors.textSecondary} />
+            <Text style={[styles.agendaEmptyText, { color: theme.colors.textSecondary }]}>
+              {isCoach ? 'Aucune séance planifiée' : 'Aucune séance · récupération'}
+            </Text>
           </View>
-        ))}
-      </Animated.View>
+        )}
+      </Animated.ScrollView>
     </View>
   );
 };
@@ -513,202 +575,224 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 8,
-    paddingBottom: 4,
   },
 
   // Header
   header: {
+    paddingHorizontal: 20,
+    paddingTop: 6,
+    paddingBottom: 10,
+    zIndex: 10,
+  },
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    paddingTop: 4,
-    paddingBottom: 8,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: 6,
+    gap: 8,
+    flexShrink: 1,
   },
   monthTitle: {
-    fontSize: 22,
+    fontSize: 32,
     fontWeight: '800',
-    letterSpacing: -0.4,
+    letterSpacing: -0.8,
   },
   yearSubtitle: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '600',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  todayPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+  },
+  todayPillText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: BLUE,
   },
   navPills: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 16,
-    borderWidth: 1,
+    borderRadius: 999,
     overflow: 'hidden',
   },
   navArrow: {
     paddingHorizontal: 12,
     paddingVertical: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   navDivider: {
     width: StyleSheet.hairlineWidth,
-    height: 14,
+    height: 16,
   },
 
-  // Active Phase Pill (Clean Apple Fitness athletic badge)
-  periodBadgeRow: {
+  // Phase line
+  phaseRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    marginHorizontal: 8,
-    marginBottom: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 22,
-    borderWidth: 1,
+    marginTop: 6,
     gap: 8,
   },
-  periodBadgeRowEmpty: {
-    borderStyle: 'dashed',
-    opacity: 0.85,
-  },
-  periodDot: {
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
-  },
-  periodTextContainer: {
-    flexDirection: 'column',
-    gap: 1,
-  },
-  periodBadgeTitle: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: '#0F172A',
-    letterSpacing: -0.2,
-  },
-  periodBadgeDates: {
-    fontSize: 10.5,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  periodEditHint: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+  phaseInfo: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 4,
+    gap: 6,
+  },
+  phaseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  phaseName: {
+    fontSize: 14,
+    fontWeight: '800',
+    flexShrink: 1,
+  },
+  phaseDates: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  phaseCreate: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  phaseAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  phaseAddText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: BLUE,
   },
 
-  // Days of Week Header
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+  },
+
+  // Grid
+  gridCard: {
+    paddingHorizontal: 6,
+    paddingTop: 12,
+    paddingBottom: 6,
+  },
   dayLabelsRow: {
     flexDirection: 'row',
-    paddingHorizontal: 2,
-    paddingBottom: 6,
-    paddingTop: 2,
-    gap: 3,
-  },
-  dayLabelCell: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginBottom: 4,
   },
   dayLabelText: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-
-  // Grid Container
-  gridContainer: {
     flex: 1,
-    gap: 4,
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '700',
   },
   weekRow: {
-    flex: 1,
     flexDirection: 'row',
-    gap: 3,
-    paddingHorizontal: 2,
   },
-
-  // Cells
   cell: {
     flex: 1,
-    borderRadius: 12,
-    paddingHorizontal: 2,
-    paddingTop: 4,
-    paddingBottom: 2,
-    justifyContent: 'flex-start',
-    overflow: 'hidden',
+    height: 54,
+    alignItems: 'center',
+    paddingTop: 5,
   },
-  selectedCellShadow: {
-    // iOS only: an Android elevation would show through the translucent cell
-    shadowColor: '#0069E8',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.22,
-    shadowRadius: 5,
-  },
-
-  // Date number
-  dateHeaderRow: {
+  dayCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 20,
-    marginBottom: 2,
   },
   dayNumberText: {
-    fontSize: 13,
+    fontSize: 16,
+    fontVariant: ['tabular-nums'],
   },
-  todayNumberBadge: {
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 5,
-    minWidth: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
+  dotsRow: {
+    flexDirection: 'row',
+    gap: 3,
+    height: 6,
+    marginTop: 3,
   },
-  todayNumberText: {
-    fontSize: 11,
-    fontWeight: '800',
+  dot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+  },
+  phaseStrip: {
+    position: 'absolute',
+    bottom: 2,
+    height: 3,
   },
 
-  // Session banners
-  bannersContainer: {
-    flex: 1,
+  // Agenda
+  agendaHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 22,
+    marginBottom: 10,
+    paddingHorizontal: 4,
+  },
+  agendaTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+  },
+  agendaLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 2,
-    justifyContent: 'flex-start',
-    width: '100%',
   },
-  sessionBanner: {
-    borderRadius: 4,
-    paddingVertical: 1.5,
-    paddingHorizontal: 3,
-    width: '100%',
+  agendaLinkText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: BLUE,
   },
-  sessionIconPill: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+  agendaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    marginBottom: 10,
+  },
+  agendaIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'center',
   },
-  sessionBannerText: {
-    fontSize: 8.5,
+  agendaItemTitle: {
+    fontSize: 16,
     fontWeight: '700',
     letterSpacing: -0.2,
   },
-  extraCountText: {
-    fontSize: 8,
-    fontWeight: '800',
-    alignSelf: 'center',
-    marginTop: 0.5,
+  agendaItemStatus: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  agendaEmpty: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  agendaEmptyText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
-
-
-
