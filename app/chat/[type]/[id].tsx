@@ -9,6 +9,7 @@ import { supabase } from '../../../src/services/supabase';
 import { PollMessage } from '../../../src/features/chat/PollMessage';
 import { BlurView } from 'expo-blur';
 import { useKeyboardOffset } from '../../../src/shared/hooks/useKeyboardOffset';
+import { GlowBackground } from '../../../src/shared/components/GlowBackground';
 
 export default function ChatScreen() {
   const { type, id, title } = useLocalSearchParams();
@@ -140,6 +141,7 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <GlowBackground />
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Header */}
         <View style={styles.header}>
@@ -288,17 +290,18 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.backdrop,
   },
   container: {
     flex: 1,
   },
   header: {
+    backgroundColor: theme.colors.glassBar,
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    borderBottomColor: theme.colors.hairline,
   },
   backBtn: {
     padding: 8,
@@ -377,9 +380,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 12,
     paddingBottom: Platform.OS === 'ios' ? 24 : 12,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.glassBar,
     borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
+    borderTopColor: theme.colors.hairline,
     alignItems: 'flex-end',
   },
   attachBtn: {

@@ -10,11 +10,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../../core/theme';
 import { SprintyLogo } from '../../../shared/components/SprintyLogo';
 import { LoginForm } from './LoginForm';
 import { RegisterMultiStep } from './RegisterMultiStep';
+import { GlowBackground } from '../../../shared/components/GlowBackground';
+import { glassSurface } from '../../../core/glass';
 
 interface AuthScreenProps {
   initialTab?: 'login' | 'signup';
@@ -48,7 +49,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ initialTab = 'login' }) 
       </View>
 
       {/* Modern Athletic Segmented Switcher */}
-      <View style={[styles.switcherContainer, { backgroundColor: '#F1F5F9' }]}>
+      <View style={[styles.switcherContainer, { backgroundColor: theme.colors.glassFill }]}>
         <TouchableOpacity
           style={[
             styles.tabButton,
@@ -94,10 +95,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ initialTab = 'login' }) 
       <View
         style={[
           styles.card,
-          {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.border,
-          },
+          glassSurface,
         ]}
       >
         {activeTab === 'login' ? (
@@ -115,14 +113,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ initialTab = 'login' }) 
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Subtle Top Ambient Glow */}
-      <View style={styles.glowTopContainer} pointerEvents="none">
-        <LinearGradient
-          colors={['rgba(0, 105, 232, 0.08)', 'rgba(0, 220, 253, 0.03)', 'transparent']}
-          style={styles.glowGradient}
-        />
-      </View>
+    <View style={[styles.container, { backgroundColor: theme.colors.backdrop }]}>
+      <GlowBackground />
 
       <SafeAreaView style={styles.safeArea}>
         {Platform.OS === 'ios' ? (
@@ -141,20 +133,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     position: 'relative',
-  },
-  glowTopContainer: {
-    position: 'absolute',
-    top: -60,
-    left: 0,
-    right: 0,
-    height: 280,
-    alignItems: 'center',
-  },
-  glowGradient: {
-    width: '100%',
-    height: '100%',
-    borderBottomLeftRadius: 200,
-    borderBottomRightRadius: 200,
   },
   safeArea: {
     flex: 1,

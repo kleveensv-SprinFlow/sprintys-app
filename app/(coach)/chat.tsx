@@ -24,6 +24,8 @@ import { CompetitionCard } from '../../src/components/competitions/CompetitionCa
 import { CompetitionBuilder } from '../../src/features/calendar/components/CompetitionBuilder';
 import { searchCompetitionsOnWeb, FoundCompetition, CompetitionSearchParams } from '../../src/services/competitionSearchService';
 import { useKeyboardOffset } from '../../src/shared/hooks/useKeyboardOffset';
+import { GlowBackground } from '../../src/shared/components/GlowBackground';
+import { glassSurface } from '../../src/core/glass';
 
 export default function CoachMessageScreen() {
   const router = useRouter();
@@ -318,8 +320,7 @@ export default function CoachMessageScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Rich Complex Gradient for nebulous look (Android Safe) */}
-      
+      <GlowBackground />
 
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         {/* Header */}
@@ -524,7 +525,7 @@ export default function CoachMessageScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: 'transparent' },
+  container: { flex: 1, backgroundColor: theme.colors.backdrop },
   header: { 
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -535,24 +536,20 @@ const styles = StyleSheet.create({
     zIndex: 10
   },
   backBtn: {
+    ...glassSurface,
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: theme.colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.surfaceLight,
   },
   menuBtn: {
+    ...glassSurface,
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: theme.colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.surfaceLight,
   },
   headerCenter: {
     flexDirection: 'row',
@@ -585,6 +582,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, fontWeight: '700', color: theme.colors.text },
   subtitle: { fontSize: 10, fontWeight: '600', color: theme.colors.accent, marginTop: 2 },
   athleteBanner: {
+    ...glassSurface,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -592,23 +590,15 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     padding: 12,
     borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
   },
   bannerAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F1F5F9', borderWidth: 1.5, borderColor: '#E2E8F0' },
   bannerAvatarFallback: { alignItems: 'center', justifyContent: 'center' },
   bannerKicker: { fontSize: 9, fontWeight: '800', color: '#94A3B8', letterSpacing: 1 },
   bannerName: { fontSize: 15, fontWeight: '800', color: '#0F172A', marginTop: 1 },
   bannerChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 5 },
-  bannerChip: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: '#F1F5F9' },
+  bannerChip: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: theme.colors.glassFill },
   bannerChipText: { fontSize: 10, fontWeight: '700', color: '#475569' },
-  bannerClose: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+  bannerClose: { width: 30, height: 30, borderRadius: 15, backgroundColor: theme.colors.glassFill, alignItems: 'center', justifyContent: 'center' },
   keyboardAvoid: { flex: 1 },
   chatArea: { flex: 1 },
   chatContent: { paddingHorizontal: 16, paddingTop: 20 },
@@ -624,17 +614,10 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   capabilityCard: {
+    ...glassSurface,
     width: 170,
-    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
   },
   capabilityIconWrap: {
     width: 36,
@@ -695,16 +678,16 @@ const styles = StyleSheet.create({
   messageTextUser: { fontSize: 15, lineHeight: 22, color: '#FFFFFF' },
   
   bottomInputBar: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.glassBar,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: theme.colors.hairline,
     paddingHorizontal: 14,
     paddingTop: 10,
   },
   inputBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.glass,
     borderRadius: 24,
     paddingHorizontal: 6,
     paddingVertical: 4,

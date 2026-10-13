@@ -16,6 +16,8 @@ import LottieView from 'lottie-react-native';
 import { useSprintyChatStore } from '../../src/store/sprintyChatStore';
 import SprintyHistoryModal from '../../src/components/SprintyHistoryModal';
 import { useKeyboardOffset } from '../../src/shared/hooks/useKeyboardOffset';
+import { GlowBackground } from '../../src/shared/components/GlowBackground';
+import { glassSurface } from '../../src/core/glass';
 
 export default function AthleteMessageScreen() {
   const router = useRouter();
@@ -131,8 +133,7 @@ export default function AthleteMessageScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Rich Complex Gradient for nebulous look (Android Safe) */}
-      
+      <GlowBackground />
 
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         {/* Header */}
@@ -274,7 +275,7 @@ export default function AthleteMessageScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: 'transparent' },
+  container: { flex: 1, backgroundColor: theme.colors.backdrop },
   header: { 
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -285,24 +286,20 @@ const styles = StyleSheet.create({
     zIndex: 10
   },
   backBtn: {
+    ...glassSurface,
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: theme.colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.surfaceLight,
   },
   menuBtn: {
+    ...glassSurface,
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: theme.colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.surfaceLight,
   },
   headerCenter: {
     flexDirection: 'row',
@@ -343,8 +340,8 @@ const styles = StyleSheet.create({
   heroSub: { fontSize: 14, color: theme.colors.textSecondary, marginBottom: 24, lineHeight: 20 },
   capabilitiesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   capabilityCard: {
-    width: '48%', backgroundColor: theme.colors.surface,
-    borderRadius: 20, padding: 16, borderWidth: 1, borderColor: theme.colors.surfaceLight,
+    width: '48%', ...glassSurface,
+    borderRadius: 20, borderCurve: 'continuous', padding: 16,
   },
   capabilityIconWrap: {
     width: 40, height: 40, borderRadius: 12, backgroundColor: theme.colors.accentMuted,
@@ -377,16 +374,16 @@ const styles = StyleSheet.create({
   messageTextUser: { fontSize: 15, lineHeight: 22, color: '#FFFFFF' },
   
   bottomInputBar: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.glassBar,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: theme.colors.hairline,
     paddingHorizontal: 14,
     paddingTop: 10,
   },
   inputBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.glass,
     borderRadius: 24,
     paddingHorizontal: 6,
     paddingVertical: 4,

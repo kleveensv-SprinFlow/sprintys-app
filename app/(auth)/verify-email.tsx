@@ -15,6 +15,7 @@ import { useAuthStore } from '../../src/store/authStore';
 import { useTheme } from '../../src/core/theme';
 import { Card } from '../../src/shared/components/Card';
 import { Feather } from '@expo/vector-icons';
+import { GlowBackground } from '../../src/shared/components/GlowBackground';
 
 export default function VerifyEmailScreen() {
   const theme = useTheme();
@@ -45,15 +46,15 @@ export default function VerifyEmailScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      style={[styles.container, { backgroundColor: theme.colors.backdrop }]}
     >
+      <GlowBackground />
       <View style={styles.inner}>
         <Card
           variant="glass"
           style={
             [
-              styles.card,
-              { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }
+              styles.card
             ] as any
           }
         >
@@ -77,7 +78,7 @@ export default function VerifyEmailScreen() {
               style={[
                 styles.input,
                 {
-                  backgroundColor: theme.colors.background,
+                  backgroundColor: theme.colors.glassFill,
                   color: theme.colors.text,
                   borderColor: theme.colors.border
                 }
