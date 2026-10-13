@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, Animated, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Animated, Image } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useTheme, theme } from '../../src/core/theme';
@@ -13,6 +13,8 @@ import { glassSurface } from '../../src/core/glass';
 import { useTabBarSpace } from '../../src/shared/hooks/useTabBarSpace';
 import { GlassSheen } from '../../src/shared/components/GlassSheen';
 import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
+import { FeedbackHost } from '../../src/shared/feedback/FeedbackHost';
+import { appAlert } from '../../src/shared/feedback/appAlert';
 
 export default function CoachGroupsScreen() {
   const router = useRouter();
@@ -69,7 +71,7 @@ export default function CoachGroupsScreen() {
 
   const handleDeleteTeam = () => {
     if (!activeTeamId) return;
-    Alert.alert('Supprimer le groupe', 'Êtes-vous sûr ? Cette action est irréversible.', [
+    appAlert('Supprimer le groupe ?', 'Le groupe et ses accès seront supprimés. C’est définitif.', [
       { text: 'Annuler', style: 'cancel' },
       { text: 'Supprimer', style: 'destructive', onPress: async () => {
         await deleteTeam(activeTeamId);
@@ -80,7 +82,7 @@ export default function CoachGroupsScreen() {
 
   const handleRemoveAthlete = (userId: string) => {
     if (!activeTeamId) return;
-    Alert.alert('Exclure l\'athlète', 'Voulez-vous vraiment exclure cet athlète du groupe ?', [
+    appAlert('Exclure cet athlète ?', 'Il n’aura plus accès au groupe ni à tes séances.', [
       { text: 'Annuler', style: 'cancel' },
       { text: 'Exclure', style: 'destructive', onPress: () => removeAthlete(userId, activeTeamId) }
     ]);
@@ -88,7 +90,7 @@ export default function CoachGroupsScreen() {
 
   const copyToClipboard = async (code: string) => {
     await Clipboard.setStringAsync(code);
-    Alert.alert('Code copié', 'Le code d\'invitation a été copié dans le presse-papier.');
+    appAlert('Code copié', 'Le code d\'invitation a été copié dans le presse-papier.');
   };
 
   const renderTeamList = () => (
@@ -262,7 +264,7 @@ export default function CoachGroupsScreen() {
                   </View>
                   <Text style={styles.emptyStateTitle}>Aucun sous-groupe configuré</Text>
                   <Text style={styles.emptyStateSubtitle}>
-                    Créez des sous-groupes (ex: 100m/200m, Haies, Relais) pour segmenter vos programmes d'entraînement.
+                    Crée des sous-groupes (ex. 100 m/200 m, Haies, Relais) pour adapter tes programmes.
                   </Text>
                 </View>
               ) : (
@@ -284,7 +286,7 @@ export default function CoachGroupsScreen() {
                     </TouchableOpacity>
                     <TouchableOpacity 
                       onPress={() => {
-                        Alert.alert('Supprimer', 'Supprimer ce sous-groupe ?', [
+                        appAlert('Supprimer', 'Supprimer ce sous-groupe ?', [
                           { text: 'Annuler', style: 'cancel' },
                           { text: 'Supprimer', style: 'destructive', onPress: () => deleteSubgroup(sg.id) }
                         ]);
@@ -401,6 +403,7 @@ export default function CoachGroupsScreen() {
 
       {/* REUSABLE MODAL FOR INPUTS */}
       <Modal visible={modalType !== 'none' && modalType !== 'change_sg'} transparent animationType="fade">
+        <FeedbackHost />
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
             <Text style={styles.modalTitle}>
@@ -446,6 +449,7 @@ export default function CoachGroupsScreen() {
 
       {/* MODAL FOR ATHLETE PROFILE (Proposition B) */}
       <Modal visible={modalType === 'athlete_profile' && !!selectedAthlete} transparent animationType="fade">
+        <FeedbackHost />
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
             
@@ -506,6 +510,7 @@ export default function CoachGroupsScreen() {
 
       {/* MODAL FOR ASSIGNING SUBGROUP */}
       <Modal visible={modalType === 'change_sg'} transparent animationType="slide">
+        <FeedbackHost />
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
             <Text style={styles.modalTitle}>Assigner un sous-groupe</Text>
@@ -517,7 +522,7 @@ export default function CoachGroupsScreen() {
                 </View>
                 <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text, textAlign: 'center' }}>Aucun sous-groupe créé</Text>
                 <Text style={{ fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center', paddingHorizontal: 16 }}>
-                  Rendez-vous dans l'onglet "Sous-groupes" pour en créer un, et organisez vos athlètes !
+                  Va dans l’onglet « Sous-groupes » pour en créer un et organiser tes athlètes.
                 </Text>
               </View>
             ) : (

@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,} from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import { useCoachStore } from '../../../store/coach/coachStore';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
+import { appAlert } from '../../../shared/feedback/appAlert';
 
 interface Props {
   visible: boolean;
@@ -28,13 +30,14 @@ export const BroadcastModal = ({ visible, onClose }: Props) => {
     setTimeout(() => {
       setIsSending(false);
       setMessage('');
-      Alert.alert("Succès", "L'annonce a été envoyée aux athlètes !");
+      appAlert("Succès", "L'annonce a été envoyée aux athlètes !");
       onClose();
     }, 1500);
   };
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <FeedbackHost />
       <View style={styles.overlay}>
         <KeyboardAvoidingView 
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}

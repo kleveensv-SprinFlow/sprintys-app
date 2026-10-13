@@ -348,7 +348,7 @@ export default function CoachMessageScreen() {
             </View>
             <View>
               <Text style={styles.title}>Sprinty IA</Text>
-              <Text style={styles.subtitle}>{isTyping ? "En cours d'analyse..." : 'En ligne • Prêt à vous aider'}</Text>
+              <Text style={styles.subtitle}>{isTyping ? "Analyse en cours…" : 'En ligne · Prêt à t’aider'}</Text>
             </View>
           </View>
           <TouchableOpacity style={styles.menuBtn} onPress={() => setHistoryVisible(true)}>

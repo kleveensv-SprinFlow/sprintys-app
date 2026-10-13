@@ -13,6 +13,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { theme } from '../../../core/theme';
 import { useCoachStore } from '../../../store/coach/coachStore';
 import { EmptyState } from '../../../shared/components/EmptyState';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 
 interface Props {
   visible: boolean;
@@ -158,6 +159,7 @@ export const TeamHealthModal = ({ visible, onClose }: Props) => {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <FeedbackHost />
       <View style={styles.overlay}>
         {/* Backdrop touch to close */}
         <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} activeOpacity={1} />

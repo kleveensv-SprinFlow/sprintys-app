@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
@@ -22,6 +22,8 @@ import { MealIcon } from './MealIcon';
 import { useConsentStore } from '../../../store/consentStore';
 import { MacroLanes } from './MacroLanes';
 import { mealLabel, MACROS, MacroKey, MEAL_ACCENT, MEAL_ACCENT_TINT } from '../nutritionTheme';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
+import { appAlert } from '../../../shared/feedback/appAlert';
 
 type TabType = 'recents' | 'frequents' | 'repas';
 
@@ -151,7 +153,7 @@ export const FoodSearchModal: React.FC = () => {
       if (product) {
         setSelectedProduct(product);
       } else {
-        Alert.alert("Introuvable", "Ce produit n'a pas été trouvé dans la base de données.");
+        appAlert("Introuvable", "Ce produit n'a pas été trouvé dans la base de données.");
       }
     } catch (e) {
       console.error(e);
@@ -164,7 +166,7 @@ export const FoodSearchModal: React.FC = () => {
     if (!permission?.granted) {
       const { granted } = await requestPermission();
       if (!granted) {
-        Alert.alert("Permission requise", "L'accès à la caméra est nécessaire pour scanner.");
+        appAlert("Permission requise", "L'accès à la caméra est nécessaire pour scanner.");
         return;
       }
     }
@@ -176,7 +178,7 @@ export const FoodSearchModal: React.FC = () => {
     if (!(await useConsentStore.getState().ensureAIConsent())) return;
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
     if (!permissionResult.granted) {
-      Alert.alert("Permission requise", "L'accès à l'appareil photo est nécessaire.");
+      appAlert("Permission requise", "L'accès à l'appareil photo est nécessaire.");
       return;
     }
 
@@ -257,7 +259,7 @@ export const FoodSearchModal: React.FC = () => {
       setAiParsedMeal(matchedArray);
       setMode('ai-review');
     } else {
-      Alert.alert("Erreur", "L'IA n'a pas pu analyser cette demande.");
+      appAlert("Erreur", "L'IA n'a pas pu analyser cette demande.");
     }
   };
   const confirmAIMeal = async () => {
@@ -385,9 +387,9 @@ export const FoodSearchModal: React.FC = () => {
   };
 
   const handleDeleteSavedMeal = (id: string, name: string) => {
-    Alert.alert(
+    appAlert(
       'Supprimer ce repas',
-      `Voulez-vous supprimer le repas sauvegardé "${name}" ?`,
+      `Le repas enregistré « ${name} » sera supprimé.`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -553,6 +555,7 @@ export const FoodSearchModal: React.FC = () => {
 
   return (
     <Modal visible={isSearchModalOpen} animationType="slide" presentationStyle="pageSheet">
+      <FeedbackHost />
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.backdrop }]}>
         <GlowBackground />
         

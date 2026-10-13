@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView,} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -21,6 +21,8 @@ import SprintyHistoryModal from '../../src/components/SprintyHistoryModal';
 import { useKeyboardOffset } from '../../src/shared/hooks/useKeyboardOffset';
 import { GlowBackground } from '../../src/shared/components/GlowBackground';
 import { PressableScale } from '../../src/shared/components/PressableScale';
+
+import { appAlert } from '../../src/shared/feedback/appAlert';
 
 const BLUE = theme.colors.sprintyBlue;
 const BLUE_TINT = 'rgba(0, 105, 232, 0.1)';
@@ -177,7 +179,7 @@ export default function AthleteMessageScreen() {
 
   const openActions = (msg: ChatMessage, isLastAssistant: boolean) => {
     const text = msg.content.replace(PROPOSAL_REGEX, '').trim();
-    Alert.alert('Message', undefined, [
+    appAlert('Message', undefined, [
       {
         text: 'Copier',
         onPress: () => {

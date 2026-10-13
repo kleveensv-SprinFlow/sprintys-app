@@ -2,7 +2,9 @@ import { create } from 'zustand';
 import { checkInService, CheckInData, PainInfo } from '../services/checkInService';
 import { useSprintyStore } from './sprintyStore';
 import { useAuthStore } from './authStore';
-import { Alert } from 'react-native';
+import {} from 'react-native';
+import { appAlert } from '../shared/feedback/appAlert';
+
 const localDay = () => {
   const d = new Date();
   const p = (n: number) => String(n).padStart(2, '0');
@@ -182,7 +184,7 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
       return true;
     } catch (error) {
       console.error(error);
-      Alert.alert('Check-in', 'Impossible d’enregistrer pour le moment.');
+      appAlert('Check-in', 'Impossible d’enregistrer pour le moment.');
       set({ isLoading: false });
       return false;
     }

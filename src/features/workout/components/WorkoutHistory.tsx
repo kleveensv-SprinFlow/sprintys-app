@@ -17,7 +17,7 @@ export const WorkoutHistory: React.FC = React.memo(() => {
     return (
       <EmptyState 
         title="Aucune séance" 
-        message="Vous n'avez pas encore de séances enregistrées. Votre progression s'affichera ici dès la fin de votre premier entraînement." 
+        message="Aucune séance enregistrée pour l’instant. Ta progression s’affichera ici dès ton premier entraînement." 
       />
     );
   }

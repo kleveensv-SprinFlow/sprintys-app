@@ -1,142 +1,103 @@
 import React, { useEffect, useRef } from 'react';
-import { 
-  Animated, 
-  Text, 
-  StyleSheet, 
-  View, 
-  Dimensions 
-} from 'react-native';
+import { Animated, Text, StyleSheet, View, PanResponder, Pressable, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 import { useSprintyStore, SprintyStatus } from '../../store/sprintyStore';
 import { theme } from '../../core/theme';
-import { GlassView } from '../../shared/components/GlassView';
-import { GlowView } from '../../shared/components/GlowView';
 
-const { width } = Dimensions.get('window');
+const TONES: Partial<Record<SprintyStatus, { color: string; tint: string; icon: keyof typeof Feather.glyphMap }>> = {
+  success: { color: '#10B981', tint: 'rgba(16, 185, 129, 0.14)', icon: 'check' },
+  error: { color: '#EF4444', tint: 'rgba(239, 68, 68, 0.12)', icon: 'alert-circle' },
+  warning: { color: '#F59E0B', tint: 'rgba(245, 158, 11, 0.14)', icon: 'alert-triangle' },
+  info: { color: '#0069E8', tint: 'rgba(0, 105, 232, 0.12)', icon: 'info' },
+  active: { color: '#0069E8', tint: 'rgba(0, 105, 232, 0.12)', icon: 'zap' },
+};
 
+/** Global toast. Rendered by FeedbackHost so it also shows above open modals. */
 export const SprintyFeedback: React.FC = () => {
-  const { status, message, isVisible } = useSprintyStore();
+  const { status, message, title, isVisible, hide } = useSprintyStore();
   const insets = useSafeAreaInsets();
-  const slideAnim = useRef(new Animated.Value(-100)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const shown = isVisible || status === 'active';
+  const enter = useRef(new Animated.Value(0)).current;
+  const drag = useRef(new Animated.Value(0)).current;
+  const pop = useRef(new Animated.Value(1)).current;
+  // Keep the last content while the toast slides out
+  const last = useRef<{ status: SprintyStatus; title: string | null; message: string | null } | null>(null);
+  if (shown) last.current = { status, title, message };
 
   useEffect(() => {
-    if (status === 'active') {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 0.9,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-    } else {
-      pulseAnim.setValue(1);
+    if (shown) {
+      drag.setValue(0);
+      pop.setValue(0.4);
+      Animated.spring(pop, { toValue: 1, useNativeDriver: true, speed: 10, bounciness: 14, delay: 90 } as any).start();
     }
-  }, [status]);
+    Animated.spring(enter, {
+      toValue: shown ? 1 : 0,
+      useNativeDriver: true,
+      speed: shown ? 16 : 22,
+      bounciness: shown ? 7 : 0,
+    }).start();
+  }, [shown, message, title]);
 
-  useEffect(() => {
-    if (isVisible || status === 'active') {
-      Animated.parallel([
-        Animated.spring(slideAnim, {
-          toValue: Math.max(insets.top, 20) + 10,
-          useNativeDriver: true,
-          tension: 40,
-          friction: 8,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: -100,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [isVisible, status, insets.top]);
+  // Swipe up to dismiss
+  const pan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dy) > 6,
+      onPanResponderMove: (_e, g) => drag.setValue(Math.min(0, g.dy)),
+      onPanResponderRelease: (_e, g) => {
+        if (g.dy < -24 || g.vy < -0.4) useSprintyStore.getState().hide();
+        else Animated.spring(drag, { toValue: 0, useNativeDriver: true }).start();
+      },
+    }),
+  ).current;
 
-  if (!isVisible && status === 'idle') return null;
-
-  const getStatusColor = (s: SprintyStatus) => {
-    switch (s) {
-      case 'success': return '#10B981'; // Emerald 500 for better visibility
-      case 'error': return theme.colors.error;
-      case 'warning': return theme.colors.warning;
-      case 'active': return theme.colors.text;
-      case 'info': return '#3B82F6'; // Blue 500
-      default: return theme.colors.textSecondary;
-    }
-  };
-
-  const getBgColor = (s: SprintyStatus) => {
-    switch (s) {
-      case 'success': return '#D1FAE5'; // Emerald 100
-      case 'error': return '#FEE2E2'; // Red 100
-      case 'warning': return '#FEF3C7'; // Amber 100
-      case 'info': return '#DBEAFE'; // Blue 100
-      case 'active': return theme.colors.surface;
-      default: return theme.colors.surface;
-    }
-  };
-
-  const getTextColor = (s: SprintyStatus) => {
-    switch (s) {
-      case 'success': return '#065F46'; // Emerald 900
-      case 'error': return '#991B1B'; // Red 900
-      case 'warning': return '#92400E'; // Amber 900
-      case 'info': return '#1E3A8A'; // Blue 900
-      case 'active': return theme.colors.text;
-      default: return theme.colors.text;
-    }
-  };
+  if (!last.current) return null;
+  const view = last.current;
+  const tone = TONES[view.status] ?? TONES.info!;
+  const body = view.message || (view.status === 'active' ? 'Sprinty analyse tes données…' : '');
 
   return (
-    <Animated.View 
+    <Animated.View
+      pointerEvents={shown ? 'box-none' : 'none'}
       style={[
-        styles.container, 
-        { 
+        styles.container,
+        {
+          top: Math.max(insets.top, 12) + 8,
+          opacity: enter,
           transform: [
-            { translateY: slideAnim },
-            { scale: pulseAnim }
+            { translateY: Animated.add(enter.interpolate({ inputRange: [0, 1], outputRange: [-90, 0] }), drag) },
+            { scale: enter.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] }) },
           ],
-          opacity: opacityAnim 
-        }
+        },
       ]}
+      {...pan.panHandlers}
     >
-      <View style={[styles.solidContainer, { backgroundColor: getBgColor(status), borderColor: getStatusColor(status) + '40' }]}>
-        <View style={styles.content}>
-          <View style={[styles.indicator, { backgroundColor: getStatusColor(status) }]} />
-          <View style={styles.textContainer}>
-            <Text style={[styles.statusLabel, { color: getStatusColor(status) }]}>
-              {status === 'active' ? 'ANALYSE EN COURS...' : 
-               status === 'info' ? 'INFORMATION' : 
-               status.toUpperCase()}
+      <Pressable
+        onPress={view.status === 'active' ? undefined : hide}
+        style={styles.card}
+        accessibilityRole="alert"
+        accessibilityLiveRegion="polite"
+      >
+        <Animated.View style={[styles.icon, { backgroundColor: tone.tint, transform: [{ scale: pop }] }]}>
+          {view.status === 'active' ? (
+            <ActivityIndicator size="small" color={tone.color} />
+          ) : (
+            <Feather name={tone.icon} size={18} color={tone.color} />
+          )}
+        </Animated.View>
+        <View style={styles.text}>
+          {!!view.title && (
+            <Text style={styles.title} numberOfLines={2}>
+              {view.title}
             </Text>
-            {message && <Text style={[styles.messageText, { color: getTextColor(status) }]}>{message}</Text>}
-            {status === 'active' && !message && (
-              <Text style={[styles.messageText, { color: getTextColor(status) }]}>Calcul de vos insights de performance...</Text>
-            )}
-          </View>
+          )}
+          {!!body && (
+            <Text style={[styles.message, !view.title && styles.messageAlone]} numberOfLines={4}>
+              {body}
+            </Text>
+          )}
         </View>
-      </View>
+      </Pressable>
     </Animated.View>
   );
 };
@@ -144,45 +105,35 @@ export const SprintyFeedback: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    alignSelf: 'center',
-    width: width * 0.9,
-    maxWidth: 400,
+    left: 16,
+    right: 16,
+    alignItems: 'center',
     zIndex: 9999,
-    elevation: 10,
+    elevation: 30,
   },
-  solidContainer: {
-    padding: theme.spacing.md,
-    borderRadius: 16,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  content: {
+  card: {
+    width: '100%',
+    maxWidth: 440,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingLeft: 12,
+    paddingRight: 16,
+    borderRadius: 20,
+    borderCurve: 'continuous',
+    backgroundColor: 'rgba(255, 255, 255, 0.97)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(15, 23, 42, 0.08)',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.14,
+    shadowRadius: 24,
+    elevation: 12,
   },
-  indicator: {
-    width: 4,
-    height: 30,
-    borderRadius: 2,
-    marginRight: theme.spacing.md,
-  },
-  textContainer: {
-    flex: 1,
-  },
-  statusLabel: {
-    color: theme.colors.textSecondary,
-    fontSize: 10,
-    fontWeight: theme.typography.fontWeights.bold as any,
-    letterSpacing: 1,
-    marginBottom: 2,
-  },
-  messageText: {
-    color: theme.colors.text,
-    fontSize: 14,
-    fontWeight: theme.typography.fontWeights.medium as any,
-  },
+  icon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  text: { flex: 1, gap: 1 },
+  title: { fontSize: 15, fontWeight: '800', color: theme.colors.text, letterSpacing: -0.2 },
+  message: { fontSize: 14, lineHeight: 19, color: theme.colors.textSecondary },
+  messageAlone: { fontSize: 15, fontWeight: '600', color: theme.colors.text },
 });

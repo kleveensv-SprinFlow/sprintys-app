@@ -1,8 +1,10 @@
 import { create } from 'zustand';
-import { Alert } from 'react-native';
+import {} from 'react-native';
 import { supabase } from '../../services/supabase';
 import { MealLog, MealType, MealDistribution } from '../../features/nutrition/types';
 import { useAuthStore } from '../authStore';
+
+import { appAlert } from '../../shared/feedback/appAlert';
 
 export const getLocalDateString = (d: Date = new Date()): string => {
   const year = d.getFullYear();
@@ -222,7 +224,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
 
     } catch (err: any) {
       set({ error: err.message, isLoading: false });
-      Alert.alert('Erreur', "Impossible d'enregistrer cet aliment : " + (err.message || 'Erreur réseau'));
+      appAlert('Erreur', "Impossible d'enregistrer cet aliment : " + (err.message || 'Erreur réseau'));
     }
   },
 
@@ -235,7 +237,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
       }));
     } catch (err: any) {
       set({ error: err.message });
-      Alert.alert('Erreur', "Impossible de supprimer cet aliment : " + (err.message || 'Erreur réseau'));
+      appAlert('Erreur', "Impossible de supprimer cet aliment : " + (err.message || 'Erreur réseau'));
     }
   },
 
@@ -253,7 +255,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
       }));
     } catch (err: any) {
       set({ error: err.message });
-      Alert.alert('Erreur', "Impossible de modifier cet aliment : " + (err.message || 'Erreur réseau'));
+      appAlert('Erreur', "Impossible de modifier cet aliment : " + (err.message || 'Erreur réseau'));
     }
   },
 
@@ -346,7 +348,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
       return true;
     } catch (err: any) {
       set({ error: err.message, isLoading: false });
-      Alert.alert('Erreur', "Impossible de copier le repas : " + (err.message || 'Erreur réseau'));
+      appAlert('Erreur', "Impossible de copier le repas : " + (err.message || 'Erreur réseau'));
       return false;
     }
   },
@@ -359,7 +361,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
 
     const currentLogs = get().mealLogs.filter((l) => l.meal_type === mealType);
     if (!currentLogs.length) {
-      Alert.alert('Repas vide', 'Ajoutez au moins un aliment avant de sauvegarder ce repas.');
+      appAlert('Repas vide', 'Ajoutez au moins un aliment avant de sauvegarder ce repas.');
       return false;
     }
 
@@ -395,7 +397,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
       return true;
     } catch (err: any) {
       set({ error: err.message, isLoading: false });
-      Alert.alert('Erreur', "Impossible de sauvegarder ce repas : " + (err.message || 'Erreur réseau'));
+      appAlert('Erreur', "Impossible de sauvegarder ce repas : " + (err.message || 'Erreur réseau'));
       return false;
     }
   },
@@ -409,7 +411,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
       }));
       return true;
     } catch (err: any) {
-      Alert.alert('Erreur', "Impossible de supprimer ce repas : " + (err.message || 'Erreur réseau'));
+      appAlert('Erreur', "Impossible de supprimer ce repas : " + (err.message || 'Erreur réseau'));
       return false;
     }
   },
@@ -422,7 +424,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
 
     const items = savedMeal.saved_meal_items || [];
     if (!items.length) {
-      Alert.alert('Repas vide', 'Ce repas sauvegardé ne contient aucun aliment.');
+      appAlert('Repas vide', 'Ce repas sauvegardé ne contient aucun aliment.');
       return false;
     }
 
@@ -468,7 +470,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
       return true;
     } catch (err: any) {
       set({ error: err.message, isLoading: false });
-      Alert.alert('Erreur', "Impossible d'ajouter ce repas : " + (err.message || 'Erreur réseau'));
+      appAlert('Erreur', "Impossible d'ajouter ce repas : " + (err.message || 'Erreur réseau'));
       return false;
     }
   },
@@ -534,7 +536,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
 
       return true;
     } catch (err: any) {
-      Alert.alert('Erreur', "Impossible d'ajouter cet aliment : " + (err.message || 'Erreur réseau'));
+      appAlert('Erreur', "Impossible d'ajouter cet aliment : " + (err.message || 'Erreur réseau'));
       return false;
     }
   }

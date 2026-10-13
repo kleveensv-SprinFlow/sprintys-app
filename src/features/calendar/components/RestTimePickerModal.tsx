@@ -12,6 +12,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import * as Haptics from 'expo-haptics';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 
 interface RestTimePickerModalProps {
   visible: boolean;
@@ -101,6 +102,7 @@ export const RestTimePickerModal: React.FC<RestTimePickerModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <FeedbackHost />
       <View style={styles.overlay}>
         <View style={[styles.modalCard, { backgroundColor: theme.colors.surface }]}>
           {/* Header */}

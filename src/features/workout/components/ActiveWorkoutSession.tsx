@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useWorkoutStore } from '../../../store/workoutStore';
 import { useSprintyStore } from '../../../store/sprintyStore';
 import { useInsightStore } from '../../../store/insightStore';
@@ -10,6 +10,8 @@ import { Feather } from '@expo/vector-icons';
 import { GlowBackground } from '../../../shared/components/GlowBackground';
 import { GlassTabBarBackground } from '../../../shared/components/GlassTabBarBackground';
 import { glassSurface, glassBar } from '../../../core/glass';
+
+import { appAlert } from '../../../shared/feedback/appAlert';
 
 export const ActiveWorkoutSession: React.FC = () => {
   const { activeSession, timer, tickTimer, addExercise, finishWorkout, cancelWorkout, isLoading } = useWorkoutStore();
@@ -34,16 +36,16 @@ export const ActiveWorkoutSession: React.FC = () => {
   };
 
   const handleFinish = async () => {
-    Alert.alert(
+    appAlert(
       "Terminer la séance",
-      "Voulez-vous enregistrer vos performances ?",
+      "Tes performances seront enregistrées.",
       [
         { text: "Annuler", style: "cancel" },
         { 
           text: "Enregistrer", 
           onPress: async () => {
             await finishWorkout();
-            showFeedback('success', 'Séance terminée ! Vos données sont synchronisées.');
+            showFeedback('success', 'Séance terminée, bravo ! Tes données sont enregistrées.');
             runAnalysis();
           }, 
           style: "default" 
@@ -77,7 +79,7 @@ export const ActiveWorkoutSession: React.FC = () => {
         <TouchableOpacity 
           style={styles.addExerciseBtn} 
           onPress={() => {
-            Alert.alert(
+            appAlert(
               "Ajouter un exercice libre",
               "Choisissez le type",
               [

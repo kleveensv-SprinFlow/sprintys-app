@@ -15,6 +15,7 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../../core/theme';
 import { workoutService } from '../../../services/workoutService';
 import { useSprintyStore } from '../../../store/sprintyStore';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 
 interface CopyWorkoutModalProps {
   visible: boolean;
@@ -246,6 +247,7 @@ export const CopyWorkoutModal: React.FC<CopyWorkoutModalProps> = ({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
+      <FeedbackHost />
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>

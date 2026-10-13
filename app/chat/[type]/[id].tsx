@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform,} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -15,6 +15,8 @@ import { PressableScale } from '../../../src/shared/components/PressableScale';
 import { formatDayLabel, isSameDay } from '../../../src/shared/utils/chatTime';
 import { moderationService, REPORT_REASONS, ReportReason } from '../../../src/services/moderationService';
 import { useSprintyStore } from '../../../src/store/sprintyStore';
+
+import { appAlert } from '../../../src/shared/feedback/appAlert';
 
 const BLUE = theme.colors.sprintyBlue;
 const BLUE_TINT = 'rgba(0, 105, 232, 0.1)';
@@ -179,7 +181,7 @@ export default function ChatScreen() {
   };
 
   const chooseReason = (onPick: (reason: ReportReason) => void) =>
-    Alert.alert('Signaler', 'Pourquoi signales-tu ce contenu ?', [
+    appAlert('Signaler', 'Pourquoi signales-tu ce contenu ?', [
       ...REPORT_REASONS.map((r) => ({ text: r, onPress: () => onPick(r) })),
       { text: 'Annuler', style: 'cancel' as const },
     ]);
@@ -190,7 +192,7 @@ export default function ChatScreen() {
   };
 
   const blockUser = (userId: string, name: string) =>
-    Alert.alert(`Bloquer ${name} ?`, 'Tu ne verras plus ses messages. Tu pourras le débloquer depuis cette conversation.', [
+    appAlert(`Bloquer ${name} ?`, 'Tu ne verras plus ses messages. Tu pourras le débloquer depuis cette conversation.', [
       { text: 'Annuler', style: 'cancel' },
       {
         text: 'Bloquer',
@@ -220,7 +222,7 @@ export default function ChatScreen() {
   /** Long press on someone else's message. */
   const messageActions = (item: ChatItem) => {
     const name = nameOf(item.sender_id);
-    Alert.alert(name, undefined, [
+    appAlert(name, undefined, [
       {
         text: 'Signaler le message',
         onPress: () => chooseReason((r) => sendReport({ reportedUserId: item.sender_id, messageId: item.id, excerpt: item.content }, r)),
@@ -234,7 +236,7 @@ export default function ChatScreen() {
   const report = () => {
     const otherId = type === 'direct' ? (id as string) : null;
     const otherName = (title as string) || 'cette personne';
-    Alert.alert('Options', undefined, [
+    appAlert('Options', undefined, [
       { text: 'Signaler la conversation', onPress: () => chooseReason((r) => sendReport({ reportedUserId: otherId ?? undefined }, r)) },
       ...(otherId
         ? blocked.has(otherId)
@@ -348,7 +350,7 @@ export default function ChatScreen() {
             <Text style={styles.emptyChatTitle}>{type === 'team' ? "Salon d'équipe" : 'Discussion directe'}</Text>
             <Text style={styles.emptyChatSubtitle}>
               {type === 'team'
-                ? "Échangez avec l'ensemble des athlètes, partagez les annonces de séances et organisez vos sondages d'équipe."
+                ? "Échange avec tous les athlètes, partage les annonces de séances et organise des sondages d’équipe."
                 : 'Envoyez un premier message.'}
             </Text>
             {user?.role === 'coach' && type === 'team' && (

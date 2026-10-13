@@ -4,6 +4,7 @@ import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../core/theme';
 import { useAuthStore } from '../../store/authStore';
 import { Input } from './Input';
+import { FeedbackHost } from '../feedback/FeedbackHost';
 
 interface Props {
   visible: boolean;
@@ -45,6 +46,7 @@ export const EditProfileModal = ({ visible, onClose }: Props) => {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <FeedbackHost />
       <View style={styles.overlay}>
         <KeyboardAvoidingView 
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}

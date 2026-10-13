@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   StatusBar,
@@ -21,6 +20,8 @@ import uuid from 'react-native-uuid';
 import { useAuthStore } from '../../../store/authStore';
 import { useCoachStore } from '../../../store/coach/coachStore';
 import { workoutService } from '../../../services/workoutService';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
+import { appAlert } from '../../../shared/feedback/appAlert';
 
 export interface TechnicalNoteItem {
   id: string;
@@ -179,18 +180,18 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
 
     const validNotes = notes.filter((n) => n.content.trim().length > 0);
     if (validNotes.length === 0) {
-      Alert.alert('Consigne requise', 'Veuillez saisir au moins une consigne technique.');
+      appAlert('Consigne requise', 'Veuillez saisir au moins une consigne technique.');
       return;
     }
 
     for (let i = 0; i < validNotes.length; i++) {
       const n = validNotes[i];
       if (n.targetType === 'subgroup' && !n.targetId) {
-        Alert.alert('Sous-groupe requis', `Veuillez sélectionner un sous-groupe pour la consigne #${i + 1}.`);
+        appAlert('Sous-groupe requis', `Veuillez sélectionner un sous-groupe pour la consigne #${i + 1}.`);
         return;
       }
       if (n.targetType === 'athlete' && !n.targetId) {
-        Alert.alert('Athlète requis', `Veuillez sélectionner un athlète pour la consigne #${i + 1}.`);
+        appAlert('Athlète requis', `Veuillez sélectionner un athlète pour la consigne #${i + 1}.`);
         return;
       }
     }
@@ -209,7 +210,7 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
       const payloadsToUpdate: any[] = [];
 
       if (approvedMembers.length === 0) {
-        Alert.alert('Aucun athlète', "Aucun athlète validé n'a été trouvé dans votre équipe.");
+        appAlert('Aucun athlète', "Aucun athlète validé n'a été trouvé dans votre équipe.");
         setIsSubmitting(false);
         return;
       }
@@ -254,7 +255,7 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
       }
 
       if (payloadsToUpdate.length === 0) {
-        Alert.alert(
+        appAlert(
           'Aucun athlète ciblé',
           "Aucun athlète de votre équipe ne correspond aux sous-groupes ou athlètes sélectionnés."
         );
@@ -269,7 +270,7 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
       onClose();
     } catch (err: any) {
       console.error('Erreur enregistrement séance technique:', err);
-      Alert.alert('Erreur', err?.message || "Impossible d'enregistrer la séance technique.");
+      appAlert('Erreur', err?.message || "Impossible d'enregistrer la séance technique.");
     } finally {
       setIsSubmitting(false);
     }
@@ -277,6 +278,7 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <FeedbackHost />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
           {/* Header */}

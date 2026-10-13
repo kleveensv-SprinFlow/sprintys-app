@@ -5,6 +5,7 @@ import { Feather } from '@expo/vector-icons';
 import { useCheckInStore } from '../../../store/checkInStore';
 import { useAuthStore } from '../../../store/authStore';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 
 interface SleepStepProps {
   onNext: () => void;
@@ -197,6 +198,7 @@ export const SleepStep = ({ onNext, onClose }: SleepStepProps) => {
 
       {/* Goal Update Modal */}
       <Modal visible={showGoalModal} transparent animationType="fade">
+        <FeedbackHost />
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
             <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Objectif de sommeil</Text>
@@ -237,6 +239,7 @@ export const SleepStep = ({ onNext, onClose }: SleepStepProps) => {
       {/* DateTimePicker for iOS (Modal) or Android */}
       {Platform.OS === 'ios' && showPicker && (
         <Modal transparent animationType="slide">
+          <FeedbackHost />
           <View style={styles.pickerOverlay}>
             <View style={[styles.pickerContainer, { backgroundColor: theme.colors.surface }]}>
               <View style={styles.pickerHeader}>

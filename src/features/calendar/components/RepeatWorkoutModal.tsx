@@ -19,6 +19,7 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../../core/theme';
 import { workoutService } from '../../../services/workoutService';
 import { useSprintyStore } from '../../../store/sprintyStore';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 
 interface RepeatWorkoutModalProps {
   visible: boolean;
@@ -75,7 +76,7 @@ export const RepeatWorkoutModal: React.FC<RepeatWorkoutModalProps> = ({
     
     const count = parseInt(counts[mode], 10);
     if (isNaN(count) || count <= 0) {
-      showFeedback('error', 'Veuillez entrer un nombre valide.');
+      showFeedback('error', 'Indique un nombre valide.');
       return;
     }
 
@@ -116,6 +117,7 @@ export const RepeatWorkoutModal: React.FC<RepeatWorkoutModalProps> = ({
       animationType="slide"
       presentationStyle="pageSheet"
     >
+      <FeedbackHost />
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <KeyboardAvoidingView 
           style={[styles.container, { backgroundColor: theme.colors.background }]} 

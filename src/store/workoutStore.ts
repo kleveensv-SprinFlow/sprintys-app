@@ -59,7 +59,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       const workout = await workoutService.fetchPendingWorkout(athleteId);
       set({ pendingWorkout: workout, isLoading: false });
     } catch (error) {
-      useSprintyStore.getState().showFeedback('error', "Impossible de récupérer votre séance planifiée.");
+      useSprintyStore.getState().showFeedback('error', "Impossible de récupérer ta séance prévue.");
       set({ isLoading: false });
     }
   },

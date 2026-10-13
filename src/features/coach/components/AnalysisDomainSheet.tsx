@@ -7,6 +7,7 @@ import {
   ALL_DOMAINS,
   getAthleteDomainAvailability,
 } from '../../../services/athleteAnalysisContext';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 
 export interface AnalysisAthlete {
   id: string;
@@ -71,6 +72,7 @@ export const AnalysisDomainSheet = ({ visible, athlete, onClose, onLaunch }: Pro
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <FeedbackHost />
       <View style={styles.overlay}>
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
         <View style={styles.sheet}>

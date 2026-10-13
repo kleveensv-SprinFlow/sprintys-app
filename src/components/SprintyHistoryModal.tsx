@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, FlatList, Alert } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, FlatList,} from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../core/theme';
 import { useSprintyChatStore, Conversation } from '../store/sprintyChatStore';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import { FeedbackHost } from '../shared/feedback/FeedbackHost';
+import { appAlert } from '../shared/feedback/appAlert';
 
 interface Props {
   visible: boolean;
@@ -25,7 +27,7 @@ export default function SprintyHistoryModal({ visible, onClose }: Props) {
     const pinnedCount = conversations.filter(c => c.isPinned).length;
     const canPin = conv.isPinned || pinnedCount < 3;
     
-    Alert.alert(
+    appAlert(
       "Options de la conversation",
       conv.title,
       [
@@ -58,6 +60,7 @@ export default function SprintyHistoryModal({ visible, onClose }: Props) {
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
+      <FeedbackHost />
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
           <View style={styles.header}>

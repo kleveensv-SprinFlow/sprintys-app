@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
   useWindowDimensions,
   Animated,
   Modal,
@@ -31,6 +30,8 @@ import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
 import { SegmentedControl } from '../../src/shared/components/SegmentedControl';
 import { PressableScale } from '../../src/shared/components/PressableScale';
 import { supabase } from '../../src/services/supabase';
+import { FeedbackHost } from '../../src/shared/feedback/FeedbackHost';
+import { appAlert } from '../../src/shared/feedback/appAlert';
 
 const BLUE_TINT = 'rgba(0, 105, 232, 0.1)';
 
@@ -199,7 +200,7 @@ export default function BodyCompositionScreen() {
   const confirmDelete = () => {
     const m = metrics.find((x) => x.id === editingId);
     if (!m?.id || !user?.id) return;
-    Alert.alert('Supprimer cette pesée ?', formatKg(m.weight) + ' kg', [
+    appAlert('Supprimer cette pesée ?', formatKg(m.weight) + ' kg', [
       { text: 'Annuler', style: 'cancel' },
       {
         text: 'Supprimer',
@@ -388,6 +389,7 @@ export default function BodyCompositionScreen() {
         </Animated.ScrollView>
 
         <Modal visible={sheet} transparent animationType="slide" onRequestClose={() => setSheet(false)} statusBarTranslucent>
+          <FeedbackHost />
           <KeyboardAvoidingView style={styles.sheetBackdrop} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             <Pressable style={{ flex: 1 }} onPress={() => setSheet(false)} />
             <View style={[styles.sheet, { backgroundColor: theme.colors.surface, paddingBottom: Math.max(insets.bottom, 16) }]}>
@@ -454,6 +456,7 @@ export default function BodyCompositionScreen() {
         </Modal>
 
         <Modal visible={goalSheet} transparent animationType="slide" onRequestClose={() => setGoalSheet(false)} statusBarTranslucent>
+          <FeedbackHost />
           <KeyboardAvoidingView style={styles.sheetBackdrop} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             <Pressable style={{ flex: 1 }} onPress={() => setGoalSheet(false)} />
             <View style={[styles.sheet, { backgroundColor: theme.colors.surface, paddingBottom: Math.max(insets.bottom, 16) }]}>

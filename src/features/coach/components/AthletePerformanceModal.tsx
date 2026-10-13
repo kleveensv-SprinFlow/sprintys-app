@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import { workoutService } from '../../../services/workoutService';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 
 interface AthletePerformanceModalProps {
   visible: boolean;
@@ -66,6 +67,7 @@ export const AthletePerformanceModal: React.FC<AthletePerformanceModalProps> = (
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <FeedbackHost />
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         {/* Header */}
         <View

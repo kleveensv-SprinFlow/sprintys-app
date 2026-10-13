@@ -7,6 +7,7 @@ import Slider from '@react-native-community/slider';
 import { useConsentStore } from '../../../store/consentStore';
 import { ConsentCheck } from '../../legal/ConsentCheck';
 import { CONSENT_TEXTS } from '../../../legal/consents';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 
 interface PainStepProps {
   onBack: () => void;
@@ -265,6 +266,7 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
 
 
       <Modal visible={!!selectedZone} transparent animationType="slide">
+        <FeedbackHost />
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
             <ScrollView showsVerticalScrollIndicator={false}>

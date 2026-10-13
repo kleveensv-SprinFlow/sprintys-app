@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   StatusBar,
@@ -32,6 +31,8 @@ import {
   MultiTargetSelectorModal,
   MultiTarget,
 } from '../../../shared/components/MultiTargetSelectorModal';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
+import { appAlert } from '../../../shared/feedback/appAlert';
 
 export interface StrengthSetItem {
   id: string;
@@ -428,12 +429,12 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
   const handleSaveExerciseToSession = () => {
     const trimmed = exerciseName.trim();
     if (!trimmed) {
-      Alert.alert('Exercice requis', "Veuillez choisir ou saisir le nom de l'exercice.");
+      appAlert('Exercice requis', "Veuillez choisir ou saisir le nom de l'exercice.");
       return;
     }
 
     if (setsData.length === 0) {
-      Alert.alert('Séries requises', 'Veuillez renseigner au moins 1 série.');
+      appAlert('Séries requises', 'Veuillez renseigner au moins 1 série.');
       return;
     }
 
@@ -509,7 +510,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
 
   // Coach Library Actions
   const handleDeleteFromLibrary = (ex: CoachExercise) => {
-    Alert.alert(
+    appAlert(
       'Supprimer de ma bibliothèque',
       `Supprimer « ${ex.name} » de votre bibliothèque personnelle de musculation ?`,
       [
@@ -546,7 +547,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
   // Submit and assign workout to Supabase
   const handleSaveWorkout = async () => {
     if (sessionExercises.length === 0) {
-      Alert.alert('Séance vide', "Veuillez ajouter au moins un exercice avant d'enregistrer.");
+      appAlert('Séance vide', "Veuillez ajouter au moins un exercice avant d'enregistrer.");
       return;
     }
 
@@ -595,13 +596,13 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
       const payloadsToUpdate: any[] = [];
 
       if (!activeTeamId) {
-        Alert.alert('Erreur', 'Aucune équipe trouvée.');
+        appAlert('Erreur', 'Aucune équipe trouvée.');
         setIsSubmitting(false);
         return;
       }
 
       if (approvedMembers.length === 0) {
-        Alert.alert(
+        appAlert(
           'Aucun athlète',
           "Aucun athlète validé n'a été trouvé dans votre équipe pour recevoir cette séance."
         );
@@ -667,14 +668,14 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
       }
 
       if (payloadsToUpdate.length === 0) {
-        Alert.alert('Attention', 'Aucun athlète ne correspond aux ciblages sélectionnés.');
+        appAlert('Attention', 'Aucun athlète ne correspond aux ciblages sélectionnés.');
         setIsSubmitting(false);
         return;
       }
 
       await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(
+      appAlert(
         'Séance enregistrée !',
         `La séance a été programmée pour ${payloadsToUpdate.length} athlète(s) de votre équipe.`
       );
@@ -683,7 +684,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
       onClose();
     } catch (err: any) {
       console.error('Erreur enregistrement musculation:', err);
-      Alert.alert(
+      appAlert(
         'Erreur',
         err.message || "Impossible d'enregistrer la séance. Veuillez réessayer."
       );
@@ -696,6 +697,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
+      <FeedbackHost />
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         {/* ========================================================================= */}
         {/* HEADER                                                                    */}
@@ -924,6 +926,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
           presentationStyle="pageSheet"
           onRequestClose={() => setIsExerciseSheetVisible(false)}
         >
+          <FeedbackHost />
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
               {/* Sheet Header */}
@@ -1165,6 +1168,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
           presentationStyle="formSheet"
           onRequestClose={() => setIsManageLibraryVisible(false)}
         >
+          <FeedbackHost />
           <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
             <View style={[styles.header, { paddingTop: safeTop, borderBottomColor: theme.colors.border }]}>
               <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Ma bibliothèque de musculation</Text>

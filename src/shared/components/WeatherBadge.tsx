@@ -15,6 +15,7 @@ import { theme } from '../../core/theme';
 import { GlassView } from './GlassView';
 import { BlurView } from 'expo-blur';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { FeedbackHost } from '../feedback/FeedbackHost';
 
 export const WeatherBadge: React.FC = () => {
   const { data, isLoading, error, updateWeather } = useWeatherStore();
@@ -93,6 +94,7 @@ export const WeatherBadge: React.FC = () => {
         animationType="slide"
         onRequestClose={() => setModalVisible(false)}
       >
+        <FeedbackHost />
         <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
           <View style={styles.modalOverlay}>
             <TouchableWithoutFeedback>

@@ -5,6 +5,7 @@ import { useTheme } from '../../../core/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { weatherAdviceService } from '../../../services/weatherAdviceService';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 
 interface Props {
   visible: boolean;
@@ -101,6 +102,7 @@ export const WeatherHubModal = ({ visible, onClose, currentWeather }: Props) => 
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
+      <FeedbackHost />
       <View style={styles.overlay}>
         <View style={[styles.content, { backgroundColor: theme.colors.surface }]}>
           
@@ -213,6 +215,7 @@ export const WeatherHubModal = ({ visible, onClose, currentWeather }: Props) => 
 
           {Platform.OS === 'ios' && showPicker && (
             <Modal transparent animationType="slide">
+              <FeedbackHost />
               <View style={styles.pickerOverlay}>
                 <View style={[styles.pickerContainer, { backgroundColor: theme.colors.surface }]}>
                   <View style={styles.pickerHeader}>

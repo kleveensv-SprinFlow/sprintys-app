@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -35,6 +34,8 @@ import {
   computeCalorieTarget,
   clampSessions,
 } from '../calorieTarget';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
+import { appAlert } from '../../../shared/feedback/appAlert';
 
 interface Props {
   visible: boolean;
@@ -175,7 +176,7 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
 
   const handleRecalculateKcal = () => {
     if (!preview) {
-      Alert.alert('Poids', 'Indique ton poids actuel pour calculer.');
+      appAlert('Poids', 'Indique ton poids actuel pour calculer.');
       return;
     }
     setKcalGoal(String(preview.target));
@@ -198,11 +199,11 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
 
   const handleSave = async () => {
     if (totalDist !== 100) {
-      Alert.alert('Répartition', `Les quatre repas doivent faire 100 %. Là, c’est ${totalDist} %.`);
+      appAlert('Répartition', `Les quatre repas doivent faire 100 %. Là, c’est ${totalDist} %.`);
       return;
     }
     if (!isWeeklyValid) {
-      Alert.alert('Rythme', 'Le rythme reste entre 0,25 et 1 kg par semaine.');
+      appAlert('Rythme', 'Le rythme reste entre 0,25 et 1 kg par semaine.');
       return;
     }
 
@@ -228,7 +229,7 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
       onClose();
     } catch (err) {
       console.error('Error saving nutrition settings:', err);
-      Alert.alert('Erreur', 'Impossible d’enregistrer. Réessaie dans un instant.');
+      appAlert('Erreur', 'Impossible d’enregistrer. Réessaie dans un instant.');
     } finally {
       setIsSaving(false);
     }
@@ -236,6 +237,7 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+      <FeedbackHost />
       <KeyboardAvoidingView
         style={[styles.container, { backgroundColor: GLASS_BACKDROP }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

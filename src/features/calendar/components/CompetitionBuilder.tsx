@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   StatusBar,
@@ -21,6 +20,8 @@ import uuid from 'react-native-uuid';
 import { useAuthStore } from '../../../store/authStore';
 import { useCoachStore } from '../../../store/coach/coachStore';
 import { workoutService } from '../../../services/workoutService';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
+import { appAlert } from '../../../shared/feedback/appAlert';
 
 export interface CompetitionBuilderProps {
   visible: boolean;
@@ -101,16 +102,16 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
     if (!user?.id) return;
 
     if (title.trim().length === 0) {
-      Alert.alert('Titre requis', 'Veuillez saisir le nom de la compétition.');
+      appAlert('Titre requis', 'Veuillez saisir le nom de la compétition.');
       return;
     }
 
     if (targetType === 'subgroup' && !targetId) {
-      Alert.alert('Sous-groupe requis', `Veuillez sélectionner un sous-groupe.`);
+      appAlert('Sous-groupe requis', `Veuillez sélectionner un sous-groupe.`);
       return;
     }
     if (targetType === 'athlete' && !targetId) {
-      Alert.alert('Athlète requis', `Veuillez sélectionner un athlète.`);
+      appAlert('Athlète requis', `Veuillez sélectionner un athlète.`);
       return;
     }
 
@@ -127,7 +128,7 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
       const payloadsToUpdate: any[] = [];
 
       if (approvedMembers.length === 0) {
-        Alert.alert('Aucun athlète', "Aucun athlète validé n'a été trouvé dans votre équipe.");
+        appAlert('Aucun athlète', "Aucun athlète validé n'a été trouvé dans votre équipe.");
         setIsSubmitting(false);
         return;
       }
@@ -163,7 +164,7 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
       }
 
       if (payloadsToUpdate.length === 0) {
-        Alert.alert(
+        appAlert(
           'Aucun athlète ciblé',
           "Aucun athlète de votre équipe ne correspond à la sélection."
         );
@@ -178,7 +179,7 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
       onClose();
     } catch (err: any) {
       console.error('Erreur enregistrement compétition:', err);
-      Alert.alert('Erreur', err?.message || "Impossible d'enregistrer la compétition.");
+      appAlert('Erreur', err?.message || "Impossible d'enregistrer la compétition.");
     } finally {
       setIsSubmitting(false);
     }
@@ -186,6 +187,7 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <FeedbackHost />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
           {/* Header */}

@@ -14,6 +14,7 @@ import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../core/theme';
 import * as Haptics from 'expo-haptics';
 import { useCoachStore } from '../../store/coach/coachStore';
+import { FeedbackHost } from '../feedback/FeedbackHost';
 
 export interface MultiTarget {
   subgroups: string[];
@@ -103,6 +104,7 @@ export const MultiTargetSelectorModal: React.FC<MultiTargetSelectorModalProps> =
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
+      <FeedbackHost />
       <KeyboardAvoidingView
         style={[styles.container, { backgroundColor: theme.colors.background }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

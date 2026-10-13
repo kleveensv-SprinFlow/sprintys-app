@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../src/core/theme';
@@ -8,6 +8,8 @@ import { useCoachStore } from '../../src/store/coach/coachStore';
 import { GlassScreen } from '../../src/shared/components/GlassScreen';
 import { glassSurface } from '../../src/core/glass';
 import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
+
+import { appAlert } from '../../src/shared/feedback/appAlert';
 
 export default function CoachLibraryScreen() {
   const theme = useTheme();
@@ -20,7 +22,7 @@ export default function CoachLibraryScreen() {
   }, []);
 
   const handleDelete = (id: string, name: string) => {
-    Alert.alert(
+    appAlert(
       "Supprimer le modèle",
       `Êtes-vous sûr de vouloir supprimer "${name}" ?`,
       [
@@ -92,7 +94,7 @@ export default function CoachLibraryScreen() {
                   style={[styles.useBtn, { backgroundColor: theme.colors.accent }]}
                   onPress={() => {
                     // TODO: Insert flow
-                    Alert.alert('Bientôt', 'L\'importation de ce modèle dans le calendrier sera activée dans la prochaine étape.');
+                    appAlert('Bientôt', 'L\'importation de ce modèle dans le calendrier sera activée dans la prochaine étape.');
                   }}
                 >
                   <Text style={styles.useBtnText}>Utiliser</Text>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Platform, StatusBar, Alert, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Platform, StatusBar, TextInput, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -12,6 +12,8 @@ import { supabase } from '../../../services/supabase';
 import { AthleteValueKeypadModal } from './AthleteValueKeypadModal';
 import { CopyWorkoutModal } from './CopyWorkoutModal';
 import { RepeatWorkoutModal } from './RepeatWorkoutModal';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
+import { appAlert } from '../../../shared/feedback/appAlert';
 
 interface WorkoutDetailModalProps {
   visible: boolean;
@@ -224,9 +226,9 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
 
   const handleDelete = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert(
+    appAlert(
       'Supprimer la séance',
-      'Voulez-vous vraiment supprimer cette séance ?',
+      'Cette séance sera supprimée du calendrier.',
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -316,7 +318,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onUpdated?.();
 
-      Alert.alert(
+      appAlert(
         'Données enregistrées ! ✓',
         isValidated
           ? 'Tes modifications ont été mises à jour avec succès.'
@@ -324,7 +326,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
       );
     } catch (e: any) {
       console.error('Error submitting athlete workout:', e);
-      Alert.alert('Erreur', e?.message || 'Impossible de valider la séance.');
+      appAlert('Erreur', e?.message || 'Impossible de valider la séance.');
     } finally {
       setIsSubmitting(false);
     }
@@ -418,6 +420,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <FeedbackHost />
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={[styles.header, { paddingTop: safeTop }]}>
           <TouchableOpacity onPress={onClose} style={[styles.closeButton, { backgroundColor: theme.colors.surfaceLight }]}>

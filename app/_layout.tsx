@@ -5,7 +5,7 @@ import { useAuthStore } from '../src/store/authStore';
 import { useConsentStore } from '../src/store/consentStore';
 import { requiredConsents } from '../src/legal/consents';
 import { useTheme } from '../src/core/theme';
-import { SprintyFeedback } from '../src/features/sprinty/SprintyFeedback';
+import { FeedbackHost } from '../src/shared/feedback/FeedbackHost';
 import { View, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AppErrorScreen } from '../src/shared/components/AppErrorScreen';
@@ -104,9 +104,9 @@ export default function RootLayout() {
         <Stack.Screen name="index" />
         <Stack.Screen name="legal/[doc]" options={{ presentation: 'modal' }} />
       </Stack>
-      <SprintyFeedback />
       <OfflineBanner />
       <AIConsentSheet />
+      <FeedbackHost />
     </View>
   );
 }

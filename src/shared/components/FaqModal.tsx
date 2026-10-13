@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../core/theme';
+import { FeedbackHost } from '../feedback/FeedbackHost';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -84,6 +85,7 @@ export const FaqModal = ({ visible, onClose }: Props) => {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <FeedbackHost />
       <View style={styles.overlay}>
         <View style={[styles.content, { backgroundColor: '#FFFFFF' }]}>
           {/* Header */}

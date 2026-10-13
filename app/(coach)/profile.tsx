@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Constants from 'expo-constants';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Linking, Image, Modal, ActivityIndicator, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Linking, Image, Modal, ActivityIndicator, Animated } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -17,6 +17,8 @@ import { glassSurface } from '../../src/core/glass';
 import { GlassSheen } from '../../src/shared/components/GlassSheen';
 import { FrostedBar } from '../../src/shared/components/FrostedBar';
 import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
+import { FeedbackHost } from '../../src/shared/feedback/FeedbackHost';
+import { appAlert } from '../../src/shared/feedback/appAlert';
 
 function base64ToUint8Array(base64: string): Uint8Array {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
@@ -77,7 +79,7 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = async () => {
-    Alert.alert('Déconnexion', 'Es-tu sûr de vouloir te déconnecter ?', [
+    appAlert('Déconnexion', 'Es-tu sûr de vouloir te déconnecter ?', [
       { text: 'Annuler', style: 'cancel' },
       {
         text: 'Se déconnecter',
@@ -91,7 +93,7 @@ export default function ProfileScreen() {
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
+    appAlert(
       'Supprimer mon compte',
       'ATTENTION : Cette action est irréversible. Toutes tes données seront définitivement supprimées.\n\nEs-tu absolument certain de vouloir continuer ?',
       [
@@ -107,7 +109,7 @@ export default function ProfileScreen() {
               router.replace('/(auth)/login');
             } catch (err) {
               console.error('Error deleting account:', err);
-              Alert.alert('Erreur', 'Impossible de supprimer le compte pour le moment.');
+              appAlert('Erreur', 'Impossible de supprimer le compte pour le moment.');
             }
           },
         },
@@ -127,9 +129,9 @@ export default function ProfileScreen() {
       }
 
       if (!permission.granted) {
-        Alert.alert(
+        appAlert(
           'Permission requise',
-          'Veuillez autoriser l\'accès pour pouvoir sélectionner ou prendre une photo de profil.'
+          'Autorise l’accès dans les réglages de ton téléphone pour choisir ou prendre une photo.'
         );
         return;
       }
@@ -152,7 +154,7 @@ export default function ProfileScreen() {
       }
     } catch (err) {
       console.error('Error selecting image:', err);
-      Alert.alert('Erreur', 'Impossible de sélectionner l\'image.');
+      appAlert('Erreur', 'Impossible de sélectionner l\'image.');
     }
   };
 
@@ -187,10 +189,10 @@ export default function ProfileScreen() {
       await updateProfile({ avatarUrl: publicUrl });
       setIsConfirmModalVisible(false);
       setPendingImage(null);
-      Alert.alert('Succès 🎉', 'Votre photo de profil a été mise à jour !');
+      appAlert('Photo mise à jour', 'Ta nouvelle photo de profil est en place.');
     } catch (err: any) {
       console.error('Error uploading avatar:', err);
-      Alert.alert('Erreur', 'Impossible de mettre à jour la photo de profil.');
+      appAlert('Erreur', 'Impossible de mettre à jour la photo de profil.');
     } finally {
       setIsUploadingPhoto(false);
     }
@@ -198,9 +200,9 @@ export default function ProfileScreen() {
 
   const handleRemovePhoto = () => {
     setIsPhotoSheetVisible(false);
-    Alert.alert(
+    appAlert(
       'Supprimer la photo',
-      'Êtes-vous sûr de vouloir supprimer votre photo de profil ?',
+      'Ta photo de profil sera retirée.',
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -208,7 +210,7 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             await updateProfile({ avatarUrl: null });
-            Alert.alert('Photo supprimée', 'Votre photo de profil a été retirée.');
+            appAlert('Photo supprimée', 'Ta photo de profil a été retirée.');
           },
         },
       ]
@@ -313,7 +315,7 @@ export default function ProfileScreen() {
               title="Retirer l’accord pour l’IA"
               onPress={async () => {
                 const ok = await useConsentStore.getState().revoke('ai_processing');
-                Alert.alert(ok ? 'Accord retiré' : 'Erreur', ok ? 'Sprinty est désactivé jusqu’à ce que tu le réactives.' : 'Réessaie dans un instant.');
+                appAlert(ok ? 'Accord retiré' : 'Erreur', ok ? 'Sprinty est désactivé jusqu’à ce que tu le réactives.' : 'Réessaie dans un instant.');
               }}
             />
           )}
@@ -324,7 +326,7 @@ export default function ProfileScreen() {
               try {
                 await exportMyData();
               } catch {
-                Alert.alert('Erreur', 'Impossible d’exporter tes données pour le moment.');
+                appAlert('Erreur', 'Impossible d’exporter tes données pour le moment.');
               }
             }}
           />
@@ -349,6 +351,7 @@ export default function ProfileScreen() {
 
       {/* MODAL 1 : Choix Camera / Galerie */}
       <Modal visible={isPhotoSheetVisible} transparent animationType="fade" onRequestClose={() => setIsPhotoSheetVisible(false)}>
+        <FeedbackHost />
         <TouchableOpacity style={styles.sheetOverlay} activeOpacity={1} onPress={() => setIsPhotoSheetVisible(false)}>
           <View style={styles.sheetContent}>
             <View style={styles.sheetHandle} />
@@ -386,6 +389,7 @@ export default function ProfileScreen() {
 
       {/* MODAL 2 : Aperçu & Confirmation */}
       <Modal visible={isConfirmModalVisible} transparent animationType="slide" onRequestClose={() => setIsConfirmModalVisible(false)}>
+        <FeedbackHost />
         <View style={styles.confirmOverlay}>
           <View style={styles.confirmCard}>
             <Text style={styles.confirmTitle}>Aperçu de la photo</Text>

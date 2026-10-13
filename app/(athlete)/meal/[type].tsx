@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Animated } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -20,6 +20,8 @@ import { Header } from '../../../src/shared/components/Header';
 import { PressableScale } from '../../../src/shared/components/PressableScale';
 import { useFrostedHeader } from '../../../src/shared/hooks/useFrostedHeader';
 
+import { FeedbackHost } from '../../../src/shared/feedback/FeedbackHost';
+import { appAlert } from '../../../src/shared/feedback/appAlert';
 
 export default function MealDetailScreen() {
   const params = useLocalSearchParams<{ type: MealType; athleteId?: string; readonly?: string }>();
@@ -94,7 +96,7 @@ export default function MealDetailScreen() {
     if (ok) {
       setShowSaveModal(false);
       setSavedTemplateName('');
-      Alert.alert('Repas enregistré', 'Tu le retrouveras dans « Mes repas » au moment d\'ajouter un aliment.');
+      appAlert('Repas enregistré', 'Tu le retrouveras dans « Mes repas » au moment d\'ajouter un aliment.');
     }
   };
 
@@ -129,9 +131,9 @@ export default function MealDetailScreen() {
 
   const handleDeleteFood = (log: MealLog) => {
     if (readonly) return;
-    Alert.alert(
+    appAlert(
       'Supprimer l\'aliment',
-      `Voulez-vous retirer "${log.custom_food_name || 'cet aliment'}" de votre repas ?`,
+      `« ${log.custom_food_name || 'Cet aliment'} » sera retiré de ce repas.`,
       [
         { text: 'Annuler', style: 'cancel' },
         { 
@@ -332,6 +334,7 @@ export default function MealDetailScreen() {
 
       {/* MODAL D'ÉDITION DE PORTION */}
       <Modal visible={!!editingLog} transparent animationType="fade">
+        <FeedbackHost />
         <TouchableWithoutFeedback onPress={() => setEditingLog(null)}>
           <View style={styles.modalOverlay}>
             <TouchableWithoutFeedback>
@@ -394,6 +397,7 @@ export default function MealDetailScreen() {
 
       {/* MODAL DE SAUVEGARDE DE REPAS TYPE */}
       <Modal visible={showSaveModal} transparent animationType="fade">
+        <FeedbackHost />
         <TouchableWithoutFeedback onPress={() => setShowSaveModal(false)}>
           <View style={styles.modalOverlay}>
             <TouchableWithoutFeedback>

@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import Constants from 'expo-constants';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal, Image, ActivityIndicator, Linking, Share, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Image, ActivityIndicator, Linking, Share, Animated } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -18,6 +18,8 @@ import { glassSurface } from '../../src/core/glass';
 import { GlassSheen } from '../../src/shared/components/GlassSheen';
 import { FrostedBar } from '../../src/shared/components/FrostedBar';
 import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
+import { FeedbackHost } from '../../src/shared/feedback/FeedbackHost';
+import { appAlert } from '../../src/shared/feedback/appAlert';
 
 // Helper to convert base64 to Uint8Array for binary upload
 function base64ToUint8Array(base64: string): Uint8Array {
@@ -89,7 +91,7 @@ export default function SettingsScreen() {
     try {
       await exportMyData();
     } catch(err) {
-      Alert.alert('Erreur', "Impossible d'exporter les données.");
+      appAlert('Erreur', "Impossible d'exporter les données.");
     }
   };
 
@@ -97,21 +99,21 @@ export default function SettingsScreen() {
   const aiConsent = useConsentStore((st) => !!st.active?.has('ai_processing'));
 
   const handleRevokeAI = () => {
-    Alert.alert('Retirer l’accord pour l’IA', 'Sprinty, l’analyse de repas et les conseils météo seront désactivés jusqu’à ce que tu les réactives.', [
+    appAlert('Retirer l’accord pour l’IA', 'Sprinty, l’analyse de repas et les conseils météo seront désactivés jusqu’à ce que tu les réactives.', [
       { text: 'Annuler', style: 'cancel' },
       {
         text: 'Retirer',
         style: 'destructive',
         onPress: async () => {
           const ok = await useConsentStore.getState().revoke('ai_processing');
-          Alert.alert(ok ? 'Accord retiré' : 'Erreur', ok ? 'C’est enregistré.' : 'Réessaie dans un instant.');
+          appAlert(ok ? 'Accord retiré' : 'Erreur', ok ? 'C’est enregistré.' : 'Réessaie dans un instant.');
         },
       },
     ]);
   };
 
   const handleRevokeHealth = () => {
-    Alert.alert(
+    appAlert(
       'Retirer l’accord',
       'Les prochaines douleurs ne seront plus enregistrées. Celles déjà notées restent.',
       [
@@ -121,7 +123,7 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             const ok = await useConsentStore.getState().revoke('health_data');
-            Alert.alert(ok ? 'Accord retiré' : 'Erreur', ok ? 'C’est enregistré.' : 'Réessaie dans un instant.');
+            appAlert(ok ? 'Accord retiré' : 'Erreur', ok ? 'C’est enregistré.' : 'Réessaie dans un instant.');
           },
         },
       ]
@@ -129,7 +131,7 @@ export default function SettingsScreen() {
   };
 
   const handleLogout = async () => {
-    Alert.alert('Déconnexion', 'Es-tu sûr de vouloir te déconnecter ?', [
+    appAlert('Déconnexion', 'Es-tu sûr de vouloir te déconnecter ?', [
       { text: 'Annuler', style: 'cancel' },
       { 
         text: 'Se déconnecter', 
@@ -143,7 +145,7 @@ export default function SettingsScreen() {
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
+    appAlert(
       'Supprimer mon compte',
       'ATTENTION : Cette action est irréversible. Toutes tes données seront définitivement supprimées.\n\nEs-tu absolument certain de vouloir continuer ?',
       [
@@ -159,7 +161,7 @@ export default function SettingsScreen() {
               router.replace('/(auth)/login');
             } catch (err) {
               console.error('Error deleting account:', err);
-              Alert.alert('Erreur', 'Impossible de supprimer le compte pour le moment.');
+              appAlert('Erreur', 'Impossible de supprimer le compte pour le moment.');
             }
           }
         },
@@ -179,9 +181,9 @@ export default function SettingsScreen() {
       }
 
       if (!permission.granted) {
-        Alert.alert(
+        appAlert(
           'Permission requise',
-          'Veuillez autoriser l\'accès pour pouvoir sélectionner ou prendre une photo de profil.'
+          'Autorise l’accès dans les réglages de ton téléphone pour choisir ou prendre une photo.'
         );
         return;
       }
@@ -204,7 +206,7 @@ export default function SettingsScreen() {
       }
     } catch (err) {
       console.error('Error selecting image:', err);
-      Alert.alert('Erreur', 'Impossible de sélectionner l\'image.');
+      appAlert('Erreur', 'Impossible de sélectionner l\'image.');
     }
   };
 
@@ -239,10 +241,10 @@ export default function SettingsScreen() {
       await updateProfile({ avatarUrl: publicUrl });
       setIsConfirmModalVisible(false);
       setPendingImage(null);
-      Alert.alert('Succès 🎉', 'Votre photo de profil a été mise à jour !');
+      appAlert('Photo mise à jour', 'Ta nouvelle photo de profil est en place.');
     } catch (err: any) {
       console.error('Error uploading avatar:', err);
-      Alert.alert('Erreur', 'Impossible de mettre à jour la photo de profil.');
+      appAlert('Erreur', 'Impossible de mettre à jour la photo de profil.');
     } finally {
       setIsUploadingPhoto(false);
     }
@@ -250,9 +252,9 @@ export default function SettingsScreen() {
 
   const handleRemovePhoto = () => {
     setIsPhotoSheetVisible(false);
-    Alert.alert(
+    appAlert(
       'Supprimer la photo',
-      'Êtes-vous sûr de vouloir supprimer votre photo de profil ?',
+      'Ta photo de profil sera retirée.',
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -260,7 +262,7 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             await updateProfile({ avatarUrl: null });
-            Alert.alert('Photo supprimée', 'Votre photo de profil a été retirée.');
+            appAlert('Photo supprimée', 'Ta photo de profil a été retirée.');
           }
         }
       ]
@@ -435,6 +437,7 @@ export default function SettingsScreen() {
         animationType="fade" 
         onRequestClose={() => setIsPhotoSheetVisible(false)}
       >
+        <FeedbackHost />
         <TouchableOpacity 
           style={styles.modalOverlay} 
           activeOpacity={1} 
@@ -503,11 +506,12 @@ export default function SettingsScreen() {
           }
         }}
       >
+        <FeedbackHost />
         <View style={styles.modalOverlay}>
           <View style={styles.confirmModalContent}>
             <Text style={styles.confirmModalTitle}>Aperçu de la photo</Text>
             <Text style={styles.confirmModalSubtitle}>
-              Voici le résultat de votre recadrage. Souhaitez-vous appliquer cette photo à votre profil ?
+              Voici ton recadrage. On l’utilise comme photo de profil ?
             </Text>
 
             <View style={styles.previewImageContainer}>

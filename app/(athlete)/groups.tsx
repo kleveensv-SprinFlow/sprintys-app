@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ActivityIndicator, ScrollView, Animated } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, ScrollView, Animated } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -15,6 +15,8 @@ import { FrostedBar } from '../../src/shared/components/FrostedBar';
 import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
 import { CoachSharingSheet } from '../../src/features/legal/CoachSharingSheet';
 import { useConsentStore } from '../../src/store/consentStore';
+
+import { appAlert } from '../../src/shared/feedback/appAlert';
 
 interface MyGroupData {
   team_id: string;
@@ -183,17 +185,17 @@ export default function GroupsScreen() {
       const { data, error: rpcError } = await supabase.rpc('join_team_by_code', { p_invite_code: code });
 
       if (rpcError || !data) {
-        Alert.alert('Erreur', rpcError?.message || 'Code invalide ou erreur serveur.');
+        appAlert('Erreur', rpcError?.message || 'Code invalide ou erreur serveur.');
         setIsJoining(false);
         return;
       }
       
-      Alert.alert('Demande envoyée ! 🚀', `Ta demande pour rejoindre "${data.team_name}" a été envoyée au coach. Tu seras notifié quand il t'acceptera.`);
+      appAlert('Demande envoyée ! 🚀', `Ta demande pour rejoindre "${data.team_name}" a été envoyée au coach. Tu seras notifié quand il t'acceptera.`);
       setInviteCode('');
       fetchMyGroup();
 
     } catch (err: any) {
-      Alert.alert('Erreur', 'Impossible d\'envoyer la demande. Réessaie plus tard.');
+      appAlert('Erreur', 'Impossible d\'envoyer la demande. Réessaie plus tard.');
       console.error(err);
     } finally {
       setIsJoining(false);
@@ -203,7 +205,7 @@ export default function GroupsScreen() {
   const handleLeaveGroup = async () => {
     if (!myGroup || !user?.id) return;
 
-    Alert.alert(
+    appAlert(
       'Quitter le groupe',
       `Es-tu sûr de vouloir quitter "${myGroup.team_name}" ? Tu conserveras l'historique de tes séances mais tu ne recevras plus les nouvelles planifications.`,
       [
@@ -220,9 +222,9 @@ export default function GroupsScreen() {
 
               if (error) throw error;
               setMyGroup(null);
-              Alert.alert('Terminé', 'Tu as quitté le groupe.');
+              appAlert('Terminé', 'Tu as quitté le groupe.');
             } catch (err: any) {
-              Alert.alert('Erreur', 'Impossible de quitter le groupe.');
+              appAlert('Erreur', 'Impossible de quitter le groupe.');
               console.error(err);
             }
           }
@@ -368,7 +370,7 @@ export default function GroupsScreen() {
                     params: { type: 'direct', id: myGroup.coach_id, title: `Coach ${myGroup.coach_name}` }
                   });
                 } else {
-                  Alert.alert('Information', 'Identifiant du coach indisponible.');
+                  appAlert('Information', 'Identifiant du coach indisponible.');
                 }
               }}
             >
@@ -393,7 +395,7 @@ export default function GroupsScreen() {
                     params: { type: 'team', id: myGroup.team_id, title: myGroup.team_name }
                   });
                 } else {
-                  Alert.alert('Information', 'Identifiant de l\'équipe indisponible.');
+                  appAlert('Information', 'Identifiant de l\'équipe indisponible.');
                 }
               }}
             >

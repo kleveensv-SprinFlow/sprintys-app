@@ -22,7 +22,7 @@ export const useBodyStore = create<BodyState>((set) => ({
       const data = await bodyService.fetchMetrics(athleteId);
       set({ metrics: data || [], isLoading: false });
     } catch (error) {
-      useSprintyStore.getState().showFeedback('error', "Impossible de charger vos données corporelles.");
+      useSprintyStore.getState().showFeedback('error', "Impossible de charger tes données corporelles.");
       set({ isLoading: false });
     }
   },

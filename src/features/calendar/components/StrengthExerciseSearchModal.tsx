@@ -20,6 +20,7 @@ import { supabase } from '../../../services/supabase';
 import { coachExerciseService, CoachExercise } from '../../../services/coachExerciseService';
 import { useAuthStore } from '../../../store/authStore';
 import * as Haptics from 'expo-haptics';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 
 export interface SelectedStrengthExercise {
   id?: string;
@@ -241,6 +242,7 @@ export const StrengthExerciseSearchModal: React.FC<StrengthExerciseSearchModalPr
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <FeedbackHost />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
           {/* Header */}

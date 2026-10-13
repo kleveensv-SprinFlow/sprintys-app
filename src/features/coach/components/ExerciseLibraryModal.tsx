@@ -7,6 +7,7 @@ import { Button } from '../../../shared/components/Button';
 import { Input } from '../../../shared/components/Input';
 import { supabase } from '../../../services/supabase';
 import { useAuthStore } from '../../../store/authStore';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 
 interface Props {
   blockId: string;
@@ -87,6 +88,7 @@ export const ExerciseLibraryModal: React.FC<Props> = ({ blockId, visible, onClos
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
+      <FeedbackHost />
       <View style={styles.overlay}>
         <View style={styles.content}>
           <View style={styles.header}>
@@ -134,7 +136,7 @@ export const ExerciseLibraryModal: React.FC<Props> = ({ blockId, visible, onClos
               <ActivityIndicator size="small" color={theme.colors.accent} style={{ marginTop: 20 }} />
             ) : filteredLibrary.length === 0 ? (
               <Text style={{ color: theme.colors.textMuted, textAlign: 'center', marginTop: 20 }}>
-                Aucun exercice dans votre bibliothèque.
+                Aucun exercice dans ta bibliothèque.
               </Text>
             ) : (
               filteredLibrary.map(ex => (

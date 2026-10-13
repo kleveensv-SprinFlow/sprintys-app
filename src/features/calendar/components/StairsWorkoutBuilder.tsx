@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   StatusBar,
@@ -24,6 +23,8 @@ import { useCoachStore } from '../../../store/coach/coachStore';
 import { workoutService } from '../../../services/workoutService';
 import { coachExerciseService, CoachExercise } from '../../../services/coachExerciseService';
 import { RestTimePickerModal } from './RestTimePickerModal';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
+import { appAlert } from '../../../shared/feedback/appAlert';
 
 interface StairsWorkoutBuilderProps {
   visible: boolean;
@@ -328,11 +329,11 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
   const handleSaveExerciseToSession = () => {
     const trimmed = exerciseName.trim();
     if (!trimmed) {
-      Alert.alert('Nom requis', "Veuillez indiquer le nom de l'exercice d'escalier.");
+      appAlert('Nom requis', "Veuillez indiquer le nom de l'exercice d'escalier.");
       return;
     }
     if (setsCount <= 0) {
-      Alert.alert('Séries requises', 'Veuillez renseigner au moins 1 série.');
+      appAlert('Séries requises', 'Veuillez renseigner au moins 1 série.');
       return;
     }
 
@@ -400,7 +401,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
 
   // Library actions
   const handleDeleteFromLibrary = (ex: CoachExercise) => {
-    Alert.alert(
+    appAlert(
       'Supprimer de ma bibliothèque',
       `Supprimer "${ex.name}" de votre bibliothèque d'escaliers ?`,
       [
@@ -454,7 +455,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
   // Submit and assign workout
   const handleSaveWorkout = async () => {
     if (sessionExercises.length === 0) {
-      Alert.alert(
+      appAlert(
         'Séance vide',
         "Veuillez ajouter au moins un exercice à la séance avant d'enregistrer."
       );
@@ -462,12 +463,12 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
     }
 
     if (targetType === 'subgroup' && !selectedSubgroupId) {
-      Alert.alert('Sous-groupe requis', 'Veuillez sélectionner un sous-groupe cible.');
+      appAlert('Sous-groupe requis', 'Veuillez sélectionner un sous-groupe cible.');
       return;
     }
 
     if (targetType === 'athlete' && !selectedAthleteId) {
-      Alert.alert('Athlète requis', 'Veuillez sélectionner un athlète cible.');
+      appAlert('Athlète requis', 'Veuillez sélectionner un athlète cible.');
       return;
     }
 
@@ -511,13 +512,13 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
 
       if (targetType === 'team') {
         if (!activeTeamId) {
-          Alert.alert('Erreur', 'Aucune équipe trouvée.');
+          appAlert('Erreur', 'Aucune équipe trouvée.');
           setIsSubmitting(false);
           return;
         }
 
         if (approvedMembers.length === 0) {
-          Alert.alert(
+          appAlert(
             'Aucun athlète',
             "Aucun athlète validé n'a été trouvé dans votre équipe pour recevoir cette séance."
           );
@@ -583,7 +584,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
         }
 
         if (payloadsToUpdate.length === 0) {
-          Alert.alert(
+          appAlert(
             'Information',
             'Aucun athlète ne correspond aux cibles choisies pour les exercices.'
           );
@@ -594,7 +595,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
       } else if (targetType === 'subgroup') {
         const subMembers = approvedMembers.filter((m) => m.subgroup_id === selectedSubgroupId);
         if (subMembers.length === 0) {
-          Alert.alert('Sous-groupe vide', "Aucun athlète validé n'est présent dans ce sous-groupe.");
+          appAlert('Sous-groupe vide', "Aucun athlète validé n'est présent dans ce sous-groupe.");
           setIsSubmitting(false);
           return;
         }
@@ -673,7 +674,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
       onClose();
     } catch (err: any) {
       console.error('Error saving stairs workout:', err);
-      Alert.alert('Erreur', err?.message || "Impossible d'enregistrer la séance. Veuillez réessayer.");
+      appAlert('Erreur', err?.message || "Impossible d'enregistrer la séance. Veuillez réessayer.");
     } finally {
       setIsSubmitting(false);
     }
@@ -689,6 +690,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <FeedbackHost />
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         {/* Top Header */}
         <View style={[styles.header, { paddingTop: safeTop, borderBottomColor: theme.colors.border }]}>
@@ -978,6 +980,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
           presentationStyle="pageSheet"
           onRequestClose={() => setIsExerciseSheetVisible(false)}
         >
+          <FeedbackHost />
           <KeyboardAvoidingView
             style={{ flex: 1 }}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -1304,6 +1307,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
           presentationStyle="formSheet"
           onRequestClose={() => setIsManageLibraryVisible(false)}
         >
+          <FeedbackHost />
           <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
             <View style={[styles.header, { paddingTop: safeTop, borderBottomColor: theme.colors.border }]}>
               <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Ma bibliothèque d'escaliers</Text>

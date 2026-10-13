@@ -8,6 +8,7 @@ import { theme } from '../../core/theme';
 import { PressableScale } from '../../shared/components/PressableScale';
 import { useConsentStore } from '../../store/consentStore';
 import { ConsentLink } from './ConsentCheck';
+import { FeedbackHost } from '../../shared/feedback/FeedbackHost';
 
 const POINTS: { icon: keyof typeof Feather.glyphMap; text: string }[] = [
   { icon: 'send', text: 'Ton message, ta photo ou ta description de repas, et un résumé de ton contexte sont envoyés à OpenAI (États-Unis) pour générer la réponse.' },
@@ -29,6 +30,7 @@ export function AIConsentSheet() {
 
   return (
     <Modal visible={open} transparent animationType="slide" onRequestClose={() => resolve(false)} statusBarTranslucent>
+      <FeedbackHost />
       <View style={styles.backdrop}>
         <Pressable style={{ flex: 1 }} onPress={() => resolve(false)} />
         <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 4 }]}>

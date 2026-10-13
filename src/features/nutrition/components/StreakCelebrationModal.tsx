@@ -6,6 +6,7 @@ import { useTheme, universalColors } from '../../../core/theme';
 import { useNutritionStore } from '../../../store/nutrition/nutritionStore';
 import { PressableScale } from '../../../shared/components/PressableScale';
 import { MEAL_ACCENT, MEAL_ACCENT_TINT } from '../nutritionTheme';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 
 const WEEK_DAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
@@ -60,6 +61,7 @@ export const StreakCelebrationModal = () => {
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={closeStreakCelebration} statusBarTranslucent>
+      <FeedbackHost />
       <Pressable style={styles.veil} onPress={closeStreakCelebration}>
         <Animated.View style={[styles.card, { backgroundColor: theme.colors.surface, opacity, transform: [{ scale }] }]}>
           {/* Card body swallows taps so only the veil closes */}

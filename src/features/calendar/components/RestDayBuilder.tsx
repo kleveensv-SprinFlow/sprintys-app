@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   StatusBar,
@@ -21,6 +20,8 @@ import uuid from 'react-native-uuid';
 import { useAuthStore } from '../../../store/authStore';
 import { useCoachStore } from '../../../store/coach/coachStore';
 import { workoutService } from '../../../services/workoutService';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
+import { appAlert } from '../../../shared/feedback/appAlert';
 
 export interface RestDayBuilderProps {
   visible: boolean;
@@ -111,13 +112,13 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
 
       if (targetType === 'team') {
         if (!activeTeamId) {
-          Alert.alert('Erreur', 'Aucune équipe trouvée.');
+          appAlert('Erreur', 'Aucune équipe trouvée.');
           setIsSubmitting(false);
           return;
         }
 
         if (approvedMembers.length === 0) {
-          Alert.alert('Aucun athlète', "Aucun athlète validé n'a été trouvé dans votre équipe.");
+          appAlert('Aucun athlète', "Aucun athlète validé n'a été trouvé dans votre équipe.");
           setIsSubmitting(false);
           return;
         }
@@ -144,7 +145,7 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
       } else if (targetType === 'subgroup') {
         const subMembers = approvedMembers.filter((m) => m.subgroup_id === selectedSubgroupId);
         if (subMembers.length === 0) {
-          Alert.alert('Sous-groupe vide', "Aucun athlète validé n'est présent dans ce sous-groupe.");
+          appAlert('Sous-groupe vide', "Aucun athlète validé n'est présent dans ce sous-groupe.");
           setIsSubmitting(false);
           return;
         }
@@ -186,7 +187,7 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
       onClose();
     } catch (err: any) {
       console.error('Erreur enregistrement jour de repos:', err);
-      Alert.alert('Erreur', err?.message || "Impossible d'enregistrer le jour de repos.");
+      appAlert('Erreur', err?.message || "Impossible d'enregistrer le jour de repos.");
     } finally {
       setIsSubmitting(false);
     }
@@ -194,6 +195,7 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <FeedbackHost />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

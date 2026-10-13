@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   StatusBar,
@@ -24,6 +23,8 @@ import { useCoachStore } from '../../../store/coach/coachStore';
 import { workoutService } from '../../../services/workoutService';
 import { RestTimePickerModal } from './RestTimePickerModal';
 import { MultiTargetSelectorModal, MultiTarget } from '../../../shared/components/MultiTargetSelectorModal';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
+import { appAlert } from '../../../shared/feedback/appAlert';
 
 export interface RunWorkoutBuilderProps {
   visible: boolean;
@@ -404,7 +405,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
   const handleRemoveRunFromBlock = (runId: string) => {
     Haptics.selectionAsync();
     if (variedRuns.length <= 1) {
-      Alert.alert('Attention', 'Un bloc doit comporter au moins une course.');
+      appAlert('Attention', 'Un bloc doit comporter au moins une course.');
       return;
     }
     setVariedRuns((prev) => prev.filter((r) => r.id !== runId));
@@ -421,7 +422,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
     if (blockMode === 'identical') {
       const distNum = parseInt(manualDistanceText, 10);
       if (isNaN(distNum) || distNum <= 0) {
-        Alert.alert('Distance invalide', 'Veuillez saisir une distance valide en mètres.');
+        appAlert('Distance invalide', 'Veuillez saisir une distance valide en mètres.');
         return;
       }
 
@@ -472,7 +473,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
     } else {
       // Varied mode
       if (variedRuns.length === 0) {
-        Alert.alert('Bloc vide', 'Veuillez ajouter au moins une course.');
+        appAlert('Bloc vide', 'Veuillez ajouter au moins une course.');
         return;
       }
 
@@ -596,14 +597,14 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
       AsyncStorage.setItem(STORAGE_RUN_FAVORITES_KEY, JSON.stringify(updated));
     } catch (e) {
       console.error('Error deleting favorite template:', e);
-      Alert.alert('Erreur', 'Impossible de supprimer ce favori.');
+      appAlert('Erreur', 'Impossible de supprimer ce favori.');
     }
   };
 
   // Save Current Session as Favorite
   const handleOpenSaveFavoriteModal = () => {
     if (blocks.length === 0) {
-      Alert.alert('Séance vide', 'Ajoutez au moins un bloc avant d’enregistrer la séance en favori.');
+      appAlert('Séance vide', 'Ajoutez au moins un bloc avant d’enregistrer la séance en favori.');
       return;
     }
     const defaultTitle = `Séance ${surface === 'cote' ? 'Côte' : 'Piste'} - ${blocks.length} bloc${blocks.length > 1 ? 's' : ''}`;
@@ -615,7 +616,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
     if (!user?.id) return;
     const cleanTitle = favoriteTitleInput.trim();
     if (!cleanTitle) {
-      Alert.alert('Titre requis', 'Veuillez saisir un nom pour identifier cette séance type.');
+      appAlert('Titre requis', 'Veuillez saisir un nom pour identifier cette séance type.');
       return;
     }
 
@@ -651,10 +652,10 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setIsSaveFavoriteModalVisible(false);
-      Alert.alert('Succès', 'Séance enregistrée dans vos séances types favorites !');
+      appAlert('Succès', 'Séance enregistrée dans vos séances types favorites !');
     } catch (err) {
       console.error('Error saving favorite template:', err);
-      Alert.alert('Erreur', "Impossible d'enregistrer le favori.");
+      appAlert('Erreur', "Impossible d'enregistrer le favori.");
     } finally {
       setIsSavingFavorite(false);
     }
@@ -714,7 +715,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
   const handleSaveWorkout = async () => {
     if (!user?.id) return;
     if (blocks.length === 0) {
-      Alert.alert('Séance vide', 'Veuillez ajouter au moins un bloc de course.');
+      appAlert('Séance vide', 'Veuillez ajouter au moins un bloc de course.');
       return;
     }
 
@@ -736,13 +737,13 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
         const sessionTypeSeance = surface === 'cote' ? 'Côte' : 'Piste';
 
         if (!activeTeamId) {
-          Alert.alert('Erreur', 'Aucune équipe trouvée.');
+          appAlert('Erreur', 'Aucune équipe trouvée.');
           setIsSubmitting(false);
           return;
         }
 
         if (approvedMembers.length === 0) {
-          Alert.alert(
+          appAlert(
             'Aucun athlète',
             "Aucun athlète validé n'a été trouvé dans votre équipe pour recevoir cette séance."
           );
@@ -806,7 +807,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
         }
 
         if (payloadsToUpdate.length === 0) {
-          Alert.alert('Information', 'Aucun athlète ne correspond aux cibles choisies.');
+          appAlert('Information', 'Aucun athlète ne correspond aux cibles choisies.');
           setIsSubmitting(false);
           return;
         }
@@ -817,7 +818,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
       onClose();
     } catch (err: any) {
       console.error('Error saving running workout:', err);
-      Alert.alert('Erreur', err?.message || "Impossible d'enregistrer la séance.");
+      appAlert('Erreur', err?.message || "Impossible d'enregistrer la séance.");
     } finally {
       setIsSubmitting(false);
     }
@@ -825,6 +826,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <FeedbackHost />
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         {/* Top Header */}
         <View style={[styles.header, { paddingTop: safeTop, borderBottomColor: theme.colors.border }]}>
@@ -1114,6 +1116,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
           presentationStyle="pageSheet"
           onRequestClose={() => setIsBlockSheetVisible(false)}
         >
+          <FeedbackHost />
           <KeyboardAvoidingView
             style={{ flex: 1 }}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -1456,6 +1459,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
           presentationStyle="pageSheet"
           onRequestClose={() => setIsTemplatesModalVisible(false)}
         >
+          <FeedbackHost />
           <View style={[styles.sheetContainer, { backgroundColor: theme.colors.background }]}>
             <View style={[styles.sheetHeader, { paddingTop: safeTop, borderBottomColor: theme.colors.border }]}>
               <TouchableOpacity onPress={() => setIsTemplatesModalVisible(false)} style={styles.headerTextBtn}>
@@ -1667,6 +1671,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
           animationType="fade"
           onRequestClose={() => setIsSaveFavoriteModalVisible(false)}
         >
+          <FeedbackHost />
           <View style={styles.alertBackdrop}>
             <View style={[styles.alertModalCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
               <View style={[styles.alertIconCircle, { backgroundColor: '#0069E8' + '15' }]}>

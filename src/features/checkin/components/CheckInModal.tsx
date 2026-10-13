@@ -6,6 +6,7 @@ import { SleepStep } from './SleepStep';
 import { MentalStep } from './MentalStep';
 import { PainStep } from './PainStep';
 import { useCheckInStore } from '../../../store/checkInStore';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 
 interface CheckInModalProps {
   visible: boolean;
@@ -41,6 +42,7 @@ export const CheckInModal = ({ visible, onClose }: CheckInModalProps) => {
       presentationStyle="pageSheet"
       onRequestClose={handleClose}
     >
+      <FeedbackHost />
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
         {/* Step Indicator Header */}
         <View style={styles.stepperContainer}>

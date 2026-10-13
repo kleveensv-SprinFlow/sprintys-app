@@ -7,6 +7,7 @@ import { weatherService, WeatherData } from '../../services/weatherService';
 import { PressableScale } from './PressableScale';
 import { glassCard, DashboardCardHeader } from './DashboardCard';
 import { GlassSheen } from './GlassSheen';
+import { FeedbackHost } from '../feedback/FeedbackHost';
 
 const WEATHER_TINT = '#0284C7';
 
@@ -189,6 +190,7 @@ export const WeatherCard = () => {
 
       {/* Modal Météo Détaillée */}
       <Modal visible={isModalVisible} transparent animationType="slide">
+        <FeedbackHost />
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
 

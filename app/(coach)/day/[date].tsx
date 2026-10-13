@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity, ScrollView, Alert, Animated } from 'react-native';
+import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity, ScrollView, Animated } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../../../src/core/theme';
 import { Header } from '../../../src/shared/components/Header';
@@ -22,6 +22,8 @@ import { useCoachStore } from '../../../src/store/coach/coachStore';
 import { GlassScreen } from '../../../src/shared/components/GlassScreen';
 import { glassSurface, glassRim } from '../../../src/core/glass';
 import { useFrostedHeader } from '../../../src/shared/hooks/useFrostedHeader';
+
+import { appAlert } from '../../../src/shared/feedback/appAlert';
 
 const MONTH_NAMES_FULL = [
   'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
@@ -140,7 +142,7 @@ export default function CoachDayScreen() {
       await fetchDayWorkouts();
     } catch (error) {
       console.error('Error deleting workout:', error);
-      Alert.alert('Erreur', 'Impossible de supprimer la séance.');
+      appAlert('Erreur', 'Impossible de supprimer la séance.');
     } finally {
       setIsLoading(false);
     }

@@ -7,6 +7,7 @@ import { PressableScale } from '../../../shared/components/PressableScale';
 import { resolveFoodPortion, ResolvedPortion, InputUnit } from '../data/portionDictionary';
 import { MacroLanes } from './MacroLanes';
 import { MEAL_ACCENT, MEAL_ACCENT_TINT } from '../nutritionTheme';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 
 export interface FoodAddPayload {
   totalGrams: number;
@@ -165,6 +166,7 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
 
   return (
     <Modal visible={visible} transparent animationType="slide">
+      <FeedbackHost />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalContainer}>
         <TouchableWithoutFeedback onPress={onClose}>
           <View style={styles.backdrop} />

@@ -19,6 +19,7 @@ import {
   COMPETITION_LEVELS,
   ATHLETICS_DISCIPLINES,
 } from '../../services/competitionSearchService';
+import { FeedbackHost } from '../../shared/feedback/FeedbackHost';
 
 interface CompetitionSearchModalProps {
   visible: boolean;
@@ -157,6 +158,7 @@ export const CompetitionSearchModal: React.FC<CompetitionSearchModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
+      <FeedbackHost />
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -381,6 +383,7 @@ export const CompetitionSearchModal: React.FC<CompetitionSearchModalProps> = ({
 
         {/* Sous-Modal Sélection Région */}
         <Modal visible={regionModalVisible} animationType="fade" transparent onRequestClose={() => setRegionModalVisible(false)}>
+          <FeedbackHost />
           <View style={styles.modalOverlay}>
             <View style={styles.pickerModalContent}>
               <Text style={styles.pickerModalTitle}>Choisir une région</Text>
@@ -411,6 +414,7 @@ export const CompetitionSearchModal: React.FC<CompetitionSearchModalProps> = ({
 
         {/* Sous-Modal Sélection Niveau */}
         <Modal visible={levelModalVisible} animationType="fade" transparent onRequestClose={() => setLevelModalVisible(false)}>
+          <FeedbackHost />
           <View style={styles.modalOverlay}>
             <View style={styles.pickerModalContent}>
               <Text style={styles.pickerModalTitle}>Choisir un niveau</Text>

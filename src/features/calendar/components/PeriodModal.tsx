@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Alert,
   Platform,
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -23,6 +22,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { periodService } from '../../../services/periodService';
 import { useAuthStore } from '../../../store/authStore';
 import { useCoachStore } from '../../../store/coach/coachStore';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
+import { appAlert } from '../../../shared/feedback/appAlert';
 
 interface PeriodModalProps {
   visible: boolean;
@@ -209,22 +210,22 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
 
   const handleSave = async () => {
     if (!name.trim()) {
-      Alert.alert('Nom requis', 'Veuillez saisir un intitulé pour la période.');
+      appAlert('Nom requis', 'Veuillez saisir un intitulé pour la période.');
       return;
     }
 
     if (!startDateStr || !endDateStr) {
-      Alert.alert('Dates requises', 'Veuillez vérifier les dates de début et de fin.');
+      appAlert('Dates requises', 'Veuillez vérifier les dates de début et de fin.');
       return;
     }
 
     if (startDateStr > endDateStr) {
-      Alert.alert('Dates invalides', 'La date de fin doit être postérieure à la date de début.');
+      appAlert('Dates invalides', 'La date de fin doit être postérieure à la date de début.');
       return;
     }
 
     if (conflictInfo) {
-      Alert.alert(
+      appAlert(
         'Chevauchement interdit',
         `Cette phase chevauche la phase "${conflictInfo.conflictingPeriod.name}" ${conflictInfo.formattedOverlap}.\n\nVeuillez ajuster les dates pour que les phases ne se croisent pas.`
       );
@@ -232,12 +233,12 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
     }
 
     if (targetType === 'subgroup' && !selectedSubgroupId) {
-      Alert.alert('Sous-groupe requis', 'Veuillez sélectionner un sous-groupe.');
+      appAlert('Sous-groupe requis', 'Veuillez sélectionner un sous-groupe.');
       return;
     }
 
     if (targetType === 'athlete' && !selectedAthleteId) {
-      Alert.alert('Athlète requis', 'Veuillez sélectionner un athlète.');
+      appAlert('Athlète requis', 'Veuillez sélectionner un athlète.');
       return;
     }
 
@@ -274,7 +275,7 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
       onSuccess();
       onClose();
     } catch (err) {
-      Alert.alert('Erreur', "Impossible d'enregistrer la période. Veuillez réessayer.");
+      appAlert('Erreur', "Impossible d'enregistrer la période. Veuillez réessayer.");
     } finally {
       setIsSubmitting(false);
     }
@@ -283,7 +284,7 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
   const handleDelete = () => {
     if (!periodToEdit) return;
 
-    Alert.alert(
+    appAlert(
       'Supprimer la période',
       `Êtes-vous sûr de vouloir supprimer la phase "${periodToEdit.name}" ?`,
       [
@@ -299,7 +300,7 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
               onSuccess();
               onClose();
             } catch (err) {
-              Alert.alert('Erreur', 'Impossible de supprimer cette période.');
+              appAlert('Erreur', 'Impossible de supprimer cette période.');
             } finally {
               setIsDeleting(false);
             }
@@ -317,6 +318,7 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <FeedbackHost />
       <View style={styles.modalOverlay}>
         <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
           {/* Header */}

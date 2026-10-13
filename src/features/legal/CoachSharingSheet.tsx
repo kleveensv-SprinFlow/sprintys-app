@@ -5,6 +5,7 @@ import { Feather } from '@expo/vector-icons';
 import { theme } from '../../core/theme';
 import { PressableScale } from '../../shared/components/PressableScale';
 import { ConsentCheck } from './ConsentCheck';
+import { FeedbackHost } from '../../shared/feedback/FeedbackHost';
 
 const SHARED: { icon: keyof typeof Feather.glyphMap; label: string }[] = [
   { icon: 'calendar', label: 'Tes séances et performances' },
@@ -38,6 +39,7 @@ export function CoachSharingSheet({ visible, teamName, onConfirm, onClose }: Pro
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+      <FeedbackHost />
       <View style={styles.backdrop}>
         <Pressable style={{ flex: 1 }} onPress={onClose} />
         <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 4 }]}>

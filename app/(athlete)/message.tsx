@@ -146,7 +146,7 @@ export default function MessagesHubScreen() {
               <View style={styles.discussionBottomRow}>
                 <Text style={styles.discussionPreview} numberOfLines={1}>
                   {lastSprintyMessage
-                    ? `${lastSprintyMessage.role === 'user' ? 'Vous : ' : ''}${previewOf(lastSprintyMessage.content)}`
+                    ? `${lastSprintyMessage.role === 'user' ? 'Toi : ' : ''}${previewOf(lastSprintyMessage.content)}`
                     : 'Pose-moi une question sur ton entraînement'}
                 </Text>
               </View>
@@ -190,7 +190,7 @@ export default function MessagesHubScreen() {
                     <View style={styles.discussionBottomRow}>
                       <Text style={[styles.discussionPreview, !discussions?.coach?.last_message && styles.discussionPreviewMuted]} numberOfLines={1}>
                         {discussions?.coach?.last_message 
-                          ? `${discussions.coach.last_message.is_me ? 'Vous : ' : ''}${discussions.coach.last_message.content}`
+                          ? `${discussions.coach.last_message.is_me ? 'Toi : ' : ''}${discussions.coach.last_message.content}`
                           : 'Aucun message.'}
                       </Text>
                       {(discussions?.coach?.unread_count || 0) > 0 && (

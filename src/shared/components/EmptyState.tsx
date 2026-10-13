@@ -1,56 +1,87 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Animated, StyleProp, ViewStyle } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { theme } from '../../core/theme';
-import Svg, { Circle, Path } from 'react-native-svg';
+import { PressableScale } from './PressableScale';
 
 interface EmptyStateProps {
   title: string;
-  message: string;
+  message?: string;
+  icon?: keyof typeof Feather.glyphMap;
+  actionLabel?: string;
+  onAction?: () => void;
+  compact?: boolean;
+  style?: StyleProp<ViewStyle>;
 }
 
-export const EmptyState: React.FC<EmptyStateProps> = ({ title, message }) => {
+/** Friendly "nothing here yet" block: icon bubble, short text and an optional action. */
+export const EmptyState: React.FC<EmptyStateProps> = ({
+  title,
+  message,
+  icon = 'inbox',
+  actionLabel,
+  onAction,
+  compact,
+  style,
+}) => {
+  const enter = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.spring(enter, { toValue: 1, useNativeDriver: true, speed: 12, bounciness: 6 }).start();
+  }, []);
+
   return (
-    <View style={styles.container}>
-      <View style={styles.iconContainer}>
-        <Svg width="40" height="40" viewBox="0 0 24 24" fill="none">
-          <Circle cx="12" cy="12" r="9" stroke={theme.colors.border} strokeWidth="1" strokeDasharray="4 4" />
-          <Path 
-            d="M12 8V12M12 16H12.01" 
-            stroke={theme.colors.textMuted} 
-            strokeWidth="1.5" 
-            strokeLinecap="round" 
-          />
-        </Svg>
+    <Animated.View
+      style={[
+        styles.container,
+        compact && styles.compact,
+        { opacity: enter, transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] },
+        style,
+      ]}
+    >
+      <View style={[styles.bubble, compact && styles.bubbleCompact]}>
+        <Feather name={icon} size={compact ? 20 : 26} color={theme.colors.sprintyBlue} />
       </View>
-      <Text style={styles.title}>{title.toUpperCase()}</Text>
-      <Text style={styles.message}>{message}</Text>
-    </View>
+      <Text style={styles.title}>{title}</Text>
+      {!!message && <Text style={styles.message}>{message}</Text>}
+      {!!actionLabel && !!onAction && (
+        <PressableScale haptic="light" onPress={onAction} style={styles.action}>
+          <Text style={styles.actionText}>{actionLabel}</Text>
+        </PressableScale>
+      )}
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    padding: theme.spacing.xxl,
+  container: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 40 },
+  compact: { paddingVertical: 20 },
+  bubble: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(0, 105, 232, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 40,
+    marginBottom: 14,
   },
-  iconContainer: {
-    marginBottom: theme.spacing.lg,
-    opacity: 0.5,
-  },
-  title: {
-    color: theme.colors.textMuted,
-    fontSize: 12,
-    fontWeight: theme.typography.fontWeights.bold as any,
-    letterSpacing: 1.5,
-    marginBottom: 8,
-  },
+  bubbleCompact: { width: 48, height: 48, borderRadius: 24, marginBottom: 10 },
+  title: { fontSize: 17, fontWeight: '800', color: theme.colors.text, textAlign: 'center', letterSpacing: -0.3 },
   message: {
-    color: theme.colors.textSecondary,
     fontSize: 14,
-    textAlign: 'center',
     lineHeight: 20,
-    maxWidth: '80%',
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 4,
+    maxWidth: 300,
   },
+  action: {
+    marginTop: 16,
+    paddingHorizontal: 18,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(0, 105, 232, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionText: { fontSize: 15, fontWeight: '700', color: theme.colors.sprintyBlue },
 });

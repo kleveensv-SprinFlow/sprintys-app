@@ -4,6 +4,7 @@ import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import { useCheckInStore } from '../../../store/checkInStore';
 import { useAuthStore } from '../../../store/authStore';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 
 interface Props {
   visible: boolean;
@@ -44,6 +45,7 @@ export const CheckInSummaryModal = ({ visible, onClose, onEdit }: Props) => {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <FeedbackHost />
       <View style={styles.overlay}>
         <View style={[styles.content, { backgroundColor: theme.colors.surface }]}>
           <View style={styles.header}>

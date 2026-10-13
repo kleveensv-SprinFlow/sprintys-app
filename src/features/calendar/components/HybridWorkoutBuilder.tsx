@@ -1,12 +1,14 @@
 import { workoutService } from '../../../services/workoutService';
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, KeyboardAvoidingView, Platform, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal, KeyboardAvoidingView, Platform, StatusBar } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../../../core/theme';
 import { supabase } from '../../../services/supabase';
 import { useAuthStore } from '../../../store/authStore';
 import { useCoachStore } from '../../../store/coach/coachStore';
+import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
+import { appAlert } from '../../../shared/feedback/appAlert';
 
 interface HybridWorkoutBuilderProps {
   date: Date;
@@ -128,7 +130,7 @@ export const HybridWorkoutBuilder: React.FC<HybridWorkoutBuilderProps> = ({ date
   const handleSave = async () => {
     if (!user?.id) return;
     if (!title.trim()) {
-      Alert.alert('Erreur', 'Veuillez saisir un titre pour la séance.');
+      appAlert('Erreur', 'Veuillez saisir un titre pour la séance.');
       return;
     }
 
@@ -157,7 +159,7 @@ export const HybridWorkoutBuilder: React.FC<HybridWorkoutBuilderProps> = ({ date
       }
       onSave();
     } catch (err: any) {
-      Alert.alert('Erreur', 'Impossible de sauvegarder la séance : ' + err.message);
+      appAlert('Erreur', 'Impossible de sauvegarder la séance : ' + err.message);
     } finally {
       setIsSaving(false);
     }
@@ -166,10 +168,10 @@ export const HybridWorkoutBuilder: React.FC<HybridWorkoutBuilderProps> = ({ date
   const handleSaveAsTemplate = async () => {
     if (!user?.id) return;
     if (!title.trim()) {
-      Alert.alert('Erreur', 'Veuillez saisir un titre avant de sauvegarder comme modèle.');
+      appAlert('Erreur', 'Veuillez saisir un titre avant de sauvegarder comme modèle.');
       return;
     }
-    Alert.alert(
+    appAlert(
       'Nouveau modèle',
       `Voulez-vous sauvegarder "${title}" dans votre bibliothèque ?`,
       [
@@ -185,9 +187,9 @@ export const HybridWorkoutBuilder: React.FC<HybridWorkoutBuilderProps> = ({ date
                 type_seance: 'course',
                 blocks,
               });
-              Alert.alert('Succès', 'Modèle enregistré dans votre bibliothèque !');
+              appAlert('Succès', 'Modèle enregistré dans votre bibliothèque !');
             } catch (err: any) {
-              Alert.alert('Erreur', err.message);
+              appAlert('Erreur', err.message);
             }
           }
         }
@@ -404,6 +406,7 @@ export const HybridWorkoutBuilder: React.FC<HybridWorkoutBuilderProps> = ({ date
 
       {/* MODAL CIBLAGE */}
       <Modal visible={showTargetModal} transparent animationType="slide">
+        <FeedbackHost />
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Cibler la séance</Text>
