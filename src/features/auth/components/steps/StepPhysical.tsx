@@ -1,74 +1,46 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { useTheme } from '../../../../core/theme';
-import { Button } from '../../../../shared/components/Button';
+import { View, StyleSheet } from 'react-native';
 import { Input } from '../../../../shared/components/Input';
+import { StepTitle, StepFooter } from './StepParts';
 
-export const StepPhysical = ({ data, updateData, onNext, onBack }: any) => {
-  const theme = useTheme();
-
-  const formatSmartDecimal = (text: string) => {
-    const cleaned = text.replace(',', '.').replace(/[^0-9.]/g, '');
-    const parts = cleaned.split('.');
-    if (parts.length <= 1) return cleaned;
-    return `${parts[0]}.${parts.slice(1).join('').slice(0, 1)}`;
-  };
-
-  return (
-    <View style={styles.container}>
-      <Text style={[styles.title, { color: theme.colors.text }]}>Profil physique</Text>
-      <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Quelques informations sur vous</Text>
-
-      <View style={styles.form}>
-        <Input
-          label="Taille (cm)"
-          placeholder="Ex: 180"
-          value={data.height?.toString() || ''}
-          onChangeText={(text) => updateData({ height: text.replace(/[^0-9]/g, '') })}
-          keyboardType="number-pad"
-        />
-        <Input
-          label="Poids (kg)"
-          placeholder="Ex: 75.5 ou 105.2"
-          value={data.weight?.toString() || ''}
-          onChangeText={(text) => updateData({ weight: formatSmartDecimal(text) })}
-          keyboardType="numeric"
-        />
-      </View>
-
-      <View style={styles.footer}>
-        <Button title="Retour" variant="outline" onPress={onBack} style={styles.halfBtn} />
-        <Button title="Continuer" onPress={onNext} style={styles.halfBtn} />
-      </View>
-    </View>
-  );
+const formatSmartDecimal = (text: string) => {
+  const cleaned = text.replace(',', '.').replace(/[^0-9.]/g, '');
+  const parts = cleaned.split('.');
+  if (parts.length <= 1) return cleaned;
+  return `${parts[0]}.${parts.slice(1).join('').slice(0, 1)}`;
 };
 
+export const StepPhysical = ({ data, updateData, onNext, onBack }: any) => (
+  <View>
+    <StepTitle
+      title="Ton profil physique"
+      subtitle="Pour personnaliser tes repères. Tu peux passer cette étape et compléter plus tard."
+    />
+
+    <View style={styles.row}>
+      <Input
+        label="Taille (cm)"
+        placeholder="180"
+        value={data.height?.toString() || ''}
+        onChangeText={(text) => updateData({ height: text.replace(/[^0-9]/g, '').slice(0, 3) })}
+        keyboardType="number-pad"
+        containerStyle={styles.half}
+      />
+      <Input
+        label="Poids (kg)"
+        placeholder="72.5"
+        value={data.weight?.toString() || ''}
+        onChangeText={(text) => updateData({ weight: formatSmartDecimal(text).slice(0, 5) })}
+        keyboardType="decimal-pad"
+        containerStyle={styles.half}
+      />
+    </View>
+
+    <StepFooter onBack={onBack} onNext={onNext} nextTitle={data.height || data.weight ? 'Continuer' : 'Passer'} />
+  </View>
+);
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 14,
-    marginBottom: 32,
-    textAlign: 'center',
-  },
-  form: {
-    gap: 16,
-    marginBottom: 32,
-  },
-  footer: {
-    flexDirection: 'row',
-    gap: 16,
-    marginTop: 'auto',
-  },
-  halfBtn: {
-    flex: 1,
-  }
+  row: { flexDirection: 'row', gap: 10, marginBottom: 4 },
+  half: { flex: 1, width: undefined },
 });

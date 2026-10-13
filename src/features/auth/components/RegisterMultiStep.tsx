@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useAuthStore, UserRole, SignupData } from '../../../store/authStore';
-import { useTheme } from '../../../core/theme';
+import React, { useLayoutEffect, useRef, useState } from 'react';
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useAuthStore, UserRole, SignupData } from '../../../store/authStore';
+import { theme } from '../../../core/theme';
 
 import { StepRole } from './steps/StepRole';
 import { StepIdentity } from './steps/StepIdentity';
@@ -16,8 +16,9 @@ interface RegisterMultiStepProps {
   onSwitchToLogin?: () => void;
 }
 
+const TOTAL_STEPS = 4;
+
 export const RegisterMultiStep: React.FC<RegisterMultiStepProps> = ({ onSwitchToLogin }) => {
-  const theme = useTheme();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<Partial<SignupData>>({
     role: 'athlete',
@@ -26,28 +27,48 @@ export const RegisterMultiStep: React.FC<RegisterMultiStepProps> = ({ onSwitchTo
     subgroups: [],
   });
 
-  const { signup, isLoading, error } = useAuthStore();
+  const { signup, isLoading, error, clearError } = useAuthStore();
   const router = useRouter();
 
+  // Progress bar grows smoothly; each step slides in from the direction of travel
+  const progress = useRef(new Animated.Value(1)).current;
+  const enter = useRef(new Animated.Value(1)).current;
+  const direction = useRef(1);
+
+  // Layout effect: reset before paint so the new step never flashes at full opacity
+  useLayoutEffect(() => {
+    Animated.timing(progress, {
+      toValue: step,
+      duration: 380,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+    enter.setValue(0);
+    Animated.timing(enter, {
+      toValue: 1,
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [step]);
+
   const isCoach = formData.role === 'coach';
-  const totalSteps = 4;
 
   const updateData = (newData: Partial<SignupData>) => {
-    if (newData.role && newData.role !== formData.role) {
-      setStep(1);
-    }
-    setFormData(prev => ({ ...prev, ...newData }));
+    if (newData.role && newData.role !== formData.role) setStep(1);
+    setFormData((prev) => ({ ...prev, ...newData }));
   };
 
-  const handleNext = () => setStep(s => s + 1);
-  const handleBack = () => setStep(s => s - 1);
+  const go = (delta: 1 | -1) => {
+    direction.current = delta;
+    clearError();
+    setStep((s) => Math.min(TOTAL_STEPS, Math.max(1, s + delta)));
+  };
 
   const handleLoginPress = () => {
-    if (onSwitchToLogin) {
-      onSwitchToLogin();
-    } else {
-      router.push('/(auth)/login');
-    }
+    clearError();
+    if (onSwitchToLogin) onSwitchToLogin();
+    else router.push('/(auth)/login');
   };
 
   const handleSignup = async () => {
@@ -56,8 +77,8 @@ export const RegisterMultiStep: React.FC<RegisterMultiStepProps> = ({ onSwitchTo
     const res = await signup({
       email: formData.email,
       pass: formData.pass,
-      firstName: formData.firstName,
-      lastName: formData.lastName,
+      firstName: formData.firstName.trim(),
+      lastName: formData.lastName.trim(),
       role: formData.role as UserRole,
       gender: formData.gender as 'homme' | 'femme',
       disciplines: formData.disciplines,
@@ -75,10 +96,7 @@ export const RegisterMultiStep: React.FC<RegisterMultiStepProps> = ({ onSwitchTo
 
     if (res.success) {
       if (res.requiresVerification) {
-        router.push({
-          pathname: '/(auth)/verify-email',
-          params: { email: formData.email }
-        });
+        router.push({ pathname: '/(auth)/verify-email', params: { email: formData.email } });
       } else {
         router.replace('/');
       }
@@ -88,23 +106,25 @@ export const RegisterMultiStep: React.FC<RegisterMultiStepProps> = ({ onSwitchTo
   const renderStep = () => {
     switch (step) {
       case 1:
-        return <StepRole data={formData} updateData={updateData} onNext={handleNext} />;
+        return <StepRole data={formData} updateData={updateData} onNext={() => go(1)} />;
       case 2:
-        return <StepIdentity data={formData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
+        return <StepIdentity data={formData} updateData={updateData} onNext={() => go(1)} onBack={() => go(-1)} />;
       case 3:
-        if (isCoach) {
-          return <StepCoachGroup data={formData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
-        } else {
-          return <StepPhysical data={formData} updateData={updateData} onNext={handleNext} onBack={handleBack} />;
-        }
+        return isCoach ? (
+          <StepCoachGroup data={formData} updateData={updateData} onNext={() => go(1)} onBack={() => go(-1)} />
+        ) : (
+          <StepPhysical data={formData} updateData={updateData} onNext={() => go(1)} onBack={() => go(-1)} />
+        );
       case 4:
-        return <StepAccount
-                  data={formData}
-                  updateData={updateData}
-                  onSubmit={handleSignup}
-                  onBack={handleBack}
-                  isLoading={isLoading}
-               />;
+        return (
+          <StepAccount
+            data={formData}
+            updateData={updateData}
+            onSubmit={handleSignup}
+            onBack={() => go(-1)}
+            isLoading={isLoading}
+          />
+        );
       default:
         return null;
     }
@@ -112,89 +132,69 @@ export const RegisterMultiStep: React.FC<RegisterMultiStepProps> = ({ onSwitchTo
 
   return (
     <View style={styles.container}>
-      {/* Animated Dynamic Progress Bar */}
       <View style={styles.progressHeader}>
-        <View style={styles.progressTextRow}>
-          <Text style={[styles.stepLabel, { color: theme.colors.textSecondary }]}>
-            Étape <Text style={[styles.stepLabelBold, { color: theme.colors.accent }]}>{step}</Text> sur {totalSteps}
-          </Text>
-          <Text style={[styles.progressPercent, { color: theme.colors.textMuted }]}>
-            {Math.round((step / totalSteps) * 100)}%
-          </Text>
-        </View>
-        <View style={[styles.progressBarBackground, { backgroundColor: theme.colors.border }]}>
-          <LinearGradient
-            colors={['#0026AE', '#00DCFD']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={[styles.progressBarFill, { width: `${(step / totalSteps) * 100}%` }]}
+        <Text style={styles.stepLabel}>
+          Étape <Text style={styles.stepLabelBold}>{step}</Text> sur {TOTAL_STEPS}
+        </Text>
+        <View style={styles.track}>
+          <Animated.View
+            style={[
+              styles.fill,
+              { width: progress.interpolate({ inputRange: [0, TOTAL_STEPS], outputRange: ['0%', '100%'] }) },
+            ]}
           />
         </View>
       </View>
 
-      <View style={styles.stepContainer}>
+      <Animated.View
+        key={step}
+        style={{
+          opacity: enter,
+          transform: [
+            { translateX: enter.interpolate({ inputRange: [0, 1], outputRange: [18 * direction.current, 0] }) },
+          ],
+        }}
+      >
         {renderStep()}
+      </Animated.View>
 
-        {error && <Text style={[styles.errorText, { color: theme.colors.error }]}>{error}</Text>}
+      {!!error && (
+        <View style={styles.notice}>
+          <Feather name="alert-circle" size={16} color={theme.colors.error} />
+          <Text style={styles.noticeText}>{error}</Text>
+        </View>
+      )}
 
-
-      </View>
+      {step === 1 && (
+        <Pressable onPress={handleLoginPress} style={styles.loginLink} hitSlop={8}>
+          <Text style={styles.loginText}>
+            Déjà un compte ? <Text style={styles.loginTextBold}>Connecte-toi</Text>
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-  },
-  progressHeader: {
-    marginBottom: 20,
-  },
-  progressTextRow: {
+  container: { width: '100%' },
+  progressHeader: { marginBottom: 18, gap: 8 },
+  stepLabel: { fontSize: 13, fontWeight: '600', color: theme.colors.textSecondary },
+  stepLabelBold: { fontWeight: '800', color: theme.colors.sprintyBlue },
+  track: { height: 4, borderRadius: 2, overflow: 'hidden', backgroundColor: theme.colors.glassFill },
+  fill: { height: '100%', borderRadius: 2, backgroundColor: theme.colors.sprintyBlue },
+  notice: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
-  },
-  stepLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  stepLabelBold: {
-    fontWeight: '800',
-  },
-  progressPercent: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  progressBarBackground: {
-    height: 6,
-    borderRadius: 3,
-    overflow: 'hidden',
-    width: '100%',
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  stepContainer: {
-    width: '100%',
-  },
-  errorText: {
-    fontSize: 13,
+    gap: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     marginTop: 14,
-    textAlign: 'center',
-    fontWeight: '500',
   },
-  loginLink: {
-    marginTop: 22,
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  loginText: {
-    fontSize: 14,
-  },
-  loginTextBold: {
-    fontWeight: '700',
-  },
+  noticeText: { flex: 1, fontSize: 14, color: theme.colors.text },
+  loginLink: { marginTop: 18, alignItems: 'center', paddingVertical: 4 },
+  loginText: { fontSize: 14, color: theme.colors.textSecondary },
+  loginTextBold: { fontWeight: '700', color: theme.colors.sprintyBlue },
 });

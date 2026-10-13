@@ -1,237 +1,250 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Alert
+  ScrollView,
+  Pressable,
+  Animated,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useAuthStore } from '../../src/store/authStore';
-import { useTheme } from '../../src/core/theme';
-import { Card } from '../../src/shared/components/Card';
 import { Feather } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { useAuthStore } from '../../src/store/authStore';
+import { theme } from '../../src/core/theme';
+import { glassCard } from '../../src/core/glass';
 import { GlowBackground } from '../../src/shared/components/GlowBackground';
+import { GlassSheen } from '../../src/shared/components/GlassSheen';
+import { Button } from '../../src/shared/components/Button';
+
+const RESEND_COOLDOWN = 60;
+// Supabase codes are 6 digits by default; the row grows if the project sends longer ones.
+const BASE_LENGTH = 6;
+const MAX_LENGTH = 8;
 
 export default function VerifyEmailScreen() {
-  const theme = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ email?: string }>();
-  const { verifyOtp, resendOtp, pendingEmail, isLoading, error, clearError } = useAuthStore();
+  const { verifyOtp, resendOtp, pendingEmail, isLoading, error, clearError, logout } = useAuthStore();
 
   const targetEmail = params.email || pendingEmail || '';
   const [code, setCode] = useState('');
-  const [resendSuccess, setResendSuccess] = useState(false);
+  const [focused, setFocused] = useState(true);
+  const [cooldown, setCooldown] = useState(RESEND_COOLDOWN);
+  const [resent, setResent] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+  const shake = useRef(new Animated.Value(0)).current;
 
-  const handleVerify = async () => {
-    if (!code.trim()) return;
+  const boxes = Math.max(BASE_LENGTH, Math.min(MAX_LENGTH, code.length));
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
+
+  // Wrong code: little horizontal shake + error haptic
+  useEffect(() => {
+    if (!error) return;
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } catch {
+      // haptics unavailable (web)
+    }
+    shake.setValue(0);
+    Animated.sequence(
+      [10, -10, 6, -6, 0].map((v) => Animated.timing(shake, { toValue: v, duration: 55, useNativeDriver: true })),
+    ).start();
+  }, [error]);
+
+  const verify = async (value = code) => {
+    if (value.length < BASE_LENGTH || isLoading) return;
     clearError();
-    await verifyOtp(targetEmail, code.trim());
-    // The root layout automatically navigates to /(athlete) or /(coach) once user is set
+    await verifyOtp(targetEmail, value);
+    // The root layout navigates to the app once the user is set
   };
 
-  const handleResend = async () => {
-    if (!targetEmail) return;
+  const onChange = (text: string) => {
+    const digits = text.replace(/\D/g, '').slice(0, MAX_LENGTH);
+    if (error) clearError();
+    setCode(digits);
+    if (digits.length === MAX_LENGTH) verify(digits);
+  };
+
+  const resend = async () => {
+    if (!targetEmail || cooldown > 0) return;
     clearError();
-    setResendSuccess(false);
     await resendOtp(targetEmail);
-    setResendSuccess(true);
-    setTimeout(() => setResendSuccess(false), 5000);
+    if (!useAuthStore.getState().error) {
+      setResent(true);
+      setCode('');
+      setCooldown(RESEND_COOLDOWN);
+      setTimeout(() => setResent(false), 4000);
+    }
+  };
+
+  const backToLogin = async () => {
+    clearError();
+    await logout();
+    router.replace('/(auth)/login');
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[styles.container, { backgroundColor: theme.colors.backdrop }]}
-    >
+    <View style={styles.container}>
       <GlowBackground />
-      <View style={styles.inner}>
-        <Card
-          variant="glass"
-          style={
-            [
-              styles.card
-            ] as any
-          }
-        >
-          <View style={styles.iconContainer}>
-            <Feather name="mail" size={48} color={theme.colors.accent} />
-          </View>
-
-          <Text style={[styles.title, { color: theme.colors.text }]}>
-            Confirmation de votre compte
-          </Text>
-
-          <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-            Un code de confirmation a été envoyé par e-mail à :
-          </Text>
-          <Text style={[styles.emailText, { color: theme.colors.accent }]}>
-            {targetEmail || 'votre adresse e-mail'}
-          </Text>
-
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: theme.colors.glassFill,
-                  color: theme.colors.text,
-                  borderColor: theme.colors.border
-                }
-              ]}
-              placeholder="Code de confirmation"
-              placeholderTextColor={theme.colors.textSecondary}
-              value={code}
-              onChangeText={setCode}
-              keyboardType="number-pad"
-              maxLength={8}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-
-          {error && (
-            <Text style={[styles.errorText, { color: theme.colors.error }]}>
-              {error}
-            </Text>
-          )}
-
-          {resendSuccess && (
-            <Text style={[styles.successText, { color: theme.colors.success || '#10B981' }]}>
-              Un nouveau code a été envoyé !
-            </Text>
-          )}
-
-          <TouchableOpacity
-            style={[
-              styles.button,
-              { backgroundColor: theme.colors.accent },
-              isLoading && { opacity: 0.7 }
-            ]}
-            onPress={handleVerify}
-            disabled={isLoading || !code.trim()}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.buttonText}>Confirmer mon compte</Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={handleResend}
-            disabled={isLoading || !targetEmail}
-            style={styles.resendButton}
-          >
-            <Text style={[styles.resendText, { color: theme.colors.textSecondary }]}>
-              Vous n'avez pas reçu de code ?{' '}
-              <Text style={{ color: theme.colors.accent, fontWeight: '600' }}>
-                Renvoyer le code
+      <SafeAreaView style={{ flex: 1 }}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+            <View style={[glassCard, styles.card]}>
+              <GlassSheen radius={22} />
+              <View style={styles.badge}>
+                <Feather name="mail" size={24} color={theme.colors.sprintyBlue} />
+              </View>
+              <Text style={styles.title}>Vérifie ta boîte mail</Text>
+              <Text style={styles.subtitle}>
+                Saisis le code envoyé à{'\n'}
+                <Text style={styles.email}>{targetEmail || 'ton adresse e-mail'}</Text>
               </Text>
-            </Text>
-          </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={() => router.replace('/login')}
-            style={styles.backButton}
-          >
-            <Text style={[styles.backText, { color: theme.colors.textSecondary }]}>
-              Retour à la connexion
-            </Text>
-          </TouchableOpacity>
-        </Card>
-      </View>
-    </KeyboardAvoidingView>
+              <Animated.View style={[styles.codeRow, { transform: [{ translateX: shake }] }]}>
+                {Array.from({ length: boxes }).map((_, i) => {
+                  const char = code[i] || '';
+                  const active = focused && (i === code.length || (i === boxes - 1 && code.length >= boxes));
+                  return (
+                    <View
+                      key={i}
+                      style={[
+                        styles.box,
+                        boxes > BASE_LENGTH && styles.boxCompact,
+                        !!char && styles.boxFilled,
+                        active && styles.boxActive,
+                        !!error && styles.boxError,
+                      ]}
+                    >
+                      <Text style={styles.boxText}>{char}</Text>
+                    </View>
+                  );
+                })}
+                {/* One real input over the boxes: keeps paste and one-time-code autofill working */}
+                <TextInput
+                  ref={inputRef}
+                  value={code}
+                  onChangeText={onChange}
+                  onFocus={() => setFocused(true)}
+                  onBlur={() => setFocused(false)}
+                  keyboardType="number-pad"
+                  textContentType="oneTimeCode"
+                  autoComplete="one-time-code"
+                  maxLength={MAX_LENGTH}
+                  autoFocus
+                  caretHidden
+                  selectionColor="transparent"
+                  style={styles.hiddenInput}
+                  accessibilityLabel="Code de confirmation"
+                />
+              </Animated.View>
+
+              {!!error && (
+                <View style={styles.notice}>
+                  <Feather name="alert-circle" size={16} color={theme.colors.error} />
+                  <Text style={styles.noticeText}>{error}</Text>
+                </View>
+              )}
+              {resent && (
+                <View style={[styles.notice, styles.noticeOk]}>
+                  <Feather name="check-circle" size={16} color={theme.colors.success} />
+                  <Text style={styles.noticeText}>Nouveau code envoyé. Pense à regarder tes spams.</Text>
+                </View>
+              )}
+
+              <Button
+                title="Confirmer"
+                onPress={() => verify()}
+                disabled={code.length < BASE_LENGTH}
+                loading={isLoading}
+                style={styles.button}
+              />
+
+              <Pressable onPress={resend} disabled={cooldown > 0 || isLoading} style={styles.resend} hitSlop={8}>
+                <Text style={styles.resendText}>
+                  Pas reçu ?{' '}
+                  {cooldown > 0 ? (
+                    <Text style={styles.cooldown}>Renvoyer dans {cooldown} s</Text>
+                  ) : (
+                    <Text style={styles.link}>Renvoyer le code</Text>
+                  )}
+                </Text>
+              </Pressable>
+            </View>
+
+            <Pressable onPress={backToLogin} style={styles.back} hitSlop={8}>
+              <Feather name="arrow-left" size={15} color={theme.colors.textSecondary} />
+              <Text style={styles.backText}>Utiliser une autre adresse</Text>
+            </Pressable>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  inner: {
-    flex: 1,
-    padding: 24,
+  container: { flex: 1, backgroundColor: theme.colors.backdrop },
+  content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 24 },
+  card: { paddingHorizontal: 20, paddingVertical: 24, alignItems: 'center' },
+  badge: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(0, 105, 232, 0.1)',
+    alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 14,
+  },
+  title: { fontSize: 24, fontWeight: '800', letterSpacing: -0.5, color: theme.colors.text, textAlign: 'center' },
+  subtitle: { fontSize: 15, lineHeight: 22, color: theme.colors.textSecondary, textAlign: 'center', marginTop: 6 },
+  email: { color: theme.colors.text, fontWeight: '700' },
+  codeRow: { flexDirection: 'row', gap: 8, marginTop: 22, marginBottom: 16, alignSelf: 'stretch', justifyContent: 'center' },
+  box: {
+    flex: 1,
+    maxWidth: 48,
+    height: 56,
+    borderRadius: 14,
+    borderCurve: 'continuous',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    backgroundColor: theme.colors.glassFill,
     alignItems: 'center',
-  },
-  card: {
-    width: '100%',
-    borderRadius: 24,
-    padding: 24,
-    alignItems: 'center',
-  },
-  iconContainer: {
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  emailText: {
-    fontSize: 15,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  inputContainer: {
-    width: '100%',
-    marginBottom: 16,
-  },
-  input: {
-    width: '100%',
-    height: 52,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    fontSize: 18,
-    textAlign: 'center',
-    letterSpacing: 2,
-  },
-  errorText: {
-    fontSize: 14,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  successText: {
-    fontSize: 14,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  button: {
-    width: '100%',
-    height: 50,
-    borderRadius: 12,
     justifyContent: 'center',
+  },
+  boxCompact: { height: 50, borderRadius: 12 },
+  boxFilled: { backgroundColor: theme.colors.surface },
+  boxActive: { borderColor: theme.colors.sprintyBlue, backgroundColor: theme.colors.surface },
+  boxError: { borderColor: theme.colors.error },
+  boxText: { fontSize: 22, fontWeight: '800', color: theme.colors.text },
+  hiddenInput: { ...StyleSheet.absoluteFillObject, color: 'transparent', opacity: Platform.OS === 'web' ? 0 : 0.011 },
+  notice: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    gap: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 14,
   },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  resendButton: {
-    marginTop: 20,
-  },
-  resendText: {
-    fontSize: 14,
-  },
-  backButton: {
-    marginTop: 16,
-  },
-  backText: {
-    fontSize: 13,
-  },
+  noticeOk: { backgroundColor: 'rgba(16, 185, 129, 0.1)' },
+  noticeText: { flex: 1, fontSize: 14, color: theme.colors.text },
+  button: { alignSelf: 'stretch' },
+  resend: { paddingTop: 18 },
+  resendText: { fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center' },
+  cooldown: { color: theme.colors.textMuted, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  link: { color: theme.colors.sprintyBlue, fontWeight: '700' },
+  back: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 18 },
+  backText: { fontSize: 14, fontWeight: '700', color: theme.colors.textSecondary },
 });

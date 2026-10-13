@@ -5,7 +5,8 @@ import {
   Text, 
   StyleSheet, 
   TextInputProps, 
-  ViewStyle 
+  ViewStyle,
+  Platform,
 } from 'react-native';
 import { useTheme } from '../../core/theme';
 
@@ -33,7 +34,7 @@ export const Input: React.FC<InputProps> = ({
   return (
     <View style={[styles.container, containerStyle]}>
       {label && (
-        <Text style={[styles.label, { color: isFocused ? theme.colors.accent : theme.colors.textSecondary }]}>
+        <Text style={[styles.label, { color: isFocused ? theme.colors.sprintyBlue : theme.colors.textSecondary }]}>
           {label}
         </Text>
       )}
@@ -41,20 +42,16 @@ export const Input: React.FC<InputProps> = ({
         style={[
           styles.inputContainer,
           { 
-            backgroundColor: theme.colors.glass,
-            borderColor: error 
-              ? theme.colors.error 
-              : isFocused 
-                ? theme.colors.accent 
-                : theme.colors.border,
+            backgroundColor: isFocused ? theme.colors.surface : theme.colors.glassFill,
+            borderColor: error ? theme.colors.error : isFocused ? theme.colors.sprintyBlue : 'transparent',
           }
         ]}
       >
         {leftIcon && <View style={styles.leftIconContainer}>{leftIcon}</View>}
         <TextInput
-          style={[styles.input, { color: theme.colors.text }]}
+          style={[styles.input, { color: theme.colors.text }, Platform.OS === 'web' && ({ outlineStyle: 'none' } as any)]}
           placeholderTextColor={theme.colors.textMuted}
-          selectionColor={theme.colors.accent}
+          selectionColor={theme.colors.sprintyBlue}
           onFocus={(e) => {
             setIsFocused(true);
             onFocus?.(e);
@@ -86,24 +83,32 @@ const styles = StyleSheet.create({
   inputContainer: {
     height: 52,
     borderRadius: 14,
+    borderCurve: 'continuous',
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1.5,
   },
   leftIconContainer: {
+    flexShrink: 0,
     marginRight: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  // Never shrinks: the field gives way instead (the eye used to overflow the border)
   rightIconContainer: {
-    marginLeft: 10,
+    marginLeft: 6,
+    marginRight: -8,
+    minWidth: 36,
+    height: 44,
+    flexShrink: 0,
     justifyContent: 'center',
     alignItems: 'center',
   },
   input: {
     flex: 1,
-    fontSize: 15,
+    minWidth: 0,
+    fontSize: 16,
     height: '100%',
   },
   errorText: {

@@ -1,15 +1,11 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-} from 'react-native';
-import { SignupData } from '../../../../store/authStore';
-import { useTheme } from '../../../../core/theme';
+import { View, Text, StyleSheet, LayoutAnimation } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { SignupData } from '../../../../store/authStore';
+import { theme } from '../../../../core/theme';
+import { Input } from '../../../../shared/components/Input';
+import { PressableScale } from '../../../../shared/components/PressableScale';
+import { StepTitle, StepFooter, FieldLabel } from './StepParts';
 
 interface StepCoachGroupProps {
   data: Partial<SignupData>;
@@ -18,226 +14,111 @@ interface StepCoachGroupProps {
   onBack: () => void;
 }
 
+const MAX_SUBGROUPS = 8;
+
 export const StepCoachGroup = ({ data, updateData, onNext, onBack }: StepCoachGroupProps) => {
-  const theme = useTheme();
   const [groupName, setGroupName] = useState(data.groupName || '');
-  const [subgroups, setSubgroups] = useState<string[]>(data.subgroups || ['']);
+  const [subgroups, setSubgroups] = useState<string[]>(data.subgroups?.length ? data.subgroups : ['']);
 
-  const handleAddSubgroup = () => {
-    setSubgroups(prev => [...prev, '']);
+  const animate = () => LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+
+  const add = () => {
+    if (subgroups.length >= MAX_SUBGROUPS) return;
+    animate();
+    setSubgroups((prev) => [...prev, '']);
   };
 
-  const handleSubgroupChange = (text: string, index: number) => {
-    const updated = [...subgroups];
-    updated[index] = text;
-    setSubgroups(updated);
-  };
+  const change = (text: string, index: number) =>
+    setSubgroups((prev) => prev.map((s, i) => (i === index ? text : s)));
 
-  const handleRemoveSubgroup = (index: number) => {
-    const updated = subgroups.filter((_, i) => i !== index);
-    setSubgroups(updated);
+  const remove = (index: number) => {
+    animate();
+    setSubgroups((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleContinue = () => {
-    const validSubgroups = subgroups.map(s => s.trim()).filter(s => s.length > 0);
     updateData({
       groupName: groupName.trim(),
-      subgroups: validSubgroups,
+      subgroups: subgroups.map((s) => s.trim()).filter(Boolean),
     });
     onNext();
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <Text style={[styles.title, { color: theme.colors.text }]}>
-        Créer votre premier groupe
-      </Text>
-      <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-        Organisez vos athlètes dès maintenant en créant un groupe principal et ses sous-groupes.
-      </Text>
+    <View>
+      <StepTitle
+        title="Crée ton premier groupe"
+        subtitle="Tes athlètes le rejoindront avec un code. Tu pourras en créer d’autres ensuite."
+      />
 
-      {/* Main Group Name */}
-      <View style={styles.inputGroup}>
-        <Text style={[styles.label, { color: theme.colors.text }]}>
-          Nom du groupe principal *
-        </Text>
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: theme.colors.background,
-              color: theme.colors.text,
-              borderColor: theme.colors.border,
-            },
-          ]}
-          placeholder="Ex: Équipe Sprint 2026, Club Athlé..."
-          placeholderTextColor={theme.colors.textSecondary}
-          value={groupName}
-          onChangeText={setGroupName}
-        />
-      </View>
+      <Input
+        label="Nom du groupe"
+        placeholder="Ex. Groupe sprint, Club athlé…"
+        value={groupName}
+        onChangeText={setGroupName}
+        maxLength={40}
+        leftIcon={<Feather name="users" size={18} color={theme.colors.textSecondary} />}
+      />
 
-      {/* Subgroups section */}
-      <View style={styles.subgroupsContainer}>
-        <Text style={[styles.label, { color: theme.colors.text }]}>
-          Sous-groupes (optionnel)
-        </Text>
-        <Text style={[styles.subText, { color: theme.colors.textSecondary }]}>
-          Exemples: N1, Junior, Groupe 100m, Haie...
-        </Text>
+      <FieldLabel>Sous-groupes (facultatif)</FieldLabel>
+      <Text style={styles.hint}>Ex. Juniors, 100 m, Haies…</Text>
 
-        {subgroups.map((sub, index) => (
-          <View key={index} style={styles.subgroupRow}>
-            <TextInput
-              style={[
-                styles.input,
-                styles.subgroupInput,
-                {
-                  backgroundColor: theme.colors.background,
-                  color: theme.colors.text,
-                  borderColor: theme.colors.border,
-                },
-              ]}
-              placeholder={`Sous-groupe ${index + 1}`}
-              placeholderTextColor={theme.colors.textSecondary}
-              value={sub}
-              onChangeText={(text) => handleSubgroupChange(text, index)}
-            />
-            {subgroups.length > 1 && (
-              <TouchableOpacity
-                onPress={() => handleRemoveSubgroup(index)}
-                style={styles.removeButton}
-              >
-                <Feather name="trash-2" size={20} color={theme.colors.error || '#EF4444'} />
-              </TouchableOpacity>
-            )}
-          </View>
-        ))}
+      {subgroups.map((sub, index) => (
+        <View key={index} style={styles.subRow}>
+          <Input
+            placeholder={`Sous-groupe ${index + 1}`}
+            value={sub}
+            onChangeText={(text) => change(text, index)}
+            maxLength={30}
+            containerStyle={styles.subInput}
+          />
+          {subgroups.length > 1 && (
+            <PressableScale
+              haptic="selection"
+              onPress={() => remove(index)}
+              style={styles.remove}
+              accessibilityLabel={`Retirer le sous-groupe ${index + 1}`}
+            >
+              <Feather name="x" size={18} color={theme.colors.textSecondary} />
+            </PressableScale>
+          )}
+        </View>
+      ))}
 
-        <TouchableOpacity
-          style={[styles.addButton, { borderColor: theme.colors.accent }]}
-          onPress={handleAddSubgroup}
-        >
-          <Feather name="plus" size={18} color={theme.colors.accent} />
-          <Text style={[styles.addButtonText, { color: theme.colors.accent }]}>
-            Ajouter un sous-groupe
-          </Text>
-        </TouchableOpacity>
-      </View>
+      {subgroups.length < MAX_SUBGROUPS && (
+        <PressableScale haptic="selection" onPress={add} style={styles.add}>
+          <Feather name="plus" size={16} color={theme.colors.sprintyBlue} />
+          <Text style={styles.addText}>Ajouter un sous-groupe</Text>
+        </PressableScale>
+      )}
 
-      {/* Buttons */}
-      <View style={styles.buttonRow}>
-        <TouchableOpacity
-          style={[styles.button, styles.backButton, { borderColor: theme.colors.border }]}
-          onPress={onBack}
-        >
-          <Text style={[styles.backButtonText, { color: theme.colors.text }]}>Retour</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.button,
-            styles.nextButton,
-            { backgroundColor: theme.colors.accent },
-            !groupName.trim() && { opacity: 0.5 },
-          ]}
-          onPress={handleContinue}
-          disabled={!groupName.trim()}
-        >
-          <Text style={styles.nextButtonText}>Continuer</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+      <StepFooter onBack={onBack} onNext={handleContinue} disabled={!groupName.trim()} />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    paddingVertical: 8,
+  hint: { fontSize: 13, color: theme.colors.textMuted, marginTop: -2, marginBottom: 10 },
+  subRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  subInput: { flex: 1, width: undefined, marginBottom: 0 },
+  remove: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.colors.glassFill,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-  inputGroup: {
+  add: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 46,
+    borderRadius: 14,
+    borderCurve: 'continuous',
+    backgroundColor: 'rgba(0, 105, 232, 0.08)',
     marginBottom: 20,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  subText: {
-    fontSize: 12,
-    marginBottom: 12,
-  },
-  input: {
-    width: '100%',
-    height: 50,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    fontSize: 15,
-  },
-  subgroupsContainer: {
-    marginBottom: 24,
-  },
-  subgroupRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-    gap: 8,
-  },
-  subgroupInput: {
-    flex: 1,
-  },
-  removeButton: {
-    padding: 10,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    marginTop: 8,
-    gap: 8,
-  },
-  addButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 16,
-  },
-  button: {
-    flex: 1,
-    height: 50,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backButton: {
-    borderWidth: 1,
-  },
-  backButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  nextButton: {},
-  nextButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+  addText: { fontSize: 15, fontWeight: '700', color: theme.colors.sprintyBlue },
 });

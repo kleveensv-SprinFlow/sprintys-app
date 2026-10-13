@@ -53,7 +53,8 @@
         ],
         "NSPrivacyTracking": false,
         "NSPrivacyTrackingDomains": []
-      }
+      },
+      "usesAppleSignIn": true
     },
     "android": {
       "userInterfaceStyle": "light",
@@ -110,7 +111,8 @@
           "microphonePermission": false
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-apple-authentication"
     ]
   }
 }

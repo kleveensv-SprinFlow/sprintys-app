@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import { supabase } from '../services/supabase';
@@ -76,6 +77,7 @@ interface AuthState {
   login: (email: string, pass: string) => Promise<void>;
   signup: (data: SignupData) => Promise<{ success: boolean; requiresVerification: boolean }>;
   signInWithGoogle: () => Promise<{ success: boolean; cancelled?: boolean; error?: string }>;
+  signInWithApple: () => Promise<{ success: boolean; cancelled?: boolean; error?: string }>;
   verifyOtp: (email: string, token: string) => Promise<boolean>;
   resendOtp: (email: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -116,25 +118,37 @@ const flushPendingConsents = async () => {
   }
 };
 
+/** Deep link Supabase sends users back to (Google sign-in, password recovery). Must stay in the Auth allow-list. */
+export const authRedirectUrl = () => makeRedirectUri({ scheme: 'sprintflowv2', path: 'auth/callback' });
+
 export const translateAuthError = (err: any): string => {
   const msg = err?.message || err?.error_description || (typeof err === 'string' ? err : '');
-  if (!msg) return 'Une erreur est survenue. Veuillez réessayer.';
-  
+  if (!msg) return 'Une erreur est survenue. Réessaie dans un instant.';
+
   const lower = msg.toLowerCase();
   if (lower.includes('token has expired') || lower.includes('token is invalid') || lower.includes('invalid token') || lower.includes('otp')) {
-    return 'Le code de confirmation est incorrect ou a expiré. Veuillez vérifier le code reçu ou en demander un nouveau.';
+    return 'Ce code est incorrect ou a expiré. Vérifie-le ou demande un nouveau code.';
   }
   if (lower.includes('rate limit') || lower.includes('too many') || lower.includes('over_email_send_rate_limit')) {
-    return 'Veuillez patienter un instant avant de demander un nouveau code.';
+    return 'Trop de tentatives. Patiente un instant avant de réessayer.';
   }
   if (lower.includes('user already registered') || lower.includes('already exists')) {
-    return 'Un compte existe déjà avec cette adresse email.';
+    return 'Un compte existe déjà avec cette adresse. Connecte-toi plutôt.';
   }
   if (lower.includes('invalid login credentials') || lower.includes('invalid credentials')) {
-    return 'Email ou mot de passe incorrect.';
+    return 'E-mail ou mot de passe incorrect.';
   }
-  if (lower.includes('network') || lower.includes('failed to fetch')) {
-    return 'Erreur de connexion. Vérifiez votre accès internet.';
+  if (lower.includes('email not confirmed')) {
+    return 'Ton adresse n’est pas encore confirmée. Utilise le code reçu par e-mail.';
+  }
+  if (lower.includes('password should') || lower.includes('weak password') || lower.includes('weak_password')) {
+    return 'Ce mot de passe est trop faible. Choisis-en un plus long, avec chiffres et majuscules.';
+  }
+  if (lower.includes('invalid email') || lower.includes('unable to validate email') || (lower.includes('email address') && lower.includes('invalid'))) {
+    return 'Cette adresse e-mail ne semble pas valide.';
+  }
+  if (lower.includes('network') || lower.includes('failed to fetch') || lower.includes('fetch failed')) {
+    return 'Pas de connexion. Vérifie ton accès à internet.';
   }
   return msg;
 };
@@ -282,10 +296,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signInWithGoogle: async () => {
     set({ isLoading: true, error: null });
     try {
-      const redirectUrl = makeRedirectUri({
-        scheme: 'sprintflowv2',
-        path: 'auth/callback',
-      });
+      const redirectUrl = authRedirectUrl();
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -341,6 +352,43 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  /** Native Sign in with Apple (iOS), required by Apple next to Google sign-in. */
+  signInWithApple: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      if (!credential.identityToken) throw new Error("Apple n'a pas renvoyé d'identifiant.");
+
+      const { data, error } = await supabase.auth.signInWithIdToken({ provider: 'apple', token: credential.identityToken });
+      if (error) throw error;
+
+      // Apple shares the name only on the very first sign-in: keep it
+      const first = credential.fullName?.givenName || null;
+      const last = credential.fullName?.familyName || null;
+      if (data.user && (first || last)) {
+        const full = [first, last].filter(Boolean).join(' ');
+        await supabase.auth.updateUser({ data: { first_name: first, last_name: last, full_name: full } });
+        await supabase.from('profiles').update({ first_name: first, last_name: last, full_name: full }).eq('id', data.user.id);
+      }
+      await get().reloadProfile();
+      set({ isLoading: false });
+      return { success: true };
+    } catch (err: any) {
+      if (err?.code === 'ERR_REQUEST_CANCELED') {
+        set({ isLoading: false });
+        return { success: false, cancelled: true };
+      }
+      console.error('Apple Sign-In error:', err);
+      set({ error: translateAuthError(err), isLoading: false });
+      return { success: false, error: err?.message };
+    }
+  },
+
   login: async (email, pass) => {
     set({ isLoading: true, error: null });
 
@@ -382,7 +430,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         error: null
       });
     } catch (err: any) {
-      set({ error: err.message || 'Erreur de connexion', isLoading: false });
+      set({ error: translateAuthError(err), isLoading: false });
     }
   },
 

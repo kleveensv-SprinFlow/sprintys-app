@@ -1,215 +1,98 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as Haptics from 'expo-haptics';
-import { useTheme } from '../../../core/theme';
+import { useRouter } from 'expo-router';
+import { theme } from '../../../core/theme';
+import { glassCard } from '../../../core/glass';
 import { SprintyLogo } from '../../../shared/components/SprintyLogo';
+import { GlowBackground } from '../../../shared/components/GlowBackground';
+import { GlassSheen } from '../../../shared/components/GlassSheen';
+import { SegmentedControl } from '../../../shared/components/SegmentedControl';
 import { LoginForm } from './LoginForm';
 import { RegisterMultiStep } from './RegisterMultiStep';
-import { GlowBackground } from '../../../shared/components/GlowBackground';
-import { glassSurface } from '../../../core/glass';
-import { GlassSheen } from '../../../shared/components/GlassSheen';
 
-interface AuthScreenProps {
-  initialTab?: 'login' | 'signup';
-}
+type Tab = 'login' | 'signup';
 
-export const AuthScreen: React.FC<AuthScreenProps> = ({ initialTab = 'login' }) => {
-  const theme = useTheme();
-  const [activeTab, setActiveTab] = useState<'login' | 'signup'>(initialTab);
+export const AuthScreen: React.FC<{ initialTab?: Tab }> = ({ initialTab = 'login' }) => {
+  const router = useRouter();
+  const [tab, setTab] = useState<Tab>(initialTab);
+  const fade = useRef(new Animated.Value(1)).current;
 
-  const handleTabChange = (tab: 'login' | 'signup') => {
-    if (activeTab !== tab) {
-      Haptics.selectionAsync().catch(() => {});
-      setActiveTab(tab);
-    }
-  };
+  // Soft cross-fade between login and signup
+  useEffect(() => {
+    fade.setValue(0);
+    Animated.timing(fade, { toValue: 1, duration: 220, useNativeDriver: true }).start();
+  }, [tab]);
 
-  const Content = (
-    <ScrollView
-      contentContainerStyle={styles.scrollContent}
-      keyboardShouldPersistTaps="always"
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Brand Hero Header */}
-      <View style={styles.heroSection}>
-        <View style={styles.logoWrapper}>
-          <SprintyLogo width={180} height={46} />
-        </View>
-        <Text style={[styles.tagline, { color: theme.colors.textSecondary }]}>
-          L'accélération de votre performance
-        </Text>
-      </View>
-
-      {/* Modern Athletic Segmented Switcher */}
-      <View style={[styles.switcherContainer, { backgroundColor: theme.colors.glassFill }]}>
-        <TouchableOpacity
-          style={[
-            styles.tabButton,
-            activeTab === 'login' && styles.activeTabButton,
-          ]}
-          onPress={() => handleTabChange('login')}
-          activeOpacity={0.8}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'login'
-                ? { color: '#0F172A', fontWeight: '700' }
-                : { color: theme.colors.textSecondary, fontWeight: '500' },
-            ]}
-          >
-            Connexion
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.tabButton,
-            activeTab === 'signup' && styles.activeTabButton,
-          ]}
-          onPress={() => handleTabChange('signup')}
-          activeOpacity={0.8}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'signup'
-                ? { color: '#0F172A', fontWeight: '700' }
-                : { color: theme.colors.textSecondary, fontWeight: '500' },
-            ]}
-          >
-            Inscription
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Main Authentication Card */}
-      <View
-        style={[
-          styles.card,
-          glassSurface,
-        ]}
-      >
-        <GlassSheen radius={20} />
-        {activeTab === 'login' ? (
-          <LoginForm onSwitchToSignup={() => handleTabChange('signup')} />
-        ) : (
-          <RegisterMultiStep onSwitchToLogin={() => handleTabChange('login')} />
-        )}
-      </View>
-
-      {/* Minimal Athletic Footer */}
-      <Text style={[styles.footerText, { color: theme.colors.textMuted }]}>
-        Sprintys · Athlétisme & performance
-      </Text>
-    </ScrollView>
-  );
+  const openDoc = (doc: string) => router.push({ pathname: '/legal/[doc]', params: { doc } });
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.backdrop }]}>
+    <View style={styles.container}>
       <GlowBackground />
+      <SafeAreaView style={{ flex: 1 }}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <ScrollView
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.hero}>
+              <SprintyLogo width={170} height={44} />
+              <Text style={styles.tagline}>L’athlétisme, de la séance à la performance</Text>
+            </View>
 
-      <SafeAreaView style={styles.safeArea}>
-        {Platform.OS === 'ios' ? (
-          <KeyboardAvoidingView behavior="padding" style={styles.keyboardView}>
-            {Content}
-          </KeyboardAvoidingView>
-        ) : (
-          <View style={styles.keyboardView}>{Content}</View>
-        )}
+            <SegmentedControl
+              style={styles.switcher}
+              options={[
+                { key: 'login' as Tab, label: 'Connexion' },
+                { key: 'signup' as Tab, label: 'Inscription' },
+              ]}
+              value={tab}
+              onChange={setTab}
+            />
+
+            <Animated.View
+              style={[
+                glassCard,
+                styles.card,
+                { opacity: fade, transform: [{ translateY: fade.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }] },
+              ]}
+            >
+              <GlassSheen radius={22} />
+              {tab === 'login' ? (
+                <LoginForm onSwitchToSignup={() => setTab('signup')} />
+              ) : (
+                <RegisterMultiStep onSwitchToLogin={() => setTab('login')} />
+              )}
+            </Animated.View>
+
+            <Text style={styles.footer}>
+              <Text style={styles.footerLink} onPress={() => openDoc('terms')}>
+                Conditions
+              </Text>
+              {'  ·  '}
+              <Text style={styles.footerLink} onPress={() => openDoc('privacy')}>
+                Confidentialité
+              </Text>
+              {'  ·  '}
+              <Text style={styles.footerLink} onPress={() => openDoc('notice')}>
+                Mentions légales
+              </Text>
+            </Text>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    position: 'relative',
-  },
-  safeArea: {
-    flex: 1,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 90,
-    alignItems: 'center',
-  },
-  heroSection: {
-    alignItems: 'center',
-    marginBottom: 20,
-    marginTop: 6,
-  },
-  logoWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  tagline: {
-    fontSize: 14,
-    fontWeight: '600',
-    letterSpacing: -0.2,
-  },
-  switcherContainer: {
-    flexDirection: 'row',
-    width: '100%',
-    height: 44,
-    borderRadius: 12,
-    padding: 3,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.03)',
-  },
-  tabButton: {
-    flex: 1,
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 9,
-  },
-  activeTabButton: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1.5 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  tabText: {
-    fontSize: 14,
-    letterSpacing: -0.2,
-  },
-  card: {
-    width: '100%',
-    borderRadius: 20,
-    borderWidth: 1,
-    paddingHorizontal: 22,
-    paddingVertical: 24,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 14,
-    elevation: 2,
-    marginBottom: 20,
-  },
-  footerText: {
-    fontSize: 12,
-    fontWeight: '500',
-    textAlign: 'center',
-    marginTop: 2,
-    letterSpacing: 0.1,
-  },
+  container: { flex: 1, backgroundColor: theme.colors.backdrop },
+  content: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 40 },
+  hero: { alignItems: 'center', marginBottom: 22, marginTop: 8, gap: 10 },
+  tagline: { fontSize: 15, fontWeight: '600', color: theme.colors.textSecondary, letterSpacing: -0.2 },
+  switcher: { marginBottom: 14 },
+  card: { paddingHorizontal: 20, paddingVertical: 22, marginBottom: 18 },
+  footer: { textAlign: 'center', fontSize: 13, color: theme.colors.textMuted },
+  footerLink: { color: theme.colors.textSecondary, fontWeight: '600' },
 });

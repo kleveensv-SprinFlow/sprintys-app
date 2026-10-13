@@ -49,7 +49,11 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const handlePress = () => {
-    Haptics.impactAsync(haptic);
+    try {
+      Haptics.impactAsync(haptic);
+    } catch {
+      // haptics unavailable (web)
+    }
     onPress();
   };
 
@@ -86,7 +90,7 @@ export const Button: React.FC<ButtonProps> = ({
     >
       <Animated.View style={[styles.content, { transform: [{ scale: scaleAnim }] }]}>
         {loading ? (
-          <ActivityIndicator color={(variant === 'primary' ? '#FFFFFF' : theme.colors.accent)} />
+          <ActivityIndicator color={variant === 'primary' ? '#FFFFFF' : theme.colors.sprintyBlue} />
         ) : (
           <Text style={[styles.baseText, getTextStyle(), textStyle]}>
             {title}
@@ -100,7 +104,8 @@ export const Button: React.FC<ButtonProps> = ({
 const styles = StyleSheet.create({
   base: {
     height: 52,
-    borderRadius: theme.radius.sm,
+    borderRadius: 16,
+    borderCurve: 'continuous',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.xl,
@@ -114,14 +119,14 @@ const styles = StyleSheet.create({
   },
   baseText: {
     fontSize: 16,
-    fontWeight: theme.typography.fontWeights.semibold as any,
+    fontWeight: '800',
     letterSpacing: theme.typography.letterSpacing.normal,
   },
   primary: {
-    backgroundColor: theme.colors.accent,
+    backgroundColor: theme.colors.sprintyBlue,
   },
   primaryText: {
-    color: '#FFFFFF', // White text on dark slate accent
+    color: '#FFFFFF',
   },
   secondary: {
     backgroundColor: theme.colors.glassFill,
@@ -129,19 +134,18 @@ const styles = StyleSheet.create({
   secondaryText: {
     color: theme.colors.text,
   },
+  // Light brand tint (kept as "outline" for existing callers)
   outline: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: theme.colors.accent,
+    backgroundColor: 'rgba(0, 105, 232, 0.1)',
   },
   outlineText: {
-    color: theme.colors.accent,
+    color: theme.colors.sprintyBlue,
   },
   ghost: {
     backgroundColor: 'transparent',
   },
   disabled: {
-    opacity: 0.5,
+    opacity: 0.4,
   },
 });
 
