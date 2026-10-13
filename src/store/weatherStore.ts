@@ -34,7 +34,7 @@ export const useWeatherStore = create<WeatherState>((set, get) => ({
       // 1. Request Permissions
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        set({ error: 'Permission denied', isLoading: false });
+        set({ error: 'Localisation refusée', isLoading: false });
         return;
       }
 

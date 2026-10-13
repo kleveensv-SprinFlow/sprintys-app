@@ -102,7 +102,7 @@ export const WeatherBadge: React.FC = () => {
                 <BlurView intensity={80} tint="dark" style={styles.glassCard}>
                   <View style={styles.modalHeader}>
                     <View style={styles.sprintyBadge}>
-                      <Text style={styles.modalTitle}>SPRINTY ADVICE</Text>
+                      <Text style={styles.modalTitle}>CONSEIL DE SPRINTY</Text>
                     </View>
                     <Pressable onPress={() => setModalVisible(false)}>
                       <View style={styles.closeIcon} />
@@ -126,7 +126,7 @@ export const WeatherBadge: React.FC = () => {
                   <View style={styles.adviceContainer}>
                     <Text style={styles.adviceMessage}>{advice?.message}</Text>
                     <View style={styles.proTip}>
-                      <Text style={styles.proTipLabel}>ELITE TIP</Text>
+                      <Text style={styles.proTipLabel}>ASTUCE</Text>
                       <Text style={styles.proTipText}>Ajustez l'échauffement de +5 min.</Text>
                     </View>
                   </View>

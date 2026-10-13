@@ -150,6 +150,10 @@ export const translateAuthError = (err: any): string => {
   if (lower.includes('network') || lower.includes('failed to fetch') || lower.includes('fetch failed')) {
     return 'Pas de connexion. Vérifie ton accès à internet.';
   }
+  // Never surface raw English server messages
+  if (/\b(the|is|not|for|with|error|invalid|failed|unable|must|should|user)\b/i.test(msg)) {
+    return 'Une erreur est survenue. Réessaie dans un instant.';
+  }
   return msg;
 };
 

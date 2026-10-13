@@ -25,6 +25,8 @@ import { useFrostedHeader } from '../../../src/shared/hooks/useFrostedHeader';
 
 import { appAlert } from '../../../src/shared/feedback/appAlert';
 
+import { useRefresh } from '../../../src/shared/hooks/useRefresh';
+
 const MONTH_NAMES_FULL = [
   'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
   'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'
@@ -121,6 +123,7 @@ export default function CoachDayScreen() {
     }
   }, [user?.id, dateString]);
 
+  const refreshControl = useRefresh(() => fetchDayWorkouts());
   useEffect(() => {
     fetchDayWorkouts();
   }, [fetchDayWorkouts]);
@@ -273,7 +276,7 @@ export default function CoachDayScreen() {
         </TouchableOpacity>
       </View>
 
-      <Animated.ScrollView {...scrollProps}
+      <Animated.ScrollView {...scrollProps} refreshControl={refreshControl}
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -287,7 +290,7 @@ export default function CoachDayScreen() {
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Planifier une séance</Text>
               <Text style={[styles.sectionSubtitle, { color: theme.colors.textSecondary }]}>
-                Choisissez le type d'entraînement pour cette date
+                Choisis le type d’entraînement pour cette date
               </Text>
             </View>
 
@@ -421,7 +424,7 @@ export default function CoachDayScreen() {
                 <View style={styles.sectionHeader}>
                   <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Ajouter une séance</Text>
                   <Text style={[styles.sectionSubtitle, { color: theme.colors.textSecondary }]}>
-                    Choisissez le type d'entraînement
+                    Choisis le type d’entraînement
                   </Text>
                 </View>
                 <View style={styles.gridContainer}>

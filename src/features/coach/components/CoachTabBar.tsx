@@ -18,7 +18,7 @@ interface TabConfig {
 const COACH_TABS: Record<string, TabConfig> = {
   index: {
     name: 'index',
-    label: 'Dashboard',
+    label: 'Accueil',
     renderIcon: (color) => <Feather name="grid" size={20} color={color} />,
   },
   group: {

@@ -193,7 +193,7 @@ export const AthletePerformanceModal: React.FC<AthletePerformanceModalProps> = (
                     day: 'numeric',
                     month: 'short',
                   })
-                : 'Date N/A';
+                : 'Date inconnue';
 
               const isCompleted = item.status === 'completed';
               const efforts = item.athlete_efforts || [];

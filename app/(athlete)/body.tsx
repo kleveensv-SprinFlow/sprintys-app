@@ -33,6 +33,8 @@ import { supabase } from '../../src/services/supabase';
 import { FeedbackHost } from '../../src/shared/feedback/FeedbackHost';
 import { appAlert } from '../../src/shared/feedback/appAlert';
 
+import { useRefresh } from '../../src/shared/hooks/useRefresh';
+
 const BLUE_TINT = 'rgba(0, 105, 232, 0.1)';
 
 type MetricKey = 'weight' | 'fat' | 'muscle';
@@ -89,6 +91,7 @@ export default function BodyCompositionScreen() {
   const [goalValue, setGoalValue] = useState('');
   const [savingGoal, setSavingGoal] = useState(false);
 
+  const refreshControl = useRefresh(() => user?.id ? loadMetrics(user.id) : undefined);
   useEffect(() => {
     if (user?.id) loadMetrics(user.id);
   }, [user?.id]);
@@ -270,7 +273,7 @@ export default function BodyCompositionScreen() {
           </PressableScale>
         </View>
 
-        <Animated.ScrollView {...scrollProps} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Animated.ScrollView {...scrollProps} refreshControl={refreshControl} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <Text style={[styles.hero, { color: theme.colors.text }]}>
             {shown ? formatKg(shown.v) : '--'}
             <Text style={[styles.heroUnit, { color: theme.colors.textSecondary }]}> {unit}</Text>

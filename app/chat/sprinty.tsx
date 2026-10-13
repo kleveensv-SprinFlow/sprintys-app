@@ -211,7 +211,7 @@ export default function AthleteMessageScreen() {
           <View style={styles.proposal}>
             <WorkoutProposalCard
               proposal={proposal}
-              onValidate={() => addMessage({ role: 'assistant', content: '💪 Séance ajoutée au calendrier !' })}
+              onValidate={() => addMessage({ role: 'assistant', content: 'Séance ajoutée au calendrier.' })}
               onReject={() => setInputText("Je n'ai pas validé cette séance, voici ce qu'il faut changer : ")}
             />
           </View>

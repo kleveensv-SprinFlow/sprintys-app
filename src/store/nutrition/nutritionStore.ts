@@ -81,7 +81,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
     set({ isLoading: true, error: null });
     const user = useAuthStore.getState().user;
     if (!user) {
-      set({ isLoading: false, error: 'User not logged in' });
+      set({ isLoading: false, error: 'Session expirée, reconnecte-toi.' });
       return;
     }
 
@@ -179,7 +179,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
     const authStore = useAuthStore.getState();
     const user = authStore.user;
     if (!user) {
-      set({ isLoading: false, error: 'User not logged in' });
+      set({ isLoading: false, error: 'Session expirée, reconnecte-toi.' });
       return;
     }
 
@@ -263,7 +263,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
     set({ isLoading: true, error: null });
     const user = useAuthStore.getState().user;
     if (!user) {
-      set({ isLoading: false, error: 'User not logged in' });
+      set({ isLoading: false, error: 'Session expirée, reconnecte-toi.' });
       return false;
     }
 
@@ -361,7 +361,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
 
     const currentLogs = get().mealLogs.filter((l) => l.meal_type === mealType);
     if (!currentLogs.length) {
-      appAlert('Repas vide', 'Ajoutez au moins un aliment avant de sauvegarder ce repas.');
+      appAlert('Repas vide', 'Ajoute au moins un aliment avant d’enregistrer ce repas.');
       return false;
     }
 

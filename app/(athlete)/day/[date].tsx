@@ -13,6 +13,8 @@ import { GlassScreen } from '../../../src/shared/components/GlassScreen';
 import { glassSurface } from '../../../src/core/glass';
 import { useFrostedHeader } from '../../../src/shared/hooks/useFrostedHeader';
 
+import { useRefresh } from '../../../src/shared/hooks/useRefresh';
+
 const MONTH_NAMES_FULL = [
   'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
   'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'
@@ -74,6 +76,7 @@ export default function AthleteDayScreen() {
     }
   }, [user?.id, date]);
 
+  const refreshControl = useRefresh(() => fetchDayWorkouts());
   useEffect(() => {
     fetchDayWorkouts();
   }, [fetchDayWorkouts]);
@@ -106,7 +109,7 @@ export default function AthleteDayScreen() {
         }}
       />
 
-      <Animated.ScrollView {...scrollProps} style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <Animated.ScrollView {...scrollProps} refreshControl={refreshControl} style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {isLoading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={theme.colors.accent} />

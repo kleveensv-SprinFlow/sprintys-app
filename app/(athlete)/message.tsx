@@ -19,6 +19,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSprintyChatStore } from '../../src/store/sprintyChatStore';
 import { formatListTime } from '../../src/shared/utils/chatTime';
 
+import { useRefresh } from '../../src/shared/hooks/useRefresh';
+
 const BLUE_TINT = 'rgba(0, 105, 232, 0.1)';
 
 /** One line of plain text from an AI reply (no markdown marks, no JSON blocks). */
@@ -103,6 +105,7 @@ export default function MessagesHubScreen() {
     }
   };
 
+  const refreshControl = useRefresh(() => fetchGroupAndDiscussions());
   useFocusEffect(
     React.useCallback(() => {
       fetchGroupAndDiscussions();
@@ -122,7 +125,7 @@ export default function MessagesHubScreen() {
           <Text style={styles.title}>Messages</Text>
         </View>
 
-        <Animated.ScrollView {...scrollProps} contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace }]} showsVerticalScrollIndicator={false}>
+        <Animated.ScrollView {...scrollProps} refreshControl={refreshControl} contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace }]} showsVerticalScrollIndicator={false}>
         
           {/* SPRINTY IA CARD */}
           <PressableScale

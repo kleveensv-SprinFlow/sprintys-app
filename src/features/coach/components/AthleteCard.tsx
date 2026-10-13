@@ -47,14 +47,14 @@ export const AthleteCard: React.FC<Props> = React.memo(({ athlete, onOpenPerform
           <View style={styles.stat}>
             <Text style={styles.statLabel}>DERNIER ENTRAÎNEMENT</Text>
             <Text style={styles.statValue}>
-              {athlete.lastWorkoutDate ? new Date(athlete.lastWorkoutDate).toLocaleDateString('fr-FR') : 'N/A'}
+              {athlete.lastWorkoutDate ? new Date(athlete.lastWorkoutDate).toLocaleDateString('fr-FR') : 'Aucune'}
             </Text>
           </View>
         </View>
 
         <View style={styles.buttonRow}>
           <Button
-            title="PERFS ⏱️"
+            title="Perfs"
             onPress={() => onOpenPerformance ? onOpenPerformance(athlete) : router.push(`/(coach)/athlete/${athlete.id}`)}
             variant="primary"
             style={[styles.actionBtn, { flex: 1.2, marginRight: 6 }] as any}

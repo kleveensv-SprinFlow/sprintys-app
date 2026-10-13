@@ -9,6 +9,8 @@ import { GlowBackground } from '../../../src/shared/components/GlowBackground';
 import { glassSurface } from '../../../src/core/glass';
 import { GlassSheen } from '../../../src/shared/components/GlassSheen';
 
+import { useRefresh } from '../../../src/shared/hooks/useRefresh';
+
 export default function AthleteDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -21,6 +23,7 @@ export default function AthleteDetailScreen() {
   const [latestCheckIn, setLatestCheckIn] = useState<CheckInData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const refreshControl = useRefresh(() => id ? loadCheckIn(id as string) : undefined);
   useEffect(() => {
     if (id) {
       loadCheckIn(id);
@@ -73,7 +76,7 @@ export default function AthleteDetailScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView refreshControl={refreshControl} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
         {/* PROFILE INFO */}
         <View style={styles.profileSection}>
@@ -156,7 +159,7 @@ export default function AthleteDetailScreen() {
             <GlassSheen radius={22} />
             {/* Global Score */}
             <View style={styles.globalScoreHeader}>
-              <Text style={styles.globalScoreTitle}>Readiness Score</Text>
+              <Text style={styles.globalScoreTitle}>Forme du jour</Text>
               <View style={[styles.scoreBadge, { backgroundColor: getScoreColor(latestCheckIn.health_score) + '20' }]}>
                 <Text style={[styles.scoreBadgeText, { color: getScoreColor(latestCheckIn.health_score) }]}>
                   {latestCheckIn.health_score} %

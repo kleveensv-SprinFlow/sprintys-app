@@ -140,7 +140,7 @@ export const ExerciseRow: React.FC<Props> = ({ blockId, exercise }) => {
   const renderHeader = () => {
     return (
       <View style={styles.headerRow}>
-        <Text style={[styles.headerText, { flex: 0.5 }]}>SET</Text>
+        <Text style={[styles.headerText, { flex: 0.5 }]}>SÉRIE</Text>
         <Text style={[styles.headerText, { flex: 2, textAlign: 'left' }]}>OBJECTIF CIBLE</Text>
         {isStrength && <Text style={[styles.headerText, { flex: 1.5 }]}>RÉALISÉ</Text>}
         {isRun && <Text style={[styles.headerText, { flex: 1.5 }]}>CHRONO (s)</Text>}

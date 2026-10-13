@@ -466,7 +466,7 @@ export default function CoachMessageScreen() {
             <View style={styles.inputBox}>
               <TextInput
                 style={styles.input}
-                placeholder="Tapez un message..."
+                placeholder="Écris un message…"
                 placeholderTextColor={theme.colors.textMuted}
                 multiline
                 value={inputText}

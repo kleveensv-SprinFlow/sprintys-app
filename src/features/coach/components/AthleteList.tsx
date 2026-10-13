@@ -33,7 +33,7 @@ export const AthleteList: React.FC = React.memo(() => {
     return (
       <EmptyState 
         title="Aucun athlète" 
-        message="Votre liste d'athlètes est vide. Commencez par inviter vos sportifs pour planifier leurs séances." 
+        message="Ta liste d’athlètes est vide. Invite tes sportifs pour planifier leurs séances." 
       />
     );
   }

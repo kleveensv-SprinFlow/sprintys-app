@@ -77,7 +77,7 @@ export const ExerciseSearch: React.FC<ExerciseSearchProps> = ({ onSelect, onCanc
     <TouchableOpacity style={styles.resultItem} onPress={() => onSelect(item)}>
       <View style={styles.resultInfo}>
         <Text style={styles.resultName}>{item.name_fr}</Text>
-        <Text style={styles.resultNameEn}>{item.name_en || 'N/A'}</Text>
+        <Text style={styles.resultNameEn}>{item.name_en || '—'}</Text>
         
         <View style={styles.tagsContainer}>
           {item.equipment && (

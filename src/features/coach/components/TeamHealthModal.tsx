@@ -194,7 +194,7 @@ export const TeamHealthModal = ({ visible, onClose }: Props) => {
             <View style={styles.summaryBanner}>
               <View style={styles.summaryTopRow}>
                 <View>
-                  <Text style={styles.summaryLabel}>READINESS GLOBAL</Text>
+                  <Text style={styles.summaryLabel}>FORME DE L’ÉQUIPE</Text>
                   {summary.avgScore !== null ? (
                     <Text style={styles.summaryScore}>{summary.avgScore}%</Text>
                   ) : (
@@ -491,7 +491,7 @@ export const TeamHealthModal = ({ visible, onClose }: Props) => {
                                 <View style={styles.metricCard2x2}>
                                   <View style={styles.metricCard2x2Header}>
                                     <Feather name="target" size={14} color={scoreTheme.text} />
-                                    <Text style={styles.metricCard2x2Title}>Readiness</Text>
+                                    <Text style={styles.metricCard2x2Title}>Forme</Text>
                                   </View>
                                   <Text style={[styles.metricCard2x2BigVal, { color: scoreTheme.text }]}>
                                     {score != null ? `${score}%` : '-'}

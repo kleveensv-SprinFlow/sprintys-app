@@ -60,7 +60,7 @@ const defaultIntro: ChatMessage = {
 
 const athleteIntro = (name: string): ChatMessage => ({
   role: 'assistant',
-  content: `📊 J'ai chargé tout l'historique de ${name} (séances, résultats, nutrition, forme, poids). Je prépare l'analyse…`,
+  content: `J’ai chargé tout l'historique de ${name} (séances, résultats, nutrition, forme, poids). Je prépare l'analyse…`,
 });
 
 const shortName = (name: string) => {

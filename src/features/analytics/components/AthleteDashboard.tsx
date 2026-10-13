@@ -140,7 +140,7 @@ export const AthleteDashboard: React.FC = () => {
         strengthPrs.map((pr, i) => (
           <View key={i} style={styles.prCard}>
             <Feather name="award" size={18} color="#8B5CF6" />
-            <Text style={styles.prMain}>{pr.actual_reps || '?'} Reps</Text>
+            <Text style={styles.prMain}>{pr.actual_reps || '?'} rép.</Text>
             <Text style={styles.prResult}>{pr.max_weight_kg} kg</Text>
           </View>
         ))

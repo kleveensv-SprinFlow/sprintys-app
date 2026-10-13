@@ -23,7 +23,7 @@ export default function WorkoutScreen() {
           style={styles.startBtn}
         />
         <Button
-          title="RETOUR AU DASHBOARD"
+          title="Retour à l’accueil"
           onPress={() => router.replace('/')}
           variant="ghost"
         />

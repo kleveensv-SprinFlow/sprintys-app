@@ -81,7 +81,7 @@ export const ActiveWorkoutSession: React.FC = () => {
           onPress={() => {
             appAlert(
               "Ajouter un exercice libre",
-              "Choisissez le type",
+              "Choisis le type",
               [
                 { text: "Musculation", onPress: () => addExercise('Nouvel Exo', 'strength') },
                 { text: "Course / Piste", onPress: () => addExercise('Nouvel Exo', 'run') },

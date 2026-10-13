@@ -18,6 +18,8 @@ import { useConsentStore } from '../../src/store/consentStore';
 
 import { appAlert } from '../../src/shared/feedback/appAlert';
 
+import { useRefresh } from '../../src/shared/hooks/useRefresh';
+
 interface MyGroupData {
   team_id: string;
   coach_id: string;
@@ -61,6 +63,7 @@ export default function GroupsScreen() {
     }
   };
 
+  const refreshControl = useRefresh(() => fetchMyGroup());
   useFocusEffect(
     useCallback(() => {
       fetchMyGroup();
@@ -190,7 +193,7 @@ export default function GroupsScreen() {
         return;
       }
       
-      appAlert('Demande envoyée ! 🚀', `Ta demande pour rejoindre "${data.team_name}" a été envoyée au coach. Tu seras notifié quand il t'acceptera.`);
+      appAlert('Demande envoyée', `Ta demande pour rejoindre « ${data.team_name} » est partie. Tu seras prévenu dès que ton coach l’aura acceptée.`);
       setInviteCode('');
       fetchMyGroup();
 
@@ -255,7 +258,7 @@ export default function GroupsScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      <Animated.ScrollView {...scrollProps} style={styles.content} showsVerticalScrollIndicator={false}>
+      <Animated.ScrollView {...scrollProps} refreshControl={refreshControl} style={styles.content} showsVerticalScrollIndicator={false}>
 
         {/* === ÉTAT 1 : Pas de groupe => Rejoindre === */}
         {!myGroup && (

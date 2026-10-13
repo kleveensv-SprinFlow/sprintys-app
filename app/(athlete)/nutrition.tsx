@@ -15,6 +15,8 @@ import { GlassScreen } from '../../src/shared/components/GlassScreen';
 import { useTabBarSpace } from '../../src/shared/hooks/useTabBarSpace';
 import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
 
+import { useRefresh } from '../../src/shared/hooks/useRefresh';
+
 export default function NutritionScreen() {
   const params = useLocalSearchParams();
   const athleteId = params.athleteId as string;
@@ -26,6 +28,8 @@ export default function NutritionScreen() {
   const [athleteProfile, setAthleteProfile] = useState<any>(null);
   const { currentDate, fetchMealLogs } = useNutritionStore();
   const user = useAuthStore(state => state.user);
+
+  const refreshControl = useRefresh(() => (user ? fetchMealLogs(currentDate, athleteId) : undefined));
 
   // Charger le profil spécifique de l'athlète consulté si mode coach
   useEffect(() => {
@@ -58,7 +62,7 @@ export default function NutritionScreen() {
         athleteProfile={athleteProfile}
       />
 
-      <Animated.ScrollView {...scrollProps} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: tabBarSpace }}>
+      <Animated.ScrollView {...scrollProps} refreshControl={refreshControl} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: tabBarSpace }}>
         <DateSelector athleteId={athleteId} />
         <NutritionSummary athleteProfile={athleteProfile} />
         <MealSection readonly={readonly} athleteId={athleteId} athleteProfile={athleteProfile} />

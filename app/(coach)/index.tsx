@@ -68,7 +68,7 @@ export default function CoachDashboardScreen() {
   };
 
   const avgHealth = getGroupHealth();
-  const avgHealthStr = avgHealth ? `${Math.round(avgHealth)}%` : 'N/A';
+  const avgHealthStr = avgHealth ? `${Math.round(avgHealth)}%` : '—';
   const healthColor = avgHealth === null ? theme.colors.textMuted : avgHealth >= 70 ? theme.colors.success : avgHealth >= 40 ? '#F59E0B' : theme.colors.error;
 
   return (

@@ -11,12 +11,15 @@ import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
 
 import { appAlert } from '../../src/shared/feedback/appAlert';
 
+import { useRefresh } from '../../src/shared/hooks/useRefresh';
+
 export default function CoachLibraryScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { scrollY, scrollProps } = useFrostedHeader();
   const { workoutTemplates, fetchWorkoutTemplates, deleteWorkoutTemplate } = useCoachStore();
 
+  const refreshControl = useRefresh(() => fetchWorkoutTemplates());
   useEffect(() => {
     fetchWorkoutTemplates();
   }, []);
@@ -24,7 +27,7 @@ export default function CoachLibraryScreen() {
   const handleDelete = (id: string, name: string) => {
     appAlert(
       "Supprimer le modèle",
-      `Êtes-vous sûr de vouloir supprimer "${name}" ?`,
+      `Le modèle « ${name} » sera supprimé.`,
       [
         { text: "Annuler", style: "cancel" },
         { text: "Supprimer", style: "destructive", onPress: () => deleteWorkoutTemplate(id) }
@@ -47,9 +50,9 @@ export default function CoachLibraryScreen() {
         }
       />
       
-      <Animated.ScrollView {...scrollProps} style={{ flex: 1 }} contentContainerStyle={styles.content}>
+      <Animated.ScrollView {...scrollProps} refreshControl={refreshControl} style={{ flex: 1 }} contentContainerStyle={styles.content}>
         <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-          Vos modèles de séances prêts à l'emploi.
+          Tes modèles de séances prêts à l’emploi.
         </Text>
 
         {workoutTemplates.length === 0 ? (
@@ -59,7 +62,7 @@ export default function CoachLibraryScreen() {
             </View>
             <Text style={[styles.emptyText, { color: theme.colors.text }]}>Aucun modèle enregistré.</Text>
             <Text style={[styles.emptySubtext, { color: theme.colors.textSecondary }]}>
-              Créez une séance depuis le calendrier et cliquez sur "Sauvegarder comme modèle" pour la retrouver ici.
+              Crée une séance depuis le calendrier puis touche « Sauvegarder comme modèle » pour la retrouver ici.
             </Text>
           </View>
         ) : (

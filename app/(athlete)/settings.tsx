@@ -446,7 +446,7 @@ export default function SettingsScreen() {
           <View style={styles.sheetContainer}>
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Photo de profil</Text>
-            <Text style={styles.sheetSubtitle}>Choisissez une photo ou prenez-en une directement</Text>
+            <Text style={styles.sheetSubtitle}>Choisis une photo ou prends-en une</Text>
 
             <TouchableOpacity 
               style={styles.sheetOption} 

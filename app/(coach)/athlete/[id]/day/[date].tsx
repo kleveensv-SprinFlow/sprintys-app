@@ -11,6 +11,8 @@ import { GlassScreen } from '../../../../../src/shared/components/GlassScreen';
 import { glassSurface } from '../../../../../src/core/glass';
 import { useFrostedHeader } from '../../../../../src/shared/hooks/useFrostedHeader';
 
+import { useRefresh } from '../../../../../src/shared/hooks/useRefresh';
+
 const MONTH_NAMES_FULL = [
   'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
   'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'
@@ -50,6 +52,7 @@ export default function CoachAthleteDayScreen() {
     }
   }, [id, date]);
 
+  const refreshControl = useRefresh(() => fetchWorkouts());
   useFocusEffect(
     useCallback(() => {
       fetchWorkouts();
@@ -70,7 +73,7 @@ export default function CoachAthleteDayScreen() {
         onBackPress={() => router.back()}
       />
 
-      <Animated.ScrollView {...scrollProps} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <Animated.ScrollView {...scrollProps} refreshControl={refreshControl} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <Text style={[styles.sectionTitle, { color: theme.colors.textMuted }]}>
           SÉANCES PRÉVUES
         </Text>
