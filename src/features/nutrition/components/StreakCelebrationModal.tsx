@@ -1,324 +1,241 @@
 import React, { useEffect, useRef } from 'react';
-import { 
-  Modal, 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  Dimensions, 
-  Animated 
-} from 'react-native';
+import { Modal, View, Text, StyleSheet, Animated, Easing, Pressable } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import LottieView from 'lottie-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme, universalColors } from '../../../core/theme';
 import { useNutritionStore } from '../../../store/nutrition/nutritionStore';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PressableScale } from '../../../shared/components/PressableScale';
+import { MEAL_ACCENT, MEAL_ACCENT_TINT } from '../nutritionTheme';
 
-const { width } = Dimensions.get('window');
+const WEEK_DAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
+/**
+ * Logging streak: a light card over a soft veil, the app's blue bolt and the
+ * week as dots. Discreet on purpose, it should not interrupt more than a toast.
+ */
 export const StreakCelebrationModal = () => {
-  const { showStreakCelebration, currentStreakVal, closeStreakCelebration } = useNutritionStore();
-  const insets = useSafeAreaInsets();
-  
-  const lottieRef = useRef<LottieView>(null);
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const scaleAnim = useRef(new Animated.Value(0.7)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
+  const theme = useTheme();
+  const showStreakCelebration = useNutritionStore((s) => s.showStreakCelebration);
+  const currentStreakVal = useNutritionStore((s) => s.currentStreakVal);
+  const closeStreakCelebration = useNutritionStore((s) => s.closeStreakCelebration);
+
+  const scale = useRef(new Animated.Value(0.86)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  const badge = useRef(new Animated.Value(0)).current;
+  const halo = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (showStreakCelebration) {
-      lottieRef.current?.play();
-      
-      // Entrée avec rebond et fondu
-      Animated.parallel([
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          friction: 6,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 1,
-          duration: 350,
-          useNativeDriver: true,
-        }),
-      ]).start();
-
-      // Pulsation continue de l'aura
-      const pulseLoop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.15,
-            duration: 1800,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 1800,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      pulseLoop.start();
-
-      return () => pulseLoop.stop();
-    } else {
-      scaleAnim.setValue(0.7);
-      opacityAnim.setValue(0);
+    if (!showStreakCelebration) {
+      scale.setValue(0.86);
+      opacity.setValue(0);
+      badge.setValue(0);
+      halo.setValue(0);
+      return;
     }
-  }, [showStreakCelebration, scaleAnim, opacityAnim, pulseAnim]);
+
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 14, bounciness: 8 }),
+      Animated.timing(opacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+      Animated.sequence([
+        Animated.delay(120),
+        Animated.spring(badge, { toValue: 1, useNativeDriver: true, speed: 10, bounciness: 14 }),
+      ]),
+    ]).start();
+
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(halo, { toValue: 1, duration: 1400, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(halo, { toValue: 0, duration: 0, useNativeDriver: true }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [showStreakCelebration]);
 
   if (!showStreakCelebration) return null;
 
-  const weekDays = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
-  const todayIndex = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
+  const todayIndex = (new Date().getDay() + 6) % 7;
+  // Days of this week covered by the streak (today and the ones before it)
+  const firstStreakDay = todayIndex - Math.max(0, currentStreakVal - 1);
 
   return (
-    <Modal visible={showStreakCelebration} animationType="fade" transparent>
-      <View style={styles.overlay}>
-        {/* Aura lumineuse en arrière-plan avec pulsation */}
-        <Animated.View 
-          style={[
-            styles.glowOrb,
-            { transform: [{ scale: pulseAnim }] }
-          ]} 
-        />
-
-        <Animated.View 
-          style={[
-            styles.content,
-            {
-              opacity: opacityAnim,
-              transform: [{ scale: scaleAnim }],
-            }
-          ]}
-        >
-          {/* AVATAR ANIME SPRINTY DANS SON HALO */}
-          <View style={styles.sprintyContainer}>
-            <View style={styles.sprintyHalo}>
-              <LottieView
-                ref={lottieRef}
-                source={require('../../../assets/animations/active.json')}
-                autoPlay
-                loop
-                style={styles.sprintyLottie}
+    <Modal visible transparent animationType="fade" onRequestClose={closeStreakCelebration} statusBarTranslucent>
+      <Pressable style={styles.veil} onPress={closeStreakCelebration}>
+        <Animated.View style={[styles.card, { backgroundColor: theme.colors.surface, opacity, transform: [{ scale }] }]}>
+          {/* Card body swallows taps so only the veil closes */}
+          <Pressable style={styles.cardInner} onPress={() => {}}>
+            <View style={styles.badgeWrap}>
+              <Animated.View
+                style={[
+                  styles.halo,
+                  {
+                    opacity: halo.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0] }),
+                    transform: [{ scale: halo.interpolate({ inputRange: [0, 1], outputRange: [1, 1.6] }) }],
+                  },
+                ]}
               />
+              <Animated.View style={{ transform: [{ scale: badge }] }}>
+                <LinearGradient
+                  colors={[universalColors.sprintyBlue, universalColors.sprintyCyan]}
+                  start={{ x: 0, y: 1 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.badge}
+                >
+                  <Feather name="zap" size={34} color="#FFFFFF" />
+                </LinearGradient>
+              </Animated.View>
             </View>
-          </View>
 
-          {/* SCORE DE SERIE & TITRE */}
-          <View style={styles.streakInfo}>
-            <Text style={styles.streakNumber}>{currentStreakVal}</Text>
-            <View style={styles.streakLabelRow}>
-              <Text style={styles.streakLabel}>
-                {currentStreakVal > 1 ? "Jours d'affilée !" : "Premier jour d'affilée !"}
-              </Text>
-              <Text style={styles.fireEmoji}>🔥</Text>
-            </View>
-          </View>
+            <Text style={[styles.count, { color: theme.colors.text }]}>{currentStreakVal}</Text>
+            <Text style={[styles.title, { color: theme.colors.text }]}>
+              {currentStreakVal > 1 ? 'jours de suite' : 'Premier jour'}
+            </Text>
+            <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+              Chaque repas noté compte.
+            </Text>
 
-          {/* CARTE SEMAINE VIBRANTE */}
-          <View style={styles.weekContainer}>
-            {weekDays.map((day, index) => {
-              const isPastOrToday = index <= todayIndex;
-              const isToday = index === todayIndex;
-              return (
-                <View key={index} style={styles.dayCol}>
-                  <Text style={[styles.dayLabel, { color: isToday ? '#FFF' : '#71717A' }]}>
-                    {day}
-                  </Text>
-                  <View 
-                    style={[
-                      styles.checkCircle,
-                      isPastOrToday && styles.checkCirclePassed,
-                      isToday && styles.checkCircleToday,
-                    ]}
-                  >
-                    {isToday ? (
-                      <Feather name="check" size={16} color="#FFF" />
-                    ) : isPastOrToday ? (
-                      <Feather name="check" size={13} color="#FF6A3D" />
-                    ) : null}
+            <View style={styles.week}>
+              {WEEK_DAYS.map((day, index) => {
+                const isToday = index === todayIndex;
+                const inStreak = index >= firstStreakDay && index <= todayIndex;
+                return (
+                  <View key={index} style={styles.dayCol}>
+                    <Text
+                      style={[
+                        styles.dayLabel,
+                        { color: isToday ? MEAL_ACCENT : theme.colors.textSecondary, fontWeight: isToday ? '800' : '600' },
+                      ]}
+                    >
+                      {day}
+                    </Text>
+                    <View
+                      style={[
+                        styles.dot,
+                        {
+                          backgroundColor: isToday ? MEAL_ACCENT : inStreak ? MEAL_ACCENT_TINT : theme.colors.glassFill,
+                        },
+                      ]}
+                    >
+                      {(isToday || inStreak) && (
+                        <Feather name="check" size={isToday ? 14 : 12} color={isToday ? '#FFFFFF' : MEAL_ACCENT} />
+                      )}
+                    </View>
                   </View>
-                </View>
-              );
-            })}
-          </View>
+                );
+              })}
+            </View>
 
-          {/* SLOGAN D'ENCOURAGEMENT */}
-          <View style={styles.encouragementBox}>
-            <Text style={styles.fireText}>Tu es en feu ! Sprinty est fier de toi 🚀</Text>
-          </View>
-
-          {/* BOUTON CONTINUER NEON VIBRANT */}
-          <TouchableOpacity 
-            style={[styles.continueButton, { marginBottom: Math.max(insets.bottom, 24) }]} 
-            onPress={closeStreakCelebration}
-            activeOpacity={0.85}
-          >
-            <LinearGradient
-              colors={['#FF5722', '#FF8A00']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.continueGradient}
+            <PressableScale
+              containerStyle={styles.buttonHit}
+              style={[styles.button, { backgroundColor: MEAL_ACCENT }]}
+              haptic="medium"
+              onPress={closeStreakCelebration}
             >
-              <Text style={styles.continueButtonText}>C'est parti !</Text>
-              <Feather name="arrow-right" size={20} color="#FFF" style={{ marginLeft: 6 }} />
-            </LinearGradient>
-          </TouchableOpacity>
+              <Text style={styles.buttonText}>Continuer</Text>
+            </PressableScale>
+          </Pressable>
         </Animated.View>
-      </View>
+      </Pressable>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
+  veil: {
     flex: 1,
-    backgroundColor: 'rgba(5, 5, 8, 0.94)',
-    justifyContent: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.35)',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
   },
-  glowOrb: {
-    position: 'absolute',
-    width: width * 1.3,
-    height: width * 1.3,
-    borderRadius: (width * 1.3) / 2,
-    backgroundColor: '#FF5722',
-    opacity: 0.16,
-  },
-  content: {
-    flex: 1,
+  card: {
     width: '100%',
+    maxWidth: 360,
+    borderRadius: 28,
+    borderCurve: 'continuous',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.16,
+    shadowRadius: 32,
+    elevation: 12,
+  },
+  cardInner: {
+    alignItems: 'center',
+    paddingTop: 30,
+    paddingHorizontal: 22,
+    paddingBottom: 22,
+  },
+  badgeWrap: {
+    width: 76,
+    height: 76,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 40,
+    marginBottom: 14,
   },
-  sprintyContainer: {
-    marginBottom: 8,
+  halo: {
+    position: 'absolute',
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: universalColors.sprintyBlue,
+  },
+  badge: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sprintyHalo: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: 'rgba(255, 87, 34, 0.12)',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 87, 34, 0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#FF5722',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 8,
+  count: {
+    fontSize: 52,
+    fontWeight: '800',
+    letterSpacing: -1.6,
+    lineHeight: 58,
+    fontVariant: ['tabular-nums'],
   },
-  sprintyLottie: {
-    width: 140,
-    height: 140,
-  },
-  streakInfo: {
-    alignItems: 'center',
-    marginBottom: 28,
-  },
-  streakNumber: {
-    fontSize: 88,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: -1,
-    lineHeight: 96,
-    textShadowColor: 'rgba(255, 87, 34, 0.6)',
-    textShadowOffset: { width: 0, height: 4 },
-    textShadowRadius: 16,
-  },
-  streakLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  streakLabel: {
-    fontSize: 22,
-    color: '#FF7A45',
+  title: {
+    fontSize: 19,
     fontWeight: '800',
     letterSpacing: -0.3,
   },
-  fireEmoji: {
-    fontSize: 22,
+  subtitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginTop: 4,
   },
-  weekContainer: {
+  week: {
     flexDirection: 'row',
-    backgroundColor: '#18181B',
-    paddingVertical: 18,
-    paddingHorizontal: 16,
-    borderRadius: 24,
-    width: '100%',
     justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#27272A',
-    marginBottom: 24,
+    alignSelf: 'stretch',
+    marginTop: 22,
+    marginBottom: 22,
   },
   dayCol: {
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   dayLabel: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 12,
   },
-  checkCircle: {
-    width: 32,
-    height: 32,
+  dot: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonHit: {
+    alignSelf: 'stretch',
+  },
+  button: {
+    paddingVertical: 15,
     borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: '#27272A',
-    backgroundColor: '#09090B',
+    borderCurve: 'continuous',
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  checkCirclePassed: {
-    borderColor: '#FF5722',
-    backgroundColor: 'rgba(255, 87, 34, 0.15)',
-  },
-  checkCircleToday: {
-    borderColor: '#FF8A00',
-    backgroundColor: '#FF5722',
-    shadowColor: '#FF5722',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.8,
-    shadowRadius: 10,
-    elevation: 6,
-  },
-  encouragementBox: {
-    marginBottom: 36,
-  },
-  fireText: {
-    fontSize: 15,
-    color: '#D4D4D8',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  continueButton: {
-    width: '100%',
-    borderRadius: 100,
-    overflow: 'hidden',
-    shadowColor: '#FF5722',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 14,
-    elevation: 8,
-  },
-  continueGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-  },
-  continueButtonText: {
+  buttonText: {
     color: '#FFFFFF',
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
-    letterSpacing: -0.2,
-  }
+  },
 });

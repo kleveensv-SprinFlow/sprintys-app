@@ -15,6 +15,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
+import { GLASS_BACKDROP } from '../../../core/glass';
+import { SegmentedControl } from '../../../shared/components/SegmentedControl';
+import { PressableScale } from '../../../shared/components/PressableScale';
+import { MealIcon } from './MealIcon';
+import { MEALS as MEAL_LIST, MEAL_ACCENT, MEAL_ACCENT_TINT } from '../nutritionTheme';
 import { useAuthStore } from '../../../store/authStore';
 import { supabase } from '../../../services/supabase';
 import { MealDistribution } from '../types';
@@ -36,26 +41,26 @@ interface Props {
   onClose: () => void;
 }
 
-const OBJECTIVES = [
-  { id: 'Perte de poids', label: 'Perte de gras', desc: 'Déficit plafonné' },
-  { id: 'Prendre du poids', label: 'Prise de masse', desc: 'Surplus modéré' },
-  { id: 'Se muscler', label: 'Recomposition', desc: 'Proche du maintien' },
-  { id: 'Stabiliser', label: 'Maintien', desc: 'Dépense du jour' },
+const OBJECTIVES: { id: string; label: string; desc: string; icon: keyof typeof Feather.glyphMap }[] = [
+  { id: 'Perte de poids', label: 'Perte de gras', desc: 'Déficit plafonné', icon: 'trending-down' },
+  { id: 'Prendre du poids', label: 'Prise de masse', desc: 'Surplus modéré', icon: 'trending-up' },
+  { id: 'Se muscler', label: 'Recomposition', desc: 'Proche du maintien', icon: 'refresh-cw' },
+  { id: 'Stabiliser', label: 'Maintien', desc: 'Dépense du jour', icon: 'minus' },
 ];
+
+const NEAT_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
+  bureau: 'monitor',
+  marche: 'navigation',
+  debout: 'user',
+  physique: 'tool',
+};
+
+/** One blue, fading from the first meal to the last (no rainbow per meal). */
+const SEGMENT_OPACITY = [1, 0.72, 0.48, 0.28];
 
 const PACES = ['0.25', '0.5', '0.75', '1'];
 
-const MEALS: Array<{
-  key: keyof MealDistribution;
-  label: string;
-  short: string;
-  color: string;
-}> = [
-  { key: 'petit_dejeuner', label: 'Petit-déj', short: 'Matin', color: '#FFB703' },
-  { key: 'dejeuner', label: 'Déjeuner', short: 'Midi', color: '#00C9A7' },
-  { key: 'diner', label: 'Dîner', short: 'Soir', color: '#0069E8' },
-  { key: 'collation', label: 'Collation', short: 'Extra', color: '#FF5252' },
-];
+const MEALS = MEAL_LIST.map((m) => ({ key: m.type as keyof MealDistribution, type: m.type, label: m.label, short: m.short }));
 
 const DEFAULT_DISTRIBUTION: MealDistribution = {
   petit_dejeuner: 25,
@@ -232,13 +237,13 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <KeyboardAvoidingView
-        style={[styles.container, { backgroundColor: theme.colors.background }]}
+        style={[styles.container, { backgroundColor: GLASS_BACKDROP }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 6 }]}>
           <TouchableOpacity
             onPress={onClose}
-            style={[styles.closeButton, { backgroundColor: theme.colors.surfaceLight }]}
+            style={[styles.closeButton, { backgroundColor: theme.colors.glassFill }]}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Feather name="x" size={18} color={theme.colors.text} />
@@ -247,19 +252,15 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
           <View style={styles.headerSpacer} />
         </View>
 
-        <View style={styles.tabRow}>
-          {(['Objectif', 'Repas'] as const).map((label, index) => {
-            const on = activeTab === index;
-            return (
-              <TouchableOpacity key={label} onPress={() => setActiveTab(index as 0 | 1)} style={styles.tabHit}>
-                <Text style={[styles.tabLabel, { color: on ? theme.colors.text : theme.colors.textMuted }]}>
-                  {label}
-                </Text>
-                <View style={[styles.tabLine, { backgroundColor: on ? theme.colors.text : 'transparent' }]} />
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <SegmentedControl
+          style={styles.tabs}
+          options={[
+            { key: 'objectif', label: 'Objectif' },
+            { key: 'repas', label: 'Repas' },
+          ]}
+          value={activeTab === 0 ? 'objectif' : 'repas'}
+          onChange={(key) => setActiveTab(key === 'objectif' ? 0 : 1)}
+        />
 
         <ScrollView
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: Math.max(insets.bottom, 16) + 96, paddingTop: 8 }}
@@ -283,13 +284,16 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
                       style={[
                         styles.loadCell,
                         {
-                          backgroundColor: on ? theme.colors.accent : theme.colors.surface,
-                          borderColor: on ? theme.colors.accent : theme.colors.border,
+                          backgroundColor: on ? MEAL_ACCENT_TINT : theme.colors.surface,
+                          borderColor: on ? MEAL_ACCENT : 'transparent',
                         },
                       ]}
                     >
-                      <Text style={[styles.loadTitle, { color: on ? '#FFF' : theme.colors.text }]}>{obj.label}</Text>
-                      <Text style={[styles.loadDesc, { color: on ? 'rgba(255,255,255,0.7)' : theme.colors.textSecondary }]}>{obj.desc}</Text>
+                      <View style={[styles.cellIcon, { backgroundColor: on ? MEAL_ACCENT : theme.colors.glassFill }]}>
+                        <Feather name={obj.icon} size={15} color={on ? '#FFFFFF' : theme.colors.textSecondary} />
+                      </View>
+                      <Text style={[styles.loadTitle, { color: on ? MEAL_ACCENT : theme.colors.text }]}>{obj.label}</Text>
+                      <Text style={[styles.loadDesc, { color: theme.colors.textSecondary }]}>{obj.desc}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -334,11 +338,11 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
 
               <Text style={[styles.kicker, { color: theme.colors.textMuted, marginTop: 22 }]}>ÂGE</Text>
               <View style={[styles.sessionBox, { backgroundColor: theme.colors.surface, marginTop: 0 }]}>
-                <TouchableOpacity onPress={() => nudgeAge(-1)} style={[styles.step, { backgroundColor: theme.colors.surfaceLight }]}>
+                <TouchableOpacity onPress={() => nudgeAge(-1)} style={[styles.step, { backgroundColor: theme.colors.glassFill }]}>
                   <Feather name="minus" size={16} color={theme.colors.text} />
                 </TouchableOpacity>
                 <Text style={[styles.sessionValue, { color: theme.colors.text }]}>{age} ans</Text>
-                <TouchableOpacity onPress={() => nudgeAge(1)} style={[styles.step, { backgroundColor: theme.colors.surfaceLight }]}>
+                <TouchableOpacity onPress={() => nudgeAge(1)} style={[styles.step, { backgroundColor: theme.colors.glassFill }]}>
                   <Feather name="plus" size={16} color={theme.colors.text} />
                 </TouchableOpacity>
               </View>
@@ -356,10 +360,7 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
                           onPress={() => setWeeklyGoal(pace)}
                           style={[
                             styles.paceChip,
-                            {
-                              backgroundColor: on ? theme.colors.accent : theme.colors.surface,
-                              borderColor: on ? theme.colors.accent : theme.colors.border,
-                            },
+                            { backgroundColor: on ? MEAL_ACCENT : theme.colors.surface },
                           ]}
                         >
                           <Text style={[styles.paceText, { color: on ? '#FFF' : theme.colors.text }]}>{pace.replace('.', ',')}</Text>
@@ -382,13 +383,16 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
                       style={[
                         styles.loadCell,
                         {
-                          backgroundColor: on ? theme.colors.accent : theme.colors.surface,
-                          borderColor: on ? theme.colors.accent : theme.colors.border,
+                          backgroundColor: on ? MEAL_ACCENT_TINT : theme.colors.surface,
+                          borderColor: on ? MEAL_ACCENT : 'transparent',
                         },
                       ]}
                     >
-                      <Text style={[styles.loadTitle, { color: on ? '#FFF' : theme.colors.text }]}>{lvl.label}</Text>
-                      <Text style={[styles.loadDesc, { color: on ? 'rgba(255,255,255,0.7)' : theme.colors.textSecondary }]}>{lvl.desc}</Text>
+                      <View style={[styles.cellIcon, { backgroundColor: on ? MEAL_ACCENT : theme.colors.glassFill }]}>
+                        <Feather name={NEAT_ICONS[lvl.id] || 'activity'} size={15} color={on ? '#FFFFFF' : theme.colors.textSecondary} />
+                      </View>
+                      <Text style={[styles.loadTitle, { color: on ? MEAL_ACCENT : theme.colors.text }]}>{lvl.label}</Text>
+                      <Text style={[styles.loadDesc, { color: theme.colors.textSecondary }]}>{lvl.desc}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -399,7 +403,7 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
                 <TouchableOpacity
                   onPress={() => nudgeSessions(-1)}
                   disabled={sessions <= MIN_SESSIONS}
-                  style={[styles.step, { backgroundColor: theme.colors.surfaceLight, opacity: sessions <= MIN_SESSIONS ? 0.4 : 1 }]}
+                  style={[styles.step, { backgroundColor: theme.colors.glassFill, opacity: sessions <= MIN_SESSIONS ? 0.4 : 1 }]}
                 >
                   <Feather name="minus" size={16} color={theme.colors.text} />
                 </TouchableOpacity>
@@ -407,7 +411,7 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
                 <TouchableOpacity
                   onPress={() => nudgeSessions(1)}
                   disabled={sessions >= MAX_SESSIONS}
-                  style={[styles.step, { backgroundColor: theme.colors.surfaceLight, opacity: sessions >= MAX_SESSIONS ? 0.4 : 1 }]}
+                  style={[styles.step, { backgroundColor: theme.colors.glassFill, opacity: sessions >= MAX_SESSIONS ? 0.4 : 1 }]}
                 >
                   <Feather name="plus" size={16} color={theme.colors.text} />
                 </TouchableOpacity>
@@ -422,27 +426,30 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
                     <Text style={styles.splitPct}> %</Text>
                   </Text>
                   {totalDist === 100 ? (
-                    <View style={styles.balancedBadge}>
-                      <Text style={styles.balancedBadgeText}>Équilibré ✓</Text>
+                    <View style={[styles.balancedBadge, { backgroundColor: MEAL_ACCENT_TINT }]}>
+                      <Feather name="check" size={12} color={MEAL_ACCENT} />
+                      <Text style={[styles.balancedBadgeText, { color: MEAL_ACCENT }]}>Équilibré</Text>
                     </View>
                   ) : (
-                    <View style={[styles.balancedBadge, { backgroundColor: '#FEE2E2' }]}>
-                      <Text style={[styles.balancedBadgeText, { color: '#EF4444' }]}>
+                    <View style={[styles.balancedBadge, { backgroundColor: 'rgba(239, 68, 68, 0.12)' }]}>
+                      <Text style={[styles.balancedBadgeText, { color: theme.colors.error }]}>
                         {totalDist > 100 ? `+${totalDist - 100} %` : `-${100 - totalDist} %`}
                       </Text>
                     </View>
                   )}
                 </View>
-                <TouchableOpacity onPress={() => setDistribution(DEFAULT_DISTRIBUTION)}>
-                  <Text style={[styles.estimateText, { color: theme.colors.sprintyBlue }]}>Remettre 25 · 35 · 30 · 10</Text>
-                </TouchableOpacity>
               </View>
 
-              <View style={[styles.bar, { backgroundColor: theme.colors.surfaceLight }]}>
-                {MEALS.map((meal) => {
+              <View style={[styles.bar, { backgroundColor: theme.colors.glassFill }]}>
+                {MEALS.map((meal, index) => {
                   const val = distribution[meal.key] || 0;
                   if (val <= 0) return null;
-                  return <View key={meal.key} style={{ width: `${Math.min(100, val)}%`, backgroundColor: meal.color }} />;
+                  return (
+                    <View
+                      key={meal.key}
+                      style={[styles.barSegment, { width: `${Math.min(100, val)}%`, backgroundColor: MEAL_ACCENT, opacity: SEGMENT_OPACITY[index] }]}
+                    />
+                  );
                 })}
               </View>
 
@@ -451,7 +458,9 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
                 const mealKcal = Math.round((totalKcal * pct) / 100);
                 return (
                   <View key={meal.key} style={[styles.mealRow, { backgroundColor: theme.colors.surface }]}>
-                    <View style={[styles.mealTick, { backgroundColor: meal.color }]} />
+                    <View style={styles.mealIcon}>
+                      <MealIcon type={meal.type} size={20} />
+                    </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.mealName, { color: theme.colors.text }]}>{meal.label}</Text>
                       <Text style={[styles.mealMeta, { color: theme.colors.textSecondary }]}>
@@ -460,36 +469,41 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
                     </View>
                     <TouchableOpacity
                       onPress={() => handleStepMeal(meal.key, -5)}
-                      style={[styles.step, { backgroundColor: theme.colors.surfaceLight }]}
+                      style={[styles.step, { backgroundColor: theme.colors.glassFill }]}
                     >
                       <Feather name="minus" size={16} color={theme.colors.text} />
                     </TouchableOpacity>
                     <Text style={[styles.mealPct, { color: theme.colors.text }]}>{pct} %</Text>
                     <TouchableOpacity
                       onPress={() => handleStepMeal(meal.key, 5)}
-                      style={[styles.step, { backgroundColor: theme.colors.surfaceLight }]}
+                      style={[styles.step, { backgroundColor: theme.colors.glassFill }]}
                     >
                       <Feather name="plus" size={16} color={theme.colors.text} />
                     </TouchableOpacity>
                   </View>
                 );
               })}
+
+              <TouchableOpacity onPress={() => setDistribution(DEFAULT_DISTRIBUTION)} style={styles.resetHit} hitSlop={8}>
+                <Text style={[styles.estimateText, { color: MEAL_ACCENT }]}>Remettre 25 · 35 · 30 · 10</Text>
+              </TouchableOpacity>
             </>
           )}
         </ScrollView>
 
-        <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16), backgroundColor: theme.colors.background }]}>
-          <TouchableOpacity
-            style={[styles.saveButton, { backgroundColor: isFormValid ? theme.colors.accent : theme.colors.textMuted }]}
+        <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16), backgroundColor: GLASS_BACKDROP }]}>
+          <PressableScale
+            style={[styles.saveButton, { backgroundColor: isFormValid ? MEAL_ACCENT : theme.colors.textMuted }]}
             onPress={handleSave}
             disabled={!isFormValid || isSaving}
+            haptic="medium"
           >
             {isSaving ? (
               <ActivityIndicator color="#FFF" />
             ) : (
               <Text style={styles.saveButtonText}>{totalDist === 100 ? 'Enregistrer' : `Il manque ${100 - totalDist} %`}</Text>
             )}
-          </TouchableOpacity>
+          </PressableScale>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -508,7 +522,7 @@ function WeightField({
   theme: ReturnType<typeof useTheme>;
 }) {
   return (
-    <View style={[styles.weightCell, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+    <View style={[styles.weightCell, { backgroundColor: theme.colors.surface }]}>
       <Text style={[styles.loadDesc, { color: theme.colors.textSecondary }]}>{label}</Text>
       <View style={styles.kcalRow}>
         <TextInput
@@ -544,81 +558,75 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 17, fontWeight: '700' },
   headerSpacer: { width: 36 },
-  tabRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 22, marginBottom: 8 },
-  tabHit: { paddingTop: 8 },
-  tabLabel: { fontSize: 16, fontWeight: '700' },
-  tabLine: { height: 2, marginTop: 8, borderRadius: 2 },
+  tabs: { marginHorizontal: 20, marginTop: 4, marginBottom: 10 },
   kicker: { fontSize: 11, fontWeight: '700', letterSpacing: 1.1, marginBottom: 10 },
   hint: { fontSize: 13, marginTop: -6, marginBottom: 10 },
-  goalRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  goalChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  goalText: { fontSize: 15, fontWeight: '700' },
-  kcalBlock: { marginTop: 22, borderRadius: 20, padding: 18 },
+  kcalBlock: { marginTop: 22, borderRadius: 22, borderCurve: 'continuous', padding: 18 },
   kcalRow: { flexDirection: 'row', alignItems: 'flex-end' },
   kcalInput: { fontSize: 56, fontWeight: '800', letterSpacing: -1.5, minWidth: 120, padding: 0 },
   kcalUnit: { fontSize: 16, fontWeight: '600', marginBottom: 10, marginLeft: 6 },
   estimateHit: { marginTop: 4, alignSelf: 'flex-start' },
   estimateText: { fontSize: 14, fontWeight: '700' },
+  resetHit: { alignSelf: 'center', marginTop: 8, paddingVertical: 6 },
   weightRow: { flexDirection: 'row', gap: 10 },
-  weightCell: { flex: 1, borderRadius: 16, borderWidth: 1, padding: 14 },
+  weightCell: { flex: 1, borderRadius: 18, borderCurve: 'continuous', padding: 14 },
   weightInput: { fontSize: 28, fontWeight: '800', minWidth: 48, padding: 0 },
   paceRow: { flexDirection: 'row', gap: 8 },
   paceChip: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 14,
-    borderWidth: 1.5,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
   paceText: { fontSize: 15, fontWeight: '700' },
   balancedBadge: {
-    paddingHorizontal: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: 8,
-    backgroundColor: '#E8F7F3',
     marginLeft: 10,
   },
   balancedBadgeText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#00C9A7',
   },
   loadGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  loadCell: { width: '48%', flexGrow: 1, borderRadius: 16, borderWidth: 1.5, padding: 14 },
+  loadCell: { width: '48%', flexGrow: 1, borderRadius: 18, borderCurve: 'continuous', borderWidth: 1.5, padding: 14 },
+  cellIcon: { width: 28, height: 28, borderRadius: 9, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
   loadTitle: { fontSize: 16, fontWeight: '800' },
   loadDesc: { fontSize: 12, marginTop: 2 },
   splitHead: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 14 },
   splitTotal: { fontSize: 40, fontWeight: '800', letterSpacing: -1 },
   splitPct: { fontSize: 18, fontWeight: '700' },
-  bar: { height: 10, borderRadius: 99, flexDirection: 'row', overflow: 'hidden', marginBottom: 16 },
+  bar: { height: 12, borderRadius: 99, flexDirection: 'row', overflow: 'hidden', marginBottom: 16 },
+  barSegment: { height: '100%', borderRightWidth: 2, borderRightColor: '#FFFFFF' },
   mealRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 16,
+    borderRadius: 18,
+    borderCurve: 'continuous',
     paddingVertical: 12,
     paddingRight: 12,
-    paddingLeft: 0,
+    paddingLeft: 12,
     marginBottom: 8,
-    overflow: 'hidden',
   },
-  mealTick: { width: 4, alignSelf: 'stretch', marginRight: 14 },
+  mealIcon: { marginRight: 12 },
   mealName: { fontSize: 16, fontWeight: '700' },
   mealMeta: { fontSize: 12, marginTop: 2 },
   mealPct: { minWidth: 50, textAlign: 'center', fontSize: 16, fontWeight: '800' },
-  step: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  step: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   bottomBar: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 8 },
-  saveButton: { borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
+  saveButton: { borderRadius: 16, borderCurve: 'continuous', paddingVertical: 16, alignItems: 'center' },
   saveButtonText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
   breakdown: { fontSize: 13, lineHeight: 18, marginTop: 10 },
   sessionBox: {
     marginTop: 8,
-    borderRadius: 16,
+    borderRadius: 18,
+    borderCurve: 'continuous',
     paddingVertical: 12,
     paddingHorizontal: 14,
     flexDirection: 'row',
