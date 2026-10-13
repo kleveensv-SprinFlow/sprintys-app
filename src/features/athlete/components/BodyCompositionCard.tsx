@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../../../core/theme';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useBodyStore } from '../../../store/bodyStore';
 import { useAuthStore } from '../../../store/authStore';
+import { PressableScale } from '../../../shared/components/PressableScale';
+import { dashboardCard, DashboardCardHeader } from '../../../shared/components/DashboardCard';
 import { WeightSparkline, movingAverage, TrendPoint } from '../../body/components/WeightChart';
 
 const day = 86400000;
@@ -13,7 +15,7 @@ function formatKg(n: number) {
   return n.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
-export const BodyCompositionCard = () => {
+export const BodyCompositionCard = ({ refreshKey = 0 }: { refreshKey?: number }) => {
   const theme = useTheme();
   const router = useRouter();
   const { user } = useAuthStore();
@@ -21,7 +23,7 @@ export const BodyCompositionCard = () => {
 
   useEffect(() => {
     if (user?.id) loadMetrics(user.id);
-  }, [user?.id]);
+  }, [user?.id, refreshKey]);
 
   const latest = metrics.length ? metrics[metrics.length - 1] : null;
   const target = Number(user?.targetWeight || 0);
@@ -68,21 +70,20 @@ export const BodyCompositionCard = () => {
   if (!latest) {
     return (
       <View style={styles.wrapper}>
-        <TouchableOpacity
-          style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-          activeOpacity={0.85}
-          onPress={open}
-        >
+        <PressableScale style={dashboardCard} onPress={open}>
+          <DashboardCardHeader
+            icon={<Feather name="trending-down" size={15} color={blue} />}
+            label="Poids"
+            tint={blue}
+            showChevron={false}
+          />
           <View style={styles.emptyRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>Poids</Text>
-              <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Ajoute ta première pesée</Text>
-            </View>
+            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Ajoute ta première pesée</Text>
             <View style={[styles.plus, { backgroundColor: blue }]}>
               <Feather name="plus" size={18} color="#FFF" />
             </View>
           </View>
-        </TouchableOpacity>
+        </PressableScale>
       </View>
     );
   }
@@ -94,14 +95,15 @@ export const BodyCompositionCard = () => {
 
   return (
     <View style={styles.wrapper}>
-      <TouchableOpacity
-        style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-        activeOpacity={0.85}
-        onPress={open}
-      >
+      <PressableScale style={dashboardCard} onPress={open}>
+        <DashboardCardHeader
+          icon={<Feather name="trending-down" size={15} color={blue} />}
+          label="Poids"
+          tint={blue}
+          meta={remaining != null ? (remaining <= 0.1 ? 'Objectif atteint' : `encore ${formatKg(remaining)} kg`) : undefined}
+        />
         <View style={styles.top}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>Poids</Text>
             <Text style={[styles.value, { color: theme.colors.text }]}>
               {formatKg(latest.weight)}
               <Text style={[styles.unit, { color: theme.colors.textSecondary }]}> kg</Text>
@@ -129,34 +131,20 @@ export const BodyCompositionCard = () => {
             {muscle != null ? `Muscle ${formatKg(muscle)} kg` : ''}
           </Text>
         )}
-
-        {remaining != null && (
-          <Text style={[styles.goal, { color: theme.colors.textSecondary }]}>
-            {remaining <= 0.1 ? 'Objectif atteint' : `encore ${formatKg(remaining)} kg`}
-          </Text>
-        )}
-      </TouchableOpacity>
+      </PressableScale>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  wrapper: { marginHorizontal: 16, marginBottom: 24 },
-  card: {
-    borderRadius: 20,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-  },
+  wrapper: { marginHorizontal: 16, marginTop: 6, marginBottom: 24 },
   top: { flexDirection: 'row', alignItems: 'center' },
-  kicker: { fontSize: 13, fontWeight: '600', marginBottom: 2 },
-  value: { fontSize: 32, fontWeight: '800', letterSpacing: -0.6 },
+  value: { fontSize: 32, fontWeight: '800', letterSpacing: -0.8 },
   unit: { fontSize: 16, fontWeight: '600' },
   deltaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   delta: { fontSize: 13, fontWeight: '600' },
-  meta: { fontSize: 13, fontWeight: '500', marginTop: 12 },
-  goal: { fontSize: 13, fontWeight: '500', marginTop: 4 },
-  emptyRow: { flexDirection: 'row', alignItems: 'center' },
-  emptyTitle: { fontSize: 16, fontWeight: '700', marginTop: 2 },
+  meta: { fontSize: 13, fontWeight: '500', marginTop: 10 },
+  emptyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  emptyTitle: { fontSize: 17, fontWeight: '700', letterSpacing: -0.3, flex: 1 },
   plus: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
 });

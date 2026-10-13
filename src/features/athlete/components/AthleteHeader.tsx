@@ -18,7 +18,7 @@ export const AthleteHeader = () => {
       {/* Left: Group Button Minimalist */}
       <TouchableOpacity 
         onPress={() => router.push('/(athlete)/groups')} 
-        style={[styles.iconButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+        style={[styles.iconButton, { backgroundColor: theme.colors.surface, ...theme.shadows.soft }]}
         activeOpacity={0.7}
       >
         <Feather name="users" size={20} color={theme.colors.text} />
@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 16,
+    paddingBottom: 8,
     zIndex: 10,
   },
   logoContainer: {
@@ -57,7 +57,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },

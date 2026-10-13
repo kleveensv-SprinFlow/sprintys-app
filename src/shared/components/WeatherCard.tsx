@@ -1,9 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Modal, ScrollView, Animated, Easing, Dimensions, Linking } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Modal, ScrollView, Dimensions, Linking } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../core/theme';
 import * as Location from 'expo-location';
 import { weatherService, WeatherData } from '../../services/weatherService';
+import { PressableScale } from './PressableScale';
+import { dashboardCard, DashboardCardHeader } from './DashboardCard';
+
+const WEATHER_TINT = '#0284C7';
 
 export const WeatherCard = () => {
   const theme = useTheme();
@@ -15,27 +19,7 @@ export const WeatherCard = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  const spinValue = useRef(new Animated.Value(0)).current;
-  const floatValue = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef<ScrollView>(null);
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.timing(spinValue, {
-        toValue: 1,
-        duration: 12000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    ).start();
-
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(floatValue, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(floatValue, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true })
-      ])
-    ).start();
-  }, []);
 
   const getThermalBackgroundColor = (temp: number) => {
     if (temp < 10) return 'rgba(59, 130, 246, 0.15)'; // Cold Blue
@@ -109,21 +93,11 @@ export const WeatherCard = () => {
 
   if (isLoading) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.colors.surface, ...theme.shadows.soft, justifyContent: 'center' }]}>
-        <ActivityIndicator size="small" color={theme.colors.accent} />
+      <View style={[dashboardCard, styles.container, styles.loading]}>
+        <ActivityIndicator size="small" color={theme.colors.textMuted} />
       </View>
     );
   }
-
-  const isSun = weather?.condition === 'clear';
-  const spin = spinValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg']
-  });
-  const float = floatValue.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [0, -6, 0]
-  });
 
   const getFilteredHourly = () => {
     if (!weather?.hourly) return [];
@@ -145,9 +119,8 @@ export const WeatherCard = () => {
   if (!weather) {
     const denied = failure === 'denied';
     return (
-      <TouchableOpacity
-        style={[styles.container, { backgroundColor: theme.colors.surface, ...theme.shadows.soft }]}
-        activeOpacity={0.8}
+      <PressableScale
+        style={[dashboardCard, styles.container]}
         onPress={async () => {
           if (denied) {
             // Coming back from the OS settings with access granted: just reload
@@ -160,7 +133,11 @@ export const WeatherCard = () => {
           loadWeather();
         }}
       >
-        <Text style={styles.cardHeaderTitle}>CONDITIONS D'ENTRAÎNEMENT</Text>
+        <DashboardCardHeader
+          icon={<Feather name="map-pin" size={15} color={WEATHER_TINT} />}
+          label="Météo"
+          tint={WEATHER_TINT}
+        />
         <View style={styles.topRow}>
           <View style={{ flex: 1, marginRight: 12 }}>
             <Text style={[styles.location, { color: theme.colors.text }]}>
@@ -169,45 +146,41 @@ export const WeatherCard = () => {
             <Text style={[styles.statText, { color: theme.colors.textSecondary, marginTop: 4 }]}>
               {denied ? 'Autorise la localisation pour voir vent et pluie sur ta piste.' : 'Vérifie ta connexion.'}
             </Text>
-            <Text style={[styles.statText, { color: theme.colors.accent, fontWeight: '700', marginTop: 8 }]}>
+            <Text style={[styles.statText, { color: theme.colors.sprintyBlue, fontWeight: '700', marginTop: 8 }]}>
               {denied ? 'Activer la localisation' : 'Réessayer'}
             </Text>
           </View>
-          <Feather name={denied ? 'map-pin' : 'refresh-cw'} size={28} color={theme.colors.textMuted} />
+          <Feather name={denied ? 'navigation' : 'refresh-cw'} size={26} color={theme.colors.textMuted} />
         </View>
-      </TouchableOpacity>
+      </PressableScale>
     );
   }
 
   return (
     <>
-      <TouchableOpacity
-        style={[styles.container, { backgroundColor: theme.colors.surface, ...theme.shadows.soft }]}
-        activeOpacity={0.8}
-        onPress={() => setIsModalVisible(true)}
-      >
-        <Text style={styles.cardHeaderTitle}>CONDITIONS D'ENTRAÎNEMENT</Text>
+      <PressableScale style={[dashboardCard, styles.container]} onPress={() => setIsModalVisible(true)}>
+        <DashboardCardHeader
+          icon={<Feather name={getWeatherIcon(weather.condition) as any} size={15} color={WEATHER_TINT} />}
+          label="Météo"
+          tint={WEATHER_TINT}
+          meta={locationName}
+        />
 
         <View style={styles.topRow}>
           <View style={styles.leftContent}>
-            <Text style={[styles.temperature, { color: theme.colors.text }]}>
-              {weather ? `${weather.temperature}°` : '--°'}
-            </Text>
+            <Text style={[styles.temperature, { color: theme.colors.text }]}>{`${weather.temperature}°`}</Text>
             <View style={styles.details}>
-              <Text style={[styles.location, { color: theme.colors.textSecondary }]}>{locationName}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                <Feather name="wind" size={12} color={theme.colors.textMuted} />
-                <Text style={[styles.statText, { color: theme.colors.textMuted, marginLeft: 4 }]}>
-                  {weather ? `${weather.windSpeed} km/h` : '--'}
-                </Text>
-              </View>
+              <Text style={[styles.location, { color: theme.colors.text }]} numberOfLines={1}>
+                {weather.conditionLabel || 'Dégagé'}
+              </Text>
+              <Text style={[styles.statText, { color: theme.colors.textSecondary, marginTop: 2 }]} numberOfLines={1}>
+                {`Vent ${weather.windSpeed} km/h · ${weather.precipitation && weather.precipitation > 0 ? 'piste humide' : 'piste sèche'}`}
+              </Text>
             </View>
           </View>
-          <Animated.View style={{ transform: isSun ? [{ rotate: spin }] : [{ translateY: float }] }}>
-            <Feather name={getWeatherIcon(weather?.condition) as any} size={42} color={getWeatherIconColor(weather?.condition)} />
-          </Animated.View>
+          <Feather name={getWeatherIcon(weather.condition) as any} size={34} color={getWeatherIconColor(weather.condition)} />
         </View>
-      </TouchableOpacity>
+      </PressableScale>
 
       {/* Modal Météo Détaillée */}
       <Modal visible={isModalVisible} transparent animationType="slide">
@@ -331,9 +304,11 @@ export const WeatherCard = () => {
 const styles = StyleSheet.create({
   container: {
     marginHorizontal: 0,
-    marginVertical: 10,
-    padding: 20,
-    borderRadius: 22,
+    marginVertical: 6,
+  },
+  loading: {
+    minHeight: 96,
+    justifyContent: 'center',
   },
   cardHeaderTitle: {
     fontSize: 11,
@@ -350,14 +325,18 @@ const styles = StyleSheet.create({
   leftContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 14,
+    flex: 1,
+    marginRight: 12,
   },
   temperature: {
-    fontSize: 40,
-    fontWeight: 'bold',
+    fontSize: 34,
+    fontWeight: '800',
+    letterSpacing: -1,
   },
   details: {
     justifyContent: 'center',
+    flexShrink: 1,
   },
   location: {
     fontSize: 14,

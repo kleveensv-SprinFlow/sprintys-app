@@ -1,6 +1,7 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, Animated, Dimensions, Platform } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../../core/theme';
 import { useWorkoutStore } from '../../../store/workoutStore';
 import { useAuthStore } from '../../../store/authStore';
@@ -9,10 +10,18 @@ import { useFocusEffect } from '@react-navigation/native';
 import { getWorkoutTypeConfig } from '../../../shared/components/MonthlyCalendar';
 import { WorkoutDetailModal } from '../../calendar/components/WorkoutDetailModal';
 import { WorkoutSession } from '../../workout/types';
+import { PressableScale } from '../../../shared/components/PressableScale';
+import { dashboardCard } from '../../../shared/components/DashboardCard';
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = width * 0.85;
-const SNAP_INTERVAL = CARD_WIDTH + 16;
+const CARD_GAP = 12;
+const CARD_WIDTH = width - 56;
+const SNAP_INTERVAL = CARD_WIDTH + CARD_GAP;
+const DAY_ITEM_WIDTH = 46;
+const DAY_ITEM_STRIDE = DAY_ITEM_WIDTH + 6;
+
+const DAY_SHORT = ['Di', 'Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa'];
+const DAY_LONG = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 
 const toLocalDateString = (d: Date): string => {
   const year = d.getFullYear();
@@ -29,6 +38,25 @@ const isSameDay = (d1: Date, d2: Date): boolean => {
   );
 };
 
+const isRestType = (w: any) => (w?.type_seance || '').toLowerCase().includes('repos');
+
+const getRelativeDayLabel = (date: Date, today: Date) => {
+  const diff = Math.round((date.getTime() - today.getTime()) / 86400000);
+  if (diff === 0) return "Aujourd'hui";
+  if (diff === 1) return 'Demain';
+  if (diff === -1) return 'Hier';
+  return `${DAY_LONG[date.getDay()]} ${date.getDate()}`;
+};
+
+const selectionHaptic = () => {
+  if (Platform.OS === 'web') return;
+  try {
+    Haptics.selectionAsync();
+  } catch (e) {
+    // ignore
+  }
+};
+
 export const SessionCarousel = () => {
   const theme = useTheme();
   const scrollRef = useRef<ScrollView>(null);
@@ -39,23 +67,38 @@ export const SessionCarousel = () => {
   const { upcomingWorkouts, loadUpcomingWorkouts } = useWorkoutStore();
 
   const [activeIndex, setActiveIndex] = useState(7); // Default to today (index 7 in 15-day array)
-  const [timelineDays, setTimelineDays] = useState<Date[]>([]);
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutSession | null>(null);
   const [isWorkoutModalVisible, setIsWorkoutModalVisible] = useState(false);
 
-  // Generate 15 days timeline (J-7 to J+7)
-  useEffect(() => {
-    const days: Date[] = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  const scrollX = useRef(new Animated.Value(7 * SNAP_INTERVAL)).current;
+  const activeIndexRef = useRef(7);
+  // While a tap on the week strip animates the carousel, don't tick through every day passed
+  const ignoreScrollUntil = useRef(0);
 
+  const todayStart = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
+  // 15 days timeline (J-7 to J+7)
+  const timelineDays = useMemo(() => {
+    const days: Date[] = [];
     for (let i = -7; i <= 7; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
+      const d = new Date(todayStart);
+      d.setDate(todayStart.getDate() + i);
       days.push(d);
     }
-    setTimelineDays(days);
-  }, []);
+    return days;
+  }, [todayStart]);
+
+  const workoutsByDay = useMemo(
+    () =>
+      timelineDays.map((date) =>
+        upcomingWorkouts.filter((w) => w?.date_prevue && isSameDay(new Date(w.date_prevue), date))
+      ),
+    [timelineDays, upcomingWorkouts]
+  );
 
   // Fetch upcoming workouts whenever screen gains focus
   useFocusEffect(
@@ -66,57 +109,47 @@ export const SessionCarousel = () => {
     }, [user?.id, loadUpcomingWorkouts])
   );
 
-  // Initial scroll centered on today
-  useEffect(() => {
-    if (timelineDays.length > 0) {
-      const today = new Date();
-      const todayIdx = timelineDays.findIndex(d => isSameDay(d, today));
-      const initialIdx = todayIdx >= 0 ? todayIdx : 0;
-      setActiveIndex(initialIdx);
-      setTimeout(() => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTo({ x: initialIdx * SNAP_INTERVAL, animated: false });
-        }
-        if (timelineScrollRef.current) {
-          timelineScrollRef.current.scrollTo({
-            x: initialIdx * 58 - (width / 2) + 29,
-            animated: false,
-          });
-        }
-      }, 100);
-    }
-  }, [timelineDays]);
-
-  const handleScroll = (event: any) => {
-    const x = event.nativeEvent.contentOffset.x;
-    const index = Math.round(x / SNAP_INTERVAL);
-    if (index !== activeIndex && index >= 0 && index < timelineDays.length) {
-      setActiveIndex(index);
-
-      // Center the timeline header
-      if (timelineScrollRef.current) {
-        timelineScrollRef.current.scrollTo({
-          x: index * 58 - (width / 2) + 29,
-          animated: true,
-        });
-      }
-    }
+  const centerTimeline = (index: number, animated: boolean) => {
+    timelineScrollRef.current?.scrollTo({
+      x: Math.max(0, index * DAY_ITEM_STRIDE - width / 2 + 16 + DAY_ITEM_WIDTH / 2),
+      animated,
+    });
   };
+
+  // Initial position: today
+  useEffect(() => {
+    const t = setTimeout(() => {
+      scrollRef.current?.scrollTo({ x: 7 * SNAP_INTERVAL, animated: false });
+      centerTimeline(7, false);
+    }, 100);
+    return () => clearTimeout(t);
+  }, []);
+
+  const setActive = (index: number, withHaptic: boolean) => {
+    if (index === activeIndexRef.current || index < 0 || index >= timelineDays.length) return;
+    activeIndexRef.current = index;
+    setActiveIndex(index);
+    centerTimeline(index, true);
+    if (withHaptic) selectionHaptic();
+  };
+
+  const onScroll = Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
+    useNativeDriver: true,
+    listener: (event: any) => {
+      if (Date.now() < ignoreScrollUntil.current) return;
+      const index = Math.round(event.nativeEvent.contentOffset.x / SNAP_INTERVAL);
+      setActive(index, true);
+    },
+  });
 
   const scrollToDate = (index: number) => {
-    if (!scrollRef.current) return;
-    scrollRef.current.scrollTo({ x: index * SNAP_INTERVAL, animated: true });
-    setActiveIndex(index);
-  };
-
-  const getDayName = (date: Date) => {
-    const days = ['Di', 'Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa'];
-    return days[date.getDay()];
+    ignoreScrollUntil.current = Date.now() + 450;
+    setActive(index, true);
+    scrollRef.current?.scrollTo({ x: index * SNAP_INTERVAL, animated: true });
   };
 
   const openDayView = (date: Date) => {
-    const dateString = toLocalDateString(date);
-    router.push(`/(athlete)/day/${dateString}`);
+    router.push(`/(athlete)/day/${toLocalDateString(date)}`);
   };
 
   const openWorkoutDetail = (workoutData: any) => {
@@ -135,223 +168,194 @@ export const SessionCarousel = () => {
     setIsWorkoutModalVisible(true);
   };
 
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
+  const renderCardContent = (date: Date, dayWorkouts: any[]) => {
+    const realWorkouts = dayWorkouts.filter((w) => !isRestType(w));
+    const activeWorkout = realWorkouts[0] || dayWorkouts[0];
+    const dayLabel = getRelativeDayLabel(date, todayStart);
+
+    // Rest day (no workout, or a coach "repos" entry with notes)
+    if (!activeWorkout || isRestType(activeWorkout)) {
+      const hasRestNote = !!activeWorkout;
+      return {
+        onPress: () => (hasRestNote ? openDayView(date) : router.push('/(athlete)/calendar')),
+        content: (
+          <>
+            <View style={styles.cardTopRow}>
+              <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>{dayLabel}</Text>
+            </View>
+            <View style={styles.cardMainRow}>
+              <View style={[styles.typeTile, { backgroundColor: theme.colors.surfaceLight }]}>
+                <Feather name="coffee" size={20} color={theme.colors.textSecondary} />
+              </View>
+              <View style={styles.cardTitles}>
+                <Text style={[styles.cardTitle, { color: theme.colors.text }]} numberOfLines={1}>Repos</Text>
+                <Text style={[styles.cardSubtitle, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                  {activeWorkout?.description?.split('\n')[0] || 'Récupération, hydratation, sommeil'}
+                </Text>
+              </View>
+            </View>
+            <View style={[styles.cardButton, { backgroundColor: theme.colors.surfaceLight }]}>
+              <Text style={[styles.cardButtonText, { color: theme.colors.textSecondary }]}>
+                {hasRestNote ? 'Voir les consignes' : 'Voir mon calendrier'}
+              </Text>
+              <Feather name="chevron-right" size={15} color={theme.colors.textSecondary} />
+            </View>
+          </>
+        ),
+      };
+    }
+
+    const typeConfig = getWorkoutTypeConfig(activeWorkout.type_seance);
+    const isCompleted = activeWorkout.status === 'completed';
+    const isCompetition = (activeWorkout.type_seance || '').toLowerCase().startsWith('comp');
+    const isMissed = !isCompleted && !isCompetition && date < todayStart;
+    const extraCount = realWorkouts.length - 1;
+
+    let summary = 'Séance planifiée';
+    if (activeWorkout.blocks?.length > 0) {
+      const n = activeWorkout.blocks.length;
+      summary = `${n} bloc${n > 1 ? 's' : ''}`;
+    } else if (activeWorkout.exercises?.length > 0) {
+      const n = activeWorkout.exercises.length;
+      summary = `${n} exercice${n > 1 ? 's' : ''}`;
+    } else if (activeWorkout.description) {
+      // First line only (competitions store "<title>\n📍 <location>")
+      summary = activeWorkout.description.split('\n')[0].trim() || summary;
+    }
+    if (extraCount > 0) summary += ` · +${extraCount} séance${extraCount > 1 ? 's' : ''}`;
+
+    const status = isCompleted
+      ? { label: 'Fait', icon: 'check', color: theme.colors.success, bg: 'rgba(16, 185, 129, 0.12)' }
+      : isMissed
+        ? { label: 'Manquée', icon: 'x', color: theme.colors.error, bg: 'rgba(239, 68, 68, 0.1)' }
+        : null;
+
+    return {
+      onPress: () => (extraCount === 0 ? openWorkoutDetail(activeWorkout) : openDayView(date)),
+      content: (
+        <>
+          <View style={styles.cardTopRow}>
+            <Text style={[styles.kicker, { color: typeConfig.text }]}>{dayLabel}</Text>
+            {status && (
+              <View style={[styles.statusPill, { backgroundColor: status.bg }]}>
+                <Feather name={status.icon as any} size={12} color={status.color} />
+                <Text style={[styles.statusPillText, { color: status.color }]}>{status.label}</Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.cardMainRow}>
+            <View style={[styles.typeTile, { backgroundColor: typeConfig.bg }]}>
+              <Ionicons name={typeConfig.icon} size={22} color={typeConfig.text} />
+            </View>
+            <View style={styles.cardTitles}>
+              <Text style={[styles.cardTitle, { color: theme.colors.text }]} numberOfLines={1}>
+                {activeWorkout.type_seance}
+              </Text>
+              <Text style={[styles.cardSubtitle, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                {summary}
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.cardButton, { backgroundColor: typeConfig.bg }]}>
+            <Text style={[styles.cardButtonText, { color: typeConfig.text }]}>
+              {extraCount > 0 ? 'Voir la journée' : isCompleted ? 'Voir le bilan' : 'Voir la séance'}
+            </Text>
+            <Feather name="chevron-right" size={15} color={typeConfig.text} />
+          </View>
+        </>
+      ),
+    };
+  };
 
   return (
     <View style={styles.container}>
-      {/* Timeline Header */}
-      <View style={styles.timelineContainer}>
-        <ScrollView
-          ref={timelineScrollRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.timelineScrollContent}
-        >
-          {timelineDays.map((date, index) => {
-            const active = index === activeIndex;
-            const isTodayDate = isSameDay(date, new Date());
+      {/* Section header */}
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Ma semaine</Text>
+        <PressableScale haptic="selection" onPress={() => router.push('/(athlete)/calendar')} hitSlop={10}>
+          <Text style={[styles.sectionLink, { color: theme.colors.sprintyBlue }]}>Calendrier</Text>
+        </PressableScale>
+      </View>
 
-            const dayWorkouts = upcomingWorkouts.filter(w => {
-              if (!w?.date_prevue) return false;
-              return isSameDay(new Date(w.date_prevue), date);
-            });
+      {/* Week strip */}
+      <ScrollView
+        ref={timelineScrollRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.timelineScrollContent}
+      >
+        {timelineDays.map((date, index) => {
+          const active = index === activeIndex;
+          const isTodayDate = isSameDay(date, todayStart);
+          const firstReal = workoutsByDay[index].find((w) => !isRestType(w));
+          const dotColor = firstReal ? getWorkoutTypeConfig(firstReal.type_seance).text : 'transparent';
 
-            const hasRealWorkout = dayWorkouts.some(
-              w => !(w.type_seance || '').toLowerCase().includes('repos')
-            );
-
-            return (
-              <TouchableOpacity
-                key={index}
-                onPress={() => scrollToDate(index)}
+          return (
+            <PressableScale
+              key={index}
+              haptic="none"
+              activeScale={0.9}
+              onPress={() => scrollToDate(index)}
+              style={styles.timelineItem}
+            >
+              <Text
                 style={[
-                  styles.timelineItem,
-                  active && [styles.timelineItemActive, { backgroundColor: theme.colors.accent }]
+                  styles.timelineDayName,
+                  { color: isTodayDate ? theme.colors.sprintyBlue : theme.colors.textMuted },
+                ]}
+              >
+                {DAY_SHORT[date.getDay()]}
+              </Text>
+              <View
+                style={[
+                  styles.timelineCircle,
+                  active && { backgroundColor: isTodayDate ? theme.colors.sprintyBlue : theme.colors.text },
                 ]}
               >
                 <Text
                   style={[
-                    styles.timelineDayName,
-                    { color: active ? '#FFF' : theme.colors.textSecondary }
-                  ]}
-                >
-                  {getDayName(date)}
-                </Text>
-                <Text
-                  style={[
                     styles.timelineDateNum,
-                    { color: active ? '#FFF' : theme.colors.text },
-                    isTodayDate && !active && { color: theme.colors.accent }
+                    { color: active ? '#FFF' : isTodayDate ? theme.colors.sprintyBlue : theme.colors.text },
                   ]}
                 >
                   {date.getDate()}
                 </Text>
+              </View>
+              <View style={[styles.workoutDot, { backgroundColor: dotColor }]} />
+            </PressableScale>
+          );
+        })}
+      </ScrollView>
 
-                {/* Workout indicator dot */}
-                {hasRealWorkout && !active && (
-                  <View style={[styles.workoutDot, { backgroundColor: theme.colors.accent }]} />
-                )}
-
-                {/* Today indicator dot (when no workout) */}
-                {isTodayDate && !hasRealWorkout && !active && (
-                  <View style={[styles.todayDot, { backgroundColor: theme.colors.accent }]} />
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
-
-      {/* Cards Carousel */}
-      <ScrollView
-        ref={scrollRef}
+      {/* Cards carousel */}
+      <Animated.ScrollView
+        ref={scrollRef as any}
         horizontal
         showsHorizontalScrollIndicator={false}
         snapToInterval={SNAP_INTERVAL}
         decelerationRate="fast"
         contentContainerStyle={styles.carouselContent}
-        onMomentumScrollEnd={handleScroll}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
       >
         {timelineDays.map((date, index) => {
-          // Find all workouts for this specific local date
-          const dayWorkouts = upcomingWorkouts.filter(w => {
-            if (!w?.date_prevue) return false;
-            return isSameDay(new Date(w.date_prevue), date);
-          });
+          const { onPress, content } = renderCardContent(date, workoutsByDay[index]);
+          const inputRange = [(index - 1) * SNAP_INTERVAL, index * SNAP_INTERVAL, (index + 1) * SNAP_INTERVAL];
+          const scale = scrollX.interpolate({ inputRange, outputRange: [0.93, 1, 0.93], extrapolate: 'clamp' });
+          const opacity = scrollX.interpolate({ inputRange, outputRange: [0.5, 1, 0.5], extrapolate: 'clamp' });
 
-          // Prioritize non-rest workouts if available
-          const realWorkouts = dayWorkouts.filter(
-            w => !(w.type_seance || '').toLowerCase().includes('repos')
+          return (
+            <Animated.View
+              key={index}
+              style={[styles.cardSlot, { opacity, transform: [{ scale }] }]}
+            >
+              <PressableScale onPress={onPress} unstable_pressDelay={70} style={[dashboardCard, styles.card]}>
+                {content}
+              </PressableScale>
+            </Animated.View>
           );
-          const activeWorkout = realWorkouts.length > 0 ? realWorkouts[0] : dayWorkouts[0];
-          const isRest = !activeWorkout || (activeWorkout.type_seance || '').toLowerCase().includes('repos');
-          const isActive = index === activeIndex;
-
-          if (!isRest && activeWorkout) {
-            // Render Workout Card
-            const typeConfig = getWorkoutTypeConfig(activeWorkout.type_seance);
-            const isCompleted = activeWorkout.status === 'completed';
-
-            const isCompetition = (activeWorkout.type_seance || '').toLowerCase().startsWith('comp');
-            const isMissed = !isCompleted && !isCompetition && date < todayStart;
-
-            let volumeStr = '';
-            let volumeIcon: any = 'layers';
-            if (activeWorkout.blocks && activeWorkout.blocks.length > 0) {
-              const vol = activeWorkout.blocks.length;
-              volumeStr = `${vol} bloc${vol > 1 ? 's' : ''}`;
-            } else if (activeWorkout.exercises && activeWorkout.exercises.length > 0) {
-              const vol = activeWorkout.exercises.length;
-              volumeStr = `${vol} exercice${vol > 1 ? 's' : ''}`;
-            } else if (activeWorkout.description) {
-              // First line only (competitions store "<title>\n📍 <location>")
-              volumeStr = activeWorkout.description.split('\n')[0].trim();
-              volumeIcon = isCompetition ? 'map-pin' : 'file-text';
-            } else {
-              volumeStr = 'Séance planifiée';
-            }
-
-            const status = isCompleted
-              ? { label: 'Fait', icon: 'check-circle', color: theme.colors.success, bg: 'rgba(16, 185, 129, 0.12)' }
-              : isMissed
-                ? { label: 'Manquée', icon: 'x-circle', color: theme.colors.error, bg: 'rgba(239, 68, 68, 0.12)' }
-                : { label: 'Planifié', icon: 'calendar', color: theme.colors.accent, bg: theme.colors.accentMuted };
-
-            const extraCount = realWorkouts.length - 1;
-
-            return (
-              <TouchableOpacity
-                key={`workout-${index}`}
-                activeOpacity={0.88}
-                onPress={() => (extraCount === 0 ? openWorkoutDetail(activeWorkout) : openDayView(date))}
-                style={[
-                  styles.card,
-                  {
-                    backgroundColor: theme.colors.surface,
-                    borderColor: isActive ? theme.colors.accent : theme.colors.border,
-                  },
-                  isActive && styles.activeCard
-                ]}
-              >
-                <View style={styles.cardHeader}>
-                  <View style={styles.titleWithIcon}>
-                    <View style={[styles.typeIconCircle, { backgroundColor: typeConfig.bg }]}>
-                      <Ionicons name={typeConfig.icon} size={20} color={typeConfig.text} />
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 10 }}>
-                      <Text style={[styles.cardTitle, { color: theme.colors.text }]} numberOfLines={1}>
-                        {activeWorkout.type_seance}
-                      </Text>
-                      {extraCount > 0 && (
-                        <Text style={[styles.extraSessionsText, { color: theme.colors.accent }]}>
-                          +{extraCount} autre{extraCount > 1 ? 's' : ''} séance{extraCount > 1 ? 's' : ''}
-                        </Text>
-                      )}
-                    </View>
-                  </View>
-
-                  <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
-                    <Feather name={status.icon as any} size={13} color={status.color} />
-                    <Text style={[styles.statusBadgeText, { color: status.color }]}>{status.label}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.cardBody}>
-                  <View style={[styles.infoRow, { flexShrink: 1 }]}>
-                    <Feather name={volumeIcon} size={14} color={theme.colors.textSecondary} />
-                    <Text style={[styles.infoText, { color: theme.colors.textSecondary, flexShrink: 1 }]} numberOfLines={1}>
-                      {volumeStr}
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1 }} />
-                  <View style={styles.actionPrompt}>
-                    <Text style={[styles.actionPromptText, { color: theme.colors.accent }]}>
-                      {extraCount > 0 ? 'Voir la journée' : isCompleted ? 'Voir le bilan' : 'Voir la séance'}
-                    </Text>
-                    <Feather name="chevron-right" size={14} color={theme.colors.accent} />
-                  </View>
-                </View>
-
-                {isActive && !isCompleted && !isMissed && (
-                  <View style={[styles.activeIndicator, { backgroundColor: theme.colors.accent }]} />
-                )}
-              </TouchableOpacity>
-            );
-          } else {
-            // Render Rest Card: coach rest notes live in the day view, otherwise lead to the calendar
-            const hasRestNote = !!activeWorkout;
-            return (
-              <TouchableOpacity
-                key={`rest-${index}`}
-                activeOpacity={0.88}
-                onPress={() => (hasRestNote ? openDayView(date) : router.push('/(athlete)/calendar'))}
-                style={[
-                  styles.card,
-                  styles.restCard,
-                  {
-                    backgroundColor: theme.colors.surfaceLight,
-                    borderColor: isActive ? theme.colors.accent : 'transparent',
-                  },
-                  isActive && styles.activeCard
-                ]}
-              >
-                <Feather name="coffee" size={22} color={theme.colors.textMuted} style={{ marginBottom: 4 }} />
-                <Text style={[styles.restTitle, { color: theme.colors.text }]}>Jour de repos</Text>
-                <Text style={[styles.restSub, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                  {activeWorkout?.description || 'Profite de ce temps pour la récupération.'}
-                </Text>
-                <View style={[styles.actionPrompt, { marginTop: 10 }]}>
-                  <Text style={[styles.actionPromptText, { color: theme.colors.accent }]}>
-                    {hasRestNote ? 'Voir les consignes' : 'Voir mon calendrier'}
-                  </Text>
-                  <Feather name="chevron-right" size={14} color={theme.colors.accent} />
-                </View>
-              </TouchableOpacity>
-            );
-          }
         })}
-      </ScrollView>
+      </Animated.ScrollView>
 
       <WorkoutDetailModal
         visible={isWorkoutModalVisible}
@@ -364,166 +368,131 @@ export const SessionCarousel = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { marginVertical: 16 },
+  container: { marginTop: 24, marginBottom: 8 },
 
-  timelineContainer: {
-    marginBottom: 16,
-  },
-  timelineScrollContent: {
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
-    gap: 8,
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  sectionLink: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+
+  timelineScrollContent: {
+    paddingHorizontal: 16,
+    gap: DAY_ITEM_STRIDE - DAY_ITEM_WIDTH,
   },
   timelineItem: {
-    width: 50,
-    height: 62,
-    borderRadius: 14,
+    width: DAY_ITEM_WIDTH,
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-    position: 'relative',
-  },
-  timelineItemActive: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.18,
-    shadowRadius: 4,
-    elevation: 3,
+    paddingVertical: 4,
   },
   timelineDayName: {
     fontSize: 12,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 6,
+  },
+  timelineCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   timelineDateNum: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  todayDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    position: 'absolute',
-    bottom: 4,
+    fontSize: 17,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   workoutDot: {
     width: 5,
     height: 5,
     borderRadius: 2.5,
-    position: 'absolute',
-    bottom: 4,
+    marginTop: 5,
   },
 
   carouselContent: {
     paddingHorizontal: (width - CARD_WIDTH) / 2,
+    paddingTop: 12,
     paddingBottom: 16,
-    paddingTop: 8,
+  },
+  cardSlot: {
+    width: CARD_WIDTH,
+    marginRight: CARD_GAP,
   },
   card: {
-    width: CARD_WIDTH,
-    height: 145,
-    borderRadius: 20,
-    padding: 18,
-    marginRight: 16,
-    borderWidth: 1.5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    height: 168,
     justifyContent: 'space-between',
   },
-  activeCard: {
-    transform: [{ scale: 1.02 }],
-    shadowOpacity: 0.12,
-  },
-  cardHeader: {
+  cardTopRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    minHeight: 22,
   },
-  titleWithIcon: {
+  kicker: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: -0.1,
+  },
+  statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    marginRight: 8,
-  },
-  typeIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-  },
-  extraSessionsText: {
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    gap: 3,
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    gap: 4,
+    paddingVertical: 3,
+    borderRadius: 999,
   },
-  statusBadgeText: {
-    fontSize: 11,
+  statusPillText: {
+    fontSize: 12,
     fontWeight: '700',
   },
-  cardBody: {
+  cardMainRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  infoRow: {
-    flexDirection: 'row',
+  typeTile: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    borderCurve: 'continuous',
     alignItems: 'center',
-    gap: 5,
+    justifyContent: 'center',
   },
-  infoText: {
+  cardTitles: {
+    flex: 1,
+  },
+  cardTitle: {
+    fontSize: 19,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+  },
+  cardSubtitle: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '500',
+    marginTop: 2,
   },
-  actionPrompt: {
+  cardButton: {
+    height: 40,
+    borderRadius: 12,
+    borderCurve: 'continuous',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    justifyContent: 'center',
+    gap: 4,
   },
-  actionPromptText: {
-    fontSize: 12,
+  cardButtonText: {
+    fontSize: 14,
     fontWeight: '700',
   },
-  activeIndicator: {
-    position: 'absolute',
-    bottom: -1,
-    left: '25%',
-    right: '25%',
-    height: 4,
-    borderTopLeftRadius: 4,
-    borderTopRightRadius: 4,
-  },
-
-  restCard: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderStyle: 'solid',
-    borderWidth: 0,
-  },
-  restTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  restSub: {
-    fontSize: 13,
-    textAlign: 'center',
-  },
 });
-
-
