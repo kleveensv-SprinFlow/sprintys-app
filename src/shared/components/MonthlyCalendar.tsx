@@ -349,11 +349,6 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
           </View>
 
           <View style={styles.headerRight}>
-            {!isViewingToday && (
-              <PressableScale haptic="none" onPress={goToToday} style={[styles.todayPill, glassSurface]}>
-                <Text style={styles.todayPillText}>Aujourd'hui</Text>
-              </PressableScale>
-            )}
             <View style={[styles.navPills, glassSurface]}>
               <Pressable onPress={() => navigateMonth('prev')} style={styles.navArrow} hitSlop={8}>
                 <Feather name="chevron-left" size={18} color={theme.colors.text} />
@@ -367,7 +362,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
         </View>
 
         {/* Phase line (coach: tap to edit / create) */}
-        {(activeSelectedPeriod || (isCoach && onPressCreatePeriod) || headerAccessory) && (
+        {(activeSelectedPeriod || (isCoach && onPressCreatePeriod) || headerAccessory || !isViewingToday) && (
           <View style={styles.phaseRow}>
             {activeSelectedPeriod ? (
               <Pressable
@@ -418,6 +413,11 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
               </PressableScale>
             )}
             {headerAccessory}
+            {!isViewingToday && (
+              <PressableScale haptic="none" onPress={goToToday} hitSlop={8} style={[styles.todayPill, glassSurface]}>
+                <Text style={styles.todayPillText}>Aujourd'hui</Text>
+              </PressableScale>
+            )}
           </View>
         )}
       </View>
@@ -610,8 +610,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   todayPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 999,
   },
   todayPillText: {
@@ -705,7 +705,7 @@ const styles = StyleSheet.create({
   },
   cell: {
     flex: 1,
-    height: 54,
+    height: 50,
     alignItems: 'center',
     paddingTop: 5,
   },

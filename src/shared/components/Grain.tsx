@@ -28,11 +28,19 @@ export const Grain = ({ radius = 0, sheen = true }: GrainProps) => (
         style={styles.sheen}
       />
     )}
-    <Image source={GRAIN} resizeMode="cover" style={StyleSheet.absoluteFill} />
+    <Image source={GRAIN} resizeMode="cover" style={styles.noise} />
   </View>
 );
 
 const styles = StyleSheet.create({
+  // Explicit size: absoluteFill alone leaves the image at its intrinsic size on some platforms
+  noise: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+  },
   sheen: {
     position: 'absolute',
     top: 0,
