@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../core/theme';
+import { glassSurface } from '../../core/glass';
 import * as Haptics from 'expo-haptics';
 import { TrainingPeriod } from '../../types/period';
 
@@ -279,7 +280,8 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
   const totalWeeks = weeks.length;
 
   return (
-    <View style={[styles.container, { backgroundColor: '#FFFFFF' }]} {...panResponder.panHandlers}>
+    // Transparent: sits on the screen's glass backdrop
+    <View style={styles.container} {...panResponder.panHandlers}>
       {/* === Header (< Septembre 2026 >) === */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -291,7 +293,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
           </Text>
         </View>
 
-          <View style={[styles.navPills, { backgroundColor: '#F8FAFC', borderColor: theme.colors.border + '60' }]}>
+          <View style={[styles.navPills, glassSurface]}>
           <TouchableOpacity
             onPress={() => navigateMonth('prev')}
             style={styles.navArrow}
@@ -318,13 +320,13 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
           style={[
             styles.periodBadgeRow,
             {
-              backgroundColor: '#FFFFFF',
+              backgroundColor: theme.colors.glass,
               borderColor: activeSelectedPeriod.color + '40',
+              // iOS only: an Android elevation would show through the translucent pill
               shadowColor: activeSelectedPeriod.color,
               shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.12,
               shadowRadius: 6,
-              elevation: 2,
             },
           ]}
           onPress={() => {
@@ -362,7 +364,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
             styles.periodBadgeRow,
             styles.periodBadgeRowEmpty,
             {
-              backgroundColor: '#F8FAFC',
+              backgroundColor: theme.colors.glassFill,
               borderColor: theme.colors.border + '80',
             },
           ]}
@@ -414,12 +416,10 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
               const isSunday = dayIndex === 6;
               const hasWorkouts = dayWorkouts.length > 0;
 
-              // Pure Apple Fitness clean styling:
-              // Cells remain 100% clean white surface (#FFFFFF).
-              // No distracting top stripes or reddish tints across the grid.
+              // Glass cells for the current month, nothing for the overflow days
               const cellBgColor = !item.isCurrentMonth
                 ? 'transparent'
-                : theme.colors.surface;
+                : theme.colors.glass;
 
               const visibleWorkouts = dayWorkouts.slice(0, 3);
               const extraCount = dayWorkouts.length - 3;
@@ -433,7 +433,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                       backgroundColor: cellBgColor,
                       borderColor: selected
                         ? '#0069E8' // Sprintflow electric blue
-                        : theme.colors.border + '60',
+                        : theme.colors.glassBorder,
                       borderWidth: selected ? 2 : 1,
                       opacity: item.isCurrentMonth ? 1 : 0.28,
                     },
@@ -646,11 +646,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   selectedCellShadow: {
+    // iOS only: an Android elevation would show through the translucent cell
     shadowColor: '#0069E8',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.22,
     shadowRadius: 5,
-    elevation: 3,
   },
 
   // Date number

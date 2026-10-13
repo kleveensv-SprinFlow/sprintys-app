@@ -12,6 +12,8 @@ import { useAuthStore } from '../../src/store/authStore';
 import { useSprintyStore } from '../../src/store/sprintyStore';
 import { BodyMetric } from '../../src/services/bodyService';
 import { WeightTrendChart, movingAverage, TrendPoint } from '../../src/features/body/components/WeightChart';
+import { GlassScreen } from '../../src/shared/components/GlassScreen';
+import { glassCard, glassSurface } from '../../src/core/glass';
 
 type MetricKey = 'weight' | 'fat' | 'muscle';
 type RangeKey = '1S' | '1M' | '3M' | '1A' | 'Tout';
@@ -186,168 +188,179 @@ export default function BodyCompositionScreen() {
   const history = [...metrics].reverse();
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
-          <Feather name="arrow-left" size={22} color={theme.colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Poids</Text>
-        <TouchableOpacity onPress={openNew} style={[styles.iconBtn, { backgroundColor: blue }]}>
-          <Feather name="plus" size={20} color="#FFF" />
-        </TouchableOpacity>
-      </View>
+    <GlassScreen>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={[styles.iconBtn, glassSurface]}>
+            <Feather name="arrow-left" size={22} color={theme.colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Poids</Text>
+          <TouchableOpacity onPress={openNew} style={[styles.iconBtn, { backgroundColor: blue }]}>
+            <Feather name="plus" size={20} color="#FFF" />
+          </TouchableOpacity>
+        </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.hero, { color: theme.colors.text }]}>
-          {shown ? formatKg(shown.v) : '--'}
-          <Text style={[styles.heroUnit, { color: theme.colors.textSecondary }]}> {unit}</Text>
-        </Text>
-        {delta != null && Math.abs(delta) >= 0.05 && (
-          <View style={styles.deltaRow}>
-            <Feather name={delta < 0 ? 'trending-down' : 'trending-up'} size={14} color={theme.colors.textSecondary} />
-            <Text style={[styles.delta, { color: theme.colors.textSecondary }]}>
-              {formatKg(Math.abs(delta))} {unit} {rangeLabel}
-            </Text>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <Text style={[styles.hero, { color: theme.colors.text }]}>
+            {shown ? formatKg(shown.v) : '--'}
+            <Text style={[styles.heroUnit, { color: theme.colors.textSecondary }]}> {unit}</Text>
+          </Text>
+          {delta != null && Math.abs(delta) >= 0.05 && (
+            <View style={styles.deltaRow}>
+              <Feather name={delta < 0 ? 'trending-down' : 'trending-up'} size={14} color={theme.colors.textSecondary} />
+              <Text style={[styles.delta, { color: theme.colors.textSecondary }]}>
+                {formatKg(Math.abs(delta))} {unit} {rangeLabel}
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.filters}>
+            {(['weight', 'fat', 'muscle'] as MetricKey[])
+              .filter((k) => k === 'weight' || (k === 'fat' ? hasFat : hasMuscle))
+              .map((k) => {
+                const on = metricKey === k;
+                const label = k === 'weight' ? 'Poids' : k === 'fat' ? 'Gras' : 'Muscle';
+                return (
+                  <TouchableOpacity key={k} onPress={() => { setMetricKey(k); setScrub(null); }} style={[styles.pill, on && { backgroundColor: theme.colors.text }]}>
+                    <Text style={{ color: on ? '#FFF' : theme.colors.textSecondary, fontWeight: '700', fontSize: 13 }}>{label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
           </View>
-        )}
 
-        <View style={styles.filters}>
-          {(['weight', 'fat', 'muscle'] as MetricKey[])
-            .filter((k) => k === 'weight' || (k === 'fat' ? hasFat : hasMuscle))
-            .map((k) => {
-              const on = metricKey === k;
-              const label = k === 'weight' ? 'Poids' : k === 'fat' ? 'Gras' : 'Muscle';
+          <View style={styles.filters}>
+            {RANGES.map((r) => {
+              const on = range === r.key;
               return (
-                <TouchableOpacity key={k} onPress={() => { setMetricKey(k); setScrub(null); }} style={[styles.pill, on && { backgroundColor: theme.colors.text }]}>
-                  <Text style={{ color: on ? '#FFF' : theme.colors.textSecondary, fontWeight: '700', fontSize: 13 }}>{label}</Text>
+                <TouchableOpacity key={r.key} onPress={() => { setRange(r.key); setScrub(null); }} style={[styles.pill, on && glassSurface]}>
+                  <Text style={{ color: on ? theme.colors.text : theme.colors.textMuted, fontWeight: '700', fontSize: 13 }}>{r.key}</Text>
                 </TouchableOpacity>
               );
             })}
-        </View>
-
-        <View style={styles.filters}>
-          {RANGES.map((r) => {
-            const on = range === r.key;
-            return (
-              <TouchableOpacity key={r.key} onPress={() => { setRange(r.key); setScrub(null); }} style={[styles.pill, on && { backgroundColor: theme.colors.surfaceLight }]}>
-                <Text style={{ color: on ? theme.colors.text : theme.colors.textMuted, fontWeight: '700', fontSize: 13 }}>{r.key}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {series.length >= 2 ? (
-          <WeightTrendChart
-            raw={raw}
-            smooth={smooth}
-            width={width - 32}
-            height={220}
-            color={blue}
-            target={metricKey === 'weight' && target > 0 ? target : null}
-            onScrub={setScrub}
-          />
-        ) : (
-          <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
-            {series.length === 0 ? 'Aucune mesure sur cette période.' : 'Une deuxième pesée dessinera la courbe.'}
-          </Text>
-        )}
-
-        {series.length > 0 && (
-          <View style={styles.stats}>
-            <Stat label="Début" value={first ? formatKg(first.v) : '--'} color={theme.colors.text} muted={theme.colors.textMuted} />
-            <Stat label="Moyenne 7 j" value={weekAvg != null ? formatKg(weekAvg) : '--'} color={theme.colors.text} muted={theme.colors.textMuted} />
-            <Stat label="Min" value={min != null ? formatKg(min) : '--'} color={theme.colors.text} muted={theme.colors.textMuted} />
           </View>
-        )}
 
-        {metricKey === 'weight' && target > 0 && latest && (
-          <Text style={[styles.goal, { color: theme.colors.textSecondary }]}>
-            {Math.abs(latest.v - target) <= 0.1 ? 'Objectif atteint' : `encore ${formatKg(Math.abs(latest.v - target))} kg`}
-          </Text>
-        )}
-
-        <Text style={[styles.section, { color: theme.colors.text }]}>Historique</Text>
-        {history.length === 0 && (
-          <Text style={[styles.hint, { color: theme.colors.textMuted }]}>Aucune pesée pour l'instant.</Text>
-        )}
-        {history.map((m) => {
-          const d = m.created_at ? new Date(m.created_at) : null;
-          const label = d ? d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
-          return (
-            <View key={m.id || label + m.weight} style={[styles.row, { borderColor: theme.colors.border }]}>
-              <TouchableOpacity style={{ flex: 1 }} onPress={() => openEdit(m)}>
-                <Text style={[styles.rowValue, { color: theme.colors.text }]}>{formatKg(m.weight)} kg</Text>
-                <Text style={[styles.rowDate, { color: theme.colors.textMuted }]}>
-                  {label}
-                  {m.body_fat != null ? `  ·  MG ${formatKg(Number(m.body_fat))} %` : ''}
-                  {m.muscle_mass_kg != null ? `  ·  Muscle ${formatKg(Number(m.muscle_mass_kg))} kg` : ''}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => confirmDelete(m)} hitSlop={10}>
-                <Feather name="trash-2" size={16} color={theme.colors.textMuted} />
-              </TouchableOpacity>
-            </View>
-          );
-        })}
-      </ScrollView>
-
-      {sheet && (
-        <View style={styles.sheetBackdrop}>
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => setSheet(false)} />
-          <View style={[styles.sheet, { backgroundColor: theme.colors.surface, paddingBottom: Math.max(insets.bottom, 16) }]}>
-            <Text style={[styles.sheetTitle, { color: theme.colors.text }]}>{editingId ? 'Modifier la pesée' : 'Nouvelle pesée'}</Text>
-            <View style={styles.stepper}>
-              <TouchableOpacity onPress={() => nudge(-1)} style={[styles.stepBtn, { backgroundColor: theme.colors.surfaceLight }]}>
-                <Text style={[styles.stepLabel, { color: theme.colors.text }]}>− 0,1</Text>
-              </TouchableOpacity>
-              <TextInput
-                value={weight}
-                onChangeText={(t) => setWeight(formatSmartDecimal(t))}
-                keyboardType="decimal-pad"
-                style={[styles.weightInput, { color: theme.colors.text }]}
-                placeholder="0,0"
-                placeholderTextColor={theme.colors.textMuted}
+          <View style={glassCard}>
+            {series.length >= 2 ? (
+              <WeightTrendChart
+                raw={raw}
+                smooth={smooth}
+                width={width - 64}
+                height={220}
+                color={blue}
+                target={metricKey === 'weight' && target > 0 ? target : null}
+                onScrub={setScrub}
               />
-              <TouchableOpacity onPress={() => nudge(1)} style={[styles.stepBtn, { backgroundColor: theme.colors.surfaceLight }]}>
-                <Text style={[styles.stepLabel, { color: theme.colors.text }]}>+ 0,1</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={[styles.kgHint, { color: theme.colors.textMuted }]}>kg</Text>
+            ) : (
+              <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
+                {series.length === 0 ? 'Aucune mesure sur cette période.' : 'Une deuxième pesée dessinera la courbe.'}
+              </Text>
+            )}
 
-            <TouchableOpacity onPress={() => setMore((v) => !v)} style={styles.moreBtn}>
-              <Text style={{ color: blue, fontWeight: '700' }}>Ma balance mesure aussi…</Text>
-            </TouchableOpacity>
-
-            {more && (
-              <View>
-                <Field label="Masse grasse (%)" value={bodyFat} onChange={setBodyFat} theme={theme} />
-                <Field label="Muscle (kg)" value={muscleMass} onChange={setMuscleMass} theme={theme} />
-                <Field label="Eau (%)" value={water} onChange={setWater} theme={theme} />
-                <View style={styles.scaleRow}>
-                  {(['none', '4_electrodes', '8_electrodes'] as ScaleType[]).map((type) => {
-                    const on = scaleType === type;
-                    const label = type === 'none' ? 'Classique' : type === '4_electrodes' ? '4 électrodes' : '8 électrodes';
-                    return (
-                      <TouchableOpacity key={type} onPress={() => setScaleType(type)} style={[styles.pill, on && { backgroundColor: theme.colors.text }]}>
-                        <Text style={{ color: on ? '#FFF' : theme.colors.textSecondary, fontWeight: '700', fontSize: 12 }}>{label}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
+            {series.length > 0 && (
+              <View style={styles.stats}>
+                <Stat label="Début" value={first ? formatKg(first.v) : '--'} color={theme.colors.text} muted={theme.colors.textMuted} />
+                <Stat label="Moyenne 7 j" value={weekAvg != null ? formatKg(weekAvg) : '--'} color={theme.colors.text} muted={theme.colors.textMuted} />
+                <Stat label="Min" value={min != null ? formatKg(min) : '--'} color={theme.colors.text} muted={theme.colors.textMuted} />
               </View>
             )}
 
-            <TouchableOpacity
-              style={[styles.save, { backgroundColor: blue, opacity: isLoading ? 0.6 : 1 }]}
-              onPress={handleSave}
-              disabled={isLoading}
-            >
-              <Text style={styles.saveText}>{isLoading ? 'Enregistrement…' : 'Enregistrer'}</Text>
-            </TouchableOpacity>
+            {metricKey === 'weight' && target > 0 && latest && (
+              <Text style={[styles.goal, { color: theme.colors.textSecondary }]}>
+                {Math.abs(latest.v - target) <= 0.1 ? 'Objectif atteint' : `encore ${formatKg(Math.abs(latest.v - target))} kg`}
+              </Text>
+            )}
           </View>
-        </View>
-      )}
-    </SafeAreaView>
+
+          <Text style={[styles.section, { color: theme.colors.text }]}>Historique</Text>
+          {history.length === 0 && (
+            <Text style={[styles.hint, { color: theme.colors.textMuted }]}>Aucune pesée pour l'instant.</Text>
+          )}
+          {history.length > 0 && (
+            <View style={[glassCard, styles.historyCard]}>
+              {history.map((m, i) => {
+                const d = m.created_at ? new Date(m.created_at) : null;
+                const label = d ? d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
+                return (
+                  <View
+                    key={m.id || label + m.weight}
+                    style={[styles.row, { borderColor: theme.colors.hairline }, i === history.length - 1 && { borderBottomWidth: 0 }]}
+                  >
+                    <TouchableOpacity style={{ flex: 1 }} onPress={() => openEdit(m)}>
+                      <Text style={[styles.rowValue, { color: theme.colors.text }]}>{formatKg(m.weight)} kg</Text>
+                      <Text style={[styles.rowDate, { color: theme.colors.textMuted }]}>
+                        {label}
+                        {m.body_fat != null ? `  ·  MG ${formatKg(Number(m.body_fat))} %` : ''}
+                        {m.muscle_mass_kg != null ? `  ·  Muscle ${formatKg(Number(m.muscle_mass_kg))} kg` : ''}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => confirmDelete(m)} hitSlop={10}>
+                      <Feather name="trash-2" size={16} color={theme.colors.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </ScrollView>
+
+        {sheet && (
+          <View style={styles.sheetBackdrop}>
+            <TouchableOpacity style={{ flex: 1 }} onPress={() => setSheet(false)} />
+            <View style={[styles.sheet, { backgroundColor: theme.colors.surface, paddingBottom: Math.max(insets.bottom, 16) }]}>
+              <Text style={[styles.sheetTitle, { color: theme.colors.text }]}>{editingId ? 'Modifier la pesée' : 'Nouvelle pesée'}</Text>
+              <View style={styles.stepper}>
+                <TouchableOpacity onPress={() => nudge(-1)} style={[styles.stepBtn, { backgroundColor: theme.colors.surfaceLight }]}>
+                  <Text style={[styles.stepLabel, { color: theme.colors.text }]}>− 0,1</Text>
+                </TouchableOpacity>
+                <TextInput
+                  value={weight}
+                  onChangeText={(t) => setWeight(formatSmartDecimal(t))}
+                  keyboardType="decimal-pad"
+                  style={[styles.weightInput, { color: theme.colors.text }]}
+                  placeholder="0,0"
+                  placeholderTextColor={theme.colors.textMuted}
+                />
+                <TouchableOpacity onPress={() => nudge(1)} style={[styles.stepBtn, { backgroundColor: theme.colors.surfaceLight }]}>
+                  <Text style={[styles.stepLabel, { color: theme.colors.text }]}>+ 0,1</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={[styles.kgHint, { color: theme.colors.textMuted }]}>kg</Text>
+
+              <TouchableOpacity onPress={() => setMore((v) => !v)} style={styles.moreBtn}>
+                <Text style={{ color: blue, fontWeight: '700' }}>Ma balance mesure aussi…</Text>
+              </TouchableOpacity>
+
+              {more && (
+                <View>
+                  <Field label="Masse grasse (%)" value={bodyFat} onChange={setBodyFat} theme={theme} />
+                  <Field label="Muscle (kg)" value={muscleMass} onChange={setMuscleMass} theme={theme} />
+                  <Field label="Eau (%)" value={water} onChange={setWater} theme={theme} />
+                  <View style={styles.scaleRow}>
+                    {(['none', '4_electrodes', '8_electrodes'] as ScaleType[]).map((type) => {
+                      const on = scaleType === type;
+                      const label = type === 'none' ? 'Classique' : type === '4_electrodes' ? '4 électrodes' : '8 électrodes';
+                      return (
+                        <TouchableOpacity key={type} onPress={() => setScaleType(type)} style={[styles.pill, on && { backgroundColor: theme.colors.text }]}>
+                          <Text style={{ color: on ? '#FFF' : theme.colors.textSecondary, fontWeight: '700', fontSize: 12 }}>{label}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={[styles.save, { backgroundColor: blue, opacity: isLoading ? 0.6 : 1 }]}
+                onPress={handleSave}
+                disabled={isLoading}
+              >
+                <Text style={styles.saveText}>{isLoading ? 'Enregistrement…' : 'Enregistrer'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </SafeAreaView>
+    </GlassScreen>
   );
 }
 
@@ -395,8 +408,9 @@ const styles = StyleSheet.create({
   filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   pill: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 },
   hint: { fontSize: 14, marginVertical: 24 },
-  stats: { flexDirection: 'row', marginTop: 8, marginBottom: 8 },
-  goal: { fontSize: 14, fontWeight: '500', marginBottom: 8 },
+  stats: { flexDirection: 'row', marginTop: 8 },
+  goal: { fontSize: 14, fontWeight: '500', marginTop: 8 },
+  historyCard: { paddingVertical: 4 },
   section: { fontSize: 17, fontWeight: '700', marginTop: 16, marginBottom: 8 },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   rowValue: { fontSize: 16, fontWeight: '700' },

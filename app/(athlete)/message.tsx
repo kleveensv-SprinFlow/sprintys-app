@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -8,6 +8,10 @@ import { supabase } from '../../src/services/supabase';
 import { useAuthStore } from '../../src/store/authStore';
 import { chatService, GroupDiscussionsSummary } from '../../src/services/chatService';
 import { useRouter } from 'expo-router';
+import { GlassScreen } from '../../src/shared/components/GlassScreen';
+import { PressableScale } from '../../src/shared/components/PressableScale';
+import { glassSurface, glassBar } from '../../src/core/glass';
+import { useTabBarSpace } from '../../src/shared/hooks/useTabBarSpace';
 
 interface MyGroupData {
   team_id: string;
@@ -20,6 +24,7 @@ interface MyGroupData {
 export default function MessagesHubScreen() {
   const { user } = useAuthStore();
   const router = useRouter();
+  const tabBarSpace = useTabBarSpace();
   const [myGroup, setMyGroup] = useState<MyGroupData | null>(null);
   const [discussions, setDiscussions] = useState<GroupDiscussionsSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -90,138 +95,137 @@ export default function MessagesHubScreen() {
 
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Messages</Text>
-      </View>
+    <GlassScreen>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Messages</Text>
+        </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace }]} showsVerticalScrollIndicator={false}>
         
-        {/* SPRINTY IA CARD */}
-        <TouchableOpacity 
-          style={styles.discussionCard}
-          activeOpacity={0.7}
-          onPress={() => router.push('/chat/sprinty')}
-        >
-          <View style={[styles.discussionAvatar, { backgroundColor: '#0026AE15' }]}>
-            <Text style={{ fontSize: 20 }}>⚡</Text>
-          </View>
-          <View style={styles.discussionContent}>
-            <View style={styles.discussionTopRow}>
-              <Text style={styles.discussionTitle}>Sprinty IA</Text>
+          {/* SPRINTY IA CARD */}
+          <PressableScale
+            style={styles.discussionCard}
+            onPress={() => router.push('/chat/sprinty')}
+          >
+            <View style={[styles.discussionAvatar, { backgroundColor: '#0026AE15' }]}>
+              <Text style={{ fontSize: 20 }}>⚡</Text>
             </View>
-            <View style={styles.discussionBottomRow}>
-              <Text style={styles.discussionPreview} numberOfLines={1}>
-                Ton assistant personnel
-              </Text>
+            <View style={styles.discussionContent}>
+              <View style={styles.discussionTopRow}>
+                <Text style={styles.discussionTitle}>Sprinty IA</Text>
+              </View>
+              <View style={styles.discussionBottomRow}>
+                <Text style={styles.discussionPreview} numberOfLines={1}>
+                  Ton assistant personnel
+                </Text>
+              </View>
             </View>
-          </View>
-          <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />
-        </TouchableOpacity>
+            <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />
+          </PressableScale>
 
-        <Text style={styles.sectionLabel}>ÉQUIPE & COACH</Text>
+          <Text style={styles.sectionLabel}>ÉQUIPE & COACH</Text>
 
-        {isLoading ? (
-          <ActivityIndicator size="small" color={theme.colors.accent} style={{ marginTop: 20 }} />
-        ) : myGroup ? (
-          myGroup.status === 'pending' ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>Demande en attente pour l'équipe {myGroup.team_name}.</Text>
-            </View>
+          {isLoading ? (
+            <ActivityIndicator size="small" color={theme.colors.accent} style={{ marginTop: 20 }} />
+          ) : myGroup ? (
+            myGroup.status === 'pending' ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyText}>Demande en attente pour l'équipe {myGroup.team_name}.</Text>
+              </View>
+            ) : (
+              <>
+                {/* COACH CARD */}
+                <PressableScale
+                  style={styles.discussionCard}
+                  onPress={() => router.push({
+                    pathname: '/chat/[type]/[id]',
+                    params: { type: 'direct', id: myGroup.coach_id, title: `Coach ${myGroup.coach_name}` }
+                  })}
+                >
+                  <View style={[styles.discussionAvatar, { backgroundColor: theme.colors.accent + '20' }]}>
+                    <Feather name="user-check" size={20} color={theme.colors.accent} />
+                  </View>
+                  <View style={styles.discussionContent}>
+                    <View style={styles.discussionTopRow}>
+                      <Text style={styles.discussionTitle}>Coach {myGroup.coach_name}</Text>
+                      {discussions?.coach?.last_message && (
+                        <Text style={styles.discussionDate}>
+                          {formatMessageTime(discussions.coach.last_message.created_at)}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={styles.discussionBottomRow}>
+                      <Text style={[styles.discussionPreview, !discussions?.coach?.last_message && styles.discussionPreviewMuted]} numberOfLines={1}>
+                        {discussions?.coach?.last_message 
+                          ? `${discussions.coach.last_message.is_me ? 'Vous : ' : ''}${discussions.coach.last_message.content}`
+                          : 'Aucun message.'}
+                      </Text>
+                      {(discussions?.coach?.unread_count || 0) > 0 && (
+                        <View style={styles.unreadBadge}>
+                          <Text style={styles.unreadBadgeText}>{discussions?.coach?.unread_count}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                  <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />
+                </PressableScale>
+
+                {/* TEAM CARD */}
+                <PressableScale
+                  style={styles.discussionCard}
+                  onPress={() => router.push({
+                    pathname: '/chat/[type]/[id]',
+                    params: { type: 'team', id: myGroup.team_id, title: myGroup.team_name }
+                  })}
+                >
+                  <View style={[styles.discussionAvatar, { backgroundColor: theme.colors.success + '20' }]}>
+                    <Feather name="users" size={20} color={theme.colors.success} />
+                  </View>
+                  <View style={styles.discussionContent}>
+                    <View style={styles.discussionTopRow}>
+                      <Text style={styles.discussionTitle}>Équipe {myGroup.team_name}</Text>
+                      {discussions?.team?.last_message && (
+                        <Text style={styles.discussionDate}>
+                          {formatMessageTime(discussions.team.last_message.created_at)}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={styles.discussionBottomRow}>
+                      <Text style={[styles.discussionPreview, !discussions?.team?.last_message && styles.discussionPreviewMuted]} numberOfLines={1}>
+                        {discussions?.team?.last_message 
+                          ? `${discussions.team.last_message.sender_name} : ${discussions.team.last_message.content}`
+                          : 'Aucun message dans le groupe.'}
+                      </Text>
+                      {(discussions?.team?.unread_count || 0) > 0 && (
+                        <View style={[styles.unreadBadge, { backgroundColor: theme.colors.success }]}>
+                          <Text style={styles.unreadBadgeText}>{discussions?.team?.unread_count}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                  <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />
+                </PressableScale>
+              </>
+            )
           ) : (
-            <>
-              {/* COACH CARD */}
-              <TouchableOpacity 
-                style={styles.discussionCard}
-                activeOpacity={0.7}
-                onPress={() => router.push({
-                  pathname: '/chat/[type]/[id]',
-                  params: { type: 'direct', id: myGroup.coach_id, title: `Coach ${myGroup.coach_name}` }
-                })}
-              >
-                <View style={[styles.discussionAvatar, { backgroundColor: theme.colors.accent + '20' }]}>
-                  <Feather name="user-check" size={20} color={theme.colors.accent} />
-                </View>
-                <View style={styles.discussionContent}>
-                  <View style={styles.discussionTopRow}>
-                    <Text style={styles.discussionTitle}>Coach {myGroup.coach_name}</Text>
-                    {discussions?.coach?.last_message && (
-                      <Text style={styles.discussionDate}>
-                        {formatMessageTime(discussions.coach.last_message.created_at)}
-                      </Text>
-                    )}
-                  </View>
-                  <View style={styles.discussionBottomRow}>
-                    <Text style={[styles.discussionPreview, !discussions?.coach?.last_message && styles.discussionPreviewMuted]} numberOfLines={1}>
-                      {discussions?.coach?.last_message 
-                        ? `${discussions.coach.last_message.is_me ? 'Vous : ' : ''}${discussions.coach.last_message.content}`
-                        : 'Aucun message.'}
-                    </Text>
-                    {(discussions?.coach?.unread_count || 0) > 0 && (
-                      <View style={styles.unreadBadge}>
-                        <Text style={styles.unreadBadgeText}>{discussions?.coach?.unread_count}</Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-                <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />
-              </TouchableOpacity>
-
-              {/* TEAM CARD */}
-              <TouchableOpacity 
-                style={styles.discussionCard}
-                activeOpacity={0.7}
-                onPress={() => router.push({
-                  pathname: '/chat/[type]/[id]',
-                  params: { type: 'team', id: myGroup.team_id, title: myGroup.team_name }
-                })}
-              >
-                <View style={[styles.discussionAvatar, { backgroundColor: theme.colors.success + '20' }]}>
-                  <Feather name="users" size={20} color={theme.colors.success} />
-                </View>
-                <View style={styles.discussionContent}>
-                  <View style={styles.discussionTopRow}>
-                    <Text style={styles.discussionTitle}>Équipe {myGroup.team_name}</Text>
-                    {discussions?.team?.last_message && (
-                      <Text style={styles.discussionDate}>
-                        {formatMessageTime(discussions.team.last_message.created_at)}
-                      </Text>
-                    )}
-                  </View>
-                  <View style={styles.discussionBottomRow}>
-                    <Text style={[styles.discussionPreview, !discussions?.team?.last_message && styles.discussionPreviewMuted]} numberOfLines={1}>
-                      {discussions?.team?.last_message 
-                        ? `${discussions.team.last_message.sender_name} : ${discussions.team.last_message.content}`
-                        : 'Aucun message dans le groupe.'}
-                    </Text>
-                    {(discussions?.team?.unread_count || 0) > 0 && (
-                      <View style={[styles.unreadBadge, { backgroundColor: theme.colors.success }]}>
-                        <Text style={styles.unreadBadgeText}>{discussions?.team?.unread_count}</Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-                <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />
-              </TouchableOpacity>
-            </>
-          )
-        ) : (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>Tu n'as pas encore d'équipe. Appuie sur l'icône de personnes en haut de l'accueil pour en rejoindre une.</Text>
-          </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>Tu n'as pas encore d'équipe. Appuie sur l'icône de personnes en haut de l'accueil pour en rejoindre une.</Text>
+            </View>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </GlassScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background },
-  header: { paddingHorizontal: 24, paddingVertical: 20, borderBottomWidth: 1, borderBottomColor: theme.colors.border, backgroundColor: theme.colors.surface },
+  container: { flex: 1 },
+  header: { paddingHorizontal: 24, paddingVertical: 20, ...glassBar },
   title: { fontSize: 28, fontWeight: '800', color: theme.colors.text },
   content: { padding: 24 },
-  sectionLabel: { fontSize: 12, fontWeight: '700', color: theme.colors.textMuted, marginTop: 24, marginBottom: 12, letterSpacing: 0.5 },
-  discussionCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface, padding: 14, borderRadius: 14, marginBottom: 10, borderWidth: 1, borderColor: theme.colors.border },
+  sectionLabel: { fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginTop: 24, marginBottom: 12, letterSpacing: 0.5 },
+  discussionCard: { flexDirection: 'row', alignItems: 'center', ...glassSurface, padding: 14, borderRadius: 18, borderCurve: 'continuous', marginBottom: 10 },
   discussionAvatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   discussionContent: { flex: 1, justifyContent: 'center' },
   discussionTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
@@ -232,7 +236,7 @@ const styles = StyleSheet.create({
   discussionPreviewMuted: { fontStyle: 'italic', color: theme.colors.textMuted },
   unreadBadge: { backgroundColor: theme.colors.error, borderRadius: 12, paddingHorizontal: 6, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
   unreadBadgeText: { color: '#FFF', fontSize: 11, fontWeight: '700' },
-  emptyState: { padding: 20, backgroundColor: theme.colors.surface, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border },
+  emptyState: { padding: 20, ...glassSurface, borderRadius: 18 },
   emptyText: { color: theme.colors.textSecondary, textAlign: 'center', lineHeight: 20 }
 });
 

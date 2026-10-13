@@ -1,6 +1,7 @@
 ﻿import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import { theme } from '../../core/theme';
+import { glassSurface } from '../../core/glass';
 
 interface CardProps {
   children: React.ReactNode;
@@ -37,19 +38,14 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
     overflow: 'hidden',
   },
+  // Glass theme: on a white modal sheet the translucent fill simply reads as white
   default: {
-    backgroundColor: theme.colors.surface,
-    
-    ...theme.shadows.soft,
+    ...glassSurface,
   },
   elevated: {
-    backgroundColor: theme.colors.surfaceLight,
-    
-    ...theme.shadows.soft,
+    backgroundColor: theme.colors.glassFill,
   },
   glass: {
-    backgroundColor: theme.glass.backgroundColor,
-    
-    borderColor: theme.glass.borderColor,
+    ...glassSurface,
   },
 });

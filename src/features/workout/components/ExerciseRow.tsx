@@ -109,7 +109,7 @@ const SetRow = ({ blockId, exerciseId, set, isStrength, isRun, isJump }: { block
       {/* NOUVEAU CHAMP % */}
       <View style={{ flex: 0.8, paddingHorizontal: 2 }}>
         <TextInput
-          style={[styles.baseInput, { height: 40, backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border }]}
+          style={[styles.baseInput, { height: 40, backgroundColor: theme.colors.glassFill, borderColor: theme.colors.border }]}
           value={intensityText}
           onChangeText={handleIntensityChange}
           keyboardType="numeric"
@@ -190,12 +190,12 @@ const styles = StyleSheet.create({
   setNumber: { color: theme.colors.textSecondary, fontSize: 14, textAlign: 'center', fontWeight: 'bold' },
   targetText: { color: theme.colors.textSecondary, fontSize: 12, fontStyle: 'italic', paddingRight: 4 },
   
-  baseInput: { flex: 1, backgroundColor: theme.colors.background, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, textAlign: 'center', fontSize: 14, color: theme.colors.text },
+  baseInput: { flex: 1, backgroundColor: theme.colors.glassFill, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, textAlign: 'center', fontSize: 14, color: theme.colors.text },
   
   checkCircle: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: theme.colors.border, justifyContent: 'center', alignItems: 'center', marginLeft: 4 },
   checkCircleActive: { backgroundColor: theme.colors.success, borderColor: theme.colors.success },
-  checkIcon: { color: theme.colors.background, fontWeight: 'bold' },
+  checkIcon: { color: '#FFFFFF', fontWeight: 'bold' },
   
-  addSetButton: { paddingVertical: theme.spacing.sm, alignItems: 'center', backgroundColor: theme.colors.surfaceLight, borderRadius: 8, marginTop: 8 },
+  addSetButton: { paddingVertical: theme.spacing.sm, alignItems: 'center', backgroundColor: theme.colors.glassFill, borderRadius: 8, marginTop: 8 },
   addSetText: { color: theme.colors.textMuted, fontSize: 12, fontWeight: 'bold' },
 });

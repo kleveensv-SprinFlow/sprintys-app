@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import { useAuthStore } from '../../../store/authStore';
+import { glassBar } from '../../../core/glass';
 
 interface Props {
   onSettingsPress: () => void;
@@ -19,10 +20,7 @@ export const NutritionHeader: React.FC<Props> = ({ onSettingsPress, athleteProfi
   const currentStreak = activeProfile?.currentFlowStreak || activeProfile?.current_flow_streak || 0;
 
   return (
-    <View style={[styles.container, {
-      backgroundColor: theme.colors.background,
-      paddingTop: Math.max(insets.top, 16) + 6,
-    }]}>
+    <View style={[styles.container, glassBar, { paddingTop: Math.max(insets.top, 16) + 6 }]}>
       <View style={styles.streakContainer}>
         <Feather name="zap" size={20} color="#FFD700" />
         <Text style={[styles.streakText, { color: theme.colors.text }]}>{currentStreak}</Text>

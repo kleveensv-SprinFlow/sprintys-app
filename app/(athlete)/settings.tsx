@@ -12,6 +12,8 @@ import { EditProfileModal } from '../../src/shared/components/EditProfileModal';
 import { FaqModal } from '../../src/shared/components/FaqModal';
 import { LegalNoticeModal } from '../../src/features/auth/components/LegalNoticeModal';
 import { healthConsent } from '../../src/services/healthConsent';
+import { GlowBackground } from '../../src/shared/components/GlowBackground';
+import { glassSurface } from '../../src/core/glass';
 
 // Helper to convert base64 to Uint8Array for binary upload
 function base64ToUint8Array(base64: string): Uint8Array {
@@ -274,6 +276,7 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <GlowBackground />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={24} color={theme.colors.text} />
@@ -536,7 +539,7 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background },
+  container: { flex: 1, backgroundColor: theme.colors.backdrop },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20 },
   backBtn: { padding: 8, marginLeft: -8 },
   title: { fontSize: 20, fontWeight: 'bold', color: theme.colors.text },
@@ -553,7 +556,7 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: theme.colors.accent,
     padding: 2,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.glass,
   },
   avatarImage: {
     width: '100%',
@@ -580,7 +583,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: theme.colors.background,
+    borderColor: theme.colors.surface,
   },
   name: { fontSize: 22, fontWeight: 'bold', color: theme.colors.text, marginBottom: 4 },
   email: { fontSize: 14, color: theme.colors.textSecondary, marginBottom: 8 },
@@ -591,9 +594,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 20,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    ...glassSurface,
   },
   changePhotoText: {
     fontSize: 13,
@@ -613,7 +614,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: theme.colors.textMuted,
+    color: theme.colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
@@ -630,10 +631,9 @@ const styles = StyleSheet.create({
 
   // Info Card
   infoCard: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    ...glassSurface,
+    borderRadius: 18,
+    borderCurve: 'continuous',
     overflow: 'hidden',
     marginBottom: 10,
   },
@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: theme.colors.surfaceLight,
+    backgroundColor: theme.colors.glassFill,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
@@ -670,14 +670,14 @@ const styles = StyleSheet.create({
   },
   infoDivider: {
     height: 1,
-    backgroundColor: theme.colors.border,
+    backgroundColor: theme.colors.hairline,
     marginLeft: 66,
   },
 
   // Generic Card & Item
-  card: { backgroundColor: theme.colors.surface, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: theme.colors.border },
-  item: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
-  iconContainer: { width: 36, height: 36, borderRadius: 18, backgroundColor: theme.colors.surfaceLight, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
+  card: { ...glassSurface, borderRadius: 18, borderCurve: 'continuous', overflow: 'hidden' },
+  item: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: theme.colors.hairline },
+  iconContainer: { width: 36, height: 36, borderRadius: 18, backgroundColor: theme.colors.glassFill, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
   itemTextContainer: { flex: 1 },
   itemTitle: { fontSize: 16, color: theme.colors.text, fontWeight: '500' },
   itemValue: { fontSize: 14, color: theme.colors.textSecondary, marginTop: 2 },

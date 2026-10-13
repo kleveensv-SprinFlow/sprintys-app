@@ -5,6 +5,7 @@ import { useWorkoutStore } from '../../src/store/workoutStore';
 import { Button } from '../../src/shared/components/Button';
 import { theme } from '../../src/core/theme';
 import { useRouter } from 'expo-router';
+import { GlowBackground } from '../../src/shared/components/GlowBackground';
 
 export default function WorkoutScreen() {
   const { activeSession, startWorkout } = useWorkoutStore();
@@ -13,6 +14,7 @@ export default function WorkoutScreen() {
   if (!activeSession) {
     return (
       <View style={styles.emptyContainer}>
+        <GlowBackground />
         <Text style={styles.emptyTitle}>Prêt pour le combat ?</Text>
         <Text style={styles.emptySubtitle}>Aucune séance active pour le moment.</Text>
         <Button
@@ -35,7 +37,7 @@ export default function WorkoutScreen() {
 const styles = StyleSheet.create({
   emptyContainer: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.backdrop,
     justifyContent: 'center',
     alignItems: 'center',
     padding: theme.spacing.xxl,

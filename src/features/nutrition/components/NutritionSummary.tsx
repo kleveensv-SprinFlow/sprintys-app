@@ -4,6 +4,7 @@ import { useTheme } from '../../../core/theme';
 import { useNutritionStore } from '../../../store/nutrition/nutritionStore';
 import { useAuthStore } from '../../../store/authStore';
 import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import { glassSurface } from '../../../core/glass';
 
 interface NutritionSummaryProps {
   athleteProfile?: any;
@@ -101,7 +102,7 @@ export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ athleteProfi
   ];
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
+    <View style={[styles.container, glassSurface]}>
       {/* JAUGE CIRCULAIRE STYLE INSTRUMENT DE PRÉCISION */}
       <View style={styles.gaugeContainer}>
         <View style={{ width: SIZE, height: SIZE, position: 'relative' }}>
@@ -191,8 +192,8 @@ export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ athleteProfi
               style={[
                 styles.macroCard,
                 {
-                  backgroundColor: theme.colors.background || '#F8FAFC',
-                  borderColor: theme.colors.border,
+                  backgroundColor: theme.colors.glassFill,
+                  borderColor: 'transparent',
                 },
               ]}
             >

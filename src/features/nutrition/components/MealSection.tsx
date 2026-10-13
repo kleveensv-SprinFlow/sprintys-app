@@ -8,6 +8,7 @@ import { useAuthStore } from '../../../store/authStore';
 import { useRouter } from 'expo-router';
 import Svg, { Circle } from 'react-native-svg';
 import { supabase } from '../../../services/supabase';
+import { glassSurface } from '../../../core/glass';
 
 interface MealSectionProps {
   readonly?: boolean;
@@ -90,7 +91,7 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
       </View>
 
       {/* CARTE UNIQUE UNIFIÉE STYLE YAZIO */}
-      <View style={[styles.unifiedCard, { backgroundColor: theme.colors.surface }]}>
+      <View style={[styles.unifiedCard, glassSurface]}>
         {meals.map((meal, index) => {
           const logs = mealLogs.filter(log => log.meal_type === meal.type);
           const consumedKcal = logs.reduce((sum, log) => sum + Number(log.calories), 0);
@@ -108,8 +109,8 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
               key={meal.type} 
               style={({ pressed }) => [
                 styles.mealRow, 
-                !isLast && { borderBottomWidth: 1, borderBottomColor: theme.colors.border },
-                pressed && { backgroundColor: theme.colors.surfaceLight }
+                !isLast && { borderBottomWidth: 1, borderBottomColor: theme.colors.hairline },
+                pressed && { backgroundColor: theme.colors.glassFill }
               ]}
               onPress={() => navigateToMealDetail(meal.type)}
             >

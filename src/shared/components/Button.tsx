@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF', // White text on dark slate accent
   },
   secondary: {
-    backgroundColor: theme.colors.surfaceLight,
+    backgroundColor: theme.colors.glassFill,
   },
   secondaryText: {
     color: theme.colors.text,

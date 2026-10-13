@@ -8,6 +8,8 @@ import { supabase } from '../../src/services/supabase';
 import { useAuthStore } from '../../src/store/authStore';
 import { chatService, GroupDiscussionsSummary } from '../../src/services/chatService';
 import { useRouter } from 'expo-router';
+import { GlowBackground } from '../../src/shared/components/GlowBackground';
+import { glassSurface } from '../../src/core/glass';
 
 interface MyGroupData {
   team_id: string;
@@ -217,6 +219,7 @@ export default function GroupsScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
+        <GlowBackground />
         <ActivityIndicator size="large" color={theme.colors.accent} style={{ flex: 1 }} />
       </SafeAreaView>
     );
@@ -224,6 +227,7 @@ export default function GroupsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <GlowBackground />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={24} color={theme.colors.text} />
@@ -399,7 +403,7 @@ export default function GroupsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background },
+  container: { flex: 1, backgroundColor: theme.colors.backdrop },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
   backBtn: { padding: 8, marginLeft: -8 },
   title: { fontSize: 20, fontWeight: 'bold', color: theme.colors.text },
@@ -407,17 +411,16 @@ const styles = StyleSheet.create({
 
   // Join Card
   joinCard: {
-    backgroundColor: theme.colors.surface, padding: 24, borderRadius: 20,
-    borderWidth: 1, borderColor: theme.colors.border, alignItems: 'center', marginBottom: 24,
+    ...glassSurface, padding: 24, borderRadius: 22, borderCurve: 'continuous', alignItems: 'center', marginBottom: 24,
   },
   joinIconCircle: {
-    width: 64, height: 64, borderRadius: 32, backgroundColor: theme.colors.surfaceLight,
+    width: 64, height: 64, borderRadius: 32, backgroundColor: theme.colors.glassFill,
     alignItems: 'center', justifyContent: 'center', marginBottom: 16,
   },
   cardTitle: { fontSize: 20, fontWeight: 'bold', color: theme.colors.text, marginBottom: 8, textAlign: 'center' },
   cardDesc: { fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center', marginBottom: 20, lineHeight: 20 },
   input: {
-    width: '100%', backgroundColor: theme.colors.surfaceLight, color: theme.colors.text,
+    width: '100%', backgroundColor: theme.colors.glassFill, color: theme.colors.text,
     padding: 16, borderRadius: 12, fontSize: 20, textAlign: 'center', letterSpacing: 4, marginBottom: 16,
   },
   joinBtn: {
@@ -439,8 +442,8 @@ const styles = StyleSheet.create({
 
   // Pending Card
   pendingCard: {
-    backgroundColor: theme.colors.surface, padding: 24, borderRadius: 20,
-    borderWidth: 1, borderColor: theme.colors.warning + '40', alignItems: 'center',
+    ...glassSurface, padding: 24, borderRadius: 22, borderCurve: 'continuous',
+    borderColor: theme.colors.warning + '40', alignItems: 'center',
   },
   pendingIconCircle: {
     width: 64, height: 64, borderRadius: 32, backgroundColor: theme.colors.warning + '20',
@@ -456,12 +459,11 @@ const styles = StyleSheet.create({
   // Approved Container
   approvedContainer: { flex: 1 },
   groupMainCard: {
-    backgroundColor: theme.colors.surface, padding: 20, borderRadius: 20,
-    borderWidth: 1, borderColor: theme.colors.border, marginBottom: 24,
+    ...glassSurface, padding: 20, borderRadius: 22, borderCurve: 'continuous', marginBottom: 24,
   },
   groupHeader: { flexDirection: 'row', alignItems: 'center' },
   groupIconCircle: {
-    width: 56, height: 56, borderRadius: 28, backgroundColor: theme.colors.surfaceLight,
+    width: 56, height: 56, borderRadius: 28, backgroundColor: theme.colors.glassFill,
     alignItems: 'center', justifyContent: 'center', marginRight: 16,
   },
   groupTextContainer: { flex: 1 },
@@ -469,19 +471,19 @@ const styles = StyleSheet.create({
   groupCoach: { fontSize: 14, color: theme.colors.textSecondary },
   subgroupBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: theme.colors.surfaceLight, paddingVertical: 8, paddingHorizontal: 14,
+    backgroundColor: theme.colors.glassFill, paddingVertical: 8, paddingHorizontal: 14,
     borderRadius: 8, alignSelf: 'flex-start', marginTop: 16,
   },
   subgroupText: { color: theme.colors.accent, fontWeight: '600', fontSize: 14 },
 
   // Actions
   sectionLabel: {
-    fontSize: 12, fontWeight: 'bold', color: theme.colors.textMuted,
+    fontSize: 12, fontWeight: 'bold', color: theme.colors.textSecondary,
     letterSpacing: 2, marginBottom: 12,
   },
   actionCard: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface,
-    padding: 16, borderRadius: 14, marginBottom: 10, borderWidth: 1, borderColor: theme.colors.border,
+    flexDirection: 'row', alignItems: 'center', ...glassSurface,
+    padding: 16, borderRadius: 18, borderCurve: 'continuous', marginBottom: 10,
   },
   actionIconCircle: {
     width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginRight: 14,
@@ -500,12 +502,11 @@ const styles = StyleSheet.create({
   discussionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.surface,
+    ...glassSurface,
     padding: 14,
-    borderRadius: 14,
+    borderRadius: 18,
+    borderCurve: 'continuous',
     marginBottom: 10,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
   },
   discussionAvatar: {
     width: 44,

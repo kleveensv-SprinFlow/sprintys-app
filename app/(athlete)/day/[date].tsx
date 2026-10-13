@@ -9,6 +9,8 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { WorkoutCard } from '../../../src/shared/components/WorkoutCard';
 import { WorkoutDetailModal } from '../../../src/features/calendar/components/WorkoutDetailModal';
 import { WorkoutSession } from '../../../src/features/workout/types';
+import { GlassScreen } from '../../../src/shared/components/GlassScreen';
+import { glassSurface } from '../../../src/core/glass';
 
 const MONTH_NAMES_FULL = [
   'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
@@ -92,7 +94,7 @@ export default function AthleteDayScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <GlassScreen>
       <Header
         title={formattedTitle}
         showBackButton
@@ -108,7 +110,7 @@ export default function AthleteDayScreen() {
           </View>
         ) : workouts.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <View style={[styles.emptyIconBox, { backgroundColor: theme.colors.surface }]}>
+            <View style={[styles.emptyIconBox, glassSurface]}>
               <Ionicons name="cafe-outline" size={48} color={theme.colors.textMuted} />
             </View>
             <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Aucune séance</Text>
@@ -157,7 +159,7 @@ export default function AthleteDayScreen() {
         workout={selectedWorkout}
         onUpdated={fetchDayWorkouts}
       />
-    </View>
+    </GlassScreen>
   );
 }
 

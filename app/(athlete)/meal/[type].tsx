@@ -21,6 +21,9 @@ import { MealType, MealLog } from '../../../src/features/nutrition/types';
 import { useAuthStore } from '../../../src/store/authStore';
 import { FoodSearchModal } from '../../../src/features/nutrition/components/FoodSearchModal';
 import { supabase } from '../../../src/services/supabase';
+import { GlowBackground } from '../../../src/shared/components/GlowBackground';
+import { glassSurface } from '../../../src/core/glass';
+import { GlassTabBarBackground } from '../../../src/shared/components/GlassTabBarBackground';
 
 const mealInfo = {
   petit_dejeuner: { label: 'Petit déjeuner', icon: 'coffee', color: '#00C9A7', bg: '#E8FBF7' },
@@ -107,7 +110,7 @@ export default function MealDetailScreen() {
 
   if (!type || !mealInfo[type]) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={[styles.container, { backgroundColor: theme.colors.backdrop }]}>
         <Text>Repas introuvable.</Text>
       </View>
     );
@@ -197,7 +200,7 @@ export default function MealDetailScreen() {
             {Math.round(current)} / {max} {unit}
           </Text>
         </View>
-        <View style={[styles.nutrientTrack, { backgroundColor: theme.colors.border }]}>
+        <View style={[styles.nutrientTrack, { backgroundColor: theme.colors.glassFill }]}>
           <View style={[styles.nutrientFill, { width: `${percent}%`, backgroundColor: color }]} />
         </View>
       </View>
@@ -205,7 +208,8 @@ export default function MealDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.backdrop }]} edges={['top', 'bottom']}>
+      <GlowBackground />
       {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
@@ -236,9 +240,9 @@ export default function MealDetailScreen() {
         </View>
 
         {/* GRILLE 2x2 MACROS STYLE YAZIO */}
-        <View style={[styles.gridCard, { backgroundColor: theme.colors.surface }]}>
+        <View style={[styles.gridCard, glassSurface]}>
           <View style={styles.gridRow}>
-            <View style={[styles.gridCell, { borderRightWidth: 1, borderRightColor: theme.colors.border }]}>
+            <View style={[styles.gridCell, { borderRightWidth: 1, borderRightColor: theme.colors.hairline }]}>
               <Text style={[styles.gridValue, { color: theme.colors.text }]}>{Math.round(consumedKcal)} kcal</Text>
               <Text style={[styles.gridLabel, { color: theme.colors.textSecondary }]}>Calories</Text>
             </View>
@@ -247,8 +251,8 @@ export default function MealDetailScreen() {
               <Text style={[styles.gridLabel, { color: theme.colors.textSecondary }]}>Glucides</Text>
             </View>
           </View>
-          <View style={[styles.gridRow, { borderTopWidth: 1, borderTopColor: theme.colors.border }]}>
-            <View style={[styles.gridCell, { borderRightWidth: 1, borderRightColor: theme.colors.border }]}>
+          <View style={[styles.gridRow, { borderTopWidth: 1, borderTopColor: theme.colors.hairline }]}>
+            <View style={[styles.gridCell, { borderRightWidth: 1, borderRightColor: theme.colors.hairline }]}>
               <Text style={[styles.gridValue, { color: theme.colors.text }]}>{consumedPro.toFixed(1)} g</Text>
               <Text style={[styles.gridLabel, { color: theme.colors.textSecondary }]}>Protéines</Text>
             </View>
@@ -261,7 +265,7 @@ export default function MealDetailScreen() {
 
         {/* LISTE DES ALIMENTS DU REPAS */}
         {logs.length > 0 ? (
-          <View style={[styles.foodCardContainer, { backgroundColor: theme.colors.surface }]}>
+          <View style={[styles.foodCardContainer, glassSurface]}>
             {logs.map((log, index) => {
               const displayName = log.custom_food_name || 'Aliment';
               const isLast = index === logs.length - 1;
@@ -271,7 +275,7 @@ export default function MealDetailScreen() {
                   key={log.id} 
                   style={[
                     styles.foodRow, 
-                    !isLast && { borderBottomWidth: 1, borderBottomColor: theme.colors.border }
+                    !isLast && { borderBottomWidth: 1, borderBottomColor: theme.colors.hairline }
                   ]}
                   onPress={() => handleOpenEdit(log)}
                   activeOpacity={readonly ? 1 : 0.7}
@@ -314,7 +318,7 @@ export default function MealDetailScreen() {
             })}
           </View>
         ) : (
-          <View style={[styles.emptyMealCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+          <View style={[styles.emptyMealCard, glassSurface]}>
             <Text style={[styles.emptyMealTitle, { color: theme.colors.text }]}>
               Aucun aliment dans ce repas
             </Text>
@@ -344,7 +348,7 @@ export default function MealDetailScreen() {
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Valeurs nutritives</Text>
         </View>
 
-        <View style={[styles.nutritionCard, { backgroundColor: theme.colors.surface }]}>
+        <View style={[styles.nutritionCard, glassSurface]}>
           {renderProgressBar('Calories', consumedKcal, targetKcal, 'kcal', '#00C9A7')}
           {renderProgressBar('Glucides', consumedGlu, targetGlu, 'g', '#00C9A7')}
           {renderProgressBar('Protéines', consumedPro, targetPro, 'g', '#00C9A7')}
@@ -355,7 +359,8 @@ export default function MealDetailScreen() {
 
       {/* BOUTON NOIR PILL FIXÉ EN BAS (Masqué si readonly / coach) */}
       {!readonly && (
-        <View style={[styles.bottomBar, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.bottomBar}>
+          <GlassTabBarBackground />
           <TouchableOpacity 
             style={styles.pillAddBtn}
             onPress={() => openSearchModal(type)}
@@ -667,8 +672,9 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: 20,
     paddingVertical: 14,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
+    overflow: 'hidden',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(15, 23, 42, 0.08)',
   },
   pillAddBtn: {
     backgroundColor: '#111827',

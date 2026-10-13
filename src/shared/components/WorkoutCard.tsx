@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../core/theme';
 import { getWorkoutTypeConfig } from './MonthlyCalendar';
+import { glassSurface } from '../../core/glass';
+import { PressableScale } from './PressableScale';
 
 export interface WorkoutCardProps {
   time?: string;
@@ -28,23 +30,18 @@ export const WorkoutCard: React.FC<WorkoutCardProps> = ({
   
   // Dynamic color coding & icon from session type
   const typeConfig = getWorkoutTypeConfig(title || type || '');
-  const cardBg = theme.colors.surface;
 
   // Only display type subtitle if it's a specific informative category, not generic "Séance" / "Séance Coach"
   const showTypeSubtitle = type && !type.toLowerCase().includes('séance');
 
   return (
     <View style={styles.containerRow}>
-      <TouchableOpacity
-        style={[
-          styles.card,
-          {
-            backgroundColor: cardBg,
-            ...theme.shadows.soft,
-          },
-        ]}
+      <PressableScale
+        containerStyle={styles.cardTouch}
+        style={[styles.card, glassSurface]}
         onPress={onPress}
-        activeOpacity={onPress ? 0.7 : 1}
+        disabled={!onPress}
+        haptic={onPress ? 'light' : 'none'}
       >
         <View style={styles.header}>
           <View style={styles.headerLeft}>
@@ -60,7 +57,7 @@ export const WorkoutCard: React.FC<WorkoutCardProps> = ({
           </View>
 
           <TouchableOpacity
-            style={[styles.moreButton, { backgroundColor: theme.colors.background }]}
+            style={[styles.moreButton, { backgroundColor: theme.colors.glassFill }]}
             onPress={onPress}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
@@ -92,7 +89,7 @@ export const WorkoutCard: React.FC<WorkoutCardProps> = ({
             )}
           </View>
         )}
-      </TouchableOpacity>
+      </PressableScale>
     </View>
   );
 };
@@ -101,6 +98,9 @@ const styles = StyleSheet.create({
   containerRow: {
     flexDirection: 'row',
     marginBottom: 14,
+  },
+  cardTouch: {
+    flex: 1,
   },
   card: {
     flex: 1,

@@ -41,7 +41,7 @@ export const Input: React.FC<InputProps> = ({
         style={[
           styles.inputContainer,
           { 
-            backgroundColor: theme.colors.surface, 
+            backgroundColor: theme.colors.glass,
             borderColor: error 
               ? theme.colors.error 
               : isFocused 

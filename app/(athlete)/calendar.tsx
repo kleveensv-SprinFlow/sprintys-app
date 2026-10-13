@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { useTheme } from '../../src/core/theme';
 import { Header } from '../../src/shared/components/Header';
 import { MonthlyCalendar, MonthWorkout } from '../../src/shared/components/MonthlyCalendar';
 import { workoutService } from '../../src/services/workoutService';
@@ -9,15 +7,17 @@ import { TrainingPeriod } from '../../src/types/period';
 import { useAuthStore } from '../../src/store/authStore';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import { GlassScreen } from '../../src/shared/components/GlassScreen';
+import { useTabBarSpace } from '../../src/shared/hooks/useTabBarSpace';
 
 export default function CalendarScreen() {
   const params = useLocalSearchParams();
   const athleteId = params.athleteId as string;
   const readonly = params.readonly === 'true';
 
-  const theme = useTheme();
   const { user } = useAuthStore();
   const router = useRouter();
+  const tabBarSpace = useTabBarSpace(8);
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [monthWorkouts, setMonthWorkouts] = useState<MonthWorkout[]>([]);
@@ -65,7 +65,8 @@ export default function CalendarScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    // Bottom padding: the grid stops above the floating tab bar
+    <GlassScreen style={{ paddingBottom: tabBarSpace }}>
       <Header title="Calendrier" />
       <MonthlyCalendar
         selectedDate={selectedDate}
@@ -76,12 +77,7 @@ export default function CalendarScreen() {
         isCoach={false}
         onMonthChange={handleMonthChange}
       />
-    </View>
+    </GlassScreen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
-import { useTheme } from '../../src/core/theme';
+import { ScrollView } from 'react-native';
 import { useNutritionStore } from '../../src/store/nutrition/nutritionStore';
 import { NutritionHeader } from '../../src/features/nutrition/components/NutritionHeader';
 import { DateSelector } from '../../src/features/nutrition/components/DateSelector';
@@ -12,13 +11,15 @@ import { StreakCelebrationModal } from '../../src/features/nutrition/components/
 import { useAuthStore } from '../../src/store/authStore';
 import { useLocalSearchParams } from 'expo-router';
 import { supabase } from '../../src/services/supabase';
+import { GlassScreen } from '../../src/shared/components/GlassScreen';
+import { useTabBarSpace } from '../../src/shared/hooks/useTabBarSpace';
 
 export default function NutritionScreen() {
   const params = useLocalSearchParams();
   const athleteId = params.athleteId as string;
   const readonly = params.readonly === 'true';
 
-  const theme = useTheme();
+  const tabBarSpace = useTabBarSpace();
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [athleteProfile, setAthleteProfile] = useState<any>(null);
   const { currentDate, fetchMealLogs } = useNutritionStore();
@@ -47,13 +48,13 @@ export default function NutritionScreen() {
   }, [currentDate, user, athleteId]);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <GlassScreen>
       <NutritionHeader 
         onSettingsPress={() => { if (!readonly) setSettingsVisible(true); }}
         athleteProfile={athleteProfile}
       />
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: tabBarSpace }}>
         <DateSelector athleteId={athleteId} />
         <NutritionSummary athleteProfile={athleteProfile} />
         <MealSection readonly={readonly} athleteId={athleteId} athleteProfile={athleteProfile} />
@@ -68,12 +69,6 @@ export default function NutritionScreen() {
         />
       )}
       <StreakCelebrationModal />
-    </View>
+    </GlassScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  }
-});
