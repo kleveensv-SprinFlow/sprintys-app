@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ScrollView } from 'react-native';
+import { Animated } from 'react-native';
 import { useNutritionStore } from '../../src/store/nutrition/nutritionStore';
 import { NutritionHeader } from '../../src/features/nutrition/components/NutritionHeader';
 import { DateSelector } from '../../src/features/nutrition/components/DateSelector';
@@ -13,6 +13,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { supabase } from '../../src/services/supabase';
 import { GlassScreen } from '../../src/shared/components/GlassScreen';
 import { useTabBarSpace } from '../../src/shared/hooks/useTabBarSpace';
+import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
 
 export default function NutritionScreen() {
   const params = useLocalSearchParams();
@@ -20,6 +21,7 @@ export default function NutritionScreen() {
   const readonly = params.readonly === 'true';
 
   const tabBarSpace = useTabBarSpace();
+  const { barOpacity, scrollProps } = useFrostedHeader();
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [athleteProfile, setAthleteProfile] = useState<any>(null);
   const { currentDate, fetchMealLogs } = useNutritionStore();
@@ -49,16 +51,17 @@ export default function NutritionScreen() {
 
   return (
     <GlassScreen>
-      <NutritionHeader 
+      <NutritionHeader
+        barOpacity={barOpacity}
         onSettingsPress={() => { if (!readonly) setSettingsVisible(true); }}
         athleteProfile={athleteProfile}
       />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: tabBarSpace }}>
+      <Animated.ScrollView {...scrollProps} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: tabBarSpace }}>
         <DateSelector athleteId={athleteId} />
         <NutritionSummary athleteProfile={athleteProfile} />
         <MealSection readonly={readonly} athleteId={athleteId} athleteProfile={athleteProfile} />
-      </ScrollView>
+      </Animated.ScrollView>
 
       {!readonly && <FoodSearchModal />}
 

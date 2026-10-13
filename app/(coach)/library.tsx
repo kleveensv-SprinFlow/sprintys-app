@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../src/core/theme';
@@ -7,10 +7,12 @@ import { Header } from '../../src/shared/components/Header';
 import { useCoachStore } from '../../src/store/coach/coachStore';
 import { GlassScreen } from '../../src/shared/components/GlassScreen';
 import { glassSurface } from '../../src/core/glass';
+import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
 
 export default function CoachLibraryScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const { scrollY, scrollProps } = useFrostedHeader();
   const { workoutTemplates, fetchWorkoutTemplates, deleteWorkoutTemplate } = useCoachStore();
 
   useEffect(() => {
@@ -30,7 +32,8 @@ export default function CoachLibraryScreen() {
 
   return (
     <GlassScreen style={styles.container}>
-      <Header 
+      <Header
+        scrollY={scrollY}
         title="Bibliothèque" 
         rightComponent={
           <TouchableOpacity 
@@ -42,7 +45,7 @@ export default function CoachLibraryScreen() {
         }
       />
       
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content}>
+      <Animated.ScrollView {...scrollProps} style={{ flex: 1 }} contentContainerStyle={styles.content}>
         <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
           Vos modèles de séances prêts à l'emploi.
         </Text>
@@ -98,7 +101,7 @@ export default function CoachLibraryScreen() {
             </View>
           ))
         )}
-      </ScrollView>
+      </Animated.ScrollView>
     </GlassScreen>
   );
 }

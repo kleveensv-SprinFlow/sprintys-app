@@ -1,5 +1,5 @@
 ﻿import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, Text, ActivityIndicator, ScrollView } from 'react-native';
+import { View, StyleSheet, Text, ActivityIndicator, ScrollView, Animated } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../../../../../src/core/theme';
 import { Header } from '../../../../../src/shared/components/Header';
@@ -9,6 +9,7 @@ import { WorkoutCard } from '../../../../../src/shared/components/WorkoutCard';
 import { WorkoutDetailModal } from '../../../../../src/features/calendar/components/WorkoutDetailModal';
 import { GlassScreen } from '../../../../../src/shared/components/GlassScreen';
 import { glassSurface } from '../../../../../src/core/glass';
+import { useFrostedHeader } from '../../../../../src/shared/hooks/useFrostedHeader';
 
 const MONTH_NAMES_FULL = [
   'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
@@ -19,6 +20,7 @@ const DAY_NAMES = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'
 export default function CoachAthleteDayScreen() {
   const { id, date } = useLocalSearchParams<{ id: string, date: string }>();
   const router = useRouter();
+  const { scrollY, scrollProps } = useFrostedHeader();
   const theme = useTheme();
 
   const [workouts, setWorkouts] = useState<any[]>([]);
@@ -62,12 +64,13 @@ export default function CoachAthleteDayScreen() {
   return (
     <GlassScreen style={styles.container}>
       <Header
+        scrollY={scrollY}
         title={dateTitle}
         showBackButton
         onBackPress={() => router.back()}
       />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <Animated.ScrollView {...scrollProps} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <Text style={[styles.sectionTitle, { color: theme.colors.textMuted }]}>
           SÉANCES PRÉVUES
         </Text>
@@ -87,7 +90,7 @@ export default function CoachAthleteDayScreen() {
             />
           ))
         )}
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* Workout Detail Modal (Read-Only) */}
       <WorkoutDetailModal

@@ -1,8 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Alert, useWindowDimensions,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, useWindowDimensions, Animated } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -15,6 +12,8 @@ import { WeightTrendChart, movingAverage, TrendPoint } from '../../src/features/
 import { GlassScreen } from '../../src/shared/components/GlassScreen';
 import { glassCard, glassSurface } from '../../src/core/glass';
 import { Grain } from '../../src/shared/components/Grain';
+import { FrostedBar } from '../../src/shared/components/FrostedBar';
+import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
 
 type MetricKey = 'weight' | 'fat' | 'muscle';
 type RangeKey = '1S' | '1M' | '3M' | '1A' | 'Tout';
@@ -48,6 +47,7 @@ function valueOf(m: BodyMetric, key: MetricKey): number | null {
 export default function BodyCompositionScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const { barOpacity: headerBarOpacity, scrollProps } = useFrostedHeader();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { user } = useAuthStore();
@@ -192,6 +192,8 @@ export default function BodyCompositionScreen() {
     <GlassScreen>
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
+          {/* Frosted only once content scrolls under it; reaches up under the status bar */}
+          <FrostedBar opacity={headerBarOpacity} style={{ top: -insets.top }} />
           <TouchableOpacity onPress={() => router.back()} style={[styles.iconBtn, glassSurface]}>
             <Feather name="arrow-left" size={22} color={theme.colors.text} />
           </TouchableOpacity>
@@ -201,7 +203,7 @@ export default function BodyCompositionScreen() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Animated.ScrollView {...scrollProps} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <Text style={[styles.hero, { color: theme.colors.text }]}>
             {shown ? formatKg(shown.v) : '--'}
             <Text style={[styles.heroUnit, { color: theme.colors.textSecondary }]}> {unit}</Text>
@@ -304,7 +306,7 @@ export default function BodyCompositionScreen() {
               })}
             </View>
           )}
-        </ScrollView>
+        </Animated.ScrollView>
 
         {sheet && (
           <View style={styles.sheetBackdrop}>

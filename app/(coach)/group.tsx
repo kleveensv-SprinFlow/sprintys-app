@@ -12,10 +12,12 @@ import { GlowBackground } from '../../src/shared/components/GlowBackground';
 import { glassSurface } from '../../src/core/glass';
 import { useTabBarSpace } from '../../src/shared/hooks/useTabBarSpace';
 import { Grain } from '../../src/shared/components/Grain';
+import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
 
 export default function CoachGroupsScreen() {
   const router = useRouter();
   const tabBarSpace = useTabBarSpace();
+  const { scrollY, scrollProps } = useFrostedHeader();
   const { user } = useAuthStore();
   const { 
     teams, fetchTeams, createTeam, updateTeam, deleteTeam,
@@ -90,7 +92,7 @@ export default function CoachGroupsScreen() {
   };
 
   const renderTeamList = () => (
-    <ScrollView contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace }]} showsVerticalScrollIndicator={false}>
+    <Animated.ScrollView {...scrollProps} contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace }]} showsVerticalScrollIndicator={false}>
       <Text style={styles.sectionTitle}>Mes Groupes</Text>
       
       {teams.map(team => (
@@ -129,7 +131,7 @@ export default function CoachGroupsScreen() {
         </View>
         <Text style={styles.createBtnText}>Créer un nouveau groupe</Text>
       </TouchableOpacity>
-    </ScrollView>
+    </Animated.ScrollView>
   );
 
   const activeTeam = teams.find(t => t.id === activeTeamId);
@@ -185,7 +187,7 @@ export default function CoachGroupsScreen() {
         </View>
 
         {/* Tab Content */}
-        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace }]} showsVerticalScrollIndicator={false}>
+        <Animated.ScrollView {...scrollProps} contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace }]} showsVerticalScrollIndicator={false}>
           
           {activeTab === 'members' && (
             <>
@@ -385,7 +387,7 @@ export default function CoachGroupsScreen() {
           )}
           
           <View style={{ height: 100 }} />
-        </ScrollView>
+        </Animated.ScrollView>
       </View>
     );
   };
@@ -393,7 +395,7 @@ export default function CoachGroupsScreen() {
   return (
     <View style={styles.container}>
       <GlowBackground />
-      <Header title="Équipe" />
+      <Header title="Équipe" large scrollY={scrollY} />
 
       {activeTeamId ? renderTeamDetails() : renderTeamList()}
 
@@ -578,7 +580,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: theme.colors.textMuted,
+    color: theme.colors.textSecondary,
     letterSpacing: 1,
     marginBottom: 16,
     marginTop: 8,

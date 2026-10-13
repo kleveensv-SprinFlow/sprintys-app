@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ActivityIndicator, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ActivityIndicator, ScrollView, Animated } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../src/core/theme';
@@ -11,6 +11,8 @@ import { useRouter } from 'expo-router';
 import { GlowBackground } from '../../src/shared/components/GlowBackground';
 import { glassSurface, glassRim } from '../../src/core/glass';
 import { Grain } from '../../src/shared/components/Grain';
+import { FrostedBar } from '../../src/shared/components/FrostedBar';
+import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
 
 interface MyGroupData {
   team_id: string;
@@ -24,6 +26,8 @@ interface MyGroupData {
 export default function GroupsScreen() {
   const { user } = useAuthStore();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { barOpacity: headerBarOpacity, scrollProps } = useFrostedHeader();
   const [inviteCode, setInviteCode] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [myGroup, setMyGroup] = useState<MyGroupData | null>(null);
@@ -230,6 +234,8 @@ export default function GroupsScreen() {
     <SafeAreaView style={styles.container}>
       <GlowBackground />
       <View style={styles.header}>
+        {/* Frosted only once content scrolls under it; reaches up under the status bar */}
+        <FrostedBar opacity={headerBarOpacity} style={{ top: -insets.top }} />
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={24} color={theme.colors.text} />
         </TouchableOpacity>
@@ -237,7 +243,7 @@ export default function GroupsScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <Animated.ScrollView {...scrollProps} style={styles.content} showsVerticalScrollIndicator={false}>
 
         {/* === ÉTAT 1 : Pas de groupe => Rejoindre === */}
         {!myGroup && (
@@ -403,7 +409,7 @@ export default function GroupsScreen() {
             </TouchableOpacity>
           </View>
         )}
-      </ScrollView>
+      </Animated.ScrollView>
     </SafeAreaView>
   );
 }

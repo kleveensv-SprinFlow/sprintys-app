@@ -8,7 +8,7 @@ import { SessionCarousel } from '../../src/features/athlete/components/SessionCa
 import { BodyCompositionCard } from '../../src/features/athlete/components/BodyCompositionCard';
 import { WeatherCard } from '../../src/shared/components/WeatherCard';
 import { GlassScreen } from '../../src/shared/components/GlassScreen';
-import { glassBar } from '../../src/core/glass';
+import { FrostedBar } from '../../src/shared/components/FrostedBar';
 import { useTabBarSpace } from '../../src/shared/hooks/useTabBarSpace';
 import { useNutritionStore } from '../../src/store/nutrition/nutritionStore';
 import { useAuthStore } from '../../src/store/authStore';
@@ -67,7 +67,7 @@ export default function DashboardScreen() {
   return (
     <GlassScreen scrollY={scrollY}>
       <View style={[styles.headerWrap, { paddingTop: insets.top }]}>
-        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, glassBar, { opacity: headerBarOpacity }]} />
+        <FrostedBar opacity={headerBarOpacity} />
         <AthleteHeader />
       </View>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity, ScrollView, Alert, Animated } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../../../src/core/theme';
 import { Header } from '../../../src/shared/components/Header';
@@ -21,6 +21,7 @@ import { getWorkoutColor } from '../../../src/shared/components/MonthlyCalendar'
 import { useCoachStore } from '../../../src/store/coach/coachStore';
 import { GlassScreen } from '../../../src/shared/components/GlassScreen';
 import { glassSurface, glassRim } from '../../../src/core/glass';
+import { useFrostedHeader } from '../../../src/shared/hooks/useFrostedHeader';
 
 const MONTH_NAMES_FULL = [
   'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
@@ -31,6 +32,7 @@ const DAY_NAMES = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'
 export default function CoachDayScreen() {
   const { date } = useLocalSearchParams<{ date: string }>();
   const router = useRouter();
+  const { scrollY, scrollProps } = useFrostedHeader();
   const theme = useTheme();
   const { user } = useAuthStore();
 
@@ -237,6 +239,7 @@ export default function CoachDayScreen() {
   return (
     <GlassScreen style={styles.container}>
       <Header
+        scrollY={scrollY}
         title="Planning"
         showBackButton
         onBackPress={() => {
@@ -268,7 +271,7 @@ export default function CoachDayScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
+      <Animated.ScrollView {...scrollProps}
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -452,7 +455,7 @@ export default function CoachDayScreen() {
             )}
           </View>
         )}
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* === Builder Modals === */}
       <RunWorkoutBuilder

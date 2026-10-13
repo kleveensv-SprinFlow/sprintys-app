@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Animated } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../src/core/theme';
@@ -10,9 +10,11 @@ import { chatService, GroupDiscussionsSummary } from '../../src/services/chatSer
 import { useRouter } from 'expo-router';
 import { GlassScreen } from '../../src/shared/components/GlassScreen';
 import { PressableScale } from '../../src/shared/components/PressableScale';
-import { glassSurface, glassBar } from '../../src/core/glass';
+import { glassSurface } from '../../src/core/glass';
 import { useTabBarSpace } from '../../src/shared/hooks/useTabBarSpace';
 import { Grain } from '../../src/shared/components/Grain';
+import { FrostedBar } from '../../src/shared/components/FrostedBar';
+import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
 
 interface MyGroupData {
   team_id: string;
@@ -26,6 +28,8 @@ export default function MessagesHubScreen() {
   const { user } = useAuthStore();
   const router = useRouter();
   const tabBarSpace = useTabBarSpace();
+  const insets = useSafeAreaInsets();
+  const { barOpacity, scrollProps } = useFrostedHeader();
   const [myGroup, setMyGroup] = useState<MyGroupData | null>(null);
   const [discussions, setDiscussions] = useState<GroupDiscussionsSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -97,12 +101,14 @@ export default function MessagesHubScreen() {
 
   return (
     <GlassScreen>
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
+      <SafeAreaView style={styles.container} edges={['left', 'right']}>
+        {/* Large title on the glows; frosted bar only once the list scrolls under it */}
+        <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+          <FrostedBar opacity={barOpacity} />
           <Text style={styles.title}>Messages</Text>
         </View>
 
-        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace }]} showsVerticalScrollIndicator={false}>
+        <Animated.ScrollView {...scrollProps} contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace }]} showsVerticalScrollIndicator={false}>
         
           {/* SPRINTY IA CARD */}
           <PressableScale
@@ -219,7 +225,7 @@ export default function MessagesHubScreen() {
               <Text style={styles.emptyText}>Tu n'as pas encore d'équipe. Appuie sur l'icône de personnes en haut de l'accueil pour en rejoindre une.</Text>
             </View>
           )}
-        </ScrollView>
+        </Animated.ScrollView>
       </SafeAreaView>
     </GlassScreen>
   );
@@ -227,8 +233,8 @@ export default function MessagesHubScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingHorizontal: 24, paddingVertical: 20, ...glassBar },
-  title: { fontSize: 28, fontWeight: '800', color: theme.colors.text },
+  header: { paddingHorizontal: 24, paddingBottom: 14, zIndex: 10 },
+  title: { fontSize: 32, fontWeight: '800', letterSpacing: -0.8, color: theme.colors.text },
   content: { padding: 24 },
   sectionLabel: { fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginTop: 24, marginBottom: 12, letterSpacing: 0.5 },
   discussionCard: { flexDirection: 'row', alignItems: 'center', ...glassSurface, padding: 14, borderRadius: 18, borderCurve: 'continuous', marginBottom: 10 },

@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal, Image, ActivityIndicator, Linking, Share } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal, Image, ActivityIndicator, Linking, Share, Animated } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from '@react-navigation/native';
@@ -15,6 +15,8 @@ import { healthConsent } from '../../src/services/healthConsent';
 import { GlowBackground } from '../../src/shared/components/GlowBackground';
 import { glassSurface } from '../../src/core/glass';
 import { Grain } from '../../src/shared/components/Grain';
+import { FrostedBar } from '../../src/shared/components/FrostedBar';
+import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
 
 // Helper to convert base64 to Uint8Array for binary upload
 function base64ToUint8Array(base64: string): Uint8Array {
@@ -55,6 +57,8 @@ function base64ToUint8Array(base64: string): Uint8Array {
 export default function SettingsScreen() {
   const { user, logout, updateProfile, reloadProfile } = useAuthStore();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { barOpacity: headerBarOpacity, scrollProps } = useFrostedHeader();
   
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isFaqModalVisible, setIsFaqModalVisible] = useState(false);
@@ -279,6 +283,8 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.container}>
       <GlowBackground />
       <View style={styles.header}>
+        {/* Frosted only once content scrolls under it; reaches up under the status bar */}
+        <FrostedBar opacity={headerBarOpacity} style={{ top: -insets.top }} />
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={24} color={theme.colors.text} />
         </TouchableOpacity>
@@ -286,7 +292,7 @@ export default function SettingsScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <Animated.ScrollView {...scrollProps} style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Profile Header with Avatar & Edit Badge */}
         <View style={styles.profileHeader}>
           <TouchableOpacity 
@@ -404,7 +410,7 @@ export default function SettingsScreen() {
           <Text style={styles.versionText}>Sprintflow Athletics • v1.0.0</Text>
           <Text style={styles.buildText}>Conçu pour la performance et le sprint</Text>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* MODAL 1 : Choix de la source photo (Sheet) */}
       <Modal 

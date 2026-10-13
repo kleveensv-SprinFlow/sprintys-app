@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Text, ActivityIndicator, ScrollView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Text, ActivityIndicator, ScrollView, TouchableOpacity, Animated } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../../../src/core/theme';
 import { Header } from '../../../src/shared/components/Header';
@@ -11,6 +11,7 @@ import { WorkoutDetailModal } from '../../../src/features/calendar/components/Wo
 import { WorkoutSession } from '../../../src/features/workout/types';
 import { GlassScreen } from '../../../src/shared/components/GlassScreen';
 import { glassSurface } from '../../../src/core/glass';
+import { useFrostedHeader } from '../../../src/shared/hooks/useFrostedHeader';
 
 const MONTH_NAMES_FULL = [
   'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
@@ -21,6 +22,7 @@ const DAY_NAMES = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'
 export default function AthleteDayScreen() {
   const { date } = useLocalSearchParams<{ date: string }>();
   const router = useRouter();
+  const { scrollY, scrollProps } = useFrostedHeader();
   const theme = useTheme();
   const { user } = useAuthStore();
 
@@ -96,6 +98,7 @@ export default function AthleteDayScreen() {
   return (
     <GlassScreen>
       <Header
+        scrollY={scrollY}
         title={formattedTitle}
         showBackButton
         onBackPress={() => {
@@ -103,7 +106,7 @@ export default function AthleteDayScreen() {
         }}
       />
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <Animated.ScrollView {...scrollProps} style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {isLoading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={theme.colors.accent} />
@@ -151,7 +154,7 @@ export default function AthleteDayScreen() {
             })}
           </View>
         )}
-      </ScrollView>
+      </Animated.ScrollView>
 
       <WorkoutDetailModal
         visible={isWorkoutModalVisible}

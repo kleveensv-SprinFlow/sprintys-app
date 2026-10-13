@@ -1,17 +1,19 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Animated, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import { useAuthStore } from '../../../store/authStore';
-import { glassBar } from '../../../core/glass';
+import { FrostedBar } from '../../../shared/components/FrostedBar';
 
 interface Props {
   onSettingsPress: () => void;
   athleteProfile?: any;
+  /** Frosted bar opacity (fades in once the content scrolls under the header). */
+  barOpacity?: Animated.AnimatedInterpolation<number> | number;
 }
 
-export const NutritionHeader: React.FC<Props> = ({ onSettingsPress, athleteProfile }) => {
+export const NutritionHeader: React.FC<Props> = ({ onSettingsPress, athleteProfile, barOpacity = 0 }) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
@@ -20,7 +22,8 @@ export const NutritionHeader: React.FC<Props> = ({ onSettingsPress, athleteProfi
   const currentStreak = activeProfile?.currentFlowStreak || activeProfile?.current_flow_streak || 0;
 
   return (
-    <View style={[styles.container, glassBar, { paddingTop: Math.max(insets.top, 16) + 6 }]}>
+    <View style={[styles.container, { paddingTop: Math.max(insets.top, 16) + 6 }]}>
+      <FrostedBar opacity={barOpacity} />
       <View style={styles.streakContainer}>
         <Feather name="zap" size={20} color="#FFD700" />
         <Text style={[styles.streakText, { color: theme.colors.text }]}>{currentStreak}</Text>
