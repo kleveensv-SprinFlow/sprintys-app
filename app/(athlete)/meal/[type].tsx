@@ -1,17 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  TouchableOpacity, 
-  Alert, 
-  Modal, 
-  TextInput, 
-  KeyboardAvoidingView, 
-  Platform, 
-  TouchableWithoutFeedback 
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Animated } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -22,16 +10,16 @@ import { useAuthStore } from '../../../src/store/authStore';
 import { FoodSearchModal } from '../../../src/features/nutrition/components/FoodSearchModal';
 import { supabase } from '../../../src/services/supabase';
 import { GlowBackground } from '../../../src/shared/components/GlowBackground';
-import { glassSurface } from '../../../src/core/glass';
+import { glassCard, glassSurface } from '../../../src/core/glass';
 import { GlassTabBarBackground } from '../../../src/shared/components/GlassTabBarBackground';
 import { GlassSheen } from '../../../src/shared/components/GlassSheen';
+import { MealIcon } from '../../../src/features/nutrition/components/MealIcon';
+import { MacroLanes } from '../../../src/features/nutrition/components/MacroLanes';
+import { MEALS, mealLabel, MEAL_ACCENT, MEAL_ACCENT_TINT } from '../../../src/features/nutrition/nutritionTheme';
+import { Header } from '../../../src/shared/components/Header';
+import { PressableScale } from '../../../src/shared/components/PressableScale';
+import { useFrostedHeader } from '../../../src/shared/hooks/useFrostedHeader';
 
-const mealInfo = {
-  petit_dejeuner: { label: 'Petit déjeuner', icon: 'coffee', color: '#00C9A7', bg: '#E8FBF7' },
-  dejeuner: { label: 'Déjeuner', icon: 'sun', color: '#FFB703', bg: '#FFF8E6' },
-  diner: { label: 'Dîner', icon: 'moon', color: '#0069E8', bg: '#EDF5FF' },
-  collation: { label: 'Collation', icon: 'smile', color: '#FF5252', bg: '#FFF0F0' },
-};
 
 export default function MealDetailScreen() {
   const params = useLocalSearchParams<{ type: MealType; athleteId?: string; readonly?: string }>();
@@ -40,6 +28,7 @@ export default function MealDetailScreen() {
   const readonly = params.readonly === 'true';
 
   const router = useRouter();
+  const { scrollY, scrollProps } = useFrostedHeader();
   const theme = useTheme();
   const user = useAuthStore(state => state.user);
   
@@ -105,11 +94,11 @@ export default function MealDetailScreen() {
     if (ok) {
       setShowSaveModal(false);
       setSavedTemplateName('');
-      Alert.alert('Succès', 'Repas sauvegardé ! Vous pouvez le retrouver dans l\'onglet "Mes Repas".');
+      Alert.alert('Repas enregistré', 'Tu le retrouveras dans « Mes repas » au moment d\'ajouter un aliment.');
     }
   };
 
-  if (!type || !mealInfo[type]) {
+  if (!type || !MEALS.some((m) => m.type === type)) {
     return (
       <View style={[styles.container, { backgroundColor: theme.colors.backdrop }]}>
         <Text>Repas introuvable.</Text>
@@ -118,7 +107,7 @@ export default function MealDetailScreen() {
   }
 
   const logs = mealLogs.filter(log => log.meal_type === type);
-  const info = mealInfo[type];
+  const label = mealLabel(type);
 
   // Calculs macros pour ce repas
   const consumedKcal = logs.reduce((sum, log) => sum + Number(log.calories), 0);
@@ -191,78 +180,55 @@ export default function MealDetailScreen() {
     setEditingLog(null);
   };
 
-  const renderProgressBar = (label: string, current: number, max: number, unit: string = 'g', color: string = '#00C9A7') => {
-    const percent = Math.min(100, max > 0 ? (current / max) * 100 : 0);
-    return (
-      <View style={styles.nutrientRow} key={label}>
-        <View style={styles.nutrientHeader}>
-          <Text style={[styles.nutrientLabel, { color: theme.colors.text }]}>{label}</Text>
-          <Text style={[styles.nutrientValue, { color: theme.colors.textSecondary }]}>
-            {Math.round(current)} / {max} {unit}
-          </Text>
-        </View>
-        <View style={[styles.nutrientTrack, { backgroundColor: theme.colors.glassFill }]}>
-          <View style={[styles.nutrientFill, { width: `${percent}%`, backgroundColor: color }]} />
-        </View>
-      </View>
-    );
-  };
-
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.backdrop }]} edges={['top', 'bottom']}>
+    // Top inset handled by <Header />
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.backdrop }]} edges={['bottom', 'left', 'right']}>
       <GlowBackground />
-      {/* HEADER */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>{info.label}</Text>
-        {!readonly && logs.length > 0 ? (
-          <TouchableOpacity 
-            onPress={() => setShowSaveModal(true)} 
-            style={[styles.saveHeaderBtn, { backgroundColor: `${theme.colors.accent}15` }]}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Feather name="bookmark" size={16} color={theme.colors.accent} style={{ marginRight: 4 }} />
-            <Text style={[styles.saveHeaderText, { color: theme.colors.accent }]}>Enregistrer</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={{ width: 40 }} />
-        )}
-      </View>
+      <Header
+        title={label}
+        showBackButton
+        onBackPress={() => router.back()}
+        scrollY={scrollY}
+        rightComponent={
+          !readonly && logs.length > 0 ? (
+            <PressableScale onPress={() => setShowSaveModal(true)} haptic="selection" hitSlop={8} style={styles.saveHeaderBtn}>
+              <Feather name="bookmark" size={14} color={MEAL_ACCENT} style={{ marginRight: 4 }} />
+              <Text style={[styles.saveHeaderText, { color: MEAL_ACCENT }]}>Enregistrer</Text>
+            </PressableScale>
+          ) : undefined
+        }
+      />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <Animated.ScrollView {...scrollProps} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
-        {/* HERO CARD AVEC ILLUSTRATION DU REPAS */}
-        <View style={[styles.heroBanner, { backgroundColor: info.bg }]}>
-          <View style={[styles.heroIconCircle, { backgroundColor: '#FFF' }]}>
-            <Feather name={info.icon as any} size={32} color={info.color} />
-          </View>
-        </View>
-
-        {/* GRILLE 2x2 MACROS STYLE YAZIO */}
-        <View style={[styles.gridCard, glassSurface]}>
-          <GlassSheen radius={20} />
-          <View style={styles.gridRow}>
-            <View style={[styles.gridCell, { borderRightWidth: 1, borderRightColor: theme.colors.hairline }]}>
-              <Text style={[styles.gridValue, { color: theme.colors.text }]}>{Math.round(consumedKcal)} kcal</Text>
-              <Text style={[styles.gridLabel, { color: theme.colors.textSecondary }]}>Calories</Text>
-            </View>
-            <View style={styles.gridCell}>
-              <Text style={[styles.gridValue, { color: theme.colors.text }]}>{consumedGlu.toFixed(1)} g</Text>
-              <Text style={[styles.gridLabel, { color: theme.colors.textSecondary }]}>Glucides</Text>
+        {/* Meal summary: icon, total vs target, macro lanes */}
+        <View style={[glassCard, styles.summaryCard]}>
+          <GlassSheen radius={22} />
+          <View style={styles.summaryTop}>
+            <MealIcon type={type} size={28} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.summaryKcal, { color: theme.colors.text }]}>
+                {Math.round(consumedKcal).toLocaleString('fr-FR')}
+                <Text style={[styles.summaryKcalUnit, { color: theme.colors.textSecondary }]}> kcal</Text>
+              </Text>
+              <Text style={[styles.summaryTarget, { color: theme.colors.textSecondary }]}>
+                sur {targetKcal.toLocaleString('fr-FR')} kcal prévues pour ce repas
+              </Text>
             </View>
           </View>
-          <View style={[styles.gridRow, { borderTopWidth: 1, borderTopColor: theme.colors.hairline }]}>
-            <View style={[styles.gridCell, { borderRightWidth: 1, borderRightColor: theme.colors.hairline }]}>
-              <Text style={[styles.gridValue, { color: theme.colors.text }]}>{consumedPro.toFixed(1)} g</Text>
-              <Text style={[styles.gridLabel, { color: theme.colors.textSecondary }]}>Protéines</Text>
-            </View>
-            <View style={styles.gridCell}>
-              <Text style={[styles.gridValue, { color: theme.colors.text }]}>{consumedLip.toFixed(1)} g</Text>
-              <Text style={[styles.gridLabel, { color: theme.colors.textSecondary }]}>Lipides</Text>
-            </View>
+          <View style={[styles.summaryTrack, { backgroundColor: theme.colors.glassFill }]}>
+            <View
+              style={[
+                styles.summaryFill,
+                { width: `${Math.min(100, targetKcal > 0 ? (consumedKcal / targetKcal) * 100 : 0)}%` },
+              ]}
+            />
           </View>
+          <MacroLanes
+            compact
+            values={{ proteines: consumedPro, glucides: consumedGlu, lipides: consumedLip }}
+            goals={{ proteines: targetPro, glucides: targetGlu, lipides: targetLip }}
+          />
         </View>
 
         {/* LISTE DES ALIMENTS DU REPAS */}
@@ -327,42 +293,29 @@ export default function MealDetailScreen() {
               Aucun aliment dans ce repas
             </Text>
             <Text style={[styles.emptyMealSubtitle, { color: theme.colors.textSecondary }]}>
-              Ajoutez vos aliments ou répétez votre repas de la veille.
+              Ajoute tes aliments ou reprends ton repas de la veille.
             </Text>
 
             {yesterdayCount > 0 && !readonly && (
               <TouchableOpacity
-                style={[styles.repeatYesterdayBigBtn, { backgroundColor: `${info.color}18`, borderColor: `${info.color}45` }]}
+                style={[styles.repeatYesterdayBigBtn, { backgroundColor: MEAL_ACCENT_TINT, borderColor: 'transparent' }]}
                 onPress={async () => {
                   await copyMealFromDate(yesterdayDate, type, athleteId);
                 }}
                 activeOpacity={0.8}
               >
-                <Feather name="rotate-ccw" size={16} color={info.color} style={{ marginRight: 8 }} />
-                <Text style={[styles.repeatYesterdayBigText, { color: info.color }]}>
-                  Répéter le {info.label.toLowerCase()} d'hier ({yesterdayKcal} kcal)
+                <Feather name="rotate-ccw" size={16} color={MEAL_ACCENT} style={{ marginRight: 8 }} />
+                <Text style={[styles.repeatYesterdayBigText, { color: MEAL_ACCENT }]}>
+                  Reprendre le {label.toLowerCase()} d'hier · {yesterdayKcal} kcal
                 </Text>
               </TouchableOpacity>
             )}
           </View>
         )}
 
-        {/* SECTION VALEURS NUTRITIVES AVEC BARRES DE PROGRESSION */}
-        <View style={styles.nutritionSectionHeader}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Valeurs nutritives</Text>
-        </View>
+      </Animated.ScrollView>
 
-        <View style={[styles.nutritionCard, glassSurface]}>
-          <GlassSheen radius={20} />
-          {renderProgressBar('Calories', consumedKcal, targetKcal, 'kcal', '#00C9A7')}
-          {renderProgressBar('Glucides', consumedGlu, targetGlu, 'g', '#00C9A7')}
-          {renderProgressBar('Protéines', consumedPro, targetPro, 'g', '#00C9A7')}
-          {renderProgressBar('Lipides', consumedLip, targetLip, 'g', '#00C9A7')}
-        </View>
-
-      </ScrollView>
-
-      {/* BOUTON NOIR PILL FIXÉ EN BAS (Masqué si readonly / coach) */}
+      {/* Frosted bottom bar with the main action (hidden in the coach's read-only view) */}
       {!readonly && (
         <View style={styles.bottomBar}>
           <GlassTabBarBackground />
@@ -372,7 +325,7 @@ export default function MealDetailScreen() {
             activeOpacity={0.85}
           >
             <Feather name="plus" size={18} color="#FFF" />
-            <Text style={styles.pillAddBtnText}>Ajouter plus</Text>
+            <Text style={styles.pillAddBtnText}>Ajouter un aliment</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -427,7 +380,7 @@ export default function MealDetailScreen() {
                     <Text style={{ color: theme.colors.text, fontWeight: '600' }}>Annuler</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
-                    style={[styles.editActionBtn, { backgroundColor: '#111827' }]}
+                    style={[styles.editActionBtn, { backgroundColor: theme.colors.sprintyBlue }]}
                     onPress={handleSaveEdit}
                   >
                     <Text style={{ color: '#FFF', fontWeight: '700' }}>Enregistrer</Text>
@@ -485,7 +438,7 @@ export default function MealDetailScreen() {
                     <Text style={{ color: theme.colors.text, fontWeight: '600' }}>Annuler</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
-                    style={[styles.editActionBtn, { backgroundColor: theme.colors.accent }]}
+                    style={[styles.editActionBtn, { backgroundColor: theme.colors.sprintyBlue, opacity: savedTemplateName.trim() ? 1 : 0.5 }]}
                     onPress={handleSaveMealTemplate}
                     disabled={!savedTemplateName.trim()}
                   >
@@ -508,75 +461,45 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
+  summaryCard: {
+    marginBottom: 16,
+  },
+  summaryTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    gap: 14,
   },
-  backBtn: {
-    padding: 6,
-  },
-  headerTitle: {
-    fontSize: 18,
+  summaryKcal: {
+    fontSize: 30,
     fontWeight: '800',
-    letterSpacing: -0.3,
+    letterSpacing: -0.8,
+    fontVariant: ['tabular-nums'],
+  },
+  summaryKcalUnit: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  summaryTarget: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginTop: 1,
+  },
+  summaryTrack: {
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginTop: 14,
+    marginBottom: 16,
+  },
+  summaryFill: {
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: MEAL_ACCENT,
   },
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 90,
-  },
-  heroBanner: {
-    height: 110,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  heroIconCircle: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  gridCard: {
-    borderRadius: 20,
-    overflow: 'hidden',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.04)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  gridRow: {
-    flexDirection: 'row',
-  },
-  gridCell: {
-    flex: 1,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  gridValue: {
-    fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: -0.2,
-  },
-  gridLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    marginTop: 2,
   },
   foodCardContainer: {
     borderRadius: 20,
@@ -622,54 +545,6 @@ const styles = StyleSheet.create({
   trashBtn: {
     padding: 6,
   },
-  nutritionSectionHeader: {
-    marginBottom: 12,
-    paddingHorizontal: 4,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: -0.2,
-  },
-  nutritionCard: {
-    padding: 18,
-    borderRadius: 20,
-    gap: 16,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.04)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  nutrientRow: {
-    gap: 6,
-  },
-  nutrientHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  nutrientLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  nutrientValue: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  nutrientTrack: {
-    height: 7,
-    borderRadius: 4,
-    width: '100%',
-    overflow: 'hidden',
-  },
-  nutrientFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
   bottomBar: {
     position: 'absolute',
     bottom: 0,
@@ -682,18 +557,18 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(15, 23, 42, 0.08)',
   },
   pillAddBtn: {
-    backgroundColor: '#111827',
+    backgroundColor: MEAL_ACCENT,
     borderRadius: 100,
     paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    shadowColor: '#000',
+    shadowColor: MEAL_ACCENT,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 3,
   },
   pillAddBtnText: {
     color: '#FFF',
@@ -772,9 +647,10 @@ const styles = StyleSheet.create({
   saveHeaderBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 6,
+    paddingVertical: 7,
     paddingHorizontal: 12,
     borderRadius: 20,
+    backgroundColor: MEAL_ACCENT_TINT,
   },
   saveHeaderText: {
     fontSize: 13,
