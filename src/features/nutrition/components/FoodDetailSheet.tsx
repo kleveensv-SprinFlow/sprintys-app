@@ -168,7 +168,7 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
             )}
             <View style={styles.productInfo}>
               <Text style={[styles.productName, { color: theme.colors.text }]} numberOfLines={2}>
-                {product.nom || product.name}
+                {product.display_name || product.nom || product.name}
               </Text>
               <Text style={[styles.productBrand, { color: theme.colors.textSecondary }]}>
                 {product.nom ? `CIQUAL 🛡️ ${product.etat ? `• ${product.etat}` : ''}` : (product.brand || 'Produit industriel 🛒')}

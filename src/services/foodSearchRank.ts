@@ -137,9 +137,33 @@ function bestWord(token: string, words: string[]): 'exact' | 'typo' | null {
   return typo ? 'typo' : null;
 }
 
-export function tokenInName(token: string, name: string, state = ''): boolean {
+const POULTRY = new Set(['poulet', 'dinde', 'canard', 'pintade']);
+const CUT_ALIAS: Record<string, string> = { blanc: 'filet', filet: 'blanc' };
+const CUTS = ['jambon', 'escalope', 'cuisse', 'aile', 'aiguillett', 'steak', 'filet', 'blanc'];
+const ANIMALS = ['poulet', 'dinde', 'canard', 'pintade', 'boeuf', 'porc', 'veau', 'agneau', 'saumon', 'thon', 'cabillaud', 'colin'];
+
+function cutAlias(token: string, queryTokens: string[], nameWords: string[]): string | null {
+  const alias = CUT_ALIAS[token];
+  if (!alias) return null;
+  const poultryInQuery = queryTokens.some((part) => POULTRY.has(canonWord(part)));
+  const poultryInName = nameWords.some((word) => POULTRY.has(word));
+  if (!poultryInQuery || !poultryInName) return null;
+  return alias;
+}
+
+export function searchVariants(token: string, queryTokens: string[]): string[] {
   const canon = canonWord(token);
-  if (bestWord(canon, wordsOf(name))) return true;
+  const alias = CUT_ALIAS[canon];
+  const poultry = queryTokens.some((part) => POULTRY.has(canonWord(part)));
+  return alias && poultry ? [canon, alias] : [canon];
+}
+
+export function tokenInName(token: string, name: string, state = '', queryTokens: string[] = [token]): boolean {
+  const canon = canonWord(token);
+  const nameWords = wordsOf(name);
+  if (bestWord(canon, nameWords)) return true;
+  const alias = cutAlias(canon, queryTokens, nameWords);
+  if (alias && nameWords.includes(alias)) return true;
   return isStateToken(canon) && wordsOf(state).includes(canon);
 }
 
@@ -155,11 +179,13 @@ export function matchScore(queryTokens: string[], name: string, state = ''): num
 
   for (const token of wanted) {
     const hit = bestWord(token, nameWords);
-    if (hit) {
+    const alias = cutAlias(token, wanted, nameWords);
+    const aliasHit = !hit && alias && nameWords.includes(alias);
+    if (hit || aliasHit) {
       nameHits += 1;
-      score += hit === 'exact' ? 500 : 260;
+      score += hit === 'exact' ? 500 : hit === 'typo' ? 260 : 420;
       if (hit === 'typo') typo = true;
-      if (nameWords[0] === token) score += 220;
+      if (nameWords[0] === token || (alias && nameWords[0] === alias)) score += 220;
       continue;
     }
     if (isStateToken(token) && (stateWords.includes(token) || stateWords.includes(token.replace(/e$/, '')))) {
@@ -170,10 +196,39 @@ export function matchScore(queryTokens: string[], name: string, state = ''): num
   }
 
   if (nameHits === 0) return 0;
-  const extras = nameWords.filter((word) => !wanted.includes(word) && !isStateToken(word)).length;
+  const extras = nameWords.filter((word) => !wanted.includes(word) && !isStateToken(word) && word !== 'filet' && word !== 'blanc').length;
   score -= extras * 35;
+  if (nameWords.includes('peau') && !wanted.includes('peau')) score -= 160;
+  if (/label|fermier|bio|halal/.test(normalizeSearchText(name))) score -= 180;
+  if (['jambon', 'nugget', 'panure', 'cordon', 'farce'].some((word) => nameWords.includes(word) && !wanted.includes(word))) score -= 320;
   if (!typo) score += 80;
   return score;
+}
+
+export function foodStateLabel(nom: string, etat = ''): string {
+  const words = wordsOf(`${nom} ${etat}`);
+  if (words.some((word) => word === 'cru' || word === 'crue')) return 'cru';
+  if (words.some((word) => ['cuit', 'cuite', 'grille', 'poele', 'roti', 'bouilli', 'vapeur', 'saute'].includes(word))) return 'cuit';
+  return '';
+}
+
+function capitalFood(label: string): string {
+  return label ? label.charAt(0).toUpperCase() + label.slice(1) : label;
+}
+
+/** Nom court pour la liste. « Filet sans peau cru de poulet » devient « Filet de poulet ». */
+export function spokenFoodTitle(nom: string, queryTokens: string[] = []): string {
+  const words = wordsOf(nom);
+  const animal = ANIMALS.find((name) => words.includes(name));
+  const cutInName = CUTS.find((cut) => words.some((word) => word === cut || word.startsWith(cut)));
+  const asked = queryTokens.map((token) => canonWord(token));
+  const askedCut = asked.find((token) => token === 'blanc' || token === 'filet');
+  const cut = animal && POULTRY.has(animal) && askedCut && (cutInName === 'blanc' || cutInName === 'filet' || cutInName?.startsWith('aiguillett'))
+    ? askedCut
+    : cutInName;
+  if (animal && cut) return capitalFood(`${cut.startsWith('aiguillett') ? 'aiguillette' : cut} de ${animal}`);
+  if (animal && words.length <= 3) return capitalFood(animal);
+  return friendlyFoodTitle(nom);
 }
 
 /** Formes à envoyer à la base pour rattraper accent, pluriel et faute. Le tri final reste sur le nom. */

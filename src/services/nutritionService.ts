@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { openFoodFactsService, OFFProduct } from './openFoodFactsService';
-import { matchScore, searchTokens, isStateToken, recallForms, tokenInName, normalizeSearchText } from './foodSearchRank';
+import { matchScore, searchTokens, isStateToken, recallForms, tokenInName, normalizeSearchText, searchVariants, spokenFoodTitle, foodStateLabel } from './foodSearchRank';
 
 export { normalizeSearchText };
 
@@ -8,6 +8,7 @@ export interface CiqualFood {
   id: string;
   code_ciqual: string;
   nom: string;
+  display_name?: string;
   etat?: string;
   synonymes?: string;
   energie_kcal: number;
@@ -42,7 +43,7 @@ function boundaryFilters(token: string): string[] {
   return filters;
 }
 
-async function rowsForToken(token: string): Promise<CiqualFood[]> {
+async function rowsForToken(token: string, queryTokens: string[]): Promise<CiqualFood[]> {
   const filters = boundaryFilters(token).slice(0, 40);
   const run = (active: string[]) => supabase
     .from('ciqual_foods')
@@ -67,7 +68,7 @@ async function rowsForToken(token: string): Promise<CiqualFood[]> {
   const seen = new Set<string>();
   const rows: CiqualFood[] = [];
   for (const item of data as CiqualFood[]) {
-    if (seen.has(item.id) || !tokenInName(token, item.nom, item.etat || '')) continue;
+    if (seen.has(item.id) || !tokenInName(token, item.nom, item.etat || '', queryTokens)) continue;
     seen.add(item.id);
     rows.push(item);
   }
@@ -80,7 +81,13 @@ async function searchCiqual(rawQ: string): Promise<HybridFoodResult[]> {
 
   const distinctive = tokens.filter((token) => !isStateToken(token));
   const lookedUp = distinctive.length > 0 ? distinctive : tokens;
-  const lists = await Promise.all(lookedUp.map((token) => rowsForToken(token)));
+  const lists = await Promise.all(lookedUp.map(async (token) => {
+    const variants = searchVariants(token, tokens);
+    const found = await Promise.all(variants.map((variant) => rowsForToken(variant, tokens)));
+    const byId = new Map<string, CiqualFood>();
+    for (const rows of found) for (const row of rows) byId.set(row.id, row);
+    return [...byId.values()];
+  }));
 
   let rows = lists[0] || [];
   for (const list of lists.slice(1)) {
@@ -88,12 +95,34 @@ async function searchCiqual(rawQ: string): Promise<HybridFoodResult[]> {
     rows = rows.filter((item) => ids.has(item.id));
   }
 
-  return rows
+  const ranked = rows
     .map((item) => ({ item, score: matchScore(tokens, item.nom, item.etat || '') }))
-    .filter((row) => row.score > 0)
-    .sort((a, b) => b.score - a.score || a.item.nom.localeCompare(b.item.nom, 'fr'))
-    .slice(0, 15)
-    .map((row) => ({ type: 'ciqual' as const, item: row.item }));
+    .filter((row) => row.score > 0);
+
+  const askedState = tokens.some((token) => isStateToken(token));
+  const bestByDish = new Map<string, { item: CiqualFood; score: number }>();
+  for (const row of ranked) {
+    const title = spokenFoodTitle(row.item.nom, tokens);
+    const state = foodStateLabel(row.item.nom, row.item.etat || '');
+    const key = `${title}|${state}`;
+    const current = bestByDish.get(key);
+    const simpler = !current || row.item.nom.length < current.item.nom.length;
+    if (!current || row.score > current.score + 40 || (Math.abs(row.score - current.score) <= 40 && simpler)) {
+      bestByDish.set(key, row);
+    }
+  }
+
+  return [...bestByDish.values()]
+    .sort((a, b) => {
+      if (!askedState) {
+        const aCooked = foodStateLabel(a.item.nom, a.item.etat || '') === 'cuit' ? 1 : 0;
+        const bCooked = foodStateLabel(b.item.nom, b.item.etat || '') === 'cuit' ? 1 : 0;
+        if (aCooked !== bCooked) return bCooked - aCooked;
+      }
+      return b.score - a.score || a.item.nom.localeCompare(b.item.nom, 'fr');
+    })
+    .slice(0, 8)
+    .map((row) => ({ type: 'ciqual' as const, item: { ...row.item, display_name: spokenFoodTitle(row.item.nom, tokens) } }));
 }
 
 async function searchPackaged(rawQ: string): Promise<HybridFoodResult[]> {

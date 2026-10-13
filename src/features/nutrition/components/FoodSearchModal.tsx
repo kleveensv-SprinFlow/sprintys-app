@@ -11,7 +11,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { FoodDetailSheet, FoodAddPayload } from './FoodDetailSheet';
 import { formatRecentSubtitle, pluralizeLabel, quantityFromAiItem, resolveFoodPortion } from '../data/portionDictionary';
-import { friendlyFoodTitle } from '../../../services/foodSearchRank';
+import { spokenFoodTitle, foodStateLabel } from '../../../services/foodSearchRank';
 import { aiNutritionService, ParsedFoodItem } from '../../../services/aiNutritionService';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -334,7 +334,7 @@ export const FoodSearchModal: React.FC = () => {
       kind = item.type;
       if (item.type === 'ciqual') {
         const c = item.item as CiqualFood;
-        name = friendlyFoodTitle(c.nom);
+        name = c.display_name || spokenFoodTitle(c.nom);
         const portion = resolveFoodPortion({ nom: c.nom });
         const grams = portion.defaultUnit === 'piece' && portion.pieceWeight
           ? Math.round(portion.pieceWeight)
@@ -344,11 +344,12 @@ export const FoodSearchModal: React.FC = () => {
         const factor = grams / 100;
         const round1 = (n: number) => (Math.round(n * factor * 10) / 10).toLocaleString('fr-FR');
         kcalLabel = `${Math.round((c.energie_kcal || 0) * factor)} kcal`;
+        const state = foodStateLabel(c.nom, c.etat || '');
         detail = portion.defaultUnit === 'piece'
           ? `Aliment · 1 ${portion.pieceLabel} · ${grams} g`
           : portion.defaultUnit === 'ml'
             ? `Aliment · ${grams} ml`
-            : `Aliment · ${c.etat ? `${c.etat} · ` : ''}100 g`;
+            : `Aliment${state ? ` · ${state}` : ''} · 100 g`;
         macros = `${round1(c.glucides || 0)} g G   ${round1(c.proteines || 0)} g P   ${round1(c.lipides || 0)} g L`;
       } else {
         const o = item.item as OFFProduct;
