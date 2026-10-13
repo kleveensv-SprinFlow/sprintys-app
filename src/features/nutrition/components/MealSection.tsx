@@ -83,7 +83,6 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
         const consumedKcal = logs.reduce((sum, log) => sum + Number(log.calories), 0);
         const targetKcal = Math.round((kcalGoal * mealDistribution[meal.type]) / 100);
         const progress = Math.min(1, targetKcal > 0 ? consumedKcal / targetKcal : 0);
-        const foodsSummary = logs.map((l) => l.custom_food_name || 'Aliment').join(', ');
         const yesterday = yesterdayMeals[meal.type];
 
         return (
@@ -119,11 +118,8 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
               <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
             </View>
 
-            {foodsSummary.length > 0 ? (
-              <Text style={[styles.foodSummaryText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                {foodsSummary}
-              </Text>
-            ) : !readonly && (yesterday?.count ?? 0) > 0 ? (
+            {/* Empty meal: offer yesterday's one tap repeat */}
+            {logs.length === 0 && !readonly && (yesterday?.count ?? 0) > 0 && (
               <PressableScale
                 haptic="light"
                 hitSlop={6}
@@ -137,8 +133,6 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
                   Reprendre hier · {Math.round(yesterday?.kcal ?? 0)} kcal
                 </Text>
               </PressableScale>
-            ) : (
-              <Text style={[styles.foodSummaryText, { color: theme.colors.textMuted }]}>Rien pour l'instant</Text>
             )}
           </PressableScale>
         );
@@ -161,8 +155,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   mealCard: {
-    marginBottom: 12,
-    paddingVertical: 14,
+    marginBottom: 10,
+    paddingVertical: 13,
   },
   mealRow: {
     flexDirection: 'row',
@@ -201,17 +195,12 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     overflow: 'hidden',
-    marginTop: 12,
+    marginTop: 11,
   },
   progressFill: {
     height: '100%',
     borderRadius: 2,
     backgroundColor: MEAL_ACCENT,
-  },
-  foodSummaryText: {
-    fontSize: 13,
-    fontWeight: '500',
-    marginTop: 8,
   },
   repeatLink: {
     flexDirection: 'row',

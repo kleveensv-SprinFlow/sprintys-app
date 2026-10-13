@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../../core/theme';
-import { MACROS, MacroKey } from '../nutritionTheme';
+import { ENERGY, MACROS, MacroKey } from '../nutritionTheme';
 
 interface MacroLanesProps {
   values: Record<MacroKey, number>;
@@ -33,6 +33,8 @@ const Lane = ({
   const theme = useTheme();
   const width = useRef(new Animated.Value(0)).current;
   const percent = goal && goal > 0 ? Math.min(100, (value / goal) * 100) : 0;
+  // Above the goal by more than 5 %: say it, the full bar alone does not
+  const isOver = !!goal && goal > 0 && value > goal * 1.05;
 
   useEffect(() => {
     Animated.timing(width, {
@@ -51,7 +53,7 @@ const Lane = ({
           <Text style={[styles.laneNumberText, { color }]}>{index + 1}</Text>
         </View>
         <Text style={[styles.label, compact && styles.labelCompact, { color: theme.colors.text }]}>{label}</Text>
-        <Text style={[styles.value, compact && styles.valueCompact, { color: theme.colors.text }]}>
+        <Text style={[styles.value, compact && styles.valueCompact, { color: isOver ? ENERGY.over : theme.colors.text }]}>
           {formatG(value)}
           <Text style={[styles.goal, { color: theme.colors.textSecondary }]}>
             {goal ? ` / ${goal} g` : ' g'}
