@@ -20,7 +20,7 @@ const toLocalDateString = (d: Date): string =>
 const getCheckInPrompt = () => {
   const hour = new Date().getHours();
   if (hour < 12) return 'Recommandé ce matin';
-  if (hour < 18) return '2 min pour évaluer ta forme';
+  if (hour < 18) return 'Évalue ta forme en 2 min';
   return 'Ton bilan du jour';
 };
 
@@ -210,7 +210,7 @@ export const AthleteGauges = ({ refreshKey = 0 }: { refreshKey?: number }) => {
               </Text>
             </View>
             <View style={[styles.actionBadge, { backgroundColor: theme.colors.sprintyBlue }]}>
-              <Text style={styles.actionBadgeText}>Commencer</Text>
+              <Feather name="arrow-right" size={18} color="#FFF" />
             </View>
           </View>
         ) : (
@@ -311,14 +311,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   actionBadge: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-  },
-  actionBadgeText: {
-    color: '#FFF',
-    fontSize: 13,
-    fontWeight: '700',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   mainPillText: {
     flex: 1,

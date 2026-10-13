@@ -368,7 +368,7 @@ export const SessionCarousel = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { marginTop: 24, marginBottom: 8 },
+  container: { marginTop: 24, marginBottom: 0 },
 
   sectionHeader: {
     flexDirection: 'row',
@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
   carouselContent: {
     paddingHorizontal: (width - CARD_WIDTH) / 2,
     paddingTop: 12,
-    paddingBottom: 16,
+    paddingBottom: 12,
   },
   cardSlot: {
     width: CARD_WIDTH,
