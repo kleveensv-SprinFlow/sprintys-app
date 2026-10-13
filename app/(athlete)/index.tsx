@@ -38,7 +38,9 @@ export default function DashboardScreen() {
         >
           <AthleteGauges />
           <SessionCarousel />
-          <WeatherCard />
+          <View style={styles.cardGutter}>
+            <WeatherCard />
+          </View>
           <BodyCompositionCard />
         </ScrollView>
       </SafeAreaView>
@@ -52,6 +54,10 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
+  },
+  cardGutter: {
+    // WeatherCard has no horizontal margin (the coach screen pads its scroll view)
+    marginHorizontal: 16,
   },
   scrollContent: {
     paddingBottom: 120, // Extra space for the custom tab bar at the bottom

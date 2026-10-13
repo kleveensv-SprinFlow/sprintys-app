@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Text, ActivityIndicator, ScrollView } from 'react-native';
+import { View, StyleSheet, Text, ActivityIndicator, ScrollView, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../../../src/core/theme';
 import { Header } from '../../../src/shared/components/Header';
@@ -115,6 +115,14 @@ export default function AthleteDayScreen() {
             <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
               Profite de ta journée pour récupérer !
             </Text>
+            <TouchableOpacity
+              onPress={() => router.push('/(athlete)/calendar')}
+              activeOpacity={0.8}
+              style={[styles.emptyButton, { backgroundColor: theme.colors.accentMuted }]}
+            >
+              <Feather name="calendar" size={16} color={theme.colors.accent} />
+              <Text style={[styles.emptyButtonText, { color: theme.colors.accent }]}>Voir mon calendrier</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <View style={styles.workoutsContainer}>
@@ -154,6 +162,19 @@ export default function AthleteDayScreen() {
 }
 
 const styles = StyleSheet.create({
+  emptyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 14,
+  },
+  emptyButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
   container: {
     flex: 1,
   },

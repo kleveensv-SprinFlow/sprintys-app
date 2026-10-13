@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -10,6 +10,20 @@ import { useCheckInStore } from '../../../store/checkInStore';
 import { useAuthStore } from '../../../store/authStore';
 import { useNutritionStore } from '../../../store/nutrition/nutritionStore';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from '@react-navigation/native';
+import { workoutService } from '../../../services/workoutService';
+
+const toLocalDateString = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const getCheckInPrompt = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Recommandé ce matin';
+  if (hour < 18) return '2 min pour évaluer ta forme';
+  return 'Pas trop tard pour ton bilan du jour';
+};
+
+const MONTHS_SHORT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 
 export const AthleteGauges = () => {
   const theme = useTheme();
@@ -20,12 +34,33 @@ export const AthleteGauges = () => {
   const { user } = useAuthStore();
   const { startCheckIn, editTodayCheckIn, loadHistory, todayHealthScore } = useCheckInStore();
   const { mealLogs } = useNutritionStore();
+  const [nextCompetition, setNextCompetition] = useState<any | null>(null);
 
   useEffect(() => {
     if (user?.id) {
       loadHistory(user.id);
     }
   }, [user]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id) return;
+      workoutService
+        .fetchNextCompetition(user.id)
+        .then(setNextCompetition)
+        .catch((e) => console.error('Error fetching next competition:', e));
+    }, [user?.id])
+  );
+
+  const lightHaptic = () => {
+    if (Platform.OS !== 'web') {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } catch (e) {
+        // ignore
+      }
+    }
+  };
 
   const handleCheckInPress = () => {
     if (!user?.id) return;
@@ -45,14 +80,17 @@ export const AthleteGauges = () => {
   };
 
   const handleNutritionPress = () => {
-    if (Platform.OS !== 'web') {
-      try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      } catch (e) {
-        // ignore
-      }
-    }
+    lightHaptic();
     router.push('/(athlete)/nutrition');
+  };
+
+  const handleCompetitionPress = () => {
+    lightHaptic();
+    if (nextCompetition?.date_prevue) {
+      router.push(`/(athlete)/day/${toLocalDateString(new Date(nextCompetition.date_prevue))}`);
+    } else {
+      router.push('/(athlete)/calendar');
+    }
   };
 
   const getScoreColor = (score: number) => {
@@ -65,33 +103,33 @@ export const AthleteGauges = () => {
   const scoreColor = todayHealthScore !== null ? getScoreColor(scoreValue) : theme.colors.accent;
   const showScore = todayHealthScore !== null;
 
-  const kcalGoal = user?.manualKcalGoal || 2000;
+  const kcalGoal = user?.manualKcalGoal || null;
   const consumedKcal = mealLogs.reduce((sum, log) => sum + Number(log.calories), 0);
-  const nutritionPercentage = Math.min(100, Math.round((consumedKcal / kcalGoal) * 100)) || 0;
+  const nutritionPercentage = kcalGoal ? Math.round((consumedKcal / kcalGoal) * 100) || 0 : 0;
+  const nutritionExceeded = nutritionPercentage > 100;
 
-  let compValue = "Aucune";
-  let compLabel = "Compétition";
-  let compPercentage = 0;
-  let compColor = theme.colors.border;
+  let compValue = 'Aucune';
+  let compSub = 'Voir mon calendrier';
+  let compColor = theme.colors.textMuted;
 
-  if (user?.nextCompetitionDate) {
-    const compDate = new Date(user.nextCompetitionDate);
+  if (nextCompetition?.date_prevue) {
+    const compDate = new Date(nextCompetition.date_prevue);
+    compDate.setHours(0, 0, 0, 0);
     const today = new Date();
-    const diffTime = compDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) {
-      compValue = "Jour-J !";
-      compPercentage = 100;
+    today.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((compDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays <= 0) {
+      compValue = 'Jour J !';
       compColor = theme.colors.success;
-    } else if (diffDays > 0) {
-      compValue = `J-${diffDays}`;
-      compPercentage = Math.max(5, 100 - (diffDays / 90) * 100); 
-      compColor = diffDays <= 7 ? theme.colors.error : theme.colors.warning;
     } else {
-      compValue = "Terminée";
-      compPercentage = 100;
+      compValue = `J-${diffDays}`;
+      compColor = diffDays <= 7 ? theme.colors.error : theme.colors.warning;
     }
+
+    // CompetitionBuilder stores "<title>\n📍 <location>" in description
+    const title = (nextCompetition.description || '').split('\n')[0].trim();
+    compSub = title || `${compDate.getDate()} ${MONTHS_SHORT[compDate.getMonth()]}`;
   }
 
   return (
@@ -109,7 +147,7 @@ export const AthleteGauges = () => {
             </View>
             <View style={styles.mainPillText}>
               <Text style={[styles.mainTitle, { color: theme.colors.text }]}>Faire le Check-In</Text>
-              <Text style={[styles.mainSubtitle, { color: theme.colors.textSecondary }]}>Recommandé ce matin</Text>
+              <Text style={[styles.mainSubtitle, { color: theme.colors.textSecondary }]}>{getCheckInPrompt()}</Text>
             </View>
             <View style={styles.actionBadge}>
               <Text style={styles.actionBadgeText}>Commencer</Text>
@@ -157,55 +195,63 @@ export const AthleteGauges = () => {
               {Math.round(consumedKcal).toLocaleString('fr-FR')}
             </Text>
             <Text style={[styles.secondaryUnitText, { color: theme.colors.textMuted }]}>
-              / {kcalGoal.toLocaleString('fr-FR')} kcal
+              {kcalGoal ? `/ ${kcalGoal.toLocaleString('fr-FR')} kcal` : 'kcal'}
             </Text>
           </View>
 
-          <View style={styles.progressRow}>
-            <View style={[styles.progressBarBg, { backgroundColor: theme.colors.surfaceLight }]}>
-              <LinearGradient
-                colors={['#00C9A7', '#00DFB6']}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                style={[styles.progressBarFill, { width: `${nutritionPercentage}%` }]}
-              />
+          {kcalGoal ? (
+            <View style={styles.progressRow}>
+              <View style={[styles.progressBarBg, { backgroundColor: theme.colors.surfaceLight }]}>
+                {nutritionExceeded ? (
+                  <View style={[styles.progressBarFill, { width: '100%', backgroundColor: theme.colors.warning }]} />
+                ) : (
+                  <LinearGradient
+                    colors={['#00C9A7', '#00DFB6']}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                    style={[styles.progressBarFill, { width: `${nutritionPercentage}%` }]}
+                  />
+                )}
+              </View>
+              <Text style={[styles.percentBadgeText, { color: nutritionExceeded ? theme.colors.warning : theme.colors.textSecondary }]}>
+                {nutritionPercentage}%
+              </Text>
             </View>
-            <Text style={[styles.percentBadgeText, { color: theme.colors.textSecondary }]}>
-              {nutritionPercentage}%
+          ) : (
+            <Text style={[styles.cardLinkText, { color: '#00A88C' }]} numberOfLines={1}>
+              Définir mon objectif
             </Text>
-          </View>
+          )}
         </TouchableOpacity>
 
-        {/* Competition Card */}
-        <View style={[styles.secondaryPillWrapper, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        {/* Competition Card: next competition planned by the coach */}
+        <TouchableOpacity
+          activeOpacity={0.75}
+          onPress={handleCompetitionPress}
+          style={[styles.secondaryPillWrapper, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+        >
           <View style={styles.cardHeaderRow}>
             <View style={styles.cardHeaderLeft}>
-              <View style={[styles.smallIconCircle, { backgroundColor: theme.colors.surfaceLight }]}>
-                <Feather name="flag" size={16} color={theme.colors.text} />
+              <View style={[styles.smallIconCircle, { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons name="trophy-outline" size={16} color="#B45309" />
               </View>
-              <Text style={[styles.cardHeaderLabel, { color: theme.colors.text }]}>Objectif</Text>
+              <Text style={[styles.cardHeaderLabel, { color: theme.colors.text }]}>Compétition</Text>
             </View>
+            <Feather name="chevron-right" size={16} color={theme.colors.textMuted} />
           </View>
 
           <View style={styles.valueRow}>
-            <Text style={[styles.secondaryValue, { color: theme.colors.text }]}>
+            <Text style={[styles.secondaryValue, { color: nextCompetition ? compColor : theme.colors.text }]}>
               {compValue}
-            </Text>
-            <Text style={[styles.secondaryUnitText, { color: theme.colors.textMuted }]}>
-              {user?.nextCompetitionDate ? 'Compétition' : ''}
             </Text>
           </View>
 
-          <View style={styles.progressRow}>
-            <View style={[styles.progressBarBg, { backgroundColor: theme.colors.surfaceLight }]}>
-              <View style={[styles.progressBarFill, { width: `${compPercentage}%`, backgroundColor: compColor === theme.colors.border ? theme.colors.textMuted : compColor }]} />
-            </View>
-            {compPercentage > 0 && (
-              <Text style={[styles.percentBadgeText, { color: theme.colors.textSecondary }]}>
-                {Math.round(compPercentage)}%
-              </Text>
-            )}
-          </View>
-        </View>
+          <Text
+            style={[styles.cardLinkText, { color: nextCompetition ? theme.colors.textSecondary : theme.colors.accent }]}
+            numberOfLines={1}
+          >
+            {compSub}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <CheckInModal visible={modalVisible} onClose={() => setModalVisible(false)} />
@@ -355,6 +401,11 @@ const styles = StyleSheet.create({
   progressBarFill: {
     height: '100%',
     borderRadius: 4,
+  },
+  cardLinkText: {
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
   },
   percentBadgeText: {
     fontSize: 11,

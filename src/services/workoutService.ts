@@ -447,6 +447,24 @@ export const workoutService = {
     return data || [];
   },
 
+  /** Next competition (type_seance 'Compétition') planned for the athlete, from today onward. */
+  fetchNextCompetition: async (athleteId: string) => {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const { data, error } = await supabase
+      .from('workouts')
+      .select('id, date_prevue, type_seance, description, measures, status')
+      .eq('athlete_id', athleteId)
+      .ilike('type_seance', 'comp%')
+      .gte('date_prevue', startOfToday.toISOString())
+      .order('date_prevue', { ascending: true })
+      .limit(1);
+
+    if (error) throw error;
+    return data?.[0] || null;
+  },
+
   fetchUpcomingCompetitionsContext: async (athleteId: string, days: number = 7) => {
     return "Aucune compétition prévue dans les 7 prochains jours.";
   },

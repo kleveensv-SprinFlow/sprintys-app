@@ -7,6 +7,8 @@ import { useAuthStore } from '../../../store/authStore';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { getWorkoutTypeConfig } from '../../../shared/components/MonthlyCalendar';
+import { WorkoutDetailModal } from '../../calendar/components/WorkoutDetailModal';
+import { WorkoutSession } from '../../workout/types';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.85;
@@ -38,6 +40,8 @@ export const SessionCarousel = () => {
 
   const [activeIndex, setActiveIndex] = useState(7); // Default to today (index 7 in 15-day array)
   const [timelineDays, setTimelineDays] = useState<Date[]>([]);
+  const [selectedWorkout, setSelectedWorkout] = useState<WorkoutSession | null>(null);
+  const [isWorkoutModalVisible, setIsWorkoutModalVisible] = useState(false);
 
   // Generate 15 days timeline (J-7 to J+7)
   useEffect(() => {
@@ -114,6 +118,25 @@ export const SessionCarousel = () => {
     const dateString = toLocalDateString(date);
     router.push(`/(athlete)/day/${dateString}`);
   };
+
+  const openWorkoutDetail = (workoutData: any) => {
+    setSelectedWorkout({
+      ...workoutData,
+      id: workoutData.id,
+      name: workoutData.type_seance,
+      type_seance: workoutData.type_seance,
+      description: workoutData.description,
+      measures: workoutData.measures,
+      startTime: new Date(workoutData.date_prevue).getTime(),
+      status: workoutData.status,
+      exercises: workoutData.exercises || [],
+      blocks: workoutData.blocks || undefined,
+    });
+    setIsWorkoutModalVisible(true);
+  };
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
 
   return (
     <View style={styles.container}>
@@ -210,21 +233,30 @@ export const SessionCarousel = () => {
             const typeConfig = getWorkoutTypeConfig(activeWorkout.type_seance);
             const isCompleted = activeWorkout.status === 'completed';
 
+            const isCompetition = (activeWorkout.type_seance || '').toLowerCase().startsWith('comp');
+            const isMissed = !isCompleted && !isCompetition && date < todayStart;
+
             let volumeStr = '';
-            let durationStr = '45 min';
+            let volumeIcon: any = 'layers';
             if (activeWorkout.blocks && activeWorkout.blocks.length > 0) {
               const vol = activeWorkout.blocks.length;
               volumeStr = `${vol} bloc${vol > 1 ? 's' : ''}`;
-              durationStr = `${vol * 15} min`;
             } else if (activeWorkout.exercises && activeWorkout.exercises.length > 0) {
               const vol = activeWorkout.exercises.length;
               volumeStr = `${vol} exercice${vol > 1 ? 's' : ''}`;
-              durationStr = `${vol * 10} min`;
             } else if (activeWorkout.description) {
-              volumeStr = activeWorkout.description.substring(0, 35);
+              // First line only (competitions store "<title>\n📍 <location>")
+              volumeStr = activeWorkout.description.split('\n')[0].trim();
+              volumeIcon = isCompetition ? 'map-pin' : 'file-text';
             } else {
               volumeStr = 'Séance planifiée';
             }
+
+            const status = isCompleted
+              ? { label: 'Fait', icon: 'check-circle', color: theme.colors.success, bg: 'rgba(16, 185, 129, 0.12)' }
+              : isMissed
+                ? { label: 'Manquée', icon: 'x-circle', color: theme.colors.error, bg: 'rgba(239, 68, 68, 0.12)' }
+                : { label: 'Planifié', icon: 'calendar', color: theme.colors.accent, bg: theme.colors.accentMuted };
 
             const extraCount = realWorkouts.length - 1;
 
@@ -232,7 +264,7 @@ export const SessionCarousel = () => {
               <TouchableOpacity
                 key={`workout-${index}`}
                 activeOpacity={0.88}
-                onPress={() => openDayView(date)}
+                onPress={() => (extraCount === 0 ? openWorkoutDetail(activeWorkout) : openDayView(date))}
                 style={[
                   styles.card,
                   {
@@ -259,58 +291,41 @@ export const SessionCarousel = () => {
                     </View>
                   </View>
 
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      { backgroundColor: isCompleted ? 'rgba(16, 185, 129, 0.12)' : theme.colors.accentMuted }
-                    ]}
-                  >
-                    <Feather
-                      name={isCompleted ? 'check-circle' : 'activity'}
-                      size={13}
-                      color={isCompleted ? theme.colors.success : theme.colors.accent}
-                    />
-                    <Text
-                      style={[
-                        styles.statusBadgeText,
-                        { color: isCompleted ? theme.colors.success : theme.colors.accent }
-                      ]}
-                    >
-                      {isCompleted ? 'Fait' : 'Planifié'}
-                    </Text>
+                  <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
+                    <Feather name={status.icon as any} size={13} color={status.color} />
+                    <Text style={[styles.statusBadgeText, { color: status.color }]}>{status.label}</Text>
                   </View>
                 </View>
 
                 <View style={styles.cardBody}>
-                  <View style={styles.infoRow}>
-                    <Feather name="clock" size={14} color={theme.colors.textSecondary} />
-                    <Text style={[styles.infoText, { color: theme.colors.textSecondary }]}>{durationStr}</Text>
-                  </View>
-                  <View style={styles.infoRow}>
-                    <Feather name="layers" size={14} color={theme.colors.textSecondary} />
-                    <Text style={[styles.infoText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                  <View style={[styles.infoRow, { flexShrink: 1 }]}>
+                    <Feather name={volumeIcon} size={14} color={theme.colors.textSecondary} />
+                    <Text style={[styles.infoText, { color: theme.colors.textSecondary, flexShrink: 1 }]} numberOfLines={1}>
                       {volumeStr}
                     </Text>
                   </View>
                   <View style={{ flex: 1 }} />
                   <View style={styles.actionPrompt}>
-                    <Text style={[styles.actionPromptText, { color: theme.colors.accent }]}>Voir la séance</Text>
+                    <Text style={[styles.actionPromptText, { color: theme.colors.accent }]}>
+                      {extraCount > 0 ? 'Voir la journée' : isCompleted ? 'Voir le bilan' : 'Voir la séance'}
+                    </Text>
                     <Feather name="chevron-right" size={14} color={theme.colors.accent} />
                   </View>
                 </View>
 
-                {isActive && !isCompleted && (
+                {isActive && !isCompleted && !isMissed && (
                   <View style={[styles.activeIndicator, { backgroundColor: theme.colors.accent }]} />
                 )}
               </TouchableOpacity>
             );
           } else {
-            // Render Rest Card
+            // Render Rest Card: coach rest notes live in the day view, otherwise lead to the calendar
+            const hasRestNote = !!activeWorkout;
             return (
               <TouchableOpacity
                 key={`rest-${index}`}
                 activeOpacity={0.88}
-                onPress={() => openDayView(date)}
+                onPress={() => (hasRestNote ? openDayView(date) : router.push('/(athlete)/calendar'))}
                 style={[
                   styles.card,
                   styles.restCard,
@@ -321,16 +336,29 @@ export const SessionCarousel = () => {
                   isActive && styles.activeCard
                 ]}
               >
-                <Feather name="coffee" size={28} color={theme.colors.textMuted} style={{ marginBottom: 8 }} />
+                <Feather name="coffee" size={22} color={theme.colors.textMuted} style={{ marginBottom: 4 }} />
                 <Text style={[styles.restTitle, { color: theme.colors.text }]}>Jour de repos</Text>
-                <Text style={[styles.restSub, { color: theme.colors.textSecondary }]}>
+                <Text style={[styles.restSub, { color: theme.colors.textSecondary }]} numberOfLines={1}>
                   {activeWorkout?.description || 'Profite de ce temps pour la récupération.'}
                 </Text>
+                <View style={[styles.actionPrompt, { marginTop: 10 }]}>
+                  <Text style={[styles.actionPromptText, { color: theme.colors.accent }]}>
+                    {hasRestNote ? 'Voir les consignes' : 'Voir mon calendrier'}
+                  </Text>
+                  <Feather name="chevron-right" size={14} color={theme.colors.accent} />
+                </View>
               </TouchableOpacity>
             );
           }
         })}
       </ScrollView>
+
+      <WorkoutDetailModal
+        visible={isWorkoutModalVisible}
+        onClose={() => setIsWorkoutModalVisible(false)}
+        workout={selectedWorkout}
+        onUpdated={() => user?.id && loadUpcomingWorkouts(user.id)}
+      />
     </View>
   );
 };

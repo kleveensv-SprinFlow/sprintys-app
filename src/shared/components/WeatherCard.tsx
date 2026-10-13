@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Modal, ScrollView, Animated, Easing, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Modal, ScrollView, Animated, Easing, Dimensions, Linking } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../core/theme';
 import * as Location from 'expo-location';
@@ -10,6 +10,7 @@ export const WeatherCard = () => {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [locationName, setLocationName] = useState<string>('Recherche...');
   const [isLoading, setIsLoading] = useState(true);
+  const [failure, setFailure] = useState<'denied' | 'error' | null>(null);
 
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -56,35 +57,41 @@ export const WeatherCard = () => {
     }
   };
 
-  useEffect(() => {
-    (async () => {
-      try {
-        let { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          setLocationName('Accès refusé');
-          setIsLoading(false);
-          return;
-        }
-
-        let location = await Location.getCurrentPositionAsync({});
-        const data = await weatherService.fetchWeather(location.coords.latitude, location.coords.longitude);
-        setWeather(data);
-
-        let geocode = await Location.reverseGeocodeAsync({
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude
-        });
-
-        if (geocode && geocode.length > 0) {
-          setLocationName(geocode[0].city || geocode[0].region || 'Position actuelle');
-        }
-      } catch (error) {
-        console.error('Error fetching weather:', error);
-        setLocationName('Erreur météo');
-      } finally {
+  const loadWeather = async () => {
+    setIsLoading(true);
+    setFailure(null);
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocationName('Accès refusé');
+        setFailure('denied');
         setIsLoading(false);
+        return;
       }
-    })();
+
+      let location = await Location.getCurrentPositionAsync({});
+      const data = await weatherService.fetchWeather(location.coords.latitude, location.coords.longitude);
+      setWeather(data);
+
+      let geocode = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude
+      });
+
+      if (geocode && geocode.length > 0) {
+        setLocationName(geocode[0].city || geocode[0].region || 'Position actuelle');
+      }
+    } catch (error) {
+      console.error('Error fetching weather:', error);
+      setLocationName('Erreur météo');
+      setFailure('error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadWeather();
   }, []);
 
   const getWeatherIcon = (condition?: string) => {
@@ -133,6 +140,44 @@ export const WeatherCard = () => {
   };
 
   const displayHourly = getFilteredHourly();
+
+  // No data: the card becomes a way to fix it instead of a dead "--°"
+  if (!weather) {
+    const denied = failure === 'denied';
+    return (
+      <TouchableOpacity
+        style={[styles.container, { backgroundColor: theme.colors.surface, ...theme.shadows.soft }]}
+        activeOpacity={0.8}
+        onPress={async () => {
+          if (denied) {
+            // Coming back from the OS settings with access granted: just reload
+            const { status } = await Location.getForegroundPermissionsAsync();
+            if (status !== 'granted') {
+              Linking.openSettings();
+              return;
+            }
+          }
+          loadWeather();
+        }}
+      >
+        <Text style={styles.cardHeaderTitle}>CONDITIONS D'ENTRAÎNEMENT</Text>
+        <View style={styles.topRow}>
+          <View style={{ flex: 1, marginRight: 12 }}>
+            <Text style={[styles.location, { color: theme.colors.text }]}>
+              {denied ? 'Météo indisponible' : 'Impossible de charger la météo'}
+            </Text>
+            <Text style={[styles.statText, { color: theme.colors.textSecondary, marginTop: 4 }]}>
+              {denied ? 'Autorise la localisation pour voir vent et pluie sur ta piste.' : 'Vérifie ta connexion.'}
+            </Text>
+            <Text style={[styles.statText, { color: theme.colors.accent, fontWeight: '700', marginTop: 8 }]}>
+              {denied ? 'Activer la localisation' : 'Réessayer'}
+            </Text>
+          </View>
+          <Feather name={denied ? 'map-pin' : 'refresh-cw'} size={28} color={theme.colors.textMuted} />
+        </View>
+      </TouchableOpacity>
+    );
+  }
 
   return (
     <>
