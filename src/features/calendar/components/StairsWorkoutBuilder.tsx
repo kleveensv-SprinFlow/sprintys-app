@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Modal,
   ScrollView,
-  TouchableOpacity,
   TextInput,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -15,7 +14,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
-import { useTheme } from '../../../core/theme';
+import { theme } from '../../../core/theme';
+import { glassCard } from '../../../core/glass';
 import * as Haptics from 'expo-haptics';
 import uuid from 'react-native-uuid';
 import { useAuthStore } from '../../../store/authStore';
@@ -24,7 +24,12 @@ import { workoutService } from '../../../services/workoutService';
 import { coachExerciseService, CoachExercise } from '../../../services/coachExerciseService';
 import { RestTimePickerModal } from './RestTimePickerModal';
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
-import { appAlert } from '../../../shared/feedback/appAlert';
+import { appAlert, toast, confirmAsync } from '../../../shared/feedback/appAlert';
+import { PressableScale } from '../../../shared/components/PressableScale';
+import { IconButton } from '../../../shared/components/IconButton';
+import { Button } from '../../../shared/components/Button';
+import { Input } from '../../../shared/components/Input';
+import { SegmentedControl } from '../../../shared/components/SegmentedControl';
 
 interface StairsWorkoutBuilderProps {
   visible: boolean;
@@ -63,12 +68,10 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
   onSave,
   initialWorkout,
 }) => {
-  const theme = useTheme();
   const insets = useSafeAreaInsets();
   const safeTop = Platform.OS === 'android'
     ? Math.max(insets.top, StatusBar.currentHeight || 24) + 8
     : (insets.top > 0 ? insets.top + 6 : 16);
-  const safeBottom = Math.max(insets.bottom, 16);
 
   const { user } = useAuthStore();
   const { teams, subgroups, teamMembers, fetchTeams, fetchTeamMembers, fetchSubgroups } = useCoachStore();
@@ -114,6 +117,11 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
   const [editingLibraryName, setEditingLibraryName] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Inline validation messages
+  const [formError, setFormError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [setsError, setSetsError] = useState<string | null>(null);
 
   // Approved team members
   const approvedMembers = useMemo(
@@ -212,6 +220,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
       setSessionExercises([]);
       setExerciseName('');
       setEditingId(null);
+      setFormError(null);
     }
   }, [visible]);
 
@@ -281,6 +290,8 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setEditingId(null);
     setExerciseName('');
+    setNameError(null);
+    setSetsError(null);
     // Keep the current manualStairsText, isStairsModeManual, setsCount, restSets, restExercise intact!
     setExTargetType('all');
     setIsExerciseSheetVisible(true);
@@ -291,6 +302,8 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setEditingId(item.id);
     setExerciseName(item.name);
+    setNameError(null);
+    setSetsError(null);
     if (item.stairs !== null && item.stairs !== undefined) {
       setIsStairsModeManual(true);
       setManualStairsText(String(item.stairs));
@@ -310,6 +323,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
   const handleSelectFromLibrary = (ex: CoachExercise) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setExerciseName(ex.name);
+    setNameError(null);
     const stairsStr = ex.default_stairs ? String(ex.default_stairs) : manualStairsText;
     const isManual = !!ex.default_stairs;
     setIsStairsModeManual(isManual);
@@ -329,13 +343,15 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
   const handleSaveExerciseToSession = () => {
     const trimmed = exerciseName.trim();
     if (!trimmed) {
-      appAlert('Nom requis', "Veuillez indiquer le nom de l'exercice d'escalier.");
+      setNameError('Indique le nom de l’exercice.');
       return;
     }
     if (setsCount <= 0) {
-      appAlert('Séries requises', 'Veuillez renseigner au moins 1 série.');
+      setSetsError('Renseigne au moins 1 série.');
       return;
     }
+    setNameError(null);
+    setSetsError(null);
 
     // Persist all stairs & sets settings to memory permanently
     saveStairsMemory(manualStairsText, isStairsModeManual, setsCount, restSets, restExercise);
@@ -390,6 +406,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
       };
       setSessionExercises((prev) => [...prev, newItem]);
     }
+    setFormError(null);
 
     setIsExerciseSheetVisible(false);
   };
@@ -400,23 +417,18 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
   };
 
   // Library actions
-  const handleDeleteFromLibrary = (ex: CoachExercise) => {
-    appAlert(
-      'Supprimer de ma bibliothèque',
-      `Supprimer "${ex.name}" de votre bibliothèque d'escaliers ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
-          onPress: async () => {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            await coachExerciseService.deleteExercise(ex.id);
-            loadLibrary();
-          },
-        },
-      ]
-    );
+  const handleDeleteFromLibrary = async (ex: CoachExercise) => {
+    const confirmed = await confirmAsync({
+      title: 'Supprimer de ma bibliothèque',
+      message: `Supprimer « ${ex.name} » de ta bibliothèque d’escaliers ?`,
+      confirmText: 'Supprimer',
+      destructive: true,
+      icon: 'trash-2',
+    });
+    if (!confirmed) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    await coachExerciseService.deleteExercise(ex.id);
+    loadLibrary();
   };
 
   const handleStartEditLibraryEx = (ex: CoachExercise) => {
@@ -455,22 +467,20 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
   // Submit and assign workout
   const handleSaveWorkout = async () => {
     if (sessionExercises.length === 0) {
-      appAlert(
-        'Séance vide',
-        "Veuillez ajouter au moins un exercice à la séance avant d'enregistrer."
-      );
+      setFormError('Ajoute au moins un exercice avant d’enregistrer.');
       return;
     }
 
     if (targetType === 'subgroup' && !selectedSubgroupId) {
-      appAlert('Sous-groupe requis', 'Veuillez sélectionner un sous-groupe cible.');
+      setFormError('Choisis un sous-groupe cible.');
       return;
     }
 
     if (targetType === 'athlete' && !selectedAthleteId) {
-      appAlert('Athlète requis', 'Veuillez sélectionner un athlète cible.');
+      setFormError('Choisis un athlète cible.');
       return;
     }
+    setFormError(null);
 
     if (!user?.id) return;
 
@@ -520,7 +530,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
         if (approvedMembers.length === 0) {
           appAlert(
             'Aucun athlète',
-            "Aucun athlète validé n'a été trouvé dans votre équipe pour recevoir cette séance."
+            'Aucun athlète validé n’a été trouvé dans ton équipe pour recevoir cette séance.'
           );
           setIsSubmitting(false);
           return;
@@ -595,7 +605,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
       } else if (targetType === 'subgroup') {
         const subMembers = approvedMembers.filter((m) => m.subgroup_id === selectedSubgroupId);
         if (subMembers.length === 0) {
-          appAlert('Sous-groupe vide', "Aucun athlète validé n'est présent dans ce sous-groupe.");
+          appAlert('Sous-groupe vide', 'Aucun athlète validé n’est présent dans ce sous-groupe.');
           setIsSubmitting(false);
           return;
         }
@@ -670,11 +680,12 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
       );
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      toast('success', 'Séance escalier enregistrée.');
       onSave();
       onClose();
     } catch (err: any) {
       console.error('Error saving stairs workout:', err);
-      appAlert('Erreur', err?.message || "Impossible d'enregistrer la séance. Veuillez réessayer.");
+      appAlert('Erreur', err?.message || 'Impossible d’enregistrer la séance. Réessaie.');
     } finally {
       setIsSubmitting(false);
     }
@@ -688,145 +699,149 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
     return `${secs}s`;
   };
 
+
+  const hasExercises = sessionExercises.length > 0;
+
+  const renderChip = (key: string, label: string, isSelected: boolean, onPress: () => void) => (
+    <PressableScale
+      key={key}
+      haptic="selection"
+      hitSlop={{ top: 4, bottom: 4 }}
+      accessibilityRole="button"
+      accessibilityState={{ selected: isSelected }}
+      onPress={onPress}
+      style={[styles.chip, isSelected ? styles.chipSelected : styles.chipIdle]}
+    >
+      <Text style={[styles.chipText, { color: isSelected ? theme.colors.sprintyBlue : theme.colors.text }]} numberOfLines={1}>
+        {label}
+      </Text>
+    </PressableScale>
+  );
+
+  const renderTargetChips = (
+    mode: string,
+    subgroupId: string | null,
+    onSubgroup: (id: string) => void,
+    athleteId: string | null,
+    onAthlete: (id: string) => void
+  ) => {
+    if (mode === 'subgroup') {
+      if (subgroups.length === 0) return <Text style={styles.emptyHint}>Aucun sous-groupe dans ton équipe.</Text>;
+      return (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subScroll} contentContainerStyle={styles.subScrollContent}>
+          {subgroups.map((sg) => renderChip(sg.id, sg.name, subgroupId === sg.id, () => onSubgroup(sg.id)))}
+        </ScrollView>
+      );
+    }
+    if (mode === 'athlete') {
+      if (approvedMembers.length === 0) return <Text style={styles.emptyHint}>Aucun athlète validé dans ton équipe.</Text>;
+      return (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subScroll} contentContainerStyle={styles.subScrollContent}>
+          {approvedMembers.map((m) => {
+            const prof = (Array.isArray(m.profile) ? m.profile[0] : m.profile) as any;
+            const name = prof?.full_name?.trim() || 'Athlète';
+            return renderChip(m.user_id, name, athleteId === m.user_id, () => onAthlete(m.user_id));
+          })}
+        </ScrollView>
+      );
+    }
+    return null;
+  };
+
+  const pickFromLibrary = (ex: CoachExercise) => {
+    handleSelectFromLibrary(ex);
+    setIsManageLibraryVisible(false);
+    setIsExerciseSheetVisible(true);
+  };
+
+  const closeLibrary = () => {
+    setIsManageLibraryVisible(false);
+    setEditingLibraryEx(null);
+  };
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <FeedbackHost />
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        {/* Top Header */}
-        <View style={[styles.header, { paddingTop: safeTop, borderBottomColor: theme.colors.border }]}>
-          <TouchableOpacity onPress={onClose} style={styles.headerTextBtn}>
-            <Text style={[styles.headerCancelText, { color: theme.colors.textSecondary }]}>Annuler</Text>
-          </TouchableOpacity>
+      <View style={styles.container}>
+        {/* Sheet header */}
+        <View style={[styles.header, { paddingTop: safeTop }]}>
+          <IconButton icon="x" accessibilityLabel="Fermer" onPress={onClose} />
 
           <View style={styles.headerCenter}>
-            <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Séance Escalier</Text>
-            <Text style={[styles.headerSubtitle, { color: theme.colors.textSecondary }]}>
-              {date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
+            <Text style={styles.headerTitle} numberOfLines={1}>Séance escalier</Text>
+            <Text style={styles.headerSubtitle} numberOfLines={1}>
+              {date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
             </Text>
           </View>
 
-          <TouchableOpacity
+          <PressableScale
+            haptic="none"
             onPress={handleSaveWorkout}
-            disabled={isSubmitting || sessionExercises.length === 0}
-            style={[
-              styles.headerSaveBtn,
-              {
-                backgroundColor: sessionExercises.length > 0 ? '#0F172A' : theme.colors.border,
-              },
-            ]}
+            disabled={isSubmitting}
+            accessibilityRole="button"
+            accessibilityLabel="Enregistrer"
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            style={[styles.savePill, !hasExercises && styles.savePillDimmed]}
           >
             {isSubmitting ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+              <ActivityIndicator size="small" color={theme.colors.surface} />
             ) : (
-              <Text style={styles.headerSaveBtnText}>Valider</Text>
+              <Text style={styles.savePillText}>Enregistrer</Text>
             )}
-          </TouchableOpacity>
+          </PressableScale>
         </View>
 
-        <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          {/* Section: CIBLE */}
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>CIBLE DE LA SÉANCE</Text>
-          </View>
-
-          <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-            <View style={styles.segmentedControl}>
-              {[
-                { id: 'team', label: 'Tout le groupe' },
-                { id: 'subgroup', label: 'Sous-groupe' },
-                { id: 'athlete', label: 'Athlète' },
-              ].map((t) => {
-                const isSelected = targetType === t.id;
-                return (
-                  <TouchableOpacity
-                    key={t.id}
-                    style={[
-                      styles.segmentBtn,
-                      isSelected && [styles.segmentBtnActive, { backgroundColor: theme.colors.background }],
-                    ]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setTargetType(t.id as any);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.segmentBtnText,
-                        { color: isSelected ? theme.colors.text : theme.colors.textSecondary },
-                      ]}
-                    >
-                      {t.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+        <ScrollView
+          style={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.scrollContent}
+        >
+          {formError && (
+            <View style={styles.errorNotice}>
+              <Feather name="alert-circle" size={16} color={theme.colors.error} />
+              <Text style={styles.errorNoticeText}>{formError}</Text>
             </View>
+          )}
 
-            {targetType === 'subgroup' && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subScroll}>
-                {subgroups.map((sg) => {
-                  const isSelected = selectedSubgroupId === sg.id;
-                  return (
-                    <TouchableOpacity
-                      key={sg.id}
-                      style={[
-                        styles.chip,
-                        {
-                          backgroundColor: isSelected ? '#0069E8' + '20' : theme.colors.background,
-                          borderColor: isSelected ? '#0069E8' : theme.colors.border,
-                        },
-                      ]}
-                      onPress={() => setSelectedSubgroupId(sg.id)}
-                    >
-                      <Text style={[styles.chipText, { color: isSelected ? '#0069E8' : theme.colors.text }]}>
-                        {sg.name}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            )}
-
-            {targetType === 'athlete' && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subScroll}>
-                {approvedMembers.map((m) => {
-                  const isSelected = selectedAthleteId === m.user_id;
-                  const prof = (Array.isArray(m.profile) ? m.profile[0] : m.profile) as any;
-                  const name = prof?.full_name?.trim() || 'Athlète';
-                  return (
-                    <TouchableOpacity
-                      key={m.user_id}
-                      style={[
-                        styles.chip,
-                        {
-                          backgroundColor: isSelected ? '#0069E8' + '20' : theme.colors.background,
-                          borderColor: isSelected ? '#0069E8' : theme.colors.border,
-                        },
-                      ]}
-                      onPress={() => setSelectedAthleteId(m.user_id)}
-                    >
-                      <Text style={[styles.chipText, { color: isSelected ? '#0069E8' : theme.colors.text }]}>
-                        {name}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            )}
-          </View>
-
-          {/* Section: CONSIGNES */}
-          <View style={styles.sectionHeaderBetween}>
-            <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>CONSIGNES DE SÉANCE</Text>
-          </View>
-          <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-            <TextInput
-              style={[
-                styles.notesInput,
-                { color: theme.colors.text }
+          {/* Target */}
+          <Text style={[styles.sectionCaption, styles.sectionCaptionFirst]}>Cible de la séance</Text>
+          <View style={glassCard}>
+            <SegmentedControl
+              options={[
+                { key: 'team', label: 'Tout le groupe' },
+                { key: 'subgroup', label: 'Sous-groupe' },
+                { key: 'athlete', label: 'Athlète' },
               ]}
-              placeholder="Ajouter une note ou des consignes pour cette séance..."
+              value={targetType}
+              onChange={(k) => {
+                setFormError(null);
+                setTargetType(k);
+              }}
+            />
+            {renderTargetChips(
+              targetType,
+              selectedSubgroupId,
+              (id) => {
+                setFormError(null);
+                setSelectedSubgroupId(id);
+              },
+              selectedAthleteId,
+              (id) => {
+                setFormError(null);
+                setSelectedAthleteId(id);
+              }
+            )}
+          </View>
+
+          {/* Notes */}
+          <Text style={styles.sectionCaption}>Consignes de séance</Text>
+          <View style={[glassCard, styles.cardFlush]}>
+            <TextInput
+              style={styles.notesInput}
+              placeholder="Ajoute une note ou des consignes pour cette séance…"
               placeholderTextColor={theme.colors.textMuted}
+              selectionColor={theme.colors.sprintyBlue}
               multiline
               value={sessionNotes}
               onChangeText={setSessionNotes}
@@ -834,146 +849,125 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
             />
           </View>
 
-          {/* Section: EXERCICES DE LA SÉANCE */}
-          <View style={styles.sectionHeaderBetween}>
-            <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>
-              EXERCICES ({sessionExercises.length})
-            </Text>
-          </View>
+          {/* Exercises */}
+          <Text style={styles.sectionCaption}>Exercices ({sessionExercises.length})</Text>
 
-          {sessionExercises.length === 0 ? (
-            <View style={[styles.emptyBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              <View style={[styles.emptyIconCircle, { backgroundColor: '#0069E8' + '15' }]}>
-                <Feather name="trending-up" size={24} color={'#0069E8'} />
+          {!hasExercises ? (
+            <View style={[glassCard, styles.emptyCard]}>
+              <View style={styles.emptyIconCircle}>
+                <Feather name="trending-up" size={22} color={theme.colors.sprintyBlue} />
               </View>
-              <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Aucun exercice ajouté</Text>
-              <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
-                Composez votre séance en ajoutant un premier exercice ci-dessous.
+              <Text style={styles.emptyTitle}>Aucun exercice ajouté</Text>
+              <Text style={styles.emptySubtitle}>
+                Compose ta séance en ajoutant un premier exercice.
               </Text>
 
-              <View style={styles.actionButtonsContainer}>
-                <TouchableOpacity
-                  style={[styles.primaryActionBtn, { backgroundColor: '#0069E8' }]}
-                  onPress={handleOpenAddSheet}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.primaryActionIconBox}>
-                    <Feather name="plus" size={17} color="#FFFFFF" />
-                  </View>
-                  <Text style={styles.primaryActionText}>Ajouter un exercice</Text>
-                </TouchableOpacity>
+              <View style={styles.emptyActions}>
+                <Button title="Ajouter un exercice" onPress={handleOpenAddSheet} />
 
                 {savedExercises.length > 0 && (
-                  <TouchableOpacity
-                    style={[
-                      styles.secondaryActionBtn,
-                      { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-                    ]}
+                  <PressableScale
                     onPress={() => setIsManageLibraryVisible(true)}
-                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    style={styles.secondaryActionBtn}
                   >
-                    <View style={[styles.secondaryActionIconBox, { backgroundColor: '#0069E8' + '15' }]}>
-                      <Feather name="bookmark" size={15} color={'#0069E8'} />
+                    <Feather name="bookmark" size={16} color={theme.colors.sprintyBlue} />
+                    <Text style={styles.secondaryActionText}>Depuis ma bibliothèque</Text>
+                    <View style={styles.countBadge}>
+                      <Text style={styles.countBadgeText}>{savedExercises.length}</Text>
                     </View>
-                    <Text style={[styles.secondaryActionText, { color: theme.colors.text }]}>
-                      Depuis ma bibliothèque
-                    </Text>
-                    <View style={[styles.countBadge, { backgroundColor: '#0069E8' + '15' }]}>
-                      <Text style={[styles.countBadgeText, { color: '#0069E8' }]}>
-                        {savedExercises.length}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
+                  </PressableScale>
                 )}
               </View>
             </View>
           ) : (
-            <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              {sessionExercises.map((item, index) => {
-                const isLast = index === sessionExercises.length - 1;
-                return (
-                  <View
-                    key={item.id}
-                    style={[
-                      styles.exerciseRow,
-                      !isLast && [styles.rowBorder, { borderBottomColor: theme.colors.border }],
-                    ]}
+            <View style={[glassCard, styles.cardFlush]}>
+              {sessionExercises.map((item, index) => (
+                <View key={item.id} style={[styles.exerciseRow, index > 0 && styles.rowDividerTop]}>
+                  <View style={styles.badgeNumber}>
+                    <Text style={styles.badgeNumberText}>{index + 1}</Text>
+                  </View>
+
+                  <PressableScale
+                    containerStyle={styles.exerciseRowCenter}
+                    activeScale={0.98}
+                    onPress={() => handleStartEdit(item)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Modifier ${item.name}`}
                   >
-                    <View style={[styles.badgeNumber, { backgroundColor: '#0069E8' }]}>
-                      <Text style={styles.badgeNumberText}>{index + 1}</Text>
-                    </View>
-
-                    <TouchableOpacity style={styles.exerciseRowCenter} onPress={() => handleStartEdit(item)} activeOpacity={0.7}>
-                      <View style={styles.exerciseNameLine}>
-                        <Text style={[styles.exerciseRowName, { color: theme.colors.text }]} numberOfLines={1}>
-                          {item.name}
-                        </Text>
-                        {item.target?.type !== 'all' && (
-                          <View style={[styles.targetMiniBadge, { backgroundColor: '#0069E8' + '20' }]}>
-                            <Text style={[styles.targetMiniBadgeText, { color: '#0069E8' }]}>
-                              {item.target?.name}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text style={[styles.exerciseRowSubtitle, { color: theme.colors.textSecondary }]}>
-                        {item.stairs ? `${item.stairs} marches` : 'Libre'}  •  {item.setsCount} séries  •  Réc. {formatRestDisplay(item.restSets)}
+                    <View style={styles.exerciseNameLine}>
+                      <Text style={styles.exerciseRowName} numberOfLines={1}>
+                        {item.name}
                       </Text>
-                    </TouchableOpacity>
-
-                    <View style={styles.exerciseRowActions}>
-                      <TouchableOpacity onPress={() => handleStartEdit(item)} style={styles.iconHit}>
-                        <Feather name="edit-2" size={15} color={theme.colors.textSecondary} />
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleRemoveExercise(item.id)} style={styles.iconHit}>
-                        <Feather name="trash-2" size={15} color={theme.colors.error} />
-                      </TouchableOpacity>
+                      {item.target?.type !== 'all' && (
+                        <View style={styles.targetMiniBadge}>
+                          <Text style={styles.targetMiniBadgeText} numberOfLines={1}>
+                            {item.target?.name}
+                          </Text>
+                        </View>
+                      )}
                     </View>
-                  </View>
-                );
-              })}
+                    <Text style={styles.exerciseRowSubtitle} numberOfLines={1}>
+                      {item.stairs ? `${item.stairs} marches` : 'Libre'}  ·  {item.setsCount} séries  ·  Récup. {formatRestDisplay(item.restSets)}
+                    </Text>
+                  </PressableScale>
 
-              {/* Add More Button */}
-              <TouchableOpacity
-                style={[styles.addMoreRow, { borderTopColor: theme.colors.border }]}
-                onPress={handleOpenAddSheet}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.actionRowIconCircle, { backgroundColor: '#0069E8' + '15' }]}>
-                  <Feather name="plus" size={14} color={'#0069E8'} />
+                  <View style={styles.exerciseRowActions}>
+                    <IconButton
+                      icon="edit-2"
+                      tone="plain"
+                      size={34}
+                      accessibilityLabel={`Modifier ${item.name}`}
+                      onPress={() => handleStartEdit(item)}
+                    />
+                    <IconButton
+                      icon="trash-2"
+                      tone="danger"
+                      size={34}
+                      accessibilityLabel={`Retirer ${item.name}`}
+                      onPress={() => handleRemoveExercise(item.id)}
+                    />
+                  </View>
                 </View>
-                <Text style={[styles.addMoreRowText, { color: '#0069E8' }]}>Ajouter un autre exercice</Text>
-              </TouchableOpacity>
+              ))}
 
-              {/* Secondary Button: Pick from Library */}
+              <PressableScale
+                onPress={handleOpenAddSheet}
+                activeScale={0.98}
+                accessibilityRole="button"
+                style={[styles.actionRow, styles.rowDividerTop]}
+              >
+                <View style={styles.actionRowIconCircle}>
+                  <Feather name="plus" size={15} color={theme.colors.sprintyBlue} />
+                </View>
+                <Text style={[styles.actionRowText, { color: theme.colors.sprintyBlue }]}>Ajouter un autre exercice</Text>
+              </PressableScale>
+
               {savedExercises.length > 0 && (
-                <TouchableOpacity
-                  style={[styles.addMoreRow, { borderTopColor: theme.colors.border }]}
+                <PressableScale
                   onPress={() => setIsManageLibraryVisible(true)}
-                  activeOpacity={0.7}
+                  activeScale={0.98}
+                  accessibilityRole="button"
+                  style={[styles.actionRow, styles.rowDividerTop]}
                 >
-                  <View style={[styles.actionRowIconCircle, { backgroundColor: '#0069E8' + '15' }]}>
-                    <Feather name="bookmark" size={13} color={'#0069E8'} />
+                  <View style={styles.actionRowIconCircle}>
+                    <Feather name="bookmark" size={14} color={theme.colors.sprintyBlue} />
                   </View>
-                  <Text style={[styles.addMoreRowText, { color: theme.colors.text }]}>
-                    Depuis ma bibliothèque
-                  </Text>
-                  <View style={[styles.countBadge, { backgroundColor: theme.colors.surfaceLight, marginLeft: 'auto' }]}>
+                  <Text style={styles.actionRowText}>Depuis ma bibliothèque</Text>
+                  <View style={[styles.countBadge, styles.countBadgeNeutral]}>
                     <Text style={[styles.countBadgeText, { color: theme.colors.textSecondary }]}>
                       {savedExercises.length}
                     </Text>
                   </View>
-                </TouchableOpacity>
+                </PressableScale>
               )}
             </View>
           )}
-
-          <View style={{ height: 40 }} />
         </ScrollView>
 
-        {/* ========================================================================= */}
-        {/* SHEET MODAL: ADD / EDIT EXERCISE (Dedicated Apple Form Sheet)             */}
-        {/* ========================================================================= */}
+        {/* ===================================================================== */}
+        {/* SHEET: ADD / EDIT EXERCISE                                            */}
+        {/* ===================================================================== */}
         <Modal
           visible={isExerciseSheetVisible}
           animationType="slide"
@@ -985,430 +979,305 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
             style={{ flex: 1 }}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           >
-            <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-              {/* Sheet Header */}
-              <View style={[styles.header, { paddingTop: safeTop, borderBottomColor: theme.colors.border }]}>
-                <TouchableOpacity onPress={() => setIsExerciseSheetVisible(false)} style={styles.headerTextBtn}>
-                  <Text style={[styles.headerCancelText, { color: theme.colors.textSecondary }]}>Annuler</Text>
-                </TouchableOpacity>
+            <View style={styles.container}>
+              <View style={[styles.header, { paddingTop: safeTop }]}>
+                <IconButton icon="x" accessibilityLabel="Fermer" onPress={() => setIsExerciseSheetVisible(false)} />
 
-                <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-                  {editingId ? "Modifier l'exercice" : 'Nouvel exercice'}
-                </Text>
+                <View style={styles.headerCenter}>
+                  <Text style={styles.headerTitle} numberOfLines={1}>
+                    {editingId ? 'Modifier l’exercice' : 'Nouvel exercice'}
+                  </Text>
+                </View>
 
-                <View style={{ width: 60 }} />
+                <PressableScale
+                  haptic="none"
+                  onPress={handleSaveExerciseToSession}
+                  accessibilityRole="button"
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  style={styles.savePill}
+                >
+                  <Text style={styles.savePillText}>{editingId ? 'Valider' : 'Ajouter'}</Text>
+                </PressableScale>
               </View>
 
-              <ScrollView 
-                style={styles.scroll} 
-                contentContainerStyle={[styles.scrollContent, { paddingBottom: 280 }]} 
+              <ScrollView
+                style={styles.scroll}
+                contentContainerStyle={[styles.scrollContent, { paddingBottom: 280 }]}
                 showsVerticalScrollIndicator={false}
                 keyboardDismissMode="interactive"
                 keyboardShouldPersistTaps="handled"
               >
-                {/* Field 1: Name */}
-                <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>EXERCICE</Text>
-                </View>
-                <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                  <TextInput
-                    style={[styles.sheetInput, { color: theme.colors.text }]}
-                    placeholder="Nom de l'exercice (ex. Montée 2 par 2)"
-                    placeholderTextColor={theme.colors.textMuted}
+                {/* Name */}
+                <Text style={[styles.sectionCaption, styles.sectionCaptionFirst]}>Exercice</Text>
+                <View style={glassCard}>
+                  <Input
+                    placeholder="Nom de l’exercice (ex. montée 2 par 2)"
                     value={exerciseName}
-                    onChangeText={setExerciseName}
+                    onChangeText={(v) => {
+                      setExerciseName(v);
+                      if (nameError) setNameError(null);
+                    }}
                     maxLength={40}
+                    error={nameError ?? undefined}
+                    containerStyle={styles.inputNoMargin}
                   />
                 </View>
 
-                {/* Field 2: Target (Only if session is general team) */}
+                {/* Target (only when the session targets the whole team) */}
                 {targetType === 'team' && (
                   <>
-                    <View style={styles.sectionHeader}>
-                      <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>ATTRIBUER À</Text>
-                    </View>
-                    <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                      <View style={styles.segmentedControl}>
-                        {[
-                          { id: 'all', label: 'Tout le groupe' },
-                          { id: 'subgroup', label: 'Sous-groupe' },
-                          { id: 'athlete', label: 'Athlète' },
-                        ].map((t) => {
-                          const isSelected = exTargetType === t.id;
-                          return (
-                            <TouchableOpacity
-                              key={t.id}
-                              style={[
-                                styles.segmentBtn,
-                                isSelected && [styles.segmentBtnActive, { backgroundColor: theme.colors.background }],
-                              ]}
-                              onPress={() => {
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                setExTargetType(t.id as any);
-                              }}
-                            >
-                              <Text
-                                style={[
-                                  styles.segmentBtnText,
-                                  { color: isSelected ? theme.colors.text : theme.colors.textSecondary },
-                                ]}
-                              >
-                                {t.label}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-
-                      {exTargetType === 'subgroup' && (
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subScroll}>
-                          {subgroups.map((sg) => {
-                            const isSelected = exTargetSubgroupId === sg.id;
-                            return (
-                              <TouchableOpacity
-                                key={sg.id}
-                                style={[
-                                  styles.chip,
-                                  {
-                                    backgroundColor: isSelected ? '#0069E8' + '20' : theme.colors.background,
-                                    borderColor: isSelected ? '#0069E8' : theme.colors.border,
-                                  },
-                                ]}
-                                onPress={() => setExTargetSubgroupId(sg.id)}
-                              >
-                                <Text style={[styles.chipText, { color: isSelected ? '#0069E8' : theme.colors.text }]}>
-                                  {sg.name}
-                                </Text>
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </ScrollView>
-                      )}
-
-                      {exTargetType === 'athlete' && (
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subScroll}>
-                          {approvedMembers.map((m) => {
-                            const isSelected = exTargetAthleteId === m.user_id;
-                            const prof = (Array.isArray(m.profile) ? m.profile[0] : m.profile) as any;
-                            const name = prof?.full_name?.trim() || 'Athlète';
-                            return (
-                              <TouchableOpacity
-                                key={m.user_id}
-                                style={[
-                                  styles.chip,
-                                  {
-                                    backgroundColor: isSelected ? '#0069E8' + '20' : theme.colors.background,
-                                    borderColor: isSelected ? '#0069E8' : theme.colors.border,
-                                  },
-                                ]}
-                                onPress={() => setExTargetAthleteId(m.user_id)}
-                              >
-                                <Text style={[styles.chipText, { color: isSelected ? '#0069E8' : theme.colors.text }]}>
-                                  {name}
-                                </Text>
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </ScrollView>
+                    <Text style={styles.sectionCaption}>Attribuer à</Text>
+                    <View style={glassCard}>
+                      <SegmentedControl
+                        options={[
+                          { key: 'all', label: 'Tout le groupe' },
+                          { key: 'subgroup', label: 'Sous-groupe' },
+                          { key: 'athlete', label: 'Athlète' },
+                        ]}
+                        value={exTargetType}
+                        onChange={setExTargetType}
+                      />
+                      {renderTargetChips(
+                        exTargetType,
+                        exTargetSubgroupId,
+                        setExTargetSubgroupId,
+                        exTargetAthleteId,
+                        setExTargetAthleteId
                       )}
                     </View>
                   </>
                 )}
 
-                {/* Field 3: Marches & Séries */}
-                <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>RÉPÉTITIONS & SÉRIES</Text>
-                </View>
-                <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                  {/* Marches Mode Selection */}
+                {/* Stairs & sets */}
+                <Text style={styles.sectionCaption}>Répétitions et séries</Text>
+                <View style={[glassCard, styles.cardFlush]}>
                   <View style={styles.settingRow}>
-                    <View style={{ flex: 1, marginRight: 10 }}>
-                      <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Format des répétitions</Text>
-                      <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>
+                    <View style={styles.settingTextCol}>
+                      <Text style={styles.settingLabel}>Format des répétitions</Text>
+                      <Text style={styles.settingHint}>
                         {isStairsModeManual ? `${manualStairsText || '0'} marches par série` : 'Libre (sans compter les marches)'}
                       </Text>
                     </View>
-
-                    <View style={styles.stairsModeWrapper}>
-                      <TouchableOpacity
-                        style={[
-                          styles.stairsPillBtn,
-                          !isStairsModeManual && [styles.stairsPillActive, { backgroundColor: '#0069E8' }],
-                        ]}
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          setIsStairsModeManual(false);
-                          saveStairsMemory(manualStairsText, false, setsCount, restSets, restExercise);
-                        }}
-                      >
-                        <Text style={[styles.stairsPillText, { color: !isStairsModeManual ? '#FFF' : theme.colors.textSecondary }]}>
-                          Libre
-                        </Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={[
-                          styles.stairsPillBtn,
-                          isStairsModeManual && [styles.stairsPillActive, { backgroundColor: '#0069E8' }],
-                        ]}
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          setIsStairsModeManual(true);
-                          saveStairsMemory(manualStairsText, true, setsCount, restSets, restExercise);
-                        }}
-                      >
-                        <Text style={[styles.stairsPillText, { color: isStairsModeManual ? '#FFF' : theme.colors.textSecondary }]}>
-                          Saisir
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
+                    <SegmentedControl
+                      style={styles.modeSegmented}
+                      options={[
+                        { key: 'free', label: 'Libre' },
+                        { key: 'manual', label: 'Saisir' },
+                      ]}
+                      value={isStairsModeManual ? 'manual' : 'free'}
+                      onChange={(k) => {
+                        const manual = k === 'manual';
+                        setIsStairsModeManual(manual);
+                        saveStairsMemory(manualStairsText, manual, setsCount, restSets, restExercise);
+                      }}
+                    />
                   </View>
 
-                  {/* Explicit Input Row when "Saisir" is active */}
                   {isStairsModeManual && (
-                    <>
-                      <View style={[styles.rowDivider, { backgroundColor: theme.colors.border }]} />
-                      <View style={styles.settingRow}>
-                        <View style={{ flex: 1, marginRight: 10 }}>
-                          <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Nombre de marches</Text>
-                          <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>
-                            Saisir le nombre de marches à monter
-                          </Text>
-                        </View>
-                        <View style={styles.stairsInputContainer}>
-                          <TextInput
-                            style={[
-                              styles.stairsDetailedInput,
-                              {
-                                backgroundColor: theme.colors.background,
-                                color: theme.colors.text,
-                                borderColor: theme.colors.border,
-                              },
-                            ]}
-                            keyboardType="number-pad"
-                            placeholder="20"
-                            placeholderTextColor={theme.colors.textMuted}
-                            value={manualStairsText}
-                            onChangeText={(val) => {
-                              setManualStairsText(val);
-                              saveStairsMemory(val, true, setsCount, restSets, restExercise);
-                            }}
-                            maxLength={4}
-                          />
-                          <Text style={[styles.stairsSuffixText, { color: theme.colors.textSecondary }]}>marches</Text>
-                        </View>
+                    <View style={[styles.settingRow, styles.rowDividerTop]}>
+                      <View style={styles.settingTextCol}>
+                        <Text style={styles.settingLabel}>Nombre de marches</Text>
+                        <Text style={styles.settingHint}>Par montée</Text>
                       </View>
-                    </>
+                      <View style={styles.stairsInputContainer}>
+                        <TextInput
+                          style={styles.stairsInput}
+                          keyboardType="number-pad"
+                          placeholder="20"
+                          placeholderTextColor={theme.colors.textMuted}
+                          selectionColor={theme.colors.sprintyBlue}
+                          value={manualStairsText}
+                          onChangeText={(val) => {
+                            setManualStairsText(val);
+                            saveStairsMemory(val, true, setsCount, restSets, restExercise);
+                          }}
+                          maxLength={4}
+                          accessibilityLabel="Nombre de marches"
+                        />
+                        <Text style={styles.stairsSuffixText}>marches</Text>
+                      </View>
+                    </View>
                   )}
 
-                  {/* Divider */}
-                  <View style={[styles.rowDivider, { backgroundColor: theme.colors.border }]} />
-
-                  {/* Séries Stepper Row */}
-                  <View style={styles.settingRow}>
-                    <View style={{ flex: 1, marginRight: 10 }}>
-                      <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Nombre de séries</Text>
-                      <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>
-                        {setsCount} {setsCount > 1 ? 'séries au total' : 'série'}
+                  <View style={[styles.settingRow, styles.rowDividerTop]}>
+                    <View style={styles.settingTextCol}>
+                      <Text style={styles.settingLabel}>Nombre de séries</Text>
+                      <Text style={[styles.settingHint, setsError ? { color: theme.colors.error } : null]}>
+                        {setsError ?? `${setsCount} ${setsCount > 1 ? 'séries au total' : 'série'}`}
                       </Text>
                     </View>
                     <View style={styles.stepperContainer}>
-                      <TouchableOpacity
-                        style={[styles.stepperActionBtn, { backgroundColor: theme.colors.background }]}
+                      <IconButton
+                        icon="minus"
+                        size={36}
+                        accessibilityLabel="Retirer une série"
+                        disabled={setsCount <= 1}
                         onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                           const next = Math.max(1, setsCount - 1);
                           setSetsCount(next);
                           saveStairsMemory(manualStairsText, isStairsModeManual, next, restSets, restExercise);
                         }}
-                      >
-                        <Feather name="minus" size={16} color={theme.colors.text} />
-                      </TouchableOpacity>
-
-                      <Text style={[styles.stepperNumberText, { color: theme.colors.text }]}>
-                        {setsCount}
-                      </Text>
-
-                      <TouchableOpacity
-                        style={[styles.stepperActionBtn, { backgroundColor: theme.colors.background }]}
+                      />
+                      <Text style={styles.stepperNumberText}>{setsCount}</Text>
+                      <IconButton
+                        icon="plus"
+                        size={36}
+                        accessibilityLabel="Ajouter une série"
                         onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                           const next = setsCount + 1;
                           setSetsCount(next);
+                          setSetsError(null);
                           saveStairsMemory(manualStairsText, isStairsModeManual, next, restSets, restExercise);
                         }}
-                      >
-                        <Feather name="plus" size={16} color={theme.colors.text} />
-                      </TouchableOpacity>
+                      />
                     </View>
                   </View>
                 </View>
 
-                {/* Field 4: Temps de Repos */}
-                <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>RÉCUPÉRATION</Text>
-                </View>
-                <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                  {/* Repos Séries */}
-                  <TouchableOpacity style={styles.settingRow} onPress={() => openRestPicker('sets')} activeOpacity={0.6}>
-                    <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Entre les séries</Text>
+                {/* Rest */}
+                <Text style={styles.sectionCaption}>Récupération</Text>
+                <View style={[glassCard, styles.cardFlush]}>
+                  <PressableScale
+                    haptic="selection"
+                    activeScale={0.98}
+                    onPress={() => openRestPicker('sets')}
+                    accessibilityRole="button"
+                    style={styles.settingRow}
+                  >
+                    <Text style={styles.settingLabel}>Entre les séries</Text>
                     <View style={styles.settingRight}>
-                      <Text style={[styles.settingValueText, { color: '#0069E8' }]}>
-                        {formatRestDisplay(restSets)}
-                      </Text>
-                      <Feather name="chevron-right" size={14} color={theme.colors.textMuted} />
+                      <Text style={styles.settingValueText}>{formatRestDisplay(restSets)}</Text>
+                      <Feather name="chevron-right" size={16} color={theme.colors.textMuted} />
                     </View>
-                  </TouchableOpacity>
+                  </PressableScale>
 
-                  <View style={[styles.rowDivider, { backgroundColor: theme.colors.border }]} />
-
-                  {/* Repos Exercice */}
-                  <TouchableOpacity style={styles.settingRow} onPress={() => openRestPicker('exercise')} activeOpacity={0.6}>
-                    <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Fin d'exercice</Text>
+                  <PressableScale
+                    haptic="selection"
+                    activeScale={0.98}
+                    onPress={() => openRestPicker('exercise')}
+                    accessibilityRole="button"
+                    style={[styles.settingRow, styles.rowDividerTop]}
+                  >
+                    <Text style={styles.settingLabel}>Fin d’exercice</Text>
                     <View style={styles.settingRight}>
-                      <Text style={[styles.settingValueText, { color: '#0069E8' }]}>
-                        {formatRestDisplay(restExercise)}
-                      </Text>
-                      <Feather name="chevron-right" size={14} color={theme.colors.textMuted} />
+                      <Text style={styles.settingValueText}>{formatRestDisplay(restExercise)}</Text>
+                      <Feather name="chevron-right" size={16} color={theme.colors.textMuted} />
                     </View>
-                  </TouchableOpacity>
+                  </PressableScale>
                 </View>
 
-                {/* Bottom Add Action Button */}
-                <TouchableOpacity
-                  style={[styles.submitSheetBtn, { backgroundColor: '#0069E8' }]}
+                <Button
+                  title={editingId ? 'Mettre à jour l’exercice' : 'Ajouter à la séance'}
                   onPress={handleSaveExerciseToSession}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.submitSheetBtnText}>
-                    {editingId ? "Mettre à jour l'exercice" : 'Ajouter à la séance'}
-                  </Text>
-                </TouchableOpacity>
-
-                <View style={{ height: 40 }} />
+                  style={styles.submitSheetBtn}
+                />
               </ScrollView>
             </View>
           </KeyboardAvoidingView>
         </Modal>
 
-        {/* Modal: Wheel Picker for Rest Time */}
+        {/* Rest time wheel picker */}
         <RestTimePickerModal
           visible={isRestPickerVisible}
-          title={restPickerTarget === 'sets' ? 'Repos entre les séries' : "Repos après l'exercice"}
+          title={restPickerTarget === 'sets' ? 'Repos entre les séries' : 'Repos après l’exercice'}
           initialSeconds={restPickerTarget === 'sets' ? restSets : restExercise}
           onClose={() => setIsRestPickerVisible(false)}
           onConfirm={handleConfirmRestPicker}
         />
 
-        {/* Modal: Manage Coach Library */}
+        {/* Coach library */}
         <Modal
           visible={isManageLibraryVisible}
           animationType="slide"
           presentationStyle="formSheet"
-          onRequestClose={() => setIsManageLibraryVisible(false)}
+          onRequestClose={closeLibrary}
         >
           <FeedbackHost />
-          <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-            <View style={[styles.header, { paddingTop: safeTop, borderBottomColor: theme.colors.border }]}>
-              <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Ma bibliothèque d'escaliers</Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setIsManageLibraryVisible(false);
-                  setEditingLibraryEx(null);
-                }}
-                style={styles.headerTextBtn}
-              >
-                <Text style={[styles.headerCancelText, { color: '#0069E8' }]}>Fermer</Text>
-              </TouchableOpacity>
+          <View style={styles.container}>
+            <View style={[styles.header, { paddingTop: safeTop }]}>
+              <IconButton icon="x" accessibilityLabel="Fermer" onPress={closeLibrary} />
+              <View style={styles.headerCenter}>
+                <Text style={styles.headerTitle} numberOfLines={1}>Ma bibliothèque</Text>
+                <Text style={styles.headerSubtitle} numberOfLines={1}>Exercices d’escalier</Text>
+              </View>
+              <View style={styles.headerSpacer} />
             </View>
 
-            <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+            <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
               {editingLibraryEx && (
-                <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, marginBottom: 16 }]}>
-                  <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary, marginBottom: 8 }]}>RENOMMER</Text>
-                  <TextInput
-                    style={[styles.sheetInput, { color: theme.colors.text, marginBottom: 12 }]}
+                <View style={[glassCard, styles.renameCard]}>
+                  <Text style={[styles.sectionCaption, styles.sectionCaptionInCard]}>Renommer</Text>
+                  <Input
                     value={editingLibraryName}
                     onChangeText={setEditingLibraryName}
+                    placeholder="Nom de l’exercice"
+                    autoFocus
+                    containerStyle={styles.inputNoMargin}
                   />
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <TouchableOpacity
-                      style={[styles.headerSaveBtn, { backgroundColor: '#0069E8', flex: 1 }]}
+                  <View style={styles.renameActions}>
+                    <Button title="Annuler" variant="outline" onPress={() => setEditingLibraryEx(null)} style={styles.flex1} />
+                    <Button
+                      title="Enregistrer"
                       onPress={handleSaveLibraryEdit}
-                    >
-                      <Text style={styles.headerSaveBtnText}>Enregistrer</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.headerSaveBtn, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderWidth: 1 }]}
-                      onPress={() => setEditingLibraryEx(null)}
-                    >
-                      <Text style={[styles.headerSaveBtnText, { color: theme.colors.text }]}>Annuler</Text>
-                    </TouchableOpacity>
+                      disabled={!editingLibraryName.trim()}
+                      style={styles.flex1}
+                    />
                   </View>
                 </View>
               )}
 
               {savedExercises.length === 0 ? (
-                <Text style={[styles.emptySubtitle, { color: theme.colors.textMuted, textAlign: 'center', marginTop: 40 }]}>
-                  Aucun exercice enregistré dans votre bibliothèque.
-                </Text>
+                <View style={styles.libraryEmpty}>
+                  <Feather name="bookmark" size={22} color={theme.colors.textMuted} />
+                  <Text style={styles.libraryEmptyText}>Aucun exercice enregistré dans ta bibliothèque.</Text>
+                </View>
               ) : (
                 <>
-                  <View style={{ marginBottom: 12, marginHorizontal: 4 }}>
-                    <Text style={{ fontSize: 13, color: theme.colors.textSecondary, fontWeight: '500' }}>
-                      Touchez un exercice pour l'ajouter à votre séance :
-                    </Text>
-                  </View>
-                  <View style={[styles.groupedCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-                    {savedExercises.map((ex, idx) => {
-                      const isLast = idx === savedExercises.length - 1;
-                      return (
-                        <View
-                          key={ex.id}
-                          style={[
-                            styles.libraryManageRow,
-                            !isLast && [styles.rowBorder, { borderBottomColor: theme.colors.border }],
-                          ]}
+                  <Text style={styles.libraryIntro}>Touche un exercice pour l’ajouter à ta séance.</Text>
+                  <View style={[glassCard, styles.cardFlush]}>
+                    {savedExercises.map((ex, idx) => (
+                      <View key={ex.id} style={[styles.libraryRow, idx > 0 && styles.rowDividerTop]}>
+                        <PressableScale
+                          containerStyle={styles.flex1}
+                          activeScale={0.98}
+                          onPress={() => pickFromLibrary(ex)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Choisir ${ex.name}`}
                         >
-                          <TouchableOpacity
-                            style={{ flex: 1 }}
-                            onPress={() => {
-                              handleSelectFromLibrary(ex);
-                              setIsManageLibraryVisible(false);
-                              setIsExerciseSheetVisible(true);
-                            }}
-                            activeOpacity={0.7}
+                          <Text style={styles.libraryName} numberOfLines={1}>{ex.name}</Text>
+                          <Text style={styles.librarySub}>
+                            {ex.default_stairs ? `${ex.default_stairs} marches` : 'Libre'}  ·  {ex.default_sets || 4} séries
+                          </Text>
+                        </PressableScale>
+
+                        <View style={styles.libraryActions}>
+                          <PressableScale
+                            haptic="selection"
+                            onPress={() => pickFromLibrary(ex)}
+                            hitSlop={{ top: 6, bottom: 6 }}
+                            accessibilityRole="button"
+                            style={styles.libraryPickBtn}
                           >
-                            <Text style={[styles.libraryManageName, { color: theme.colors.text }]}>{ex.name}</Text>
-                            <Text style={[styles.libraryManageSub, { color: theme.colors.textSecondary }]}>
-                              {ex.default_stairs ? `${ex.default_stairs} marches` : 'Libre'} • {ex.default_sets || 4} séries
-                            </Text>
-                          </TouchableOpacity>
-
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                            <TouchableOpacity
-                              style={[styles.libraryPickRowBtn, { backgroundColor: '#0069E8' + '15' }]}
-                              onPress={() => {
-                                handleSelectFromLibrary(ex);
-                                setIsManageLibraryVisible(false);
-                                setIsExerciseSheetVisible(true);
-                              }}
-                              activeOpacity={0.7}
-                            >
-                              <Feather name="plus" size={13} color={'#0069E8'} style={{ marginRight: 4 }} />
-                              <Text style={[styles.libraryPickRowText, { color: '#0069E8' }]}>Choisir</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity onPress={() => handleStartEditLibraryEx(ex)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                              <Feather name="edit-2" size={16} color={theme.colors.textSecondary} />
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={() => handleDeleteFromLibrary(ex)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                              <Feather name="trash-2" size={16} color={theme.colors.error} />
-                            </TouchableOpacity>
-                          </View>
+                            <Feather name="plus" size={14} color={theme.colors.sprintyBlue} />
+                            <Text style={styles.libraryPickText}>Choisir</Text>
+                          </PressableScale>
+                          <IconButton
+                            icon="edit-2"
+                            tone="plain"
+                            size={34}
+                            accessibilityLabel={`Renommer ${ex.name}`}
+                            onPress={() => handleStartEditLibraryEx(ex)}
+                          />
+                          <IconButton
+                            icon="trash-2"
+                            tone="danger"
+                            size={34}
+                            accessibilityLabel={`Supprimer ${ex.name}`}
+                            onPress={() => handleDeleteFromLibrary(ex)}
+                          />
                         </View>
-                      );
-                    })}
+                      </View>
+                    ))}
                   </View>
                 </>
               )}
@@ -1423,142 +1292,163 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: theme.colors.backdrop,
   },
+  flex1: {
+    flex: 1,
+  },
+
+  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 14,
+    paddingBottom: 12,
+    gap: 12,
+    backgroundColor: theme.colors.backdrop,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.hairline,
   },
   headerCenter: {
+    flex: 1,
     alignItems: 'center',
   },
   headerTitle: {
     fontSize: 17,
-    fontWeight: '700',
+    fontWeight: '800',
     letterSpacing: -0.3,
+    color: theme.colors.text,
   },
   headerSubtitle: {
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 1,
-    textTransform: 'capitalize',
+    color: theme.colors.textSecondary,
   },
-  headerTextBtn: {
-    paddingVertical: 4,
-    paddingHorizontal: 4,
+  headerSpacer: {
+    width: 38,
   },
-  headerCancelText: {
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  headerSaveBtn: {
+  savePill: {
+    minHeight: 36,
+    minWidth: 96,
     paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 16,
-    minWidth: 70,
+    borderRadius: 18,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: theme.colors.sprintyBlue,
   },
-  headerSaveBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
+  savePillDimmed: {
+    opacity: 0.45,
+  },
+  savePillText: {
+    color: theme.colors.surface,
+    fontSize: 14,
     fontWeight: '700',
   },
-  headerSaveSheetBtn: {
-    paddingVertical: 4,
-    paddingHorizontal: 4,
-  },
-  headerSaveSheetText: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
+
+  // Layout
   scroll: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 40,
-  },
-  sectionHeader: {
-    marginBottom: 6,
-    marginLeft: 4,
-  },
-  sectionHeaderBetween: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 16,
-    marginBottom: 6,
-    marginHorizontal: 4,
+    paddingBottom: 56,
   },
   sectionCaption: {
     fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-  },
-  linkText: {
-    fontSize: 13,
     fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: theme.colors.textSecondary,
+    marginTop: 24,
+    marginBottom: 8,
+    marginLeft: 4,
   },
-  groupedCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    overflow: 'hidden',
+  sectionCaptionFirst: {
+    marginTop: 4,
   },
-  segmentedControl: {
+  sectionCaptionInCard: {
+    marginTop: 0,
+    marginLeft: 0,
+  },
+  cardFlush: {
+    padding: 0,
+  },
+  rowDividerTop: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.hairline,
+  },
+  inputNoMargin: {
+    marginBottom: 0,
+  },
+  errorNotice: {
     flexDirection: 'row',
-    padding: 3,
-    backgroundColor: 'rgba(0,0,0,0.04)',
-  },
-  segmentBtn: {
-    flex: 1,
-    paddingVertical: 8,
     alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderCurve: 'continuous',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+  },
+  errorNoticeText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.error,
+  },
+
+  // Target chips
+  subScroll: {
+    marginTop: 12,
+    marginHorizontal: -16,
+  },
+  subScrollContent: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  emptyHint: {
+    marginTop: 12,
+    fontSize: 13,
+    color: theme.colors.textMuted,
+  },
+  chip: {
+    minHeight: 36,
+    paddingHorizontal: 14,
     justifyContent: 'center',
     borderRadius: 12,
+    borderCurve: 'continuous',
+    borderWidth: 1,
   },
-  segmentBtnActive: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 1,
+  chipIdle: {
+    backgroundColor: theme.colors.glassFill,
+    borderColor: 'transparent',
   },
-  segmentBtnText: {
-    fontSize: 12,
+  chipSelected: {
+    backgroundColor: 'rgba(0, 105, 232, 0.1)',
+    borderColor: theme.colors.sprintyBlue,
+  },
+  chipText: {
+    fontSize: 13,
     fontWeight: '600',
   },
-  subScroll: {
-    paddingHorizontal: 10,
-    paddingVertical: 12,
-  },
+
+  // Notes
   notesInput: {
     paddingHorizontal: 16,
     paddingVertical: 14,
-    minHeight: 80,
+    minHeight: 96,
     fontSize: 15,
+    lineHeight: 21,
+    color: theme.colors.text,
   },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: 1,
-    marginRight: 8,
-  },
-  chipText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  emptyBox: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 24,
+
+  // Empty state
+  emptyCard: {
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 24,
   },
   emptyIconCircle: {
     width: 48,
@@ -1567,54 +1457,86 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
+    backgroundColor: 'rgba(0, 105, 232, 0.1)',
   },
   emptyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: -0.3,
     marginBottom: 4,
+    color: theme.colors.text,
   },
   emptySubtitle: {
     fontSize: 13,
     textAlign: 'center',
-    lineHeight: 18,
-    marginBottom: 18,
+    lineHeight: 19,
+    color: theme.colors.textSecondary,
   },
-  addFirstBtn: {
+  emptyActions: {
+    alignSelf: 'stretch',
+    gap: 10,
+    marginTop: 18,
+  },
+  secondaryActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 14,
+    justifyContent: 'center',
+    minHeight: 48,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    borderCurve: 'continuous',
+    backgroundColor: theme.colors.glassFill,
+    gap: 8,
   },
-  addFirstBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
+  secondaryActionText: {
+    fontSize: 15,
     fontWeight: '700',
+    color: theme.colors.text,
   },
+  countBadge: {
+    minWidth: 24,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 105, 232, 0.1)',
+  },
+  countBadgeNeutral: {
+    marginLeft: 'auto',
+    backgroundColor: theme.colors.glassFill,
+  },
+  countBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: theme.colors.sprintyBlue,
+  },
+
+  // Exercise list
   exerciseRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  rowBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingLeft: 14,
+    paddingRight: 8,
+    paddingVertical: 10,
+    minHeight: 60,
   },
   badgeNumber: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginRight: 12,
+    backgroundColor: theme.colors.sprintyBlue,
   },
   badgeNumberText: {
-    color: '#FFFFFF',
-    fontSize: 11,
+    color: theme.colors.surface,
+    fontSize: 12,
     fontWeight: '800',
   },
   exerciseRowCenter: {
     flex: 1,
+    paddingVertical: 4,
   },
   exerciseNameLine: {
     flexDirection: 'row',
@@ -1622,81 +1544,78 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   exerciseRowName: {
+    flexShrink: 1,
     fontSize: 15,
     fontWeight: '700',
+    color: theme.colors.text,
   },
   targetMiniBadge: {
-    paddingHorizontal: 6,
+    flexShrink: 1,
+    paddingHorizontal: 7,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: 8,
+    borderCurve: 'continuous',
+    backgroundColor: 'rgba(0, 105, 232, 0.1)',
   },
   targetMiniBadgeText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
+    color: theme.colors.sprintyBlue,
   },
   exerciseRowSubtitle: {
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 2,
+    color: theme.colors.textSecondary,
   },
   exerciseRowActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 6,
     marginLeft: 8,
   },
-  iconHit: {
-    padding: 6,
-  },
-  addMoreRow: {
+  actionRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    minHeight: 52,
+  },
+  actionRowIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    gap: 6,
+    marginRight: 10,
+    backgroundColor: 'rgba(0, 105, 232, 0.1)',
   },
-  addMoreRowText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  quickLibraryBox: {
-    marginTop: 20,
-    marginHorizontal: 4,
-  },
-  quickLibraryLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  libraryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginRight: 8,
-  },
-  libraryChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  sheetInput: {
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+  actionRowText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
+    color: theme.colors.text,
   },
+
+  // Exercise sheet settings
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 12,
-    minHeight: 48,
+    minHeight: 56,
+  },
+  settingTextCol: {
+    flex: 1,
+    marginRight: 12,
   },
   settingLabel: {
     fontSize: 15,
     fontWeight: '600',
+    color: theme.colors.text,
+  },
+  settingHint: {
+    fontSize: 13,
+    marginTop: 2,
+    color: theme.colors.textSecondary,
   },
   settingRight: {
     flexDirection: 'row',
@@ -1706,181 +1625,112 @@ const styles = StyleSheet.create({
   settingValueText: {
     fontSize: 15,
     fontWeight: '700',
+    color: theme.colors.sprintyBlue,
   },
-  rowDivider: {
-    height: StyleSheet.hairlineWidth,
-    marginLeft: 14,
-  },
-  stairsModeWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  stairsPillBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  stairsPillActive: {},
-  stairsPillText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  stairsNumberInput: {
-    width: 50,
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    textAlign: 'center',
-    fontSize: 14,
-    fontWeight: '700',
+  modeSegmented: {
+    width: 140,
   },
   stairsInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  stairsDetailedInput: {
-    width: 64,
-    paddingVertical: 6,
+  stairsInput: {
+    width: 72,
+    height: 44,
     paddingHorizontal: 8,
-    borderRadius: 10,
-    borderWidth: 1,
+    borderRadius: 14,
+    borderCurve: 'continuous',
     textAlign: 'center',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
+    color: theme.colors.text,
+    backgroundColor: theme.colors.glassFill,
   },
   stairsSuffixText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
+    color: theme.colors.textSecondary,
   },
   stepperContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-  },
-  stepperActionBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 10,
   },
   stepperNumberText: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '800',
-    minWidth: 20,
+    minWidth: 24,
     textAlign: 'center',
+    color: theme.colors.text,
   },
   submitSheetBtn: {
     marginTop: 24,
-    paddingVertical: 14,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  submitSheetBtnText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
+
+  // Library
+  renameCard: {
+    marginBottom: 16,
   },
-  libraryManageRow: {
+  renameActions: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  libraryManageName: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  libraryManageSub: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  actionButtonsContainer: {
     gap: 10,
-    marginTop: 14,
-    width: '100%',
+    marginTop: 12,
   },
-  primaryActionBtn: {
+  libraryEmpty: {
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 40,
+    paddingHorizontal: 24,
+  },
+  libraryEmptyText: {
+    fontSize: 15,
+    textAlign: 'center',
+    color: theme.colors.textSecondary,
+  },
+  libraryIntro: {
+    fontSize: 13,
+    marginBottom: 10,
+    marginHorizontal: 4,
+    color: theme.colors.textSecondary,
+  },
+  libraryRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 16,
-    width: '100%',
-    gap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    paddingLeft: 16,
+    paddingRight: 8,
+    paddingVertical: 10,
+    minHeight: 60,
   },
-  primaryActionIconBox: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryActionText: {
-    color: '#FFFFFF',
+  libraryName: {
     fontSize: 15,
     fontWeight: '700',
+    color: theme.colors.text,
   },
-  secondaryActionBtn: {
+  librarySub: {
+    fontSize: 13,
+    marginTop: 2,
+    color: theme.colors.textSecondary,
+  },
+  libraryActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 13,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    width: '100%',
-    gap: 8,
+    gap: 4,
+    marginLeft: 8,
   },
-  secondaryActionIconBox: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+  libraryPickBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondaryActionText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  countBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  countBadgeText: {
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  actionRowIconCircle: {
-    width: 24,
-    height: 24,
+    gap: 4,
+    minHeight: 34,
+    paddingHorizontal: 12,
     borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
+    borderCurve: 'continuous',
+    backgroundColor: 'rgba(0, 105, 232, 0.1)',
   },
-  libraryPickRowBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  libraryPickRowText: {
-    fontSize: 12,
+  libraryPickText: {
+    fontSize: 13,
     fontWeight: '700',
+    color: theme.colors.sprintyBlue,
   },
 });
