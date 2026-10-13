@@ -198,7 +198,7 @@ export function matchScore(queryTokens: string[], name: string, state = ''): num
   if (nameHits === 0) return 0;
   const extras = nameWords.filter((word) => !wanted.includes(word) && !isStateToken(word) && word !== 'filet' && word !== 'blanc').length;
   score -= extras * 35;
-  if (nameWords.includes('peau') && !wanted.includes('peau')) score -= 160;
+  if (nameWords.includes('peau') && !wanted.includes('peau')) score -= 250;
   if (/label|fermier|bio|halal/.test(normalizeSearchText(name))) score -= 180;
   if (['jambon', 'nugget', 'panure', 'cordon', 'farce'].some((word) => nameWords.includes(word) && !wanted.includes(word))) score -= 320;
   if (!typo) score += 80;
