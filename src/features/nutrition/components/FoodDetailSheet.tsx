@@ -181,18 +181,42 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
 
           {/* ZONE DE SAISIE */}
           <View style={styles.inputZone}>
-            <TextInput
-              style={[styles.numberInput, { color: theme.colors.text, borderBottomColor: theme.colors.accent }]}
-              keyboardType="numeric"
-              value={inputValue}
-              onChangeText={(value) => {
-                setUserEdited(true);
-                setInputValue(value);
-              }}
-              autoFocus
-              selectTextOnFocus
-              maxLength={6}
-            />
+            <View style={styles.qtyRow}>
+              {unit === 'piece' && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setUserEdited(true);
+                    setInputValue(String(Math.max(1, numericValue - 1)));
+                  }}
+                  style={[styles.stepBtn, { backgroundColor: theme.colors.surfaceLight }]}
+                >
+                  <Feather name="minus" size={18} color={theme.colors.text} />
+                </TouchableOpacity>
+              )}
+              <TextInput
+                style={[styles.numberInput, { color: theme.colors.text, borderBottomColor: theme.colors.accent }]}
+                keyboardType="numeric"
+                value={inputValue}
+                onChangeText={(value) => {
+                  setUserEdited(true);
+                  setInputValue(value);
+                }}
+                autoFocus
+                selectTextOnFocus
+                maxLength={6}
+              />
+              {unit === 'piece' && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setUserEdited(true);
+                    setInputValue(String(numericValue + 1));
+                  }}
+                  style={[styles.stepBtn, { backgroundColor: theme.colors.surfaceLight }]}
+                >
+                  <Feather name="plus" size={18} color={theme.colors.text} />
+                </TouchableOpacity>
+              )}
+            </View>
 
             {/* Ligne de traduction claire */}
             <Text style={[styles.translationText, { color: theme.colors.textSecondary }]}>
@@ -201,8 +225,18 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
 
             {/* Sélecteur d'unités conditionnel */}
             <View style={styles.unitToggle}>
-              {/* Bouton g strict (retrait de g/ml ambigu) */}
-              <TouchableOpacity 
+              {portionInfo?.hasPiece && (
+                <TouchableOpacity
+                  style={[styles.unitBtn, unit === 'piece' && { backgroundColor: theme.colors.accent }]}
+                  onPress={() => handleSwitchUnit('piece')}
+                >
+                  <Text style={[styles.unitText, { color: unit === 'piece' ? '#FFF' : theme.colors.text }]}>
+                    {portionInfo.pieceLabel}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
                 style={[styles.unitBtn, unit === 'g' && { backgroundColor: theme.colors.accent }]}
                 onPress={() => handleSwitchUnit('g')}
               >
@@ -218,19 +252,6 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
                 </TouchableOpacity>
               )}
 
-              {/* Bouton Pièce : uniquement si une pièce est connue */}
-              {portionInfo?.hasPiece && (
-                <TouchableOpacity 
-                  style={[styles.unitBtn, unit === 'piece' && { backgroundColor: theme.colors.accent }]}
-                  onPress={() => handleSwitchUnit('piece')}
-                >
-                  <Text style={[styles.unitText, { color: unit === 'piece' ? '#FFF' : theme.colors.text }]}>
-                    Pièce ({portionInfo.pieceWeight}g)
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              {/* Bouton Portion : UNIQUEMENT si portion industrielle connue */}
               {portionInfo?.hasServing && (
                 <TouchableOpacity 
                   style={[styles.unitBtn, unit === 'serving' && { backgroundColor: theme.colors.accent }]}
@@ -343,6 +364,18 @@ const styles = StyleSheet.create({
   inputZone: {
     alignItems: 'center',
     marginBottom: 24,
+  },
+  qtyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  stepBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   numberInput: {
     fontSize: 54,

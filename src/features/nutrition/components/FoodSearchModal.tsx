@@ -353,10 +353,25 @@ export const FoodSearchModal: React.FC = () => {
       } else {
         const o = item.item as OFFProduct;
         name = o.name;
-        const kcal = o.macros_100g?.calories ? Math.round(o.macros_100g.calories) : 0;
+        const portion = resolveFoodPortion({
+          name: o.name,
+          serving_quantity: o.serving_quantity,
+          serving_size: o.serving_size,
+        });
+        const grams = portion.defaultUnit === 'piece' && portion.pieceWeight
+          ? Math.round(portion.pieceWeight)
+          : portion.defaultUnit === 'ml'
+            ? portion.defaultQty
+            : 100;
+        const factor = grams / 100;
+        const kcal = o.macros_100g?.calories ? Math.round(o.macros_100g.calories * factor) : 0;
         kcalLabel = kcal ? `${kcal} kcal` : '';
-        detail = `${o.brand || 'Produit'} · 100 g`;
-        macros = `${o.macros_100g.glucides || 0} g G   ${o.macros_100g.proteines || 0} g P   ${o.macros_100g.lipides || 0} g L`;
+        detail = portion.defaultUnit === 'piece'
+          ? `${o.brand || 'Produit'} · 1 ${portion.pieceLabel}`
+          : portion.defaultUnit === 'ml'
+            ? `${o.brand || 'Produit'} · ${grams} ml`
+            : `${o.brand || 'Produit'} · 100 g`;
+        macros = `${Math.round((o.macros_100g.glucides || 0) * factor)} g G   ${Math.round((o.macros_100g.proteines || 0) * factor)} g P   ${Math.round((o.macros_100g.lipides || 0) * factor)} g L`;
       }
     } else {
       name = item.food_name || item.name;

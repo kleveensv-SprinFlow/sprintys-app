@@ -33,20 +33,6 @@ function stemToken(token: string): string {
   return token;
 }
 
-export function typoVariants(token: string): string[] {
-  const out = new Set<string>([token]);
-  if (token.length >= 5) {
-    for (let i = 1; i < token.length - 1 && out.size < 6; i++) {
-      out.add(token.slice(0, i) + token[i + 1] + token[i] + token.slice(i + 2));
-    }
-  }
-  if (token.length >= 6 && out.size < 7) {
-    const mid = Math.floor(token.length / 2);
-    out.add(token.slice(0, mid) + token.slice(mid + 1));
-  }
-  return [...out];
-}
-
 function editDistance(a: string, b: string): number {
   if (a === b) return 0;
   if (Math.abs(a.length - b.length) > 2) return 3;
@@ -64,36 +50,74 @@ function editDistance(a: string, b: string): number {
   return dp[b.length];
 }
 
-function tokenHits(token: string, words: string[]): boolean {
-  return words.some((word) => {
-    if (word === token) return true;
-    if (token.length >= 4 && (word.startsWith(token) || token.startsWith(word))) return true;
-    const limit = token.length >= 6 ? 2 : token.length >= 5 ? 1 : 0;
-    return limit > 0 && editDistance(token, word) <= limit;
-  });
+function nameWords(text: string): string[] {
+  return normalizeSearchText(text)
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length >= 2)
+    .map(stemToken);
+}
+
+type Hit = 'exact' | 'prefix' | 'fuzzy';
+
+/** « oeuf » ne doit jamais compter comme trouvé dans « boeuf ». */
+function classifyHit(token: string, word: string): Hit | null {
+  if (word === token) return 'exact';
+  if (word.length > token.length && word.endsWith(token)) return null;
+  if (token.length >= 3 && word.startsWith(token) && word.length - token.length <= 2) return 'prefix';
+  if (word.length >= 4 && token.startsWith(word) && token.length - word.length <= 2) return 'prefix';
+  if (token.length >= 5 && Math.abs(token.length - word.length) <= 1 && editDistance(token, word) === 1) {
+    if (word.endsWith(token) || token.endsWith(word)) return null;
+    return 'fuzzy';
+  }
+  return null;
+}
+
+function bestHit(token: string, words: string[]): Hit | null {
+  const rank: Record<Hit, number> = { exact: 3, prefix: 2, fuzzy: 1 };
+  let best: Hit | null = null;
+  for (const word of words) {
+    const hit = classifyHit(token, word);
+    if (hit && (!best || rank[hit] > rank[best])) best = hit;
+  }
+  return best;
+}
+
+function isEmbeddedInName(token: string, titleWords: string[]): boolean {
+  return titleWords.some((word) => word !== token && word.endsWith(token) && word.length > token.length);
 }
 
 export function matchScore(queryTokens: string[], name: string, extra = ''): number {
-  const words = normalizeSearchText(`${name} ${extra}`).split(/[^a-z0-9]+/).filter((w) => w.length >= 2).map(stemToken);
+  const titleWords = nameWords(name);
+  const extraWords = nameWords(extra).filter((word) => !isEmbeddedInName(word, titleWords));
   if (queryTokens.length === 0) return 0;
+
   let hits = 0;
   let score = 0;
   for (const token of queryTokens) {
-    if (!tokenHits(token, words)) continue;
+    const inName = bestHit(token, titleWords);
+    const inExtra = isEmbeddedInName(token, titleWords) ? null : bestHit(token, extraWords);
+    const hit = inName || inExtra;
+    if (!hit) continue;
     hits += 1;
-    score += words.includes(token) ? 300 : 160;
+    const weight = hit === 'exact' ? 340 : hit === 'prefix' ? 220 : 110;
+    score += inName ? weight : Math.round(weight * 0.4);
   }
-  if (hits === 0) return 0;
-  if (hits < queryTokens.length) score -= (queryTokens.length - hits) * 220;
+  if (hits < queryTokens.length) return 0;
+
   const nameNorm = normalizeSearchText(name);
-  if (nameNorm === queryTokens.join(' ')) score += 400;
-  score -= Math.min(120, nameNorm.length);
-  if (!queryTokens.some((t) => t.startsWith('cru')) && COOKED.test(normalizeSearchText(extra))) {
-    if (normalizeSearchText(extra).startsWith('cru')) score -= 40;
-    else score += 25;
+  if (titleWords[0] === queryTokens[0]) score += 220;
+  if (nameNorm === queryTokens.join(' ')) score += 260;
+  score -= Math.min(70, Math.max(0, nameNorm.length - 14));
+
+  if (!queryTokens.some((token) => token.startsWith('cru')) && COOKED.test(normalizeSearchText(extra))) {
+    if (normalizeSearchText(extra).startsWith('cru')) score -= 30;
+    else score += 20;
   }
   if (queryTokens.length === 1 && queryTokens[0] === 'pomme' && nameNorm.includes('pomme de terre')) {
     score -= 900;
+  }
+  if (queryTokens.length === 1 && queryTokens[0] === 'oeuf' && /lump|lompe|cabillaud|poisson|truite|saumon/.test(nameNorm)) {
+    score -= 250;
   }
   return score;
 }

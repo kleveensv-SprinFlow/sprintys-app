@@ -107,6 +107,8 @@ export interface ResolvedPortion {
 export function cleanFoodText(text: string): string {
   return (text || '')
     .toLowerCase()
+    .replace(/œ/g, 'oe')
+    .replace(/æ/g, 'ae')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .trim();
@@ -114,8 +116,9 @@ export function cleanFoodText(text: string): string {
 
 function keywordMatches(foodName: string, keyword: string): boolean {
   const cleanedKw = cleanFoodText(keyword).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const hay = cleanFoodText(foodName);
   if (!cleanedKw) return false;
-  return new RegExp(`(^|[\\s',])${cleanedKw}([\\s',]|$)`, 'i').test(foodName);
+  return new RegExp(`(^|[\\s',(\\/-])${cleanedKw}(?:s|x)?(?=$|[\\s',)\\/-])`, 'i').test(hay);
 }
 
 function longestMatch<T extends { keywords: string[] }>(foodName: string, rules: T[]): { rule: T; keyword: string } | null {
