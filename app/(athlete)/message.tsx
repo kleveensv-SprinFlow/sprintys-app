@@ -15,6 +15,19 @@ import { useTabBarSpace } from '../../src/shared/hooks/useTabBarSpace';
 import { GlassSheen } from '../../src/shared/components/GlassSheen';
 import { FrostedBar } from '../../src/shared/components/FrostedBar';
 import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSprintyChatStore } from '../../src/store/sprintyChatStore';
+import { formatListTime } from '../../src/shared/utils/chatTime';
+
+const BLUE_TINT = 'rgba(0, 105, 232, 0.1)';
+
+/** One line of plain text from an AI reply (no markdown marks, no JSON blocks). */
+const previewOf = (content: string) =>
+  content
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/[#*_>`|]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 
 interface MyGroupData {
   team_id: string;
@@ -33,6 +46,13 @@ export default function MessagesHubScreen() {
   const [myGroup, setMyGroup] = useState<MyGroupData | null>(null);
   const [discussions, setDiscussions] = useState<GroupDiscussionsSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const conversations = useSprintyChatStore((s) => s.conversations);
+
+  // Latest personal Sprinty conversation that has a real exchange (not the coach's athlete analyses)
+  const lastSprinty = [...conversations]
+    .filter((c) => !c.athleteContext && c.messages.some((m) => m.role === 'user'))
+    .sort((a, b) => b.updatedAt - a.updatedAt)[0];
+  const lastSprintyMessage = lastSprinty?.messages[lastSprinty.messages.length - 1];
 
   const fetchGroupAndDiscussions = async () => {
     if (!user?.id) return;
@@ -89,14 +109,8 @@ export default function MessagesHubScreen() {
     }, [user?.id])
   );
 
-  const formatMessageTime = (dateStr: string) => {
-    const d = new Date(dateStr);
-    const today = new Date();
-    if (d.getDate() === today.getDate() && d.getMonth() === today.getMonth()) {
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-    return d.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
-  };
+  const formatMessageTime = (dateStr: string) => formatListTime(dateStr);
+  const coachInitial = (myGroup?.coach_name || 'C').trim().charAt(0).toUpperCase();
 
 
   return (
@@ -116,16 +130,24 @@ export default function MessagesHubScreen() {
             onPress={() => router.push('/chat/sprinty')}
           >
             <GlassSheen radius={18} />
-            <View style={[styles.discussionAvatar, { backgroundColor: '#0026AE15' }]}>
-              <Text style={{ fontSize: 20 }}>⚡</Text>
-            </View>
+            <LinearGradient
+              colors={[theme.colors.sprintyBlue, theme.colors.sprintyCyan]}
+              start={{ x: 0, y: 1 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.discussionAvatar}
+            >
+              <Feather name="zap" size={20} color="#FFFFFF" />
+            </LinearGradient>
             <View style={styles.discussionContent}>
               <View style={styles.discussionTopRow}>
-                <Text style={styles.discussionTitle}>Sprinty IA</Text>
+                <Text style={styles.discussionTitle}>Sprinty</Text>
+                {lastSprinty && <Text style={styles.discussionDate}>{formatListTime(lastSprinty.updatedAt)}</Text>}
               </View>
               <View style={styles.discussionBottomRow}>
                 <Text style={styles.discussionPreview} numberOfLines={1}>
-                  Ton assistant personnel
+                  {lastSprintyMessage
+                    ? `${lastSprintyMessage.role === 'user' ? 'Vous : ' : ''}${previewOf(lastSprintyMessage.content)}`
+                    : 'Pose-moi une question sur ton entraînement'}
                 </Text>
               </View>
             </View>
@@ -135,7 +157,7 @@ export default function MessagesHubScreen() {
           <Text style={styles.sectionLabel}>ÉQUIPE & COACH</Text>
 
           {isLoading ? (
-            <ActivityIndicator size="small" color={theme.colors.accent} style={{ marginTop: 20 }} />
+            <ActivityIndicator size="small" color={theme.colors.sprintyBlue} style={{ marginTop: 20 }} />
           ) : myGroup ? (
             myGroup.status === 'pending' ? (
               <View style={styles.emptyState}>
@@ -153,8 +175,8 @@ export default function MessagesHubScreen() {
                   })}
                 >
                   <GlassSheen radius={18} />
-                  <View style={[styles.discussionAvatar, { backgroundColor: theme.colors.accent + '20' }]}>
-                    <Feather name="user-check" size={20} color={theme.colors.accent} />
+                  <View style={[styles.discussionAvatar, { backgroundColor: BLUE_TINT }]}>
+                    <Text style={styles.avatarLetter}>{coachInitial}</Text>
                   </View>
                   <View style={styles.discussionContent}>
                     <View style={styles.discussionTopRow}>
@@ -190,8 +212,8 @@ export default function MessagesHubScreen() {
                   })}
                 >
                   <GlassSheen radius={18} />
-                  <View style={[styles.discussionAvatar, { backgroundColor: theme.colors.success + '20' }]}>
-                    <Feather name="users" size={20} color={theme.colors.success} />
+                  <View style={[styles.discussionAvatar, { backgroundColor: theme.colors.glassFill }]}>
+                    <Feather name="users" size={19} color={theme.colors.text} />
                   </View>
                   <View style={styles.discussionContent}>
                     <View style={styles.discussionTopRow}>
@@ -209,7 +231,7 @@ export default function MessagesHubScreen() {
                           : 'Aucun message dans le groupe.'}
                       </Text>
                       {(discussions?.team?.unread_count || 0) > 0 && (
-                        <View style={[styles.unreadBadge, { backgroundColor: theme.colors.success }]}>
+                        <View style={styles.unreadBadge}>
                           <Text style={styles.unreadBadgeText}>{discussions?.team?.unread_count}</Text>
                         </View>
                       )}
@@ -241,13 +263,14 @@ const styles = StyleSheet.create({
   discussionAvatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   discussionContent: { flex: 1, justifyContent: 'center' },
   discussionTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  discussionTitle: { fontSize: 16, fontWeight: '600', color: theme.colors.text },
+  discussionTitle: { fontSize: 16, fontWeight: '700', color: theme.colors.text, letterSpacing: -0.2 },
+  avatarLetter: { fontSize: 18, fontWeight: '800', color: theme.colors.sprintyBlue },
   discussionDate: { fontSize: 12, color: theme.colors.textMuted },
   discussionBottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   discussionPreview: { fontSize: 14, color: theme.colors.textSecondary, flex: 1, paddingRight: 8 },
-  discussionPreviewMuted: { fontStyle: 'italic', color: theme.colors.textMuted },
-  unreadBadge: { backgroundColor: theme.colors.error, borderRadius: 12, paddingHorizontal: 6, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
-  unreadBadgeText: { color: '#FFF', fontSize: 11, fontWeight: '700' },
+  discussionPreviewMuted: { color: theme.colors.textMuted },
+  unreadBadge: { backgroundColor: theme.colors.sprintyBlue, borderRadius: 12, paddingHorizontal: 6, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
+  unreadBadgeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
   emptyState: { padding: 20, ...glassSurface, borderRadius: 18 },
   emptyText: { color: theme.colors.textSecondary, textAlign: 'center', lineHeight: 20 }
 });
