@@ -19,6 +19,7 @@ import { GlowBackground } from '../../../shared/components/GlowBackground';
 import { PressableScale } from '../../../shared/components/PressableScale';
 import { SegmentedControl } from '../../../shared/components/SegmentedControl';
 import { MealIcon } from './MealIcon';
+import { useConsentStore } from '../../../store/consentStore';
 import { MacroLanes } from './MacroLanes';
 import { mealLabel, MACROS, MacroKey, MEAL_ACCENT, MEAL_ACCENT_TINT } from '../nutritionTheme';
 
@@ -171,6 +172,8 @@ export const FoodSearchModal: React.FC = () => {
   };
 
   const handleAIPhoto = async () => {
+    // Asked before the camera opens: the photo is sent to the AI provider
+    if (!(await useConsentStore.getState().ensureAIConsent())) return;
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
     if (!permissionResult.granted) {
       Alert.alert("Permission requise", "L'accès à l'appareil photo est nécessaire.");
@@ -865,7 +868,14 @@ export const FoodSearchModal: React.FC = () => {
                 {[
                   { key: 'scan', icon: 'maximize', label: 'Code-barres', onPress: openScanner },
                   { key: 'photo', icon: 'camera', label: 'Photo', onPress: handleAIPhoto },
-                  { key: 'text', icon: 'edit-3', label: 'Décrire', onPress: () => setMode('ai-text') },
+                  {
+                    key: 'text',
+                    icon: 'edit-3',
+                    label: 'Décrire',
+                    onPress: async () => {
+                      if (await useConsentStore.getState().ensureAIConsent()) setMode('ai-text');
+                    },
+                  },
                 ].map((action) => (
                   <PressableScale
                     key={action.key}

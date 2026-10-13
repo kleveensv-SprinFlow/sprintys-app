@@ -4,23 +4,20 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '../../../../core/theme';
 import { Button } from '../../../../shared/components/Button';
 import { Input } from '../../../../shared/components/Input';
-import { LegalNoticeModal } from '../LegalNoticeModal';
+import { useRouter } from 'expo-router';
+import { ConsentCheck, ConsentLink } from '../../../legal/ConsentCheck';
+import { ageOn, MIN_AGE } from '../../../../legal/age';
 
 export const StepAccount = ({ data, updateData, onSubmit, onBack, isLoading }: any) => {
   const theme = useTheme();
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showLegal, setShowLegal] = useState(false);
+  const router = useRouter();
+  const isAthlete = data.role !== 'coach';
 
-  const calculateAge = (dob: Date | null) => {
-    if (!dob) return 0;
-    const diffMs = Date.now() - dob.getTime();
-    const ageDt = new Date(diffMs);
-    return Math.abs(ageDt.getUTCFullYear() - 1970);
-  };
-
-  const age = calculateAge(data.dob);
-  const isValidAge = data.dob && age >= 15;
-  const isValid = data.email?.includes('@') && data.pass?.length >= 6 && isValidAge && data.acceptedTerms;
+  const isValidAge = !!data.dob && ageOn(data.dob) >= MIN_AGE;
+  const consentsOk = !!data.acceptedTerms && (!isAthlete || !!data.acceptedHealth);
+  const isValid = data.email?.includes('@') && data.pass?.length >= 6 && isValidAge && consentsOk;
+  const openDoc = (doc: string) => router.push({ pathname: '/legal/[doc]', params: { doc } });
 
   const onDateChange = (_event: any, selectedDate?: Date) => {
     setShowDatePicker(Platform.OS === 'ios');
@@ -58,7 +55,7 @@ export const StepAccount = ({ data, updateData, onSubmit, onBack, isLoading }: a
           />
           {showDatePicker && (
             <DateTimePicker
-              value={data.dob || new Date()}
+              value={data.dob || new Date(new Date().getFullYear() - 18, 0, 1)}
               mode="date"
               display="default"
               onChange={onDateChange}
@@ -70,26 +67,20 @@ export const StepAccount = ({ data, updateData, onSubmit, onBack, isLoading }: a
               Vous devez avoir au moins 15 ans pour utiliser Sprintys.
             </Text>
           )}
-          <TouchableOpacity
-            onPress={() => updateData({ acceptedTerms: !data.acceptedTerms })}
-            style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 16, gap: 10 }}
-          >
-            <View style={{
-              width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, marginTop: 2,
-              borderColor: theme.colors.accent,
-              backgroundColor: data.acceptedTerms ? theme.colors.accent : 'transparent',
-            }} />
-            <Text style={{ flex: 1, color: theme.colors.textSecondary, fontSize: 13, lineHeight: 18 }}>
-              J’ai au moins 15 ans et j’ai lu les{' '}
-              <Text style={{ color: theme.colors.sprintyBlue, fontWeight: '700' }} onPress={() => setShowLegal(true)}>
-                mentions et conditions
-              </Text>
-              . L’éditeur n’est pas encore une société.
-            </Text>
-          </TouchableOpacity>
+          <View style={{ marginTop: 16, gap: 6 }}>
+            <ConsentCheck checked={!!data.acceptedTerms} onToggle={() => updateData({ acceptedTerms: !data.acceptedTerms })} required>
+              J’ai au moins 15 ans et j’accepte les <ConsentLink label="conditions d’utilisation" onPress={() => openDoc('terms')} /> et la{' '}
+              <ConsentLink label="politique de confidentialité" onPress={() => openDoc('privacy')} />.
+            </ConsentCheck>
+            {isAthlete && (
+              <ConsentCheck checked={!!data.acceptedHealth} onToggle={() => updateData({ acceptedHealth: !data.acceptedHealth })} required>
+                J’accepte que Sprintys utilise mes données de santé (poids, composition corporelle, sommeil, fatigue, stress,
+                humeur) pour suivre ma forme.
+              </ConsentCheck>
+            )}
+          </View>
         </View>
       </View>
-      <LegalNoticeModal visible={showLegal} onClose={() => setShowLegal(false)} />
 
       <View style={styles.footer}>
         <Button title="Retour" variant="outline" onPress={onBack} style={styles.halfBtn} disabled={isLoading} />

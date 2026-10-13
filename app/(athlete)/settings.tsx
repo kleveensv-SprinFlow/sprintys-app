@@ -11,8 +11,8 @@ import { supabase } from '../../src/services/supabase';
 import { useRouter } from 'expo-router';
 import { EditProfileModal } from '../../src/shared/components/EditProfileModal';
 import { FaqModal } from '../../src/shared/components/FaqModal';
-import { LegalNoticeModal } from '../../src/features/auth/components/LegalNoticeModal';
-import { healthConsent } from '../../src/services/healthConsent';
+import { useConsentStore } from '../../src/store/consentStore';
+import { exportMyData } from '../../src/services/exportService';
 import { GlowBackground } from '../../src/shared/components/GlowBackground';
 import { glassSurface } from '../../src/core/glass';
 import { GlassSheen } from '../../src/shared/components/GlassSheen';
@@ -65,7 +65,6 @@ export default function SettingsScreen() {
   
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isFaqModalVisible, setIsFaqModalVisible] = useState(false);
-  const [isLegalVisible, setIsLegalVisible] = useState(false);
   const [isPhotoSheetVisible, setIsPhotoSheetVisible] = useState(false);
   const [pendingImage, setPendingImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [isConfirmModalVisible, setIsConfirmModalVisible] = useState(false);
@@ -88,14 +87,27 @@ export default function SettingsScreen() {
 
   const handleExportData = async () => {
     try {
-      Alert.alert('Export', 'Génération des données en cours...');
-      const { data, error } = await supabase.functions.invoke('export_data');
-      if (error) throw error;
-      const json = JSON.stringify(data, null, 2);
-      await Share.share({ title: 'Mes données Sprintys', message: json });
+      await exportMyData();
     } catch(err) {
       Alert.alert('Erreur', "Impossible d'exporter les données.");
     }
+  };
+
+  const painConsent = useConsentStore((st) => !!st.active?.has('health_data'));
+  const aiConsent = useConsentStore((st) => !!st.active?.has('ai_processing'));
+
+  const handleRevokeAI = () => {
+    Alert.alert('Retirer l’accord pour l’IA', 'Sprinty, l’analyse de repas et les conseils météo seront désactivés jusqu’à ce que tu les réactives.', [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Retirer',
+        style: 'destructive',
+        onPress: async () => {
+          const ok = await useConsentStore.getState().revoke('ai_processing');
+          Alert.alert(ok ? 'Accord retiré' : 'Erreur', ok ? 'C’est enregistré.' : 'Réessaie dans un instant.');
+        },
+      },
+    ]);
   };
 
   const handleRevokeHealth = () => {
@@ -108,7 +120,7 @@ export default function SettingsScreen() {
           text: 'Retirer',
           style: 'destructive',
           onPress: async () => {
-            const ok = await healthConsent.revoke();
+            const ok = await useConsentStore.getState().revoke('health_data');
             Alert.alert(ok ? 'Accord retiré' : 'Erreur', ok ? 'C’est enregistré.' : 'Réessaie dans un instant.');
           },
         },
@@ -397,8 +409,9 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <GlassSheen radius={18} />
           <SettingsItem icon="help-circle" title="FAQ & Centre d'aide" onPress={() => setIsFaqModalVisible(true)} />
-          <SettingsItem icon="file-text" title="Mentions et conditions" onPress={() => setIsLegalVisible(true)} />
-          <SettingsItem icon="shield" title="Retirer l’accord sur les douleurs" onPress={handleRevokeHealth} />
+          <SettingsItem icon="file-text" title="Conditions, confidentialité et mentions" onPress={() => router.push({ pathname: '/legal/[doc]', params: { doc: 'terms' } })} />
+          {painConsent && <SettingsItem icon="shield" title="Retirer l’accord sur les douleurs" onPress={handleRevokeHealth} />}
+          {aiConsent && <SettingsItem icon="zap" title="Retirer l’accord pour l’IA" onPress={handleRevokeAI} />}
           <SettingsItem icon="download" title="Exporter mes données" onPress={handleExportData} />
           <SettingsItem icon="mail" title="Nous contacter" onPress={handleContactSupport} />
         </View>
@@ -545,7 +558,6 @@ export default function SettingsScreen() {
         visible={isFaqModalVisible}
         onClose={() => setIsFaqModalVisible(false)}
       />
-      <LegalNoticeModal visible={isLegalVisible} onClose={() => setIsLegalVisible(false)} />
     </SafeAreaView>
   );
 }

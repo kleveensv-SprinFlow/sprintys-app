@@ -41,19 +41,10 @@ serve(async (req) => {
     // Use service role client to perform deletion operations
     const adminSupabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // 1. Find and delete avatar from storage if it exists
-    const { data: profile } = await adminSupabase.from('profiles').select('avatar_url').eq('id', userId).single();
-    if (profile && profile.avatar_url) {
-      // Assuming avatar_url contains the path in the 'avatars' bucket
-      // Extract the filename/path from the URL
-      const pathParts = profile.avatar_url.split('/avatars/');
-      if (pathParts.length > 1) {
-        const filePath = pathParts[1].split('?')[0];
-        if (filePath && !filePath.includes('..') && filePath.startsWith(`${userId}/`)) {
-          await adminSupabase.storage.from('avatars').remove([filePath]);
-        }
-      }
-    }
+    // 1. Remove every file the user stored (each photo change created a new avatar file)
+    const { data: files } = await adminSupabase.storage.from('avatars').list(userId, { limit: 1000 });
+    const paths = (files ?? []).map((f) => `${userId}/${f.name}`).filter((p) => !p.includes('..'));
+    if (paths.length) await adminSupabase.storage.from('avatars').remove(paths);
 
     // 2. Delete the user (this cascades to profiles, workouts, etc. based on foreign keys)
     // We can use the existing `delete_user` RPC or the admin API.
@@ -70,7 +61,8 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('delete_account error', error);
+    return new Response(JSON.stringify({ error: 'Suppression impossible pour le moment.' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     });

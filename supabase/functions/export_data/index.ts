@@ -6,85 +6,60 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const json = (body: unknown, status = 200, extra: Record<string, string> = {}) =>
+  new Response(JSON.stringify(body, null, 2), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json', ...extra },
+  });
+
+/**
+ * RGPD portability: every row of the signed-in account, read with the user's own token so the
+ * usual access rules apply. Works for athletes and coaches.
+ */
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    if (!authHeader) return json({ error: 'Non autorisé' }, 401);
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '', // Service role needed to bypass some RLS if gathering all data, but let's use Anon key with Auth Header to enforce RLS
-    );
+    const db = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user }, error: userError } = await db.auth.getUser(authHeader.replace(/^Bearer\s+/i, ''));
+    if (userError || !user) return json({ error: 'Non autorisé' }, 401);
+    const id = user.id;
 
-    // Get user from token
-    const { data: { user }, error: userError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
-    }
-
-    const userId = user.id;
-
-    // Use regular client with user's auth context to fetch data
-    const userClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    // Fetch Profile
-    const { data: profile } = await userClient.from('profiles').select('*').eq('id', userId).single();
-    
-    // Fetch Body Metrics
-    const { data: bodyMetrics } = await userClient.from('body_metrics').select('*').eq('athlete_id', userId);
-    
-    // Fetch Workouts
-    const { data: workouts } = await userClient.from('workouts').select('*').eq('athlete_id', userId);
-    
-    // Fetch Athlete Efforts
-    const { data: efforts } = await userClient.from('athlete_efforts').select('*').eq('athlete_id', userId);
-    
-    // Fetch Meal Logs
-    const { data: mealLogs } = await userClient.from('meal_logs').select('*').eq('user_id', userId);
-    
-    // Fetch Check-ins
-    const { data: checkIns } = await userClient.from('check_ins').select('*').eq('athlete_id', userId);
-
-    const exportData = {
-      export_date: new Date().toISOString(),
-      user: {
-        id: user.id,
-        email: user.email,
-        ...profile
-      },
-      body_metrics: bodyMetrics || [],
-      workouts: workouts || [],
-      athlete_efforts: efforts || [],
-      meal_logs: mealLogs || [],
-      check_ins: checkIns || []
+    // A missing table or column never blocks the export: that section is just empty
+    const rows = async (table: string, column: string) => {
+      const { data, error } = await db.from(table).select('*').eq(column, id);
+      if (error) console.error(`export ${table}`, error.message);
+      return data ?? [];
     };
 
-    return new Response(JSON.stringify(exportData, null, 2), {
-      status: 200,
-      headers: { 
-        ...corsHeaders, 
-        'Content-Type': 'application/json',
-        'Content-Disposition': `attachment; filename="sprintflow_export_${userId}.json"`
-      },
-    });
+    const [profile] = await rows('profiles', 'id');
+    const exportData = {
+      export_date: new Date().toISOString(),
+      account: { id, email: user.email, created_at: user.created_at, provider: user.app_metadata?.provider ?? null },
+      profile: profile ?? null,
+      consents: await rows('user_consents', 'user_id'),
+      body_metrics: await rows('body_metrics', 'athlete_id'),
+      check_ins: await rows('check_ins', 'athlete_id'),
+      meal_logs: await rows('meal_logs', 'user_id'),
+      saved_meals: await rows('saved_meals', 'user_id'),
+      workouts_as_athlete: await rows('workouts', 'athlete_id'),
+      workouts_as_coach: await rows('workouts', 'coach_id'),
+      athlete_efforts: await rows('athlete_efforts', 'athlete_id'),
+      team_memberships: await rows('team_members', 'user_id'),
+      teams_coached: await rows('teams', 'coach_id'),
+      messages_sent: await rows('messages', 'sender_id'),
+      blocked_users: await rows('user_blocks', 'blocker_id'),
+      reports_sent: await rows('user_reports', 'reporter_id'),
+    };
 
+    return json(exportData, 200, { 'Content-Disposition': 'attachment; filename="sprintys_export.json"' });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
-    });
+    console.error('export_data error', error);
+    return json({ error: 'Export impossible pour le moment.' }, 500);
   }
 });

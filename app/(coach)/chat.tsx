@@ -18,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import LottieView from 'lottie-react-native';
 import { useSprintyChatStore } from '../../src/store/sprintyChatStore';
+import { useConsentStore } from '../../src/store/consentStore';
 import SprintyHistoryModal from '../../src/components/SprintyHistoryModal';
 import { CompetitionSearchModal } from '../../src/components/competitions/CompetitionSearchModal';
 import { CompetitionCard } from '../../src/components/competitions/CompetitionCard';
@@ -261,6 +262,7 @@ export default function CoachMessageScreen() {
   const sendMessage = async (text?: string, opts?: { auto?: boolean }) => {
     const messageToSend = text || inputText;
     if (!messageToSend.trim() || isTyping) return;
+    if (!(await useConsentStore.getState().ensureAIConsent())) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (!opts?.auto) setInputText('');

@@ -10,6 +10,7 @@ import { StepIdentity } from './steps/StepIdentity';
 import { StepPhysical } from './steps/StepPhysical';
 import { StepCoachGroup } from './steps/StepCoachGroup';
 import { StepAccount } from './steps/StepAccount';
+import { toISODate } from '../../../legal/age';
 
 interface RegisterMultiStepProps {
   onSwitchToLogin?: () => void;
@@ -65,7 +66,11 @@ export const RegisterMultiStep: React.FC<RegisterMultiStepProps> = ({ onSwitchTo
       objective: formData.objective,
       groupName: formData.groupName,
       subgroups: formData.subgroups,
-      dateOfBirth: formData.dob ? formData.dob.toISOString().slice(0, 10) : undefined,
+      dateOfBirth: formData.dob ? toISODate(formData.dob) : undefined,
+      consents: [
+        ...(formData.acceptedTerms ? (['terms'] as const) : []),
+        ...(formData.role !== 'coach' && formData.acceptedHealth ? (['health_profile'] as const) : []),
+      ],
     });
 
     if (res.success) {

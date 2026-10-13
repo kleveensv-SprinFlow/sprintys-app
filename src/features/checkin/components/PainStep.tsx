@@ -4,6 +4,9 @@ import { useTheme } from '../../../core/theme';
 import { Feather } from '@expo/vector-icons';
 import { useCheckInStore } from '../../../store/checkInStore';
 import Slider from '@react-native-community/slider';
+import { useConsentStore } from '../../../store/consentStore';
+import { ConsentCheck } from '../../legal/ConsentCheck';
+import { CONSENT_TEXTS } from '../../../legal/consents';
 
 interface PainStepProps {
   onBack: () => void;
@@ -84,6 +87,10 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
   const [activeSide, setActiveSide] = useState<'Gauche' | 'Droit' | 'Bilatéral'>('Gauche');
   const [intensity, setIntensity] = useState<number>(3);
   const [comment, setComment] = useState<string>('');
+  const painConsent = useConsentStore((s) => !!s.active?.has('health_data'));
+  const grantConsent = useConsentStore((s) => s.grant);
+  const [consentTicked, setConsentTicked] = useState(false);
+  const [granting, setGranting] = useState(false);
   const finish = () => {
     onSubmit();
   };
@@ -132,85 +139,114 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
         Signale les zones douloureuses avec précision (Optionnel).
       </Text>
 
-      <ScrollView style={styles.sectionsList} showsVerticalScrollIndicator={false}>
-        {BODY_SECTIONS.map((section) => {
-          const isExpanded = expandedSection === section.id;
-          const painsInSection = currentPains.filter(p => section.zones.some(z => z.id === p.muscle_id));
-
-          return (
-            <View key={section.id} style={styles.sectionContainer}>
-              <TouchableOpacity 
-                style={[
-                  styles.sectionHeader, 
-                  { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border },
-                  isExpanded && { borderColor: theme.colors.accent, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }
-                ]}
-                activeOpacity={0.7}
-                onPress={() => setExpandedSection(isExpanded ? null : section.id)}
-              >
-                <View style={styles.sectionHeaderLeft}>
-                  <View style={[styles.iconBox, { backgroundColor: theme.colors.background }]}>
-                    <Feather name={section.icon as any} size={20} color={theme.colors.text} />
-                  </View>
-                  <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>{section.name}</Text>
-                  {painsInSection.length > 0 && (
-                    <View style={[styles.badge, { backgroundColor: theme.colors.error }]}>
-                      <Text style={styles.badgeText}>{painsInSection.length}</Text>
-                    </View>
-                  )}
-                </View>
-                <Feather name={isExpanded ? "chevron-up" : "chevron-down"} size={20} color={theme.colors.textMuted} />
-              </TouchableOpacity>
-
-              {isExpanded && (
-                <View style={[styles.zonesContainer, { borderColor: theme.colors.border, borderTopWidth: 0 }]}>
-                  {section.zones.map((zone, index) => {
-                    const pain = currentPains.find(p => p.muscle_id === zone.id);
-                    const isLast = index === section.zones.length - 1;
-
-                    return (
-                      <TouchableOpacity 
-                        key={zone.id} 
-                        style={[styles.zoneRow, !isLast && { borderBottomWidth: 1, borderBottomColor: theme.colors.background }]}
-                        onPress={() => handleZonePress(zone)}
-                      >
-                        <Text style={[styles.zoneName, { color: theme.colors.text }]}>{zone.name}</Text>
-                        
-                        {pain ? (
-                          <View style={styles.zoneStateBadge}>
-                            <View style={[styles.intensityDot, { backgroundColor: getIntensityColor(pain.intensity) }]} />
-                            <Text style={[styles.zoneStateText, { color: theme.colors.textSecondary }]}>
-                              {pain.intensity}/10 - {pain.type}
-                            </Text>
-                          </View>
-                        ) : (
-                          <Feather name="plus-circle" size={20} color={theme.colors.textMuted} />
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
-            </View>
-          );
-        })}
-      </ScrollView>
-
-      {currentPains.length > 0 && (
-        <View style={styles.summaryContainer}>
-          <Text style={[styles.summaryTitle, { color: theme.colors.textSecondary }]}>Zones signalées ({currentPains.length})</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.summaryList}>
-            {currentPains.map(pain => (
-              <View key={pain.muscle_id} style={[styles.painChip, { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border }]}>
-                <View style={[styles.intensityDot, { backgroundColor: getIntensityColor(pain.intensity) }]} />
-                <Text style={[styles.painChipText, { color: theme.colors.text }]}>{pain.muscle_name}</Text>
-                <TouchableOpacity onPress={() => removePain(pain.muscle_id)} style={styles.removePainBtn}>
-                  <Feather name="x" size={14} color={theme.colors.textMuted} />
-                </TouchableOpacity>
-              </View>
-            ))}
-          </ScrollView>
+      {!painConsent ? (
+        <View style={[styles.consentCard, { backgroundColor: theme.colors.surface }]}>
+          <View style={styles.consentIcon}>
+            <Feather name="lock" size={20} color={theme.colors.sprintyBlue} />
+          </View>
+          <Text style={[styles.consentTitle, { color: theme.colors.text }]}>Activer le suivi des douleurs</Text>
+          <Text style={[styles.consentText, { color: theme.colors.textSecondary }]}>
+            Les douleurs sont des données de santé : nous ne les enregistrons qu’avec ton accord. Tu peux passer cette étape.
+          </Text>
+          <ConsentCheck checked={consentTicked} onToggle={() => setConsentTicked((v) => !v)}>
+            {CONSENT_TEXTS.health_data}
+          </ConsentCheck>
+          <TouchableOpacity
+            style={[styles.consentButton, { backgroundColor: theme.colors.sprintyBlue }, (!consentTicked || granting) && { opacity: 0.4 }]}
+            disabled={!consentTicked || granting}
+            onPress={async () => {
+              setGranting(true);
+              await grantConsent(['health_data']);
+              setGranting(false);
+            }}
+          >
+            <Text style={styles.consentButtonText}>{granting ? 'Activation…' : 'Activer'}</Text>
+          </TouchableOpacity>
         </View>
+      ) : (
+        <>
+  <ScrollView style={styles.sectionsList} showsVerticalScrollIndicator={false}>
+          {BODY_SECTIONS.map((section) => {
+            const isExpanded = expandedSection === section.id;
+            const painsInSection = currentPains.filter(p => section.zones.some(z => z.id === p.muscle_id));
+
+            return (
+              <View key={section.id} style={styles.sectionContainer}>
+                <TouchableOpacity 
+                  style={[
+                    styles.sectionHeader, 
+                    { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border },
+                    isExpanded && { borderColor: theme.colors.accent, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }
+                  ]}
+                  activeOpacity={0.7}
+                  onPress={() => setExpandedSection(isExpanded ? null : section.id)}
+                >
+                  <View style={styles.sectionHeaderLeft}>
+                    <View style={[styles.iconBox, { backgroundColor: theme.colors.background }]}>
+                      <Feather name={section.icon as any} size={20} color={theme.colors.text} />
+                    </View>
+                    <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>{section.name}</Text>
+                    {painsInSection.length > 0 && (
+                      <View style={[styles.badge, { backgroundColor: theme.colors.error }]}>
+                        <Text style={styles.badgeText}>{painsInSection.length}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Feather name={isExpanded ? "chevron-up" : "chevron-down"} size={20} color={theme.colors.textMuted} />
+                </TouchableOpacity>
+
+                {isExpanded && (
+                  <View style={[styles.zonesContainer, { borderColor: theme.colors.border, borderTopWidth: 0 }]}>
+                    {section.zones.map((zone, index) => {
+                      const pain = currentPains.find(p => p.muscle_id === zone.id);
+                      const isLast = index === section.zones.length - 1;
+
+                      return (
+                        <TouchableOpacity 
+                          key={zone.id} 
+                          style={[styles.zoneRow, !isLast && { borderBottomWidth: 1, borderBottomColor: theme.colors.background }]}
+                          onPress={() => handleZonePress(zone)}
+                        >
+                          <Text style={[styles.zoneName, { color: theme.colors.text }]}>{zone.name}</Text>
+                          
+                          {pain ? (
+                            <View style={styles.zoneStateBadge}>
+                              <View style={[styles.intensityDot, { backgroundColor: getIntensityColor(pain.intensity) }]} />
+                              <Text style={[styles.zoneStateText, { color: theme.colors.textSecondary }]}>
+                                {pain.intensity}/10 - {pain.type}
+                              </Text>
+                            </View>
+                          ) : (
+                            <Feather name="plus-circle" size={20} color={theme.colors.textMuted} />
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </ScrollView>
+
+        {currentPains.length > 0 && (
+          <View style={styles.summaryContainer}>
+            <Text style={[styles.summaryTitle, { color: theme.colors.textSecondary }]}>Zones signalées ({currentPains.length})</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.summaryList}>
+              {currentPains.map(pain => (
+                <View key={pain.muscle_id} style={[styles.painChip, { backgroundColor: theme.colors.surfaceLight, borderColor: theme.colors.border }]}>
+                  <View style={[styles.intensityDot, { backgroundColor: getIntensityColor(pain.intensity) }]} />
+                  <Text style={[styles.painChipText, { color: theme.colors.text }]}>{pain.muscle_name}</Text>
+                  <TouchableOpacity onPress={() => removePain(pain.muscle_id)} style={styles.removePainBtn}>
+                    <Feather name="x" size={14} color={theme.colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        </>
       )}
 
       <View style={styles.footer}>
@@ -356,6 +392,20 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 24, paddingTop: 40 },
+  consentCard: { borderRadius: 22, borderCurve: 'continuous', padding: 18, marginBottom: 16 },
+  consentIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 105, 232, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  consentTitle: { fontSize: 17, fontWeight: '800', marginBottom: 4 },
+  consentText: { fontSize: 14, lineHeight: 20, marginBottom: 10 },
+  consentButton: { marginTop: 10, borderRadius: 14, paddingVertical: 13, alignItems: 'center' },
+  consentButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
   title: { fontSize: 28, fontWeight: 'bold', marginBottom: 8 },
   subtitle: { fontSize: 16, marginBottom: 24 },
   sectionsList: { flex: 1 },

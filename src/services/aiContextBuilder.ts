@@ -50,7 +50,8 @@ export const buildSystemPrompt = (): string => {
   const { mealLogs } = useNutritionStore.getState();
   const { upcomingWorkouts } = useWorkoutStore.getState();
 
-  const athleteName = user?.name || "Athlète";
+  // First name only: the AI provider does not need the full name
+  const athleteName = user?.firstName || (user?.name || "").split(" ")[0] || "Athlète";
   const nextComp = user?.nextCompetitionDate ? new Date(user.nextCompetitionDate).toLocaleDateString('fr-FR') : "Aucune";
   const kcalGoal = user?.manualKcalGoal || 2000;
   

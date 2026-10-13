@@ -7,9 +7,10 @@ import * as ImagePicker from 'expo-image-picker';
 import { theme } from '../../src/core/theme';
 import { useAuthStore } from '../../src/store/authStore';
 import { useRouter } from 'expo-router';
+import { exportMyData } from '../../src/services/exportService';
+import { useConsentStore } from '../../src/store/consentStore';
 import { EditProfileModal } from '../../src/shared/components/EditProfileModal';
 import { FaqModal } from '../../src/shared/components/FaqModal';
-import { LegalNoticeModal } from '../../src/features/auth/components/LegalNoticeModal';
 import { supabase } from '../../src/services/supabase';
 import { GlowBackground } from '../../src/shared/components/GlowBackground';
 import { glassSurface } from '../../src/core/glass';
@@ -56,12 +57,12 @@ const APP_VERSION = Constants.expoConfig?.version ?? '';
 
 export default function ProfileScreen() {
   const { user, logout, updateProfile } = useAuthStore();
+  const aiConsent = useConsentStore((st) => !!st.active?.has('ai_processing'));
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { barOpacity: headerBarOpacity, scrollProps } = useFrostedHeader();
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isFaqModalVisible, setIsFaqModalVisible] = useState(false);
-  const [isLegalVisible, setIsLegalVisible] = useState(false);
   const [isPhotoSheetVisible, setIsPhotoSheetVisible] = useState(false);
   const [isConfirmModalVisible, setIsConfirmModalVisible] = useState(false);
   const [pendingImage, setPendingImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
@@ -303,8 +304,29 @@ export default function ProfileScreen() {
           />
           <SettingsItem
             icon="file-text"
-            title="Mentions et conditions"
-            onPress={() => setIsLegalVisible(true)}
+            title="Conditions, confidentialité et mentions"
+            onPress={() => router.push({ pathname: '/legal/[doc]', params: { doc: 'terms' } })}
+          />
+          {aiConsent && (
+            <SettingsItem
+              icon="zap"
+              title="Retirer l’accord pour l’IA"
+              onPress={async () => {
+                const ok = await useConsentStore.getState().revoke('ai_processing');
+                Alert.alert(ok ? 'Accord retiré' : 'Erreur', ok ? 'Sprinty est désactivé jusqu’à ce que tu le réactives.' : 'Réessaie dans un instant.');
+              }}
+            />
+          )}
+          <SettingsItem
+            icon="download"
+            title="Exporter mes données"
+            onPress={async () => {
+              try {
+                await exportMyData();
+              } catch {
+                Alert.alert('Erreur', 'Impossible d’exporter tes données pour le moment.');
+              }
+            }}
           />
           <SettingsItem
             icon="mail"
@@ -403,7 +425,6 @@ export default function ProfileScreen() {
 
       <EditProfileModal visible={isEditModalVisible} onClose={() => setIsEditModalVisible(false)} />
       <FaqModal visible={isFaqModalVisible} onClose={() => setIsFaqModalVisible(false)} />
-      <LegalNoticeModal visible={isLegalVisible} onClose={() => setIsLegalVisible(false)} />
     </SafeAreaView>
   );
 }

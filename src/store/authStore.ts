@@ -5,6 +5,8 @@ import { makeRedirectUri } from 'expo-auth-session';
 import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import { supabase } from '../services/supabase';
 import { useSprintyChatStore } from './sprintyChatStore';
+import { useConsentStore } from './consentStore';
+import type { ConsentType } from '../legal/consents';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -37,6 +39,8 @@ export interface UserProfile {
   lastFlowDate?: string | null;
   nextCompetitionDate?: string; // Not in DB yet, future competitions table feature
   sleepGoal?: number | null;
+  /** 'email', 'google' or 'apple' (Supabase app_metadata.provider). */
+  authProvider?: string | null;
 }
 
 export interface SignupData {
@@ -54,7 +58,10 @@ export interface SignupData {
   subgroups?: string[];
   dateOfBirth?: string;
   acceptedTerms?: boolean;
+  acceptedHealth?: boolean;
   dob?: Date;
+  /** Consents ticked at signup, recorded once the account is authenticated. */
+  consents?: ConsentType[];
 }
 
 interface AuthState {
@@ -82,6 +89,32 @@ interface AuthState {
 
 const CACHE_PROFILE_KEY = '@sprintflow_user_profile';
 const PENDING_SIGNUP_DATA_KEY = '@sprintflow_pending_signup_data';
+const PENDING_CONSENTS_KEY = '@sprintys_pending_consents';
+
+/**
+ * Writes profile fields. The date of birth column may be missing on an older database: retry
+ * without it instead of losing every other field (gender, height, weight, group…).
+ */
+const saveProfileFields = async (userId: string, fields: Record<string, any>) => {
+  const { error } = await supabase.from('profiles').update(fields).eq('id', userId);
+  if (error && 'date_of_birth' in fields && /date_of_birth/i.test(error.message || '')) {
+    const { date_of_birth, ...rest } = fields;
+    return supabase.from('profiles').update(rest).eq('id', userId);
+  }
+  return { error };
+};
+
+/** Records the consents ticked at signup once the user is authenticated. */
+const flushPendingConsents = async () => {
+  try {
+    const raw = await AsyncStorage.getItem(PENDING_CONSENTS_KEY);
+    if (!raw) return;
+    const types = JSON.parse(raw) as ConsentType[];
+    if (await useConsentStore.getState().grant(types)) await AsyncStorage.removeItem(PENDING_CONSENTS_KEY);
+  } catch (e) {
+    console.error('pending consents', e);
+  }
+};
 
 export const translateAuthError = (err: any): string => {
   const msg = err?.message || err?.error_description || (typeof err === 'string' ? err : '');
@@ -133,6 +166,7 @@ const buildUserProfile = (authUser: any, profile: any): UserProfile => {
     currentFlowStreak: profile?.current_flow_streak,
     lastFlowDate: profile?.last_flow_date,
     sleepGoal: profile?.sleep_goal,
+    authProvider: authUser.app_metadata?.provider || null,
   };
 };
 
@@ -386,12 +420,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (data.user) {
         // Cache pending signup data so verifyOtp can ensure it's saved after authentication
         await AsyncStorage.setItem(PENDING_SIGNUP_DATA_KEY, JSON.stringify(profileData));
+        if (signupData.consents?.length) {
+          await AsyncStorage.setItem(PENDING_CONSENTS_KEY, JSON.stringify(signupData.consents));
+        }
 
         // Try writing to profiles directly (works if confirmation is disabled)
-        try {
-          await supabase.from('profiles').upsert({ id: data.user.id, ...profileData });
-        } catch (_) {
-          // Ignored if unauthenticated (will be written on verifyOtp)
+        if (data.session) {
+          await saveProfileFields(data.user.id, profileData);
+          await flushPendingConsents();
         }
 
         // Check if email confirmation is required
@@ -464,9 +500,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           const pendingRaw = await AsyncStorage.getItem(PENDING_SIGNUP_DATA_KEY);
           if (pendingRaw) {
             const pendingData = JSON.parse(pendingRaw);
-            await supabase.from('profiles').update(pendingData).eq('id', data.user.id);
-            await AsyncStorage.removeItem(PENDING_SIGNUP_DATA_KEY);
+            const { error: saveError } = await saveProfileFields(data.user.id, pendingData);
+            if (!saveError) await AsyncStorage.removeItem(PENDING_SIGNUP_DATA_KEY);
           }
+          await flushPendingConsents();
         } catch (e) {
           console.warn('Error applying pending signup data on verifyOtp:', e);
         }
@@ -519,6 +556,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await AsyncStorage.removeItem(CACHE_PROFILE_KEY);
     // The AI chat history is personal: never leave it to the next account on this phone
     useSprintyChatStore.getState().reset();
+    useConsentStore.getState().reset();
     set({ user: null, pendingEmail: null, isLoading: false });
   },
 

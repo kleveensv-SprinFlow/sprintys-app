@@ -60,7 +60,7 @@ const FAQ_ITEMS: FaqItem[] = [
     id: '6',
     category: 'general',
     question: 'Où sont stockées mes données personnelles et de santé ?',
-    answer: 'Tes données sont hébergées chez Supabase. Tu peux exporter une copie depuis les réglages, et supprimer ton compte. Les mentions dans les réglages disent ce qui part chez l’assistant, et ce qui ne l’est pas encore (l’éditeur n’est pas une société).',
+    answer: 'Tes données sont hébergées dans l’Union européenne (Paris). Tu peux en exporter une copie et supprimer ton compte depuis les réglages. La politique de confidentialité, dans les réglages, détaille ce qui est partagé avec ton coach et avec notre prestataire d’IA.',
   },
 ];
 

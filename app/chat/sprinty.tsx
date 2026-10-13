@@ -16,6 +16,7 @@ import { WorkoutProposalCard, AIWorkoutProposal } from '../../src/components/Wor
 import { useAuthStore } from '../../src/store/authStore';
 import { useWorkoutStore } from '../../src/store/workoutStore';
 import { useSprintyChatStore, ChatMessage } from '../../src/store/sprintyChatStore';
+import { useConsentStore } from '../../src/store/consentStore';
 import SprintyHistoryModal from '../../src/components/SprintyHistoryModal';
 import { useKeyboardOffset } from '../../src/shared/hooks/useKeyboardOffset';
 import { GlowBackground } from '../../src/shared/components/GlowBackground';
@@ -155,9 +156,10 @@ export default function AthleteMessageScreen() {
     }
   };
 
-  const sendMessage = (text?: string) => {
+  const sendMessage = async (text?: string) => {
     const content = (text ?? inputText).trim().slice(0, MAX_CHARS);
     if (!content || isTyping) return;
+    if (!(await useConsentStore.getState().ensureAIConsent())) return;
     haptic('light');
     setInputText('');
     if (!useSprintyChatStore.getState().currentConversationId) startNewConversation();
@@ -243,7 +245,7 @@ export default function AthleteMessageScreen() {
             <View style={{ flexShrink: 1 }}>
               <Text style={styles.title}>Sprinty</Text>
               <Text style={styles.subtitle} numberOfLines={1}>
-                {isTyping ? 'Sprinty écrit…' : 'Entraînement · nutrition · récup'}
+                {isTyping ? 'Sprinty écrit…' : 'IA · pas un avis médical'}
               </Text>
             </View>
           </View>

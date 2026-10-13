@@ -13,6 +13,8 @@ import { useKeyboardOffset } from '../../../src/shared/hooks/useKeyboardOffset';
 import { GlowBackground } from '../../../src/shared/components/GlowBackground';
 import { PressableScale } from '../../../src/shared/components/PressableScale';
 import { formatDayLabel, isSameDay } from '../../../src/shared/utils/chatTime';
+import { moderationService, REPORT_REASONS, ReportReason } from '../../../src/services/moderationService';
+import { useSprintyStore } from '../../../src/store/sprintyStore';
 
 const BLUE = theme.colors.sprintyBlue;
 const BLUE_TINT = 'rgba(0, 105, 232, 0.1)';
@@ -39,6 +41,15 @@ export default function ChatScreen() {
   const [conversation, setConversation] = useState<any>(null);
   const [profiles, setProfiles] = useState<Record<string, any>>({});
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const [blocked, setBlocked] = useState<Set<string>>(new Set());
+  const showFeedback = useSprintyStore((s) => s.showFeedback);
+
+  useEffect(() => {
+    moderationService.blockedIds().then(setBlocked);
+  }, [user?.id]);
+
+  // Messages of blocked people are hidden everywhere
+  const visibleMessages = messages.filter((m) => !blocked.has(m.sender_id));
   const profilesRef = useRef(profiles);
   profilesRef.current = profiles;
 
@@ -167,26 +178,69 @@ export default function ChatScreen() {
     setPollOptions(['', '']);
   };
 
-  const report = () => {
-    Alert.alert('Options', 'Sélectionnez une action :', [
+  const chooseReason = (onPick: (reason: ReportReason) => void) =>
+    Alert.alert('Signaler', 'Pourquoi signales-tu ce contenu ?', [
+      ...REPORT_REASONS.map((r) => ({ text: r, onPress: () => onPick(r) })),
+      { text: 'Annuler', style: 'cancel' as const },
+    ]);
+
+  const sendReport = async (params: { reportedUserId?: string; messageId?: string; excerpt?: string }, reason: ReportReason) => {
+    const ok = await moderationService.report({ conversationId: conversation?.id, reason, ...params });
+    showFeedback(ok ? 'success' : 'error', ok ? 'Signalement envoyé, merci. Nous allons l’examiner.' : 'Impossible d’envoyer le signalement.');
+  };
+
+  const blockUser = (userId: string, name: string) =>
+    Alert.alert(`Bloquer ${name} ?`, 'Tu ne verras plus ses messages. Tu pourras le débloquer depuis cette conversation.', [
+      { text: 'Annuler', style: 'cancel' },
       {
-        text: 'Signaler',
+        text: 'Bloquer',
+        style: 'destructive',
         onPress: async () => {
-          const {
-            data: { user: authUser },
-          } = await supabase.auth.getUser();
-          if (!authUser || !conversation?.id) return;
-          const { error } = await supabase.from('user_reports').insert({
-            reporter_id: authUser.id,
-            conversation_id: conversation.id,
-            reason: 'Signalement depuis la conversation',
-          });
-          Alert.alert(
-            error ? 'Signalement' : 'Signalement envoyé',
-            error ? 'Impossible de l’enregistrer pour le moment.' : 'C’est noté. Il n’y a pas encore de blocage.'
-          );
+          if (await moderationService.block(userId)) {
+            setBlocked((prev) => new Set(prev).add(userId));
+            showFeedback('success', `${name} est bloqué.`);
+          } else {
+            showFeedback('error', 'Impossible de bloquer pour le moment.');
+          }
         },
       },
+    ]);
+
+  const unblockUser = async (userId: string, name: string) => {
+    if (await moderationService.unblock(userId)) {
+      setBlocked((prev) => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
+      showFeedback('success', `${name} est débloqué.`);
+    }
+  };
+
+  /** Long press on someone else's message. */
+  const messageActions = (item: ChatItem) => {
+    const name = nameOf(item.sender_id);
+    Alert.alert(name, undefined, [
+      {
+        text: 'Signaler le message',
+        onPress: () => chooseReason((r) => sendReport({ reportedUserId: item.sender_id, messageId: item.id, excerpt: item.content }, r)),
+      },
+      { text: `Bloquer ${name}`, style: 'destructive', onPress: () => blockUser(item.sender_id, name) },
+      { text: 'Annuler', style: 'cancel' },
+    ]);
+  };
+
+  /** Header menu: report the conversation; in a direct chat, block / unblock the other person. */
+  const report = () => {
+    const otherId = type === 'direct' ? (id as string) : null;
+    const otherName = (title as string) || 'cette personne';
+    Alert.alert('Options', undefined, [
+      { text: 'Signaler la conversation', onPress: () => chooseReason((r) => sendReport({ reportedUserId: otherId ?? undefined }, r)) },
+      ...(otherId
+        ? blocked.has(otherId)
+          ? [{ text: `Débloquer ${otherName}`, onPress: () => unblockUser(otherId, otherName) }]
+          : [{ text: `Bloquer ${otherName}`, style: 'destructive' as const, onPress: () => blockUser(otherId, otherName) }]
+        : []),
       { text: 'Annuler', style: 'cancel' },
     ]);
   };
@@ -199,7 +253,7 @@ export default function ChatScreen() {
   const renderMessage = ({ item, index }: { item: ChatItem; index: number }) => {
     const isMe = item.sender_id === user?.id;
     // The list is inverted: the older neighbour is the next item
-    const older = messages[index + 1];
+    const older = visibleMessages[index + 1];
     const newDay = !older || !isSameDay(older.created_at, item.created_at);
     const firstOfGroup = newDay || older.sender_id !== item.sender_id;
     const senderName = nameOf(item.sender_id);
@@ -222,9 +276,11 @@ export default function ChatScreen() {
             {!isMe && type === 'team' && firstOfGroup && <Text style={styles.senderName}>{senderName}</Text>}
 
             <TouchableOpacity
-              activeOpacity={item.failed ? 0.6 : 1}
-              disabled={!item.failed}
-              onPress={() => retry(item)}
+              activeOpacity={item.failed ? 0.6 : 0.85}
+              disabled={!item.failed && isMe}
+              onPress={() => item.failed && retry(item)}
+              onLongPress={() => !isMe && !item.pending && messageActions(item)}
+              delayLongPress={300}
               style={[
                 styles.messageBubble,
                 isMe ? styles.messageBubbleMe : styles.messageBubbleOther,
@@ -284,7 +340,7 @@ export default function ChatScreen() {
         </View>
 
         {/* Messages or Empty State */}
-        {messages.length === 0 ? (
+        {visibleMessages.length === 0 ? (
           <View style={styles.emptyChatContainer}>
             <View style={styles.emptyIconCircle}>
               <Feather name={type === 'team' ? 'users' : 'message-circle'} size={30} color={BLUE} />
@@ -304,7 +360,7 @@ export default function ChatScreen() {
           </View>
         ) : (
           <FlatList
-            data={messages}
+            data={visibleMessages}
             keyExtractor={(item) => item.id}
             renderItem={renderMessage}
             inverted

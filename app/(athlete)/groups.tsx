@@ -13,6 +13,8 @@ import { glassSurface, glassRim } from '../../src/core/glass';
 import { GlassSheen } from '../../src/shared/components/GlassSheen';
 import { FrostedBar } from '../../src/shared/components/FrostedBar';
 import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
+import { CoachSharingSheet } from '../../src/features/legal/CoachSharingSheet';
+import { useConsentStore } from '../../src/store/consentStore';
 
 interface MyGroupData {
   team_id: string;
@@ -163,6 +165,14 @@ export default function GroupsScreen() {
     }
   };
 
+  const [sharingSheet, setSharingSheet] = useState(false);
+
+  /** The coach will see health data: ask first, then send the request. */
+  const requestJoin = () => {
+    if (useConsentStore.getState().has('coach_sharing')) handleJoinGroup();
+    else setSharingSheet(true);
+  };
+
   const handleJoinGroup = async () => {
     const code = inviteCode.trim();
     if (!code || !user?.id) return;
@@ -282,7 +292,7 @@ export default function GroupsScreen() {
 
               <TouchableOpacity 
                 style={[styles.joinBtn, (!inviteCode.trim() || inviteCode.trim().length < 8) && { opacity: 0.5 }]}
-                onPress={handleJoinGroup}
+                onPress={requestJoin}
                 disabled={!inviteCode.trim() || inviteCode.trim().length < 8 || isJoining || !previewTeamName}
               >
                 {isJoining ? (
@@ -410,6 +420,17 @@ export default function GroupsScreen() {
           </View>
         )}
       </Animated.ScrollView>
+      <CoachSharingSheet
+        visible={sharingSheet}
+        teamName={previewTeamName}
+        onClose={() => setSharingSheet(false)}
+        onConfirm={async () => {
+          if (await useConsentStore.getState().grant(['coach_sharing'])) {
+            setSharingSheet(false);
+            await handleJoinGroup();
+          }
+        }}
+      />
     </SafeAreaView>
   );
 }
