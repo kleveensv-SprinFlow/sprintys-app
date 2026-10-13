@@ -4,6 +4,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import { supabase } from '../services/supabase';
+import { useSprintyChatStore } from './sprintyChatStore';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -516,6 +517,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       console.warn('SignOut warning:', err);
     }
     await AsyncStorage.removeItem(CACHE_PROFILE_KEY);
+    // The AI chat history is personal: never leave it to the next account on this phone
+    useSprintyChatStore.getState().reset();
     set({ user: null, pendingEmail: null, isLoading: false });
   },
 

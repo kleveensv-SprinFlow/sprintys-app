@@ -119,6 +119,9 @@ export default function CoachMessageScreen() {
     if (handledParamsKeyRef.current === key) return;
     const isFirstRun = handledParamsKeyRef.current === null;
     handledParamsKeyRef.current = key;
+    // AI history belongs to the signed-in account only
+    const ownerId = useAuthStore.getState().user?.id;
+    if (ownerId) useSprintyChatStore.getState().ensureOwner(ownerId);
 
     if (params.athleteId) {
       startAthleteAnalysis(
@@ -276,7 +279,9 @@ export default function CoachMessageScreen() {
       
       const response = await fetchOpenAIResponse(
         currentMsgs.map(m => ({ role: m.role, content: m.content })),
-        systemPrompt
+        systemPrompt,
+        'gpt-4o-mini',
+        'coach_chat'
       );
       
       addMessage({ role: 'assistant', content: response.trim() });

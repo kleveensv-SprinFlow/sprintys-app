@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { theme } from '../core/theme';
 
 interface RichChatMessageProps {
   content: string;
@@ -279,27 +280,27 @@ const styles = StyleSheet.create({
   paragraph: {
     fontSize: 15,
     lineHeight: 22,
-    color: '#0F172A',
+    color: theme.colors.text,
     marginBottom: 4,
   },
   heading: {
     fontWeight: '800',
-    color: '#0F172A',
+    color: theme.colors.text,
     letterSpacing: -0.3,
   },
   boldText: {
     fontWeight: '700',
-    color: '#0F172A',
+    color: theme.colors.text,
   },
   italicAnnotation: {
     fontStyle: 'italic',
-    color: '#64748B',
+    color: theme.colors.textSecondary,
     fontSize: 13,
   },
   inlineCode: {
     fontFamily: 'monospace',
-    backgroundColor: '#F1F5F9',
-    color: '#0369A1',
+    backgroundColor: theme.colors.glassFill,
+    color: theme.colors.sprintyBlue,
     fontSize: 13,
     paddingHorizontal: 4,
     borderRadius: 4,
@@ -314,7 +315,7 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: '#0284C7',
+    backgroundColor: theme.colors.sprintyBlue,
     marginTop: 8,
     marginRight: 8,
   },
@@ -322,12 +323,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     lineHeight: 21,
-    color: '#1E293B',
+    color: theme.colors.text,
   },
   calloutBox: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.glassFill,
     borderLeftWidth: 3,
-    borderLeftColor: '#38BDF8',
+    borderLeftColor: theme.colors.sprintyBlue,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 6,
@@ -336,14 +337,14 @@ const styles = StyleSheet.create({
   calloutText: {
     fontSize: 13,
     lineHeight: 19,
-    color: '#334155',
+    color: theme.colors.textSecondary,
     fontStyle: 'italic',
   },
   tableCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.hairline,
     overflow: 'hidden',
     marginVertical: 8,
   },
@@ -353,18 +354,18 @@ const styles = StyleSheet.create({
   tableRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: theme.colors.glassFill,
   },
   tableHeaderRow: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.glassFill,
     borderBottomWidth: 1.5,
-    borderBottomColor: '#CBD5E1',
+    borderBottomColor: theme.colors.border,
   },
   tableRowEven: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
   },
   tableRowOdd: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.glassFill,
   },
   tableCell: {
     paddingVertical: 8,
@@ -374,11 +375,11 @@ const styles = StyleSheet.create({
   },
   cellText: {
     fontSize: 12,
-    color: '#334155',
+    color: theme.colors.textSecondary,
   },
   headerCellText: {
     fontWeight: '800',
-    color: '#0F172A',
+    color: theme.colors.text,
     fontSize: 12,
   },
 });

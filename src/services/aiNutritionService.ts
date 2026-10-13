@@ -67,7 +67,8 @@ Tu dois OBLIGATOIREMENT renvoyer un JSON qui contient UNIQUEMENT un tableau (JSO
               content: userMessageContent
             }
           ],
-          model: 'gpt-4o-mini'
+          model: 'gpt-4o-mini',
+          purpose: input.base64Image ? 'meal_photo' : 'meal_text'
         }
       });
 

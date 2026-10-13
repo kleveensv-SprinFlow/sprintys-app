@@ -31,9 +31,20 @@ export interface Conversation {
 interface SprintyChatState {
   conversations: Conversation[];
   currentConversationId: string | null;
+  /** Account the history belongs to: another account never sees it. */
+  ownerId: string | null;
+  ensureOwner: (userId: string) => void;
+  /** Wipes the history (logout). */
+  reset: () => void;
+  /** Removes conversations where nothing was ever asked. */
+  pruneEmpty: () => void;
+  /** Reopens the latest personal conversation (or none: the next message starts one). */
+  resumeLatest: () => void;
+  /** Drops the last assistant answer (to regenerate it). */
+  removeLastAssistantMessage: () => void;
   // Actions
   startNewConversation: (athleteContext?: AthleteChatContext | null) => string;
-  loadConversation: (id: string) => void;
+  loadConversation: (id: string | null) => void;
   addMessage: (message: ChatMessage) => void;
   renameConversation: (id: string, newTitle: string) => void;
   togglePinConversation: (id: string) => void;
@@ -63,6 +74,49 @@ export const useSprintyChatStore = create<SprintyChatState>()(
     (set, get) => ({
       conversations: [],
       currentConversationId: null,
+      ownerId: null,
+
+      ensureOwner: (userId: string) => {
+        const { ownerId } = get();
+        if (ownerId === userId) return;
+        // History saved before this check existed has no owner: it belongs to whoever is signed in
+        if (ownerId == null) set({ ownerId: userId });
+        else set({ ownerId: userId, conversations: [], currentConversationId: null });
+      },
+
+      reset: () => set({ conversations: [], currentConversationId: null, ownerId: null }),
+
+      pruneEmpty: () => {
+        set((state) => {
+          const conversations = state.conversations.filter(
+            (c) => c.isPinned || c.athleteContext || c.messages.some((m) => m.role === 'user')
+          );
+          return {
+            conversations,
+            currentConversationId: conversations.some((c) => c.id === state.currentConversationId)
+              ? state.currentConversationId
+              : null,
+          };
+        });
+      },
+
+      resumeLatest: () => {
+        const latest = [...get().conversations]
+          .filter((c) => !c.athleteContext)
+          .sort((a, b) => b.updatedAt - a.updatedAt)[0];
+        set({ currentConversationId: latest ? latest.id : null });
+      },
+
+      removeLastAssistantMessage: () => {
+        const { currentConversationId } = get();
+        set((state) => ({
+          conversations: state.conversations.map((c) => {
+            if (c.id !== currentConversationId) return c;
+            const last = c.messages[c.messages.length - 1];
+            return last?.role === 'assistant' ? { ...c, messages: c.messages.slice(0, -1) } : c;
+          }),
+        }));
+      },
 
       startNewConversation: (athleteContext?: AthleteChatContext | null) => {
         const id = String(uuid.v4());
@@ -84,7 +138,7 @@ export const useSprintyChatStore = create<SprintyChatState>()(
         return id;
       },
 
-      loadConversation: (id: string) => {
+      loadConversation: (id: string | null) => {
         set({ currentConversationId: id });
       },
 

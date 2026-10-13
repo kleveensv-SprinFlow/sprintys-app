@@ -92,7 +92,7 @@ Tu DOIS renvoyer ta réponse sous forme de JSON exact avec la structure suivante
     const messages = [{ role: 'user', content: 'Génère la stratégie météo pour ma séance.' }];
     
     try {
-      const response = await fetchOpenAIResponse(messages, systemPrompt);
+      const response = await fetchOpenAIResponse(messages, systemPrompt, 'gpt-4o-mini', 'weather');
       // The response might be wrapped in markdown code blocks
       const cleanedResponse = response.replace(/```json\n?|\n?```/g, '').trim();
       return JSON.parse(cleanedResponse);
