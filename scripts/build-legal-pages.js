@@ -44,6 +44,7 @@ const nav = (current) =>
     ['confidentialite.html', 'Confidentialité'],
     ['mentions-legales.html', 'Mentions légales'],
     ['suppression-compte.html', 'Supprimer mon compte'],
+    ['support.html', 'Assistance'],
   ]
     .map(([href, label]) => `<a href="${href}"${href === current ? ' aria-current="page"' : ''}>${label}</a>`)
     .join('');
@@ -123,6 +124,25 @@ fs.writeFileSync(
 );
 
 fs.writeFileSync(
+  path.join(outDir, 'support.html'),
+  page(
+    'support.html',
+    'Assistance',
+    `<h1>Assistance Sprintys</h1>
+<p class="intro">Une question, un problème ou une suggestion ? Écris-nous, nous répondons en général sous 48 heures ouvrées.</p>
+<h2>Nous contacter</h2>
+<p><a href="mailto:${esc(PUBLISHER.contactEmail)}?subject=Assistance%20Sprintys">${esc(PUBLISHER.contactEmail)}</a></p>
+<p>Indique l’adresse e-mail de ton compte, le modèle de ton téléphone et, si possible, une capture d’écran.</p>
+<h2>Questions fréquentes</h2>
+<p><b>Mot de passe oublié.</b> Sur l’écran de connexion, touche « Mot de passe oublié » : un lien de réinitialisation t’est envoyé par e-mail.</p>
+<p><b>Gérer ou résilier l’abonnement Plus.</b> L’abonnement est géré par ton store : sur iPhone, Réglages › ton nom › Abonnements ; sur Android, Google Play › Paiements et abonnements › Abonnements. Supprimer ton compte ne résilie pas l’abonnement.</p>
+<p><b>Restaurer mes achats.</b> Dans l’application : Profil › Abonnement › Restaurer mes achats.</p>
+<p><b>Signaler un contenu ou un utilisateur.</b> Dans une discussion d’équipe, appuie longuement sur le message ou ouvre le profil pour signaler ou bloquer.</p>
+<p><b>Supprimer mon compte.</b> <a href="suppression-compte.html">Voir la procédure</a>.</p>`
+  )
+);
+
+fs.writeFileSync(
   path.join(outDir, 'index.html'),
   page(
     'index.html',
@@ -134,6 +154,7 @@ fs.writeFileSync(
 <p><a href="confidentialite.html">Politique de confidentialité</a></p>
 <p><a href="mentions-legales.html">Mentions légales</a></p>
 <p><a href="suppression-compte.html">Supprimer ton compte</a></p>
+<p><a href="support.html">Assistance</a></p>
 <h2>Contact</h2>
 <p><a href="mailto:${esc(PUBLISHER.contactEmail)}">${esc(PUBLISHER.contactEmail)}</a></p>`
   )
