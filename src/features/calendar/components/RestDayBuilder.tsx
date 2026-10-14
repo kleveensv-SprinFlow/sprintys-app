@@ -25,6 +25,7 @@ import { appAlert, toast } from '../../../shared/feedback/appAlert';
 import { PressableScale } from '../../../shared/components/PressableScale';
 import { IconButton } from '../../../shared/components/IconButton';
 import { SegmentedControl } from '../../../shared/components/SegmentedControl';
+import { TimeField, useSessionTime } from './TimeField';
 
 export interface RestDayBuilderProps {
   visible: boolean;
@@ -49,6 +50,7 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
   onSave,
   initialWorkout,
 }) => {
+  const sessionTime = useSessionTime(visible, initialWorkout);
   const insets = useSafeAreaInsets();
   const safeTop = Platform.OS === 'android'
     ? Math.max(insets.top, StatusBar.currentHeight || 24) + 8
@@ -142,7 +144,7 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
 
     try {
       const targetDate = new Date(date);
-      targetDate.setHours(12, 0, 0, 0);
+      targetDate.setTime(sessionTime.applyTo(targetDate, 12).getTime());
       const targetDateIso = targetDate.toISOString();
 
       if (initialWorkout?.id) {
@@ -171,6 +173,7 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
             exercises: [],
             blocks: [],
           };
+          (athletePayload as any).measures = sessionTime.flag();
           await workoutService.createPlannedWorkout(athletePayload);
           assignedCount++;
         }
@@ -192,6 +195,7 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
             exercises: [],
             blocks: [],
           };
+          (athletePayload as any).measures = sessionTime.flag();
           await workoutService.createPlannedWorkout(athletePayload);
         }
       } else {
@@ -206,6 +210,7 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
           exercises: [],
           blocks: [],
         };
+        (athletePayload as any).measures = sessionTime.flag();
         await workoutService.createPlannedWorkout(athletePayload);
       }
 
@@ -282,6 +287,7 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.scrollContent}
           >
+            <TimeField time={sessionTime.time} onChange={sessionTime.setTime} />
             {/* Banner */}
             <View style={[glassCard, styles.bannerCard]}>
               <View style={styles.iconCircle}>

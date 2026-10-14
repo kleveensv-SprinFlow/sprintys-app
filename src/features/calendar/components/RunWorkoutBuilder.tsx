@@ -31,6 +31,7 @@ import { SegmentedControl } from '../../../shared/components/SegmentedControl';
 import { EmptyState } from '../../../shared/components/EmptyState';
 import { Input } from '../../../shared/components/Input';
 import { Button } from '../../../shared/components/Button';
+import { TimeField, useSessionTime } from './TimeField';
 
 const BLUE = staticTheme.colors.sprintyBlue;
 const BLUE_TINT = 'rgba(0, 105, 232, 0.1)';
@@ -96,6 +97,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
   onSave,
   initialWorkout,
 }) => {
+  const sessionTime = useSessionTime(visible, initialWorkout);
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const safeTop = Platform.OS === 'android'
@@ -753,7 +755,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
     setIsSubmitting(true);
     try {
       const activeTeamId = teams.length > 0 ? teams[0].id : null;
-      const targetDateIso = date.toISOString();
+      const targetDateIso = sessionTime.applyTo(date, date.getHours()).toISOString();
 
       AsyncStorage.setItem(STORAGE_RUN_SURFACE_KEY, surface);
       AsyncStorage.setItem(STORAGE_RUN_EQUIPMENT_KEY, equipment);
@@ -843,7 +845,10 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
           return;
         }
 
-        await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
+        payloadsToUpdate.forEach((p: any) => {
+        p.measures = { ...(p.measures || {}), ...sessionTime.flag() };
+      });
+      await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       toast('success', initialWorkout ? 'Séance mise à jour.' : 'Séance enregistrée.');
       onSave();
@@ -1024,6 +1029,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
+          <TimeField time={sessionTime.time} onChange={sessionTime.setTime} />
           {/* Section: LIEU & ÉQUIPEMENT */}
           <Text style={[styles.sectionCaption, styles.sectionCaptionFirst]}>Lieu & équipement</Text>
           <View style={styles.groupedCard}>

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated, Easing, LayoutChangeEvent } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { theme } from '../../../core/theme';
 import { glassCard } from '../../../core/glass';
@@ -10,13 +11,17 @@ import { useAuthStore } from '../../../store/authStore';
 import { bodyService } from '../../../services/bodyService';
 import { computeGoalProgress } from '../goalProgress';
 
-const BLUE = theme.colors.sprintyBlue;
 const fmt = (n: number) => (Math.round(n * 10) / 10).toString().replace('.', ',');
 
-const TITLES = { cut: 'Perte de poids', bulk: 'Prise de masse', recomp: 'Recomposition', maintain: 'Maintien' } as const;
-const ICONS = { cut: 'trending-down', bulk: 'trending-up', recomp: 'refresh-cw', maintain: 'minus' } as const;
+/** The colour warms up as the goal gets closer: blue, then turquoise, then green, then gold. */
+const gradientFor = (progress: number, reached: boolean): [string, string] => {
+  if (reached) return ['#F5B700', '#FFD54A'];
+  if (progress < 0.34) return ['#0069E8', '#00B4D8'];
+  if (progress < 0.67) return ['#00B4D8', '#10B981'];
+  return ['#10B981', '#F5B700'];
+};
 
-/** "Mon objectif": where the weight stands between start and target, as a progress bar. */
+/** "Mon objectif": starting weight, progress bar, target weight. Nothing else. */
 export const GoalProgressCard: React.FC<{ athleteProfile?: any; athleteId?: string; readonly?: boolean }> = ({
   athleteProfile,
   athleteId,
@@ -63,86 +68,67 @@ export const GoalProgressCard: React.FC<{ athleteProfile?: any; athleteId?: stri
 
   if (!g) return null;
 
-  const needsTarget = (g.kind === 'cut' || g.kind === 'bulk') && g.target == null;
-  const pct = Math.round(g.progress * 100);
+  const steady = g.kind === 'maintain' || g.kind === 'recomp';
+  const needsTarget = !steady && g.target == null;
+  const canEdit = !readonly && !athleteId;
   const barW = fill.interpolate({ inputRange: [0, 1], outputRange: [0, Math.max(0, width)] });
+  const pct = Math.round(g.progress * 100);
+  const colors = steady ? gradientFor(0.5, false) : gradientFor(g.progress, g.reached);
 
-  let headline = '';
-  let sub = '';
   if (needsTarget) {
-    headline = 'Fixe ton poids cible';
-    sub = 'Avec un poids de départ et un poids visé, tu suis ta progression ici.';
-  } else if (g.kind === 'maintain' || g.kind === 'recomp') {
-    headline = g.inZone ? 'Poids stable' : 'Poids à surveiller';
-    sub = `${fmt(g.current)} kg · repère ${fmt(g.target!)} kg (± 1 kg)`;
-  } else if (g.reached) {
-    headline = 'Objectif atteint';
-    sub = `${fmt(g.current)} kg · cible ${fmt(g.target!)} kg`;
-  } else if (g.wrongWay) {
-    headline = `${fmt(g.remainingKg!)} kg pour atteindre ${fmt(g.target!)} kg`;
-    sub = `Le poids va dans l’autre sens pour l’instant (${fmt(g.current)} kg). Pas de panique, regarde la tendance sur plusieurs semaines.`;
-  } else {
-    headline = `Encore ${fmt(g.remainingKg!)} kg`;
-    sub = `${fmt(g.start)} → ${fmt(g.current)} kg, cible ${fmt(g.target!)} kg${
-      g.weeksLeft ? ` · environ ${g.weeksLeft} semaine${g.weeksLeft > 1 ? 's' : ''} à ton rythme` : ''
-    }`;
+    return (
+      <PressableScale haptic="selection" disabled={!canEdit} onPress={() => router.push('/(athlete)/body')} style={[glassCard, styles.card, styles.row]}>
+        <GlassSheen radius={22} />
+        <Feather name="flag" size={16} color={theme.colors.sprintyBlue} />
+        <Text style={styles.prompt}>Fixe ton poids cible pour suivre ton objectif</Text>
+        {canEdit && <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />}
+      </PressableScale>
+    );
   }
 
-  const onLayout = (e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width);
-
   return (
-    <PressableScale
-      haptic="selection"
-      disabled={readonly || !!athleteId}
-      onPress={() => router.push('/(athlete)/body')}
+    <View
       style={[glassCard, styles.card]}
-      accessibilityRole="button"
-      accessibilityLabel={`Mon objectif : ${TITLES[g.kind]}. ${headline}`}
+      accessible
+      accessibilityLabel={
+        steady
+          ? `Poids ${fmt(g.current)} kilos, repère ${fmt(g.target!)}`
+          : `Objectif : départ ${fmt(g.start)} kilos, cible ${fmt(g.target!)} kilos, ${pct} pour cent atteint`
+      }
     >
       <GlassSheen radius={22} />
-      <View style={styles.head}>
-        <View style={styles.badge}>
-          <Feather name={ICONS[g.kind]} size={16} color={BLUE} />
+      <View style={styles.row}>
+        <View style={styles.end}>
+          <Text style={styles.endValue}>{steady ? fmt(g.current) : fmt(g.start)}</Text>
+          <Text style={styles.endUnit}>{steady ? 'kg actuel' : 'kg départ'}</Text>
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.kicker}>MON OBJECTIF</Text>
-          <Text style={styles.title}>{TITLES[g.kind]}</Text>
-        </View>
-        {!needsTarget && g.kind !== 'maintain' && g.kind !== 'recomp' && <Text style={styles.pct}>{pct} %</Text>}
-        {(g.kind === 'maintain' || g.kind === 'recomp') && !needsTarget && (
-          <Feather name={g.inZone ? 'check-circle' : 'alert-circle'} size={20} color={g.inZone ? theme.colors.success : theme.colors.warning} />
-        )}
-      </View>
 
-      <View style={styles.track} onLayout={onLayout}>
-        <Animated.View style={[styles.fill, { width: barW, backgroundColor: g.reached ? theme.colors.success : BLUE }]} />
-      </View>
-      {!needsTarget && g.kind !== 'maintain' && g.kind !== 'recomp' && (
-        <View style={styles.ends}>
-          <Text style={styles.endText}>{fmt(g.start)} kg</Text>
-          <Text style={styles.endText}>{g.target ? `${fmt(g.target)} kg` : ''}</Text>
+        <View style={styles.track} onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}>
+          <Animated.View style={[styles.fillWrap, { width: barW }]}>
+            <LinearGradient colors={colors} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFill} />
+          </Animated.View>
+          <Text style={[styles.pct, g.progress < 0.22 && styles.pctDark]}>{steady ? (g.inZone ? 'Stable' : '± 1 kg') : `${pct} %`}</Text>
         </View>
-      )}
 
-      <Text style={styles.headline}>{headline}</Text>
-      <Text style={styles.sub}>{sub}</Text>
-      {needsTarget && !readonly && !athleteId && <Text style={styles.link}>Définir mon poids cible</Text>}
-    </PressableScale>
+        <View style={[styles.end, styles.endRight]}>
+          <Text style={styles.endValue}>{fmt(g.target!)}</Text>
+          <Text style={styles.endUnit}>{steady ? 'kg repère' : 'kg cible'}</Text>
+        </View>
+      </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  card: { marginHorizontal: 16, marginBottom: 12, padding: 16, gap: 8 },
-  head: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  badge: { width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(0, 105, 232, 0.1)', alignItems: 'center', justifyContent: 'center' },
-  kicker: { fontSize: 11, fontWeight: '800', color: BLUE, letterSpacing: 0.6 },
-  title: { fontSize: 16, fontWeight: '800', color: theme.colors.text },
-  pct: { fontSize: 22, fontWeight: '800', color: theme.colors.text, letterSpacing: -0.4 },
-  track: { height: 12, borderRadius: 6, backgroundColor: theme.colors.glassFill, overflow: 'hidden', marginTop: 4 },
-  fill: { height: 12, borderRadius: 6 },
-  ends: { flexDirection: 'row', justifyContent: 'space-between' },
-  endText: { fontSize: 12, fontWeight: '600', color: theme.colors.textSecondary },
-  headline: { fontSize: 15, fontWeight: '800', color: theme.colors.text },
-  sub: { fontSize: 13, lineHeight: 18, color: theme.colors.textSecondary },
-  link: { fontSize: 14, fontWeight: '800', color: BLUE },
+  card: { marginHorizontal: 16, marginBottom: 12, paddingVertical: 12, paddingHorizontal: 14 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  prompt: { flex: 1, fontSize: 14, fontWeight: '700', color: theme.colors.text },
+  end: { minWidth: 56 },
+  endRight: { alignItems: 'flex-end' },
+  endValue: { fontSize: 17, fontWeight: '800', color: theme.colors.text, letterSpacing: -0.3 },
+  endUnit: { fontSize: 11, fontWeight: '600', color: theme.colors.textSecondary },
+  track: { flex: 1, height: 22, borderRadius: 11, backgroundColor: theme.colors.glassFill, overflow: 'hidden', justifyContent: 'center' },
+  fillWrap: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 11, overflow: 'hidden' },
+  pct: { alignSelf: 'center', fontSize: 12, fontWeight: '800', color: '#FFFFFF' },
+  pctDark: { color: theme.colors.text },
 });

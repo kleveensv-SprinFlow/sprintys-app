@@ -29,6 +29,7 @@ import { useFrostedHeader } from '../../../src/shared/hooks/useFrostedHeader';
 import { appAlert } from '../../../src/shared/feedback/appAlert';
 
 import { useRefresh } from '../../../src/shared/hooks/useRefresh';
+import { timeLabelOf } from '../../../src/features/calendar/components/TimeField';
 
 const MONTH_NAMES_FULL = [
   'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
@@ -393,6 +394,7 @@ export default function CoachDayScreen() {
                     )}
                     <View style={[styles.timelineContent, workouts.length === 1 && { paddingLeft: 0 }]}>
                       <WorkoutCard
+                        time={timeLabelOf(w) || undefined}
                         title={w.type_seance}
                         status={w.status}
                         summary={summary}

@@ -253,7 +253,7 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
     if (!msg.parts?.length) return;
     const subtitle = athleteCtx ? `Analyse de ${athleteCtx.name}` : firstName ? `Pour ${firstName}` : undefined;
     try {
-      await exportPartsToPdf(msg.parts, pdfTitleFor(msg.parts, conversation?.title || 'Sprinty'), subtitle);
+      await exportPartsToPdf(msg.parts, pdfTitleFor(msg.parts, conversation?.title && conversation.title !== 'Nouvelle conversation' ? conversation.title : 'Conversation Sprinty'), subtitle);
     } catch (e) {
       console.error('pdf export failed', e);
       appAlert('Export impossible', 'Le PDF n’a pas pu être créé. Réessaie.');

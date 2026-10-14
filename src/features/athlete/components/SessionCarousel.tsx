@@ -13,6 +13,7 @@ import { WorkoutSession } from '../../workout/types';
 import { PressableScale } from '../../../shared/components/PressableScale';
 import { glassCard, glassFill } from '../../../shared/components/DashboardCard';
 import { GlassSheen } from '../../../shared/components/GlassSheen';
+import { timeLabelOf } from '../../calendar/components/TimeField';
 
 const { width } = Dimensions.get('window');
 const CARD_GAP = 12;
@@ -253,7 +254,7 @@ export const SessionCarousel = () => {
                 {activeWorkout.type_seance}
               </Text>
               <Text style={[styles.cardSubtitle, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                {activeWorkout.source === 'sprinty' ? `Sprinty · ${summary}` : summary}
+                {[timeLabelOf(activeWorkout), activeWorkout.source === 'sprinty' ? `Sprinty · ${summary}` : summary].filter(Boolean).join(' · ')}
               </Text>
             </View>
           </View>

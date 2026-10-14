@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
 import type { MessagePart, ProposedSession, UiBlock } from './types';
 
 /**
@@ -228,12 +229,34 @@ export async function exportPartsToPdf(parts: MessagePart[], title: string, subt
     await Print.printAsync({ html });
     return;
   }
-  const { uri } = await Print.printToFileAsync({ html });
+  const { uri: tempUri } = await Print.printToFileAsync({ html });
+  // expo-print names the file with a random id: give it a readable name before sharing
+  let uri = tempUri;
+  try {
+    const dest = `${FileSystem.cacheDirectory}${pdfFileName(title)}.pdf`;
+    await FileSystem.deleteAsync(dest, { idempotent: true });
+    await FileSystem.moveAsync({ from: tempUri, to: dest });
+    uri = dest;
+  } catch {
+    // keep the original file
+  }
   if (await Sharing.isAvailableAsync()) {
     await Sharing.shareAsync(uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf', dialogTitle: title });
   } else {
     await Print.printAsync({ uri });
   }
+}
+
+/** « Sprintys - Plan 100 m sous 12 s - 14-10-2026 » : readable, no characters a file system refuses. */
+export function pdfFileName(title: string, now = new Date()): string {
+  const clean = title
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 60)
+    .trim();
+  const date = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
+  return `Sprintys - ${clean || 'Sprinty'} - ${date}`;
 }
 
 /** A readable title for the export, from the first visual block or the conversation. */

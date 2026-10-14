@@ -25,6 +25,7 @@ import { IconButton } from '../../../shared/components/IconButton';
 import { Input } from '../../../shared/components/Input';
 import { PressableScale } from '../../../shared/components/PressableScale';
 import { SegmentedControl } from '../../../shared/components/SegmentedControl';
+import { TimeField, useSessionTime } from './TimeField';
 
 export interface CompetitionBuilderProps {
   visible: boolean;
@@ -49,6 +50,7 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
   onSave,
   initialWorkout,
 }) => {
+  const sessionTime = useSessionTime(visible, initialWorkout);
   const insets = useSafeAreaInsets();
   const safeTop = Platform.OS === 'android'
     ? Math.max(insets.top, StatusBar.currentHeight || 24) + 8
@@ -146,7 +148,7 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
     try {
       const activeTeamId = teams.length > 0 ? teams[0].id : null;
       const targetDate = new Date(date);
-      targetDate.setHours(9, 0, 0, 0); // Default to morning for competitions
+      targetDate.setTime(sessionTime.applyTo(targetDate, 9).getTime());
       const targetDateIso = targetDate.toISOString();
 
       const oldGroupAssignmentId = initialWorkout?.group_assignment_id || undefined;
@@ -195,6 +197,9 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
         return;
       }
 
+      payloadsToUpdate.forEach((p: any) => {
+        p.measures = { ...(p.measures || {}), ...sessionTime.flag() };
+      });
       await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -264,6 +269,7 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.scrollContent}
           >
+            <TimeField time={sessionTime.time} onChange={sessionTime.setTime} />
             {/* Intro */}
             <View style={[glassCard, styles.bannerCard]}>
               <View style={styles.iconCircle}>

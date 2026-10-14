@@ -39,6 +39,7 @@ import { Input } from '../../../shared/components/Input';
 import { Button } from '../../../shared/components/Button';
 import { EmptyState } from '../../../shared/components/EmptyState';
 import { SegmentedControl } from '../../../shared/components/SegmentedControl';
+import { TimeField, useSessionTime } from './TimeField';
 
 export interface StrengthSetItem {
   id: string;
@@ -84,6 +85,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
   defaultTitle = 'Séance Musculation',
   initialWorkout,
 }) => {
+  const sessionTime = useSessionTime(visible, initialWorkout);
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const safeTop =
@@ -584,7 +586,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
 
       // Midday date anchor to avoid timezone offsets
       const targetDate = new Date(date);
-      targetDate.setHours(12, 0, 0, 0);
+      targetDate.setTime(sessionTime.applyTo(targetDate, 12).getTime());
       const targetDateIso = targetDate.toISOString();
 
       const mapExercisesToPayload = (list: StrengthExerciseItem[]) =>
@@ -696,6 +698,9 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
         return;
       }
 
+      payloadsToUpdate.forEach((p: any) => {
+        p.measures = { ...(p.measures || {}), ...sessionTime.flag() };
+      });
       await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       // The first payload is the coach's master copy
@@ -801,6 +806,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         >
+          <TimeField time={sessionTime.time} onChange={sessionTime.setTime} />
           {/* SECTION: CONSIGNES DE SÉANCE */}
           <Text style={[styles.sectionCaption, styles.sectionHeader]}>Consignes de séance</Text>
           <View style={[styles.card, styles.notesCard]}>

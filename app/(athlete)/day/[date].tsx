@@ -14,6 +14,7 @@ import { SkeletonCard } from '../../../src/shared/components/Skeleton';
 import { useFrostedHeader } from '../../../src/shared/hooks/useFrostedHeader';
 
 import { useRefresh } from '../../../src/shared/hooks/useRefresh';
+import { timeLabelOf } from '../../../src/features/calendar/components/TimeField';
 
 const MONTH_NAMES_FULL = [
   'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
@@ -137,6 +138,7 @@ export default function AthleteDayScreen() {
               return (
                 <WorkoutCard
                   key={w.id || i}
+                  time={timeLabelOf(w) || undefined}
                   title={w.type_seance}
                   status={w.status}
                   summary={w.source === 'sprinty' ? `Sprinty · ${summary}` : summary}

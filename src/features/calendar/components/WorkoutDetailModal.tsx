@@ -4,6 +4,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { timeLabelOf } from './TimeField';
 import { SprintyBadge, isSprintyWorkout } from '../../sprinty/SprintyBadge';
 import { theme } from '../../../core/theme';
 import { glassCard } from '../../../core/glass';
@@ -438,6 +439,12 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
             )}
             <View style={styles.titleRow}>
               <Text style={styles.workoutName}>{sessionTitle}</Text>
+              {!!timeLabelOf(workout) && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                  <Feather name="clock" size={13} color={theme.colors.textSecondary} />
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: theme.colors.textSecondary }}>{timeLabelOf(workout)}</Text>
+                </View>
+              )}
               {!isCoach && (
                 <View style={[styles.statusPill, isValidated ? styles.statusPillDone : styles.statusPillTodo]}>
                   <Feather

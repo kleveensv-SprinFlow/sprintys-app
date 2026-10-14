@@ -18,6 +18,7 @@ export interface WorkoutCardProps {
 }
 
 export const WorkoutCard: React.FC<WorkoutCardProps> = ({
+  time,
   title,
   type,
   status = 'pending',
@@ -52,6 +53,12 @@ export const WorkoutCard: React.FC<WorkoutCardProps> = ({
             </View>
             <View style={styles.titleWrapper}>
               <Text style={[styles.title, { color: theme.colors.text }]}>{title}</Text>
+              {!!time && (
+                <View style={styles.timeRow}>
+                  <Feather name="clock" size={12} color={theme.colors.textSecondary} />
+                  <Text style={[styles.timeText, { color: theme.colors.textSecondary }]}>{time}</Text>
+                </View>
+              )}
               {!!showTypeSubtitle && (
                 <Text style={[styles.type, { color: typeConfig.text }]}>{type}</Text>
               )}
@@ -97,6 +104,8 @@ export const WorkoutCard: React.FC<WorkoutCardProps> = ({
 };
 
 const styles = StyleSheet.create({
+  timeRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  timeText: { fontSize: 13, fontWeight: '700' },
   containerRow: {
     flexDirection: 'row',
     marginBottom: 14,

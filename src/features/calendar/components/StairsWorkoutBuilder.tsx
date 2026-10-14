@@ -30,6 +30,7 @@ import { IconButton } from '../../../shared/components/IconButton';
 import { Button } from '../../../shared/components/Button';
 import { Input } from '../../../shared/components/Input';
 import { SegmentedControl } from '../../../shared/components/SegmentedControl';
+import { TimeField, useSessionTime } from './TimeField';
 
 interface StairsWorkoutBuilderProps {
   visible: boolean;
@@ -68,6 +69,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
   onSave,
   initialWorkout,
 }) => {
+  const sessionTime = useSessionTime(visible, initialWorkout);
   const insets = useSafeAreaInsets();
   const safeTop = Platform.OS === 'android'
     ? Math.max(insets.top, StatusBar.currentHeight || 24) + 8
@@ -492,7 +494,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
 
       // Safe date anchor at midday
       const targetDate = new Date(date);
-      targetDate.setHours(12, 0, 0, 0);
+      targetDate.setTime(sessionTime.applyTo(targetDate, 12).getTime());
       const targetDateIso = targetDate.toISOString();
 
       const mapExercisesToPayload = (list: StairExerciseItem[]) =>
@@ -601,7 +603,10 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
           setIsSubmitting(false);
           return;
         }
-        await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
+        payloadsToUpdate.forEach((p: any) => {
+        p.measures = { ...(p.measures || {}), ...sessionTime.flag() };
+      });
+      await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
       } else if (targetType === 'subgroup') {
         const subMembers = approvedMembers.filter((m) => m.subgroup_id === selectedSubgroupId);
         if (subMembers.length === 0) {
@@ -642,7 +647,10 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
             });
           }
         }
-        await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
+        payloadsToUpdate.forEach((p: any) => {
+        p.measures = { ...(p.measures || {}), ...sessionTime.flag() };
+      });
+      await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
       } else {
         const mappedExercises = mapExercisesToPayload(sessionExercises);
         payloadsToUpdate.push({
@@ -663,7 +671,10 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
           ],
           status: 'pending',
         });
-        await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
+        payloadsToUpdate.forEach((p: any) => {
+        p.measures = { ...(p.measures || {}), ...sessionTime.flag() };
+      });
+      await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
       }
 
       // Persist unique exercises to personal library
@@ -797,6 +808,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.scrollContent}
         >
+          <TimeField time={sessionTime.time} onChange={sessionTime.setTime} />
           {formError && (
             <View style={styles.errorNotice}>
               <Feather name="alert-circle" size={16} color={theme.colors.error} />

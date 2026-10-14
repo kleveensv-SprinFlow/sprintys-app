@@ -268,9 +268,8 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
     for (let i = 1; i <= lastDay.getDate(); i++) {
       allDays.push({ date: new Date(year, month, i), isCurrentMonth: true });
     }
-    // Only complete the last week (5 or 6 rows like iOS, never a half-empty 6th row).
-    // The count is computed once: the old loop re-read allDays.length while pushing.
-    const trailing = (7 - (allDays.length % 7)) % 7;
+    // Always six rows (42 cells): the layout below the calendar never jumps from one month to another.
+    const trailing = 42 - allDays.length;
     for (let i = 1; i <= trailing; i++) {
       allDays.push({ date: new Date(year, month + 1, i), isCurrentMonth: false });
     }
@@ -439,7 +438,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
             {weeks.map((week, weekIndex) => (
               <View
                 key={weekIndex}
-                style={[styles.weekRow, weekIndex > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.hairline }]}
+                style={[styles.weekRow, weekIndex > 0 && week.some((d) => d.isCurrentMonth) && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.hairline }]}
               >
                 {week.map((item, dayIndex) => {
                   if (!item.isCurrentMonth) {

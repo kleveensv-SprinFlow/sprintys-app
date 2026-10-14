@@ -99,11 +99,12 @@ export function toolsFor(ctx: Ctx) {
       days: DAYS(14),
       days_ahead: { type: 'integer', minimum: 0, maximum: 120, description: 'Jours à venir (défaut 7).' },
     }),
-    fn('get_results', 'Résultats saisis (chronos, charges, répétitions, records) des séances.', {
+    fn('get_results', 'Résultats saisis par les athlètes dans leurs séances : chronos (course, côte), charges et répétitions (musculation), escaliers, avec un résumé par distance ou exercice.', {
       ...target,
       days: DAYS(60),
+      kind: { type: 'string', enum: ['course', 'muscu', 'escalier'], description: 'Type de séance (omettre pour tout).' },
       distance_m: { type: 'integer', description: 'Filtrer une distance de course (ex. 60, 100, 200).' },
-      category: { type: 'string', description: 'Filtrer une catégorie (ex. sprint, musculation, escalier).' },
+      exercise: { type: 'string', description: "Filtrer un exercice de musculation par son nom (ex. squat)." },
     }),
     fn('get_records', 'Meilleures performances (records personnels).', { ...target }),
     fn('get_weight', 'Pesées et composition corporelle.', { ...target, days: DAYS(90) }),
@@ -317,6 +318,31 @@ export const HEAVY_TOOLS = new Set(['propose_plan', 'propose_sessions']);
  * Helpers
  * ----------------------------------------------------------------------------------------------------------------- */
 
+/** Efforts are stored with the session type as category and, for many rows, the values only in actual_extra. */
+const norm = (v: unknown) => String(v ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const parseSeconds = (v: unknown): number | null => {
+  if (v == null || v === '') return null;
+  const t = String(v).trim().replace(',', '.');
+  const m = t.match(/^(\d+):(\d+(?:\.\d+)?)$/);
+  const n = m ? parseInt(m[1], 10) * 60 + parseFloat(m[2]) : parseFloat(t);
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+const parseNum = (v: unknown): number | null => {
+  const n = parseFloat(String(v ?? '').replace(',', '.'));
+  return Number.isFinite(n) ? n : null;
+};
+const effortKind = (category: unknown): 'course' | 'muscu' | 'escalier' | 'autre' => {
+  const c = norm(category);
+  if (/piste|cote|course|sprint/.test(c)) return 'course';
+  if (/muscu|force/.test(c)) return 'muscu';
+  if (/escalier|stair/.test(c)) return 'escalier';
+  return 'autre';
+};
+const effortSeconds = (r: any): number | null => (r.actual_time_ms != null ? Number(r.actual_time_ms) / 1000 : parseSeconds(r.actual_extra?.chrono));
+const effortWeight = (r: any): number | null => (r.actual_weight_kg != null ? Number(r.actual_weight_kg) : parseNum(r.actual_extra?.weight));
+const EFFORT_COLS =
+  'date_achieved, exercise_category, exercise_catalog_id, actual_distance_m, actual_time_ms, actual_reps, actual_weight_kg, actual_height_cm, actual_intensity, actual_extra, is_pr';
+
 const STATUS: Record<string, string> = {
   get_profile: 'Je regarde ton profil…',
   get_checkins: 'Je regarde les check-ins…',
@@ -460,29 +486,30 @@ async function seriesFor(ctx: Ctx, athleteId: string, metric: string, days: numb
     return [...byWeek.entries()].sort().map(([x, y]) => ({ x, y }));
   }
   if (metric === 'best_time' || metric === 'max_weight') {
-    let q = sb
+    const { data } = await sb
       .from('athlete_efforts')
-      .select('date_achieved, actual_time_ms, actual_weight_kg, actual_distance_m, exercise_catalog_id, exercise_category')
+      .select(EFFORT_COLS)
       .eq('athlete_id', athleteId)
       .gte('date_achieved', since)
       .order('date_achieved')
-      .limit(1000);
-    if (metric === 'best_time') {
-      if (!opts.distance_m) throw new ToolError('best_time demande distance_m.');
-      q = q.eq('actual_distance_m', opts.distance_m).not('actual_time_ms', 'is', null);
-    } else {
-      q = q.not('actual_weight_kg', 'is', null);
-    }
-    const { data } = await q;
-    const ex = typeof opts.exercise === 'string' ? opts.exercise.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '') : '';
+      .limit(1500);
+    const ex = norm(opts.exercise);
+    const dist = opts.distance_m ? Number(opts.distance_m) : null;
     const byDay = new Map<string, number>();
     for (const r of data ?? []) {
-      if (metric === 'max_weight' && ex) {
-        const label = `${r.exercise_catalog_id ?? ''} ${r.exercise_category ?? ''}`.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-        if (!label.includes(ex)) continue;
+      const kind = effortKind(r.exercise_category);
+      let v: number | null = null;
+      if (metric === 'best_time') {
+        if (kind !== 'course') continue;
+        if (dist && Number(r.actual_distance_m) !== dist) continue;
+        v = effortSeconds(r);
+      } else {
+        if (kind !== 'muscu') continue;
+        if (ex && !norm(`${r.exercise_catalog_id ?? ''} ${r.exercise_category ?? ''}`).includes(ex)) continue;
+        v = effortWeight(r);
       }
+      if (v == null) continue;
       const day = String(r.date_achieved).slice(0, 10);
-      const v = metric === 'best_time' ? Number(r.actual_time_ms) / 1000 : Number(r.actual_weight_kg);
       const prev = byDay.get(day);
       byDay.set(day, prev == null ? v : metric === 'best_time' ? Math.min(prev, v) : Math.max(prev, v));
     }
@@ -613,16 +640,22 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
           date: String(w.date_prevue).slice(0, 10),
           type: w.type_seance,
           titre: clipText(String(w.description ?? '').split('\n')[0], 80) || w.type_seance,
-          faite: w.status === 'completed',
+          resultats_saisis: w.status === 'completed',
           origine: w.source === 'sprinty' ? 'Sprinty' : 'coach',
           contenu: summarizeBlocks(w),
         }));
-      const past = rows.filter((r: any) => r.date <= ctx.today);
+      const isRest = (r: any) => /repos/i.test(r.type ?? '');
+      const past = rows.filter((r: any) => r.date < ctx.today && !isRest(r));
+      const todayRows = rows.filter((r: any) => r.date === ctx.today);
+      const upcoming = rows.filter((r: any) => r.date > ctx.today);
       return {
         content: {
           athlete: who.name,
-          passees: past.length,
-          faites: past.filter((r: any) => r.faite).length,
+          aujourdhui_date: ctx.today,
+          note: "« Résultats saisis » = l'athlète a validé la séance et noté ses résultats ; une séance sans résultats saisis n'est PAS forcément une séance non faite. Les séances d'aujourd'hui et à venir ne sont jamais « manquées ».",
+          passees: { nombre: past.length, avec_resultats_saisis: past.filter((r: any) => r.resultats_saisis).length, sans_resultats_saisis: past.filter((r: any) => !r.resultats_saisis).length },
+          aujourdhui: todayRows,
+          a_venir: upcoming.length,
           seances: rows,
         },
       };
@@ -631,48 +664,83 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
     case 'get_results': {
       const who = await resolveAthlete(ctx, a.athlete_id);
       const days = daysArg(a.days, 60);
-      let q = sb
+      const { data } = await sb
         .from('athlete_efforts')
-        .select('date_achieved, exercise_category, exercise_catalog_id, actual_distance_m, actual_time_ms, actual_reps, actual_weight_kg, actual_height_cm, actual_intensity, is_pr')
+        .select(EFFORT_COLS)
         .eq('athlete_id', who.id)
         .gte('date_achieved', sinceIso(ctx, days))
         .order('date_achieved', { ascending: false })
-        .limit(120);
-      if (a.distance_m) q = q.eq('actual_distance_m', parseInt(a.distance_m, 10));
-      if (typeof a.category === 'string' && a.category.trim()) q = q.ilike('exercise_category', `%${a.category.trim()}%`);
-      const { data } = await q;
-      const rows = (data ?? []).map((r: any) => ({
-        date: String(r.date_achieved).slice(0, 10),
-        categorie: r.exercise_category,
-        exercice: r.exercise_catalog_id,
-        distance_m: r.actual_distance_m,
-        chrono: fmtTime(r.actual_time_ms),
-        reps: r.actual_reps,
-        charge_kg: r.actual_weight_kg,
-        hauteur_cm: r.actual_height_cm,
-        intensite: r.actual_intensity,
-        record: r.is_pr || undefined,
-      }));
-      return { content: { athlete: who.name, nombre: rows.length, resultats: rows } };
+        .limit(600);
+      const wantKind = ['course', 'muscu', 'escalier'].includes(a.kind) ? a.kind : null;
+      const dist = a.distance_m ? parseInt(a.distance_m, 10) : null;
+      const ex = norm(a.exercise);
+      const rows = (data ?? [])
+        .filter((r: any) => (!wantKind || effortKind(r.exercise_category) === wantKind))
+        .filter((r: any) => !dist || Number(r.actual_distance_m) === dist)
+        .filter((r: any) => !ex || norm(`${r.exercise_catalog_id ?? ''} ${r.exercise_category ?? ''}`).includes(ex))
+        .map((r: any) => ({
+          date: String(r.date_achieved).slice(0, 10),
+          type: effortKind(r.exercise_category),
+          seance: r.exercise_category,
+          exercice: r.exercise_catalog_id,
+          distance_m: r.actual_distance_m != null ? Number(r.actual_distance_m) : null,
+          secondes: effortSeconds(r),
+          reps: r.actual_reps,
+          charge_kg: effortWeight(r),
+          hauteur_cm: r.actual_height_cm,
+          intensite: r.actual_intensity,
+          record: r.is_pr || undefined,
+        }));
+      // Short summary per distance (running) and per exercise (strength), so the model does not recompute
+      const groups = new Map<string, { n: number; best: number | null; sum: number; first?: number; last?: number; unit: string }>();
+      for (const r of [...rows].reverse()) {
+        const key = r.type === 'course' && r.distance_m ? `${r.distance_m} m` : r.type === 'muscu' ? String(r.exercice ?? r.seance) : null;
+        const v = r.type === 'course' ? r.secondes : r.type === 'muscu' ? r.charge_kg : null;
+        if (!key || v == null) continue;
+        const g = groups.get(key) ?? { n: 0, best: null, sum: 0, unit: r.type === 'course' ? 's' : 'kg' };
+        g.n++;
+        g.sum += v;
+        g.best = g.best == null ? v : r.type === 'course' ? Math.min(g.best, v) : Math.max(g.best, v);
+        g.first ??= v;
+        g.last = v;
+        groups.set(key, g);
+      }
+      return {
+        content: {
+          athlete: who.name,
+          nombre: rows.length,
+          resume: [...groups.entries()].map(([k, g]) => ({ serie: k, mesures: g.n, meilleur: round(g.best, 2), moyenne: round(g.sum / g.n, 2), premier: round(g.first!, 2), dernier: round(g.last!, 2), unite: g.unit })),
+          resultats: rows.slice(0, 80),
+        },
+      };
     }
 
     case 'get_records': {
       const who = await resolveAthlete(ctx, a.athlete_id);
       const { data } = await sb
-        .from('athlete_prs')
-        .select('exercise_catalog_id, exercise_category, actual_distance_m, actual_reps, max_weight_kg, best_time_ms, max_height_cm, latest_pr_date')
+        .from('athlete_efforts')
+        .select(EFFORT_COLS)
         .eq('athlete_id', who.id)
-        .limit(80);
-      const rows = (data ?? []).map((r: any) => ({
-        exercice: r.exercise_catalog_id ?? r.exercise_category,
-        distance_m: r.actual_distance_m,
-        reps: r.actual_reps,
-        charge_max_kg: r.max_weight_kg,
-        meilleur_chrono: fmtTime(r.best_time_ms),
-        hauteur_max_cm: r.max_height_cm,
-        date: r.latest_pr_date ? String(r.latest_pr_date).slice(0, 10) : null,
-      }));
-      return { content: { athlete: who.name, records: rows } };
+        .limit(2000);
+      const best = new Map<string, { exercice: string; type: string; valeur: number; unite: string; distance_m?: number; date: string }>();
+      for (const r of data ?? []) {
+        const kind = effortKind(r.exercise_category);
+        const date = String(r.date_achieved).slice(0, 10);
+        if (kind === 'course') {
+          const v = effortSeconds(r);
+          if (v == null || !r.actual_distance_m) continue;
+          const key = `course ${Number(r.actual_distance_m)}`;
+          const cur = best.get(key);
+          if (!cur || v < cur.valeur) best.set(key, { exercice: `${Number(r.actual_distance_m)} m`, type: 'course', valeur: v, unite: 's', distance_m: Number(r.actual_distance_m), date });
+        } else if (kind === 'muscu') {
+          const v = effortWeight(r);
+          if (v == null || v <= 0) continue;
+          const name = String(r.exercise_catalog_id ?? r.exercise_category);
+          const cur = best.get(`muscu ${name}`);
+          if (!cur || v > cur.valeur) best.set(`muscu ${name}`, { exercice: name, type: 'muscu', valeur: v, unite: 'kg', date });
+        }
+      }
+      return { content: { athlete: who.name, records: [...best.values()].map((b) => ({ ...b, valeur: round(b.valeur, 2) })) } };
     }
 
     case 'get_weight': {
@@ -815,11 +883,11 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
       return {
         content: {
           periode_jours: days,
-          note: "« Manquée » = résultats non saisis ; l'athlète a pu faire la séance sans la valider.",
+          note: "Séances passées (avant aujourd'hui) dont l'athlète n'a pas saisi les résultats : il a pu les faire sans les valider. Ne dis pas « pas faites » mais « sans résultats saisis ».",
           athletes: [...per.entries()].map(([id, e]) => ({
             nom: roster.athletes.find((x) => x.id === id)?.name ?? 'Athlète',
             prevues: e.prevues,
-            manquees: e.manquees.length,
+            sans_resultats: e.manquees.length,
             detail: e.manquees.slice(0, 6),
           })),
         },

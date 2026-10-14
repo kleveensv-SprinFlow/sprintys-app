@@ -26,6 +26,7 @@ import { IconButton } from '../../../shared/components/IconButton';
 import { Input } from '../../../shared/components/Input';
 import { PressableScale } from '../../../shared/components/PressableScale';
 import { SegmentedControl } from '../../../shared/components/SegmentedControl';
+import { TimeField, useSessionTime } from './TimeField';
 
 export interface TechnicalNoteItem {
   id: string;
@@ -60,6 +61,7 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
   onSave,
   initialWorkout,
 }) => {
+  const sessionTime = useSessionTime(visible, initialWorkout);
   const insets = useSafeAreaInsets();
   const safeTop = Platform.OS === 'android'
     ? Math.max(insets.top, StatusBar.currentHeight || 24) + 8
@@ -259,7 +261,7 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
     try {
       const activeTeamId = teams.length > 0 ? teams[0].id : null;
       const targetDate = new Date(date);
-      targetDate.setHours(12, 0, 0, 0);
+      targetDate.setTime(sessionTime.applyTo(targetDate, 12).getTime());
       const targetDateIso = targetDate.toISOString();
 
       // We NO LONGER delete it here to preserve IDs and efforts!
@@ -317,6 +319,9 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
         return;
       }
 
+      payloadsToUpdate.forEach((p: any) => {
+        p.measures = { ...(p.measures || {}), ...sessionTime.flag() };
+      });
       await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -386,6 +391,7 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.scrollContent}
           >
+            <TimeField time={sessionTime.time} onChange={sessionTime.setTime} />
             {formError && (
               <View style={[styles.errorNotice, styles.formErrorNotice]}>
                 <Feather name="alert-circle" size={15} color={theme.colors.error} />

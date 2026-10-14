@@ -14,6 +14,7 @@ import { SkeletonCard } from '../../../../../src/shared/components/Skeleton';
 import { useFrostedHeader } from '../../../../../src/shared/hooks/useFrostedHeader';
 
 import { useRefresh } from '../../../../../src/shared/hooks/useRefresh';
+import { timeLabelOf } from '../../../../../src/features/calendar/components/TimeField';
 
 const MONTH_NAMES_FULL = [
   'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
@@ -96,7 +97,7 @@ export default function CoachAthleteDayScreen() {
           workouts.map((w) => (
             <WorkoutCard
               key={w.id}
-              title={w.type_seance || 'Séance'} status={w.status as any}
+              time={timeLabelOf(w) || undefined} title={w.type_seance || 'Séance'} status={w.status as any}
               onPress={() => openWorkoutDetail(w)}
             />
           ))
