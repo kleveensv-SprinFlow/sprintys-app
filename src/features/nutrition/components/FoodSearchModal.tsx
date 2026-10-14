@@ -24,6 +24,9 @@ import { MacroLanes } from './MacroLanes';
 import { mealLabel, MACROS, MacroKey, MEAL_ACCENT, MEAL_ACCENT_TINT } from '../nutritionTheme';
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 import { appAlert } from '../../../shared/feedback/appAlert';
+import { AIQuotaError } from '../../../services/aiNutritionService';
+import { supabase } from '../../../services/supabase';
+import { useEntitlementStore, billingOn, remainingToday } from '../../../store/entitlementStore';
 
 type TabType = 'recents' | 'frequents' | 'repas';
 
@@ -145,7 +148,45 @@ export const FoodSearchModal: React.FC = () => {
     if (packaged.length > 0) setResults([...generic, ...packaged]);
   };
 
+  /** A limit was reached: close this sheet first (two modals cannot be open together on iOS), then offer the plans. */
+  const planInfo = useEntitlementStore((st) => st.info);
+  /** Uses left today for a limited plan (null when nothing is limited). */
+  const leftOf = (kind: 'scan' | 'photo' | 'text'): number | null => {
+    if (!planInfo || !planInfo.billing_enabled || planInfo.source !== 'free') return null;
+    return remainingToday(planInfo, kind);
+  };
+
+  const showPaywall = (feature: 'photo' | 'text' | 'scan', detail?: string) => {
+    closeSearchModal();
+    setTimeout(() => useEntitlementStore.getState().openPaywall(feature, detail), 450);
+  };
+
+  const limitDetail = (kind: 'photo' | 'text' | 'scan') => {
+    const info = useEntitlementStore.getState().info;
+    const limit = kind === 'photo' ? info?.photo_per_day : kind === 'text' ? info?.text_per_day : info?.scan_per_day;
+    const label = kind === 'photo' ? 'analyses photo' : kind === 'text' ? 'saisies en une phrase' : 'scans';
+    return limit ? `Tu as utilisé tes ${limit} ${label} du jour. Avec Plus, plus de limite.` : undefined;
+  };
+
+  /** Quick check before opening the camera or the keyboard, so nobody takes a photo for nothing. */
+  const limitReached = (kind: 'photo' | 'text' | 'scan') => {
+    if (!billingOn()) return false;
+    if (remainingToday(useEntitlementStore.getState().info, kind) !== 0) return false;
+    showPaywall(kind, limitDetail(kind));
+    return true;
+  };
+
   const handleBarcodeScanned = async ({ data }: { data: string }) => {
+    // Scans are counted on the server too; if that check fails, the scan is allowed
+    if (billingOn()) {
+      const { data: used } = await supabase.rpc('consume_feature' as any, { p_kind: 'scan' });
+      if ((used as any)?.allowed === false) {
+        setMode('text');
+        showPaywall('scan', limitDetail('scan'));
+        return;
+      }
+      useEntitlementStore.getState().noteUse('scan');
+    }
     setMode('text');
     setIsLoading(true);
     try {
@@ -163,6 +204,7 @@ export const FoodSearchModal: React.FC = () => {
   };
 
   const openScanner = async () => {
+    if (limitReached('scan')) return;
     if (!permission?.granted) {
       const { granted } = await requestPermission();
       if (!granted) {
@@ -175,6 +217,7 @@ export const FoodSearchModal: React.FC = () => {
 
   const handleAIPhoto = async () => {
     // Asked before the camera opens: the photo is sent to the AI provider
+    if (limitReached('photo')) return;
     if (!(await useConsentStore.getState().ensureAIConsent())) return;
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
     if (!permissionResult.granted) {
@@ -205,8 +248,22 @@ export const FoodSearchModal: React.FC = () => {
     if (input.base64Image) setAiOriginalText('Photo de mon assiette');
     setMode('ai-loading');
     setIsAILoading(true);
-    const parsedItems = await aiNutritionService.analyzeFood(input);
+    let parsedItems: Awaited<ReturnType<typeof aiNutritionService.analyzeFood>> = null;
+    try {
+      parsedItems = await aiNutritionService.analyzeFood(input);
+    } catch (e) {
+      setIsAILoading(false);
+      setMode('text');
+      if (e instanceof AIQuotaError) {
+        showPaywall(e.feature, limitDetail(e.feature));
+        useEntitlementStore.getState().refresh();
+        return;
+      }
+    }
     setIsAILoading(false);
+    if (parsedItems && parsedItems.length > 0) {
+      useEntitlementStore.getState().noteUse(input.base64Image ? 'photo' : 'text');
+    }
 
     if (parsedItems && parsedItems.length > 0) {
       const matchedArray = await Promise.all(parsedItems.map(async (item) => {
@@ -876,6 +933,7 @@ export const FoodSearchModal: React.FC = () => {
                     icon: 'edit-3',
                     label: 'Décrire',
                     onPress: async () => {
+                      if (limitReached('text')) return;
                       if (await useConsentStore.getState().ensureAIConsent()) setMode('ai-text');
                     },
                   },
@@ -890,6 +948,11 @@ export const FoodSearchModal: React.FC = () => {
                       <Feather name={action.icon as any} size={18} color={MEAL_ACCENT} />
                     </View>
                     <Text style={[styles.aiActionText, { color: theme.colors.text }]}>{action.label}</Text>
+                    {leftOf(action.key as 'scan' | 'photo' | 'text') !== null && (
+                      <Text style={styles.aiActionLeft}>
+                        {leftOf(action.key as 'scan' | 'photo' | 'text')} {leftOf(action.key as 'scan' | 'photo' | 'text') === 1 ? 'restant' : 'restants'}
+                      </Text>
+                    )}
                   </PressableScale>
                 ))}
               </View>
@@ -1052,6 +1115,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: MEAL_ACCENT_TINT,
   },
+  aiActionLeft: { fontSize: 11, fontWeight: '700', color: '#64748B', marginTop: 1 },
   aiActionText: {
     fontWeight: '700',
     fontSize: 13,

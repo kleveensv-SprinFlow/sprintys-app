@@ -22,6 +22,7 @@ import { appAlert } from '../../shared/feedback/appAlert';
 import { ALL_DOMAINS, DOMAIN_LABELS, AnalysisDomain } from '../../services/athleteAnalysisContext';
 import { streamSprinty } from './agentClient';
 import { getActivePlan, removePlan } from './proposalWriter';
+import { useEntitlementStore, billingOn } from '../../store/entitlementStore';
 import { exportPartsToPdf, pdfTitleFor } from './pdf';
 import { confirmAsync, toast } from '../../shared/feedback/appAlert';
 import { SprintyMessageView } from './SprintyMessageView';
@@ -48,6 +49,8 @@ interface Starter {
   hint: string;
   prompt?: string;
   route?: string;
+  /** Feature that belongs to the Pro plan: the paywall opens when the plan does not include it. */
+  pro?: 'weekly_report';
 }
 
 const COACH_STARTERS: Starter[] = [
@@ -56,10 +59,12 @@ const COACH_STARTERS: Starter[] = [
   { icon: 'activity', label: 'Analyser un athlète', hint: 'Forme et progression', route: '/(coach)/analyze' },
   { icon: 'bar-chart-2', label: 'Comparer des athlètes', hint: 'Chronos, forme, charges', prompt: 'Je veux comparer des athlètes.' },
   { icon: 'award', label: 'Trouver une compétition', hint: 'Recherche sur le web', prompt: 'Je cherche une compétition pour mon groupe.' },
+  { icon: 'bar-chart-2', label: 'Bilan de la semaine d’un athlète', hint: 'Séances, nutrition, sommeil, poids', prompt: 'Fais-moi le bilan de la semaine d’un de mes athlètes.', pro: 'weekly_report' },
   { icon: 'volume-2', label: 'Écrire une annonce', hint: 'Pour l’équipe ou un groupe', prompt: 'Aide-moi à écrire une annonce pour mon équipe.' },
 ];
 
 const SOLO_STARTERS: Starter[] = [
+  { icon: 'bar-chart-2', label: 'Mon bilan de la semaine', hint: 'Séances, nutrition, sommeil, poids', prompt: 'Fais mon bilan de la semaine.', pro: 'weekly_report' },
   { icon: 'flag', label: 'Fixer un objectif et un plan', hint: 'Sprinty construit ton programme', prompt: 'Je veux fixer un objectif et avoir un plan d’entraînement.' },
   { icon: 'zap', label: 'Une séance pour demain', hint: 'Adaptée à ta forme', prompt: 'Propose-moi une séance pour demain.' },
   { icon: 'trending-up', label: 'Analyse ma forme', hint: 'Sommeil, fatigue, tendance', prompt: 'Comment évolue ma forme ces dernières semaines ?' },
@@ -67,6 +72,7 @@ const SOLO_STARTERS: Starter[] = [
 ];
 
 const COACHED_STARTERS: Starter[] = [
+  { icon: 'bar-chart-2', label: 'Mon bilan de la semaine', hint: 'Séances, nutrition, sommeil, poids', prompt: 'Fais mon bilan de la semaine.', pro: 'weekly_report' },
   { icon: 'activity', label: 'Analyse ma semaine', hint: 'Séances, forme, sommeil', prompt: "Analyse ma semaine d'entraînement et ma forme." },
   { icon: 'trending-up', label: 'Mes chronos progressent ?', hint: 'Résultats et records', prompt: 'Est-ce que mes chronos progressent ? Montre-moi.' },
   { icon: 'coffee', label: 'Que manger avant ma séance ?', hint: 'Nutrition autour de l’effort', prompt: 'Que devrais-je manger avant ma prochaine séance ?' },
@@ -84,6 +90,7 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
     initialPrompt?: string;
   }>();
   const { user } = useAuthStore();
+  const planInfo = useEntitlementStore((st) => st.info);
   const isCoach = role === 'coach';
 
   const conversations = useSprintyChatStore((s) => s.conversations);
@@ -98,7 +105,7 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
   const [isTyping, setIsTyping] = useState(false);
   const [liveParts, setLiveParts] = useState<MessagePart[]>([]);
   const [status, setStatus] = useState<string | null>(null);
-  const [error, setError] = useState<{ message: string; canRetry: boolean } | null>(null);
+  const [error, setError] = useState<{ message: string; canRetry: boolean; quota?: boolean } | null>(null);
   const [historyVisible, setHistoryVisible] = useState(false);
   const [hasCoach, setHasCoach] = useState<boolean | null>(null);
   /** A Sprinty plan still running although a coach now plans the sessions. */
@@ -197,7 +204,7 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
         // Shown locally only: an error is never stored as Sprinty's answer
         setError(
           err instanceof AIError
-            ? { message: err.message, canRetry: err.status !== 429 && err.status !== 413 }
+            ? { message: err.message, canRetry: err.status !== 429 && err.status !== 413, quota: err.code === 'quota' }
             : { message: 'Connexion impossible. Vérifie ton réseau et réessaie.', canRetry: true }
         );
       }
@@ -251,6 +258,11 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
 
   const exportPdf = async (msg: ChatMessage) => {
     if (!msg.parts?.length) return;
+    const plan = useEntitlementStore.getState().info;
+    if (billingOn() && plan && !plan.pdf_export) {
+      useEntitlementStore.getState().openPaywall('pdf');
+      return;
+    }
     const subtitle = athleteCtx ? `Analyse de ${athleteCtx.name}` : firstName ? `Pour ${firstName}` : undefined;
     try {
       await exportPartsToPdf(msg.parts, pdfTitleFor(msg.parts, conversation?.title && conversation.title !== 'Nouvelle conversation' ? conversation.title : 'Conversation Sprinty'), subtitle);
@@ -396,15 +408,30 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
                     <PressableScale
                       key={s.label}
                       style={styles.starter}
-                      onPress={() => (s.route ? router.navigate(s.route as any) : sendMessage(s.prompt))}
+                      onPress={() => {
+                        const plan = useEntitlementStore.getState().info;
+                        if (s.pro && billingOn() && plan && !plan.weekly_report) {
+                          useEntitlementStore.getState().openPaywall(s.pro);
+                          return;
+                        }
+                        if (s.route) router.navigate(s.route as any);
+                        else sendMessage(s.prompt);
+                      }}
                     >
                       <View style={styles.starterIcon}>
                         <Feather name={s.icon} size={16} color={BLUE} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.starterText} numberOfLines={1}>
-                          {s.label}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <Text style={[styles.starterText, { flexShrink: 1 }]} numberOfLines={1}>
+                            {s.label}
+                          </Text>
+                          {s.pro && planInfo && planInfo.billing_enabled && !planInfo.weekly_report && (
+                            <View style={styles.proPill}>
+                              <Text style={styles.proPillText}>PRO</Text>
+                            </View>
+                          )}
+                        </View>
                         <Text style={styles.starterHint} numberOfLines={1}>
                           {s.hint}
                         </Text>
@@ -479,6 +506,11 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
                 {error.canRetry && (
                   <Pressable onPress={generate} hitSlop={8}>
                     <Text style={styles.errorRetry}>Réessayer</Text>
+                  </Pressable>
+                )}
+                {error.quota && billingOn() && (
+                  <Pressable onPress={() => useEntitlementStore.getState().openPaywall('chat')} hitSlop={8}>
+                    <Text style={styles.errorRetry}>Voir les formules</Text>
                   </Pressable>
                 )}
               </View>
@@ -591,6 +623,8 @@ const styles = StyleSheet.create({
   },
   starterIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: 'rgba(0, 105, 232, 0.1)', alignItems: 'center', justifyContent: 'center' },
   starterText: { fontSize: 15, fontWeight: '700', color: theme.colors.text },
+  proPill: { backgroundColor: 'rgba(0, 105, 232, 0.12)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  proPillText: { fontSize: 10, fontWeight: '800', color: BLUE, letterSpacing: 0.5 },
   starterHint: { fontSize: 12, color: theme.colors.textSecondary, marginTop: 1 },
 
   rowLeft: { flexDirection: 'row', marginBottom: 12, justifyContent: 'flex-start' },

@@ -1,5 +1,6 @@
 import { Stack, useRouter, useSegments, useGlobalSearchParams } from 'expo-router';
 import { useEffect } from 'react';
+import { AppState } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useAuthStore } from '../src/store/authStore';
 import { useConsentStore } from '../src/store/consentStore';
@@ -13,6 +14,9 @@ import { OfflineBanner } from '../src/shared/components/OfflineBanner';
 import { AIConsentSheet } from '../src/features/legal/AIConsentSheet';
 import { TourOverlay } from '../src/features/onboarding/TourOverlay';
 import { useOnboardingStore } from '../src/store/onboardingStore';
+import { useEntitlementStore } from '../src/store/entitlementStore';
+import { syncPurchasesUser } from '../src/services/purchases';
+import { PaywallSheet } from '../src/features/billing/PaywallSheet';
 
 /** Any screen that crashes while rendering shows a friendly retry screen instead of a blank one. */
 export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Promise<void> }) {
@@ -32,6 +36,19 @@ export default function RootLayout() {
 
   useEffect(() => {
     initializeAuth();
+  }, []);
+
+  // Plan of the signed-in account, and its store purchases (never blocks the app)
+  useEffect(() => {
+    const id = user?.id ?? null;
+    syncPurchasesUser(id);
+    if (id) useEntitlementStore.getState().refresh(id);
+  }, [user?.id]);
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && useAuthStore.getState().user?.id) useEntitlementStore.getState().refresh();
+    });
+    return () => sub.remove();
   }, []);
 
   // Consents of the signed-in account (required ones gate the app)
@@ -114,6 +131,7 @@ export default function RootLayout() {
       </Stack>
       <OfflineBanner />
       <TourOverlay />
+      <PaywallSheet />
       <AIConsentSheet />
       <FeedbackHost />
     </View>

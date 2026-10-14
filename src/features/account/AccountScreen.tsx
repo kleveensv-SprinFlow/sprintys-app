@@ -27,6 +27,9 @@ import { FaqModal } from '../../shared/components/FaqModal';
 import { useFrostedHeader } from '../../shared/hooks/useFrostedHeader';
 import { confirmAsync, toast } from '../../shared/feedback/appAlert';
 import { getActivePlan, removePlan } from '../sprinty/proposalWriter';
+import { useEntitlementStore } from '../../store/entitlementStore';
+import { openManageSubscriptions, restorePurchases } from '../../services/purchases';
+import { planLabel, tierOf } from '../billing/plans';
 
 const APP_VERSION = Constants.expoConfig?.version ?? '';
 
@@ -62,6 +65,18 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
   const { user, logout, updateProfile, reloadProfile } = useAuthStore();
   const { scrollY, scrollProps } = useFrostedHeader();
   const isAthlete = role === 'athlete';
+  const plan = useEntitlementStore((st) => st.info);
+  const showSubscription = isAthlete && !!plan?.billing_enabled;
+  const paidOwn = !!plan?.subscription && plan.source === 'own';
+  const renewal = plan?.subscription?.current_period_end
+    ? new Date(plan.subscription.current_period_end).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+    : null;
+  const month = plan?.usage_month;
+  const valueLine = month && (month.photo || month.text || month.scan)
+    ? [month.photo ? `${month.photo} photo${month.photo > 1 ? 's' : ''} IA` : null, month.text ? `${month.text} saisie${month.text > 1 ? 's' : ''} en une phrase` : null, month.scan ? `${month.scan} scan${month.scan > 1 ? 's' : ''}` : null]
+        .filter(Boolean)
+        .join(', ')
+    : null;
 
   const aiConsent = useConsentStore((s) => !!s.active?.has('ai_processing'));
   const painConsent = useConsentStore((s) => !!s.active?.has('health_data'));
@@ -328,6 +343,52 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
             last
           />
         </View>
+
+        {showSubscription && plan && (
+          <>
+            <Text style={styles.section}>ABONNEMENT</Text>
+            <View style={[glassCard, styles.card]}>
+              <GlassSheen radius={22} />
+              <ListRow
+                icon="zap"
+                iconColor={theme.colors.sprintyBlue}
+                title={planLabel(plan)}
+                subtitle={
+                  plan.source === 'sponsored'
+                    ? `Offert par ${plan.sponsor_name || 'ton coach'}, tant qu’il reste abonné`
+                    : paidOwn
+                      ? renewal
+                        ? plan.subscription!.will_renew
+                          ? `Se renouvelle le ${renewal}`
+                          : `Prend fin le ${renewal}, rien n’est supprimé`
+                        : undefined
+                      : 'Photo IA, phrase et scan limités chaque jour'
+                }
+                chevron={!paidOwn}
+                onPress={paidOwn ? undefined : () => useEntitlementStore.getState().openPaywall('profile')}
+                last={!paidOwn && tierOf(plan.plan) === null}
+              />
+              {tierOf(plan.plan) !== 'pro' && (paidOwn || plan.source === 'sponsored') && (
+                <ListRow icon="trending-up" title="Passer à Pro" subtitle="Objectif adaptatif, bilan de la semaine, plans de 12 semaines" onPress={() => useEntitlementStore.getState().openPaywall('profile')} last={!paidOwn} />
+              )}
+              {paidOwn && valueLine && <ListRow icon="award" title="Ce que ça t’a apporté ce mois-ci" subtitle={valueLine} chevron={false} />}
+              {paidOwn && <ListRow icon="settings" title="Gérer mon abonnement" subtitle="Dans les réglages de ton compte du store" onPress={() => openManageSubscriptions()} />}
+              <ListRow
+                icon="refresh-cw"
+                title="Restaurer mes achats"
+                chevron={false}
+                onPress={async () => {
+                  const r = await restorePurchases();
+                  if (r.status === 'success') {
+                    toast('success', 'Si tu as un abonnement, il apparaît dans quelques secondes.', 'Achats restaurés');
+                    useEntitlementStore.getState().refreshAfterPurchase();
+                  } else if (r.status === 'error') toast('error', r.message, 'Oups');
+                }}
+                last
+              />
+            </View>
+          </>
+        )}
 
         {isAthlete && sprintyPlan && (
           <>

@@ -12,6 +12,13 @@ export interface ParsedFoodItem {
   fallback_lip_100g: number;
 }
 
+/** The daily limit of the plan is reached for this feature (photo or phrase). */
+export class AIQuotaError extends Error {
+  constructor(public feature: 'photo' | 'text', public plan?: string, public limit?: number) {
+    super('quota');
+  }
+}
+
 export const aiNutritionService = {
   async analyzeFood(input: { text?: string; base64Image?: string }): Promise<ParsedFoodItem[] | null> {
     try {
@@ -73,6 +80,12 @@ Tu dois OBLIGATOIREMENT renvoyer un JSON qui contient UNIQUEMENT un tableau (JSO
       });
 
       if (error) {
+        // The function answers a refused quota as 429 { code: 'quota', feature, plan, limit }
+        const res: Response | undefined = (error as any)?.context;
+        if (res?.status === 429) {
+          const body = await res.json().catch(() => null);
+          if (body?.code === 'quota') throw new AIQuotaError(input.base64Image ? 'photo' : 'text', body.plan, body.limit);
+        }
         console.error('Edge Function Error:', error);
         throw error;
       }
@@ -89,6 +102,7 @@ Tu dois OBLIGATOIREMENT renvoyer un JSON qui contient UNIQUEMENT un tableau (JSO
       return JSON.parse(content) as ParsedFoodItem[];
 
     } catch (error) {
+      if (error instanceof AIQuotaError) throw error;
       console.error('AI Analysis failed:', error);
       return null;
     }

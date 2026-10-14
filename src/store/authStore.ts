@@ -4,6 +4,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as QueryParams from 'expo-auth-session/build/QueryParams';
+import { useEntitlementStore } from './entitlementStore';
 import { supabase } from '../services/supabase';
 import { useSprintyChatStore } from './sprintyChatStore';
 import { useConsentStore } from './consentStore';
@@ -618,6 +619,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     useSprintyChatStore.getState().reset();
     useConsentStore.getState().reset();
     useOnboardingStore.getState().reset();
+    useEntitlementStore.getState().reset();
     set({ user: null, pendingEmail: null, isLoading: false });
   },
 

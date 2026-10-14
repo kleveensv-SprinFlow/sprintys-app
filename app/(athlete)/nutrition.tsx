@@ -5,6 +5,7 @@ import { NutritionHeader } from '../../src/features/nutrition/components/Nutriti
 import { DateSelector } from '../../src/features/nutrition/components/DateSelector';
 import { NutritionSummary } from '../../src/features/nutrition/components/NutritionSummary';
 import { GoalProgressCard } from '../../src/features/nutrition/components/GoalProgressCard';
+import { AdaptiveTargetCard } from '../../src/features/nutrition/components/AdaptiveTargetCard';
 import { MealSection } from '../../src/features/nutrition/components/MealSection';
 import { FoodSearchModal } from '../../src/features/nutrition/components/FoodSearchModal';
 import { NutritionSettingsModal } from '../../src/features/nutrition/components/NutritionSettingsModal';
@@ -67,6 +68,7 @@ export default function NutritionScreen() {
         <DateSelector athleteId={athleteId} />
         <NutritionSummary athleteProfile={athleteProfile} />
         <GoalProgressCard athleteProfile={athleteProfile} athleteId={athleteId} readonly={readonly} />
+        {!athleteId && !readonly && <AdaptiveTargetCard />}
         <MealSection readonly={readonly} athleteId={athleteId} athleteProfile={athleteProfile} />
       </Animated.ScrollView>
 
