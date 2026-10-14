@@ -66,14 +66,15 @@ export const PRIVACY_POLICY: LegalDocument = {
         'Open-Meteo : prévisions météo à partir de ta position approximative, sans identifiant personnel.',
         'Open Food Facts : recherche d’un aliment par nom ou code-barres, sans identifiant personnel.',
         'Tavily (États-Unis) : recherche de compétitions sur le web à partir de critères (région, période, discipline), sans donnée personnelle.',
-        'Google et Apple : uniquement si tu choisis de te connecter avec eux.',
+        'Google et Apple : si tu choisis de te connecter avec eux, et pour le paiement des abonnements via l’App Store ou Google Play (nous ne recevons jamais ton moyen de paiement).',
+        'RevenueCat (États-Unis) : gestion des abonnements. Reçoit ton identifiant Sprintys, la formule achetée, les dates de début et de fin et l’historique d’achat, sans nom ni coordonnée bancaire. Transfert encadré par les clauses contractuelles types de la Commission européenne.',
       ],
     },
     {
       title: '6. Combien de temps nous les gardons',
       paragraphs: [
         'Tant que ton compte existe. Quand tu supprimes ton compte depuis les réglages, ton profil, tes séances, repas, mesures, check-ins, photos de profil et accords sont effacés. Les messages déjà envoyés dans une discussion d’équipe peuvent rester visibles par l’équipe, sans être rattachés à ton profil.',
-        'Les compteurs d’utilisation de l’IA sont effacés avec le compte. Les signalements sont conservés au plus un an pour traiter les abus.',
+        'Les informations d’abonnement (formule, dates, magasin) sont effacées avec le compte, hors obligations comptables du magasin. Les compteurs d’utilisation de l’IA sont effacés avec le compte. Les signalements sont conservés au plus un an pour traiter les abus.',
       ],
     },
     {
@@ -114,7 +115,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
       title: '1. Le service',
       paragraphs: [
         'Sprintys permet à des athlètes et à leurs coachs de planifier des séances, de suivre l’entraînement, la nutrition, le poids et la forme, et d’échanger. Un assistant d’intelligence artificielle, Sprinty, aide à interpréter ces informations.',
-        'L’application est gratuite. Nous pouvons faire évoluer ses fonctions.',
+        'Sprintys est gratuite : les fonctions essentielles (suivi, calendrier, messages, recherche d’aliments) restent accessibles sans payer. Des abonnements facultatifs, décrits à l’article 4 ter, débloquent des fonctions supplémentaires. Nous pouvons faire évoluer les fonctions du service.',
       ],
     },
     {
@@ -147,6 +148,16 @@ export const TERMS_OF_SERVICE: LegalDocument = {
         'Avant le premier plan, Sprinty te pose quelques questions de sécurité (douleur, problème cardiaque, malaise à l’effort, reprise après un arrêt). Si une réponse l’indique, il te conseille de consulter un médecin et ne propose qu’un plan doux. Pour les moins de 18 ans, les charges restent prudentes et aucun objectif de perte de poids n’est proposé.',
         'Tu restes responsable de ta pratique : échauffe-toi, adapte ou arrête une séance en cas de douleur, de malaise ou de fatigue inhabituelle, et consulte un professionnel de santé si besoin.',
         'Quand tu rejoins un coach, c’est lui qui programme tes séances : Sprinty ne te propose plus de plan ni de séance physique, et te permet de retirer les séances restantes de ton plan. Il peut seulement t’ajouter des séances de récupération douce (mobilité, étirements, respiration), que tu valides toi-même ; ton coach ne les voit pas. Tu peux retirer ton plan à tout moment depuis ton profil.',
+      ],
+    },
+    {
+      title: '4 ter. Abonnements facultatifs (Plus et Pro)',
+      paragraphs: [
+        'Deux formules payantes existent pour les athlètes : Plus et Pro, en abonnement mensuel ou annuel. Les fonctions et limites de chaque formule sont détaillées sur la page d’offre de l’application. Sans abonnement, tu gardes un essai quotidien des fonctions limitées (analyse de repas par photo, saisie en une phrase, scan de code-barres, messages à Sprinty).',
+        'L’achat est réalisé par l’App Store d’Apple ou Google Play : le prix, la TVA, le moyen de paiement et la facturation sont ceux du magasin, affichés avant que tu confirmes. L’abonnement se renouvelle automatiquement à la fin de chaque période, au même prix, sauf si tu le résilies au moins 24 heures avant l’échéance depuis les réglages de ton compte Apple ou Google Play (bouton « Gérer l’abonnement » dans ton profil). Résilier ne supprime rien : tu gardes l’accès jusqu’à la fin de la période payée, puis tu reviens à la formule gratuite, avec toutes tes données.',
+        'Un essai gratuit de 7 jours peut être proposé une fois par compte du magasin. Si tu ne résilies pas avant la fin de l’essai, l’abonnement payant démarre. Les remboursements sont gérés par Apple ou Google selon leurs conditions ; nous ne pouvons pas les effectuer. Les codes promotionnels ne sont proposés que par les mécanismes officiels des magasins.',
+        'Ton coach peut te faire bénéficier d’un accès Premium via son propre abonnement : tu as alors le niveau Plus tant que tu fais partie de son groupe. Si tu as aussi un abonnement personnel, il continue d’être facturé : pense à le résilier si tu n’en as plus besoin. Supprimer ton compte Sprintys n’annule pas un abonnement acheté auprès d’Apple ou de Google : résilie-le d’abord dans les réglages du magasin.',
+        'Pour les consommateurs de l’Union européenne, le droit de rétractation de 14 jours s’applique selon les conditions du magasin, sauf si tu demandes un accès immédiat au contenu numérique. Nous pouvons modifier les prix ou les fonctions d’une formule ; tu es prévenu avant tout changement de prix, et le magasin te demande ton accord si nécessaire.',
       ],
     },
     {

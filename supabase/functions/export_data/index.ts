@@ -53,6 +53,7 @@ serve(async (req) => {
       sprinty_goals: await rows('athlete_goals', 'athlete_id'),
       sprinty_plans: await rows('ai_plans', 'athlete_id'),
       ai_usage: await rows('ai_usage', 'user_id'),
+      subscriptions: await rows('subscriptions', 'user_id'),
       team_memberships: await rows('team_members', 'user_id'),
       teams_coached: await rows('teams', 'coach_id'),
       messages_sent: await rows('messages', 'sender_id'),
