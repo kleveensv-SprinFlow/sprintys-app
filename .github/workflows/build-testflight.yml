@@ -49,8 +49,8 @@ jobs:
         working-directory: ios
         run: pod install
 
-      - name: Cache Fastlane Keychain
-        uses: actions/cache@v4
+      - name: Restore Fastlane Keychain
+        uses: actions/cache/restore@v4
         with:
           path: ~/Library/Keychains/ci_keychain-db
           key: fastlane-keychain-${{ runner.os }}-${{ github.run_id }}
@@ -79,3 +79,12 @@ jobs:
       - name: Cleanup Secrets
         if: always()
         run: rm -f AuthKey.p8
+
+      # Saved even when the build fails, so a freshly created distribution certificate (whose private
+      # key only lives in this keychain) is never lost and the Apple certificate limit is not hit again
+      - name: Save Fastlane Keychain
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/Library/Keychains/ci_keychain-db
+          key: fastlane-keychain-${{ runner.os }}-${{ github.run_id }}
