@@ -32,6 +32,7 @@ export const PRIVACY_POLICY: LegalDocument = {
         'Nutrition : repas et aliments notés, objectifs caloriques. Une photo de repas n’est utilisée que pour l’analyse demandée et n’est pas conservée par Sprintys.',
         'Échanges : messages et sondages avec ton coach et ton équipe, signalements et blocages.',
         'Assistant Sprinty : tes conversations restent sur ton téléphone. Pour répondre, le contenu de la conversation et un résumé de ton contexte (prénom, séances de la semaine, derniers check-ins, calories du jour) sont envoyés à notre prestataire d’IA. Nous comptons le nombre de requêtes par jour pour éviter les abus.',
+        'Assistant Sprinty côté coach : tes échanges avec Sprinty sont envoyés à notre prestataire d’IA pour générer la réponse. Quand tu demandes l’analyse d’un athlète, les données que cet athlète a choisi de partager avec toi (séances, forme, nutrition, poids, et douleurs s’il l’a accepté) sont aussi envoyées, uniquement pour cette analyse.',
         'Position approximative : uniquement pendant l’utilisation, pour la météo de ton lieu d’entraînement. Elle n’est pas enregistrée.',
         'Accords : le type d’accord, le texte accepté, sa version et la date.',
         'Nous n’utilisons ni publicité, ni outil de suivi publicitaire, ni revente de données.',

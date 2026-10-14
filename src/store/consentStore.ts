@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../services/supabase';
-import { ConsentType, CONSENT_TEXTS, CONSENT_VERSION } from '../legal/consents';
+import { ConsentType, consentTextFor, CONSENT_VERSION } from '../legal/consents';
 
 interface ConsentState {
   /** null until loaded for the signed-in account. */
@@ -8,7 +8,9 @@ interface ConsentState {
   /** Whether the athlete belongs to a team (pending or approved), which makes coach sharing required. */
   inTeam: boolean;
   loadedFor: string | null;
-  load: (userId: string) => Promise<void>;
+  /** Role of the signed-in account: the AI consent wording differs for coaches and athletes. */
+  role: string | null;
+  load: (userId: string, role?: string | null) => Promise<void>;
   grant: (types: ConsentType[]) => Promise<boolean>;
   revoke: (type: ConsentType) => Promise<boolean>;
   has: (type: ConsentType) => boolean;
@@ -26,8 +28,10 @@ export const useConsentStore = create<ConsentState>((set, get) => ({
   active: null,
   inTeam: false,
   loadedFor: null,
+  role: null,
 
-  load: async (userId) => {
+  load: async (userId, role) => {
+    if (role !== undefined) set({ role });
     const [{ data, error }, team] = await Promise.all([
       supabase.from('user_consents').select('consent_type').eq('user_id', userId).is('revoked_at', null),
       supabase.from('team_members').select('team_id').eq('user_id', userId).limit(1),
@@ -49,7 +53,7 @@ export const useConsentStore = create<ConsentState>((set, get) => ({
     const { data: auth } = await supabase.auth.getUser();
     const uid = auth.user?.id;
     if (!uid || !types.length) return false;
-    const rows = types.map((t) => ({ user_id: uid, consent_type: t, consent_text: CONSENT_TEXTS[t], version: CONSENT_VERSION }));
+    const rows = types.map((t) => ({ user_id: uid, consent_type: t, consent_text: consentTextFor(t, get().role), version: CONSENT_VERSION }));
     const { error } = await supabase.from('user_consents').insert(rows);
     if (error) {
       console.error('consent grant failed', error.message);
@@ -83,7 +87,7 @@ export const useConsentStore = create<ConsentState>((set, get) => ({
 
   has: (type) => !!get().active?.has(type),
 
-  reset: () => set({ active: null, inTeam: false, loadedFor: null, aiPromptOpen: false }),
+  reset: () => set({ active: null, inTeam: false, loadedFor: null, role: null, aiPromptOpen: false }),
 
   aiPromptOpen: false,
 

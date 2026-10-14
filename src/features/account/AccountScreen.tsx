@@ -155,7 +155,9 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
     }
     const ok = await confirmAsync({
       title: 'Désactiver l’IA ?',
-      message: 'Sprinty et l’analyse de repas seront désactivés. Tu pourras les réactiver à tout moment.',
+      message: isAthlete
+        ? 'Sprinty et l’analyse de repas seront désactivés. Tu pourras les réactiver à tout moment.'
+        : 'Sprinty ne sera plus disponible pour toi. Tu pourras le réactiver à tout moment.',
       confirmText: 'Désactiver',
       destructive: true,
       icon: 'cpu',
@@ -239,8 +241,9 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
   const deleteAccount = async () => {
     const ok = await confirmAsync({
       title: 'Supprimer ton compte ?',
-      message:
-        'Ton profil, tes séances, repas, pesées, check-ins et photos seront définitivement supprimés. Pense à exporter tes données avant si tu veux les garder.',
+      message: isAthlete
+        ? 'Ton profil, tes séances, repas, pesées, check-ins et photos seront définitivement supprimés. Pense à exporter tes données avant si tu veux les garder.'
+        : 'Ton profil, tes groupes, les séances que tu as planifiées, tes discussions et ta photo seront définitivement supprimés. Tes athlètes perdront l’accès à ton groupe. Pense à exporter tes données avant si tu veux les garder.',
       confirmText: 'Supprimer définitivement',
       destructive: true,
       icon: 'alert-triangle',
@@ -309,7 +312,7 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
             icon="cpu"
             iconColor="#8B5CF6"
             title="Assistant IA"
-            subtitle="Sprinty et analyse de repas"
+            subtitle={isAthlete ? 'Sprinty et analyse de repas' : 'Sprinty et analyses d’athlètes'}
             value={aiConsent ? 'Activé' : 'Désactivé'}
             onPress={toggleAI}
           />
@@ -412,7 +415,7 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
       </BottomSheet>
 
       <EditProfileModal visible={editVisible} onClose={() => setEditVisible(false)} />
-      <FaqModal visible={faqVisible} onClose={() => setFaqVisible(false)} />
+      <FaqModal visible={faqVisible} onClose={() => setFaqVisible(false)} role={role} />
     </GlassScreen>
   );
 }

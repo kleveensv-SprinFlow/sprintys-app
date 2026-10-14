@@ -21,6 +21,13 @@ export const CONSENT_TEXTS: Record<ConsentType, string> = {
     'J’accepte que Sprintys enregistre les douleurs que je décris (zone, type, intensité, commentaire) et que mon coach les voie. Ce n’est pas un dossier médical. Je peux retirer cet accord dans les réglages ; les douleurs déjà notées restent consultables par moi.',
 };
 
+/** The AI consent says what really leaves the phone, which depends on what each role does with Sprinty. */
+export const AI_CONSENT_TEXT_COACH =
+  'J’accepte que le contenu de mes échanges avec Sprinty et, quand je demande l’analyse d’un athlète, les données que cet athlète partage avec moi (séances, forme, nutrition, poids) soient envoyés à notre prestataire d’IA, OpenAI (États-Unis), qui ne les utilise pas pour entraîner ses modèles. Je peux retirer cet accord dans les réglages.';
+
+export const consentTextFor = (type: ConsentType, role?: string | null): string =>
+  type === 'ai_processing' && role === 'coach' ? AI_CONSENT_TEXT_COACH : CONSENT_TEXTS[type];
+
 /** Short labels for the settings list. */
 export const CONSENT_LABELS: Record<ConsentType, string> = {
   terms: 'Conditions et confidentialité',

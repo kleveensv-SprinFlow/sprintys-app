@@ -34,7 +34,7 @@ export default function RootLayout() {
 
   // Consents of the signed-in account (required ones gate the app)
   useEffect(() => {
-    if (user?.id && consentsFor !== user.id) useConsentStore.getState().load(user.id);
+    if (user?.id && consentsFor !== user.id) useConsentStore.getState().load(user.id, user.role);
   }, [user?.id, consentsFor]);
 
   const consentsReady = !!user && consentsFor === user.id && !!consents;

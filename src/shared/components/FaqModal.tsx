@@ -25,55 +25,101 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 const BLUE_TINT = 'rgba(0, 105, 232, 0.1)';
 
+type Role = 'athlete' | 'coach';
+
 interface FaqItem {
   id: string;
-  category: 'general' | 'planning' | 'team';
+  /** Shown to everyone when omitted. */
+  roles?: Role[];
   question: string;
   answer: string;
 }
 
 const FAQ_ITEMS: FaqItem[] = [
   {
-    id: '1',
-    category: 'general',
+    id: 'support',
     question: 'Comment contacter le support ?',
-    answer: `Tu peux joindre notre équipe à tout moment par email à ${PUBLISHER.contactEmail}. Nous répondons généralement en moins de 24 h ouvrées.`,
+    answer: `Tu peux joindre notre équipe à tout moment par e-mail à ${PUBLISHER.contactEmail}. Nous répondons généralement en moins de 24 h ouvrées.`,
+  },
+  // ----- Athlète -----
+  {
+    id: 'a-join',
+    roles: ['athlete'],
+    question: 'Comment rejoindre le groupe de mon coach ?',
+    answer: 'Ouvre « Mon groupe » depuis ton profil et saisis le code à 8 chiffres donné par ton coach. Il reçoit ta demande et doit l’accepter ; tu es prévenu dès que c’est fait.',
   },
   {
-    id: '2',
-    category: 'planning',
+    id: 'a-share',
+    roles: ['athlete'],
+    question: 'Que voit mon coach de mes données ?',
+    answer: 'Une fois dans son groupe, ton coach voit tes séances, tes repas, ton poids et ta composition, tes check-ins et, si tu l’as accepté, tes douleurs. Tu peux quitter le groupe à tout moment depuis « Mon groupe » : il n’y a alors plus accès.',
+  },
+  {
+    id: 'a-checkin',
+    roles: ['athlete'],
+    question: 'À quoi sert le check-in du jour ?',
+    answer: 'En 30 secondes (sommeil, énergie, stress, motivation, douleurs éventuelles), il calcule ta forme du jour. Ton coach s’en sert pour adapter la charge de tes séances.',
+  },
+  {
+    id: 'a-meals',
+    roles: ['athlete'],
+    question: 'Comment enregistrer un repas ?',
+    answer: 'Dans l’onglet Nutrition, touche « + » sur un repas : cherche un aliment, scanne un code-barres ou, si tu as activé l’IA, prends une photo ou décris ton repas.',
+  },
+  // ----- Coach -----
+  {
+    id: 'c-invite',
+    roles: ['coach'],
+    question: 'Comment inviter un athlète dans mon groupe ?',
+    answer: 'Dans l’onglet Équipe, ouvre ton groupe puis copie ou partage le code d’invitation. L’athlète le saisit dans « Mon groupe » et tu valides sa demande dans l’onglet « Demandes ».',
+  },
+  {
+    id: 'c-subgroups',
+    roles: ['coach'],
+    question: 'Puis-je créer des sous-groupes par niveau ou discipline ?',
+    answer: 'Oui. Dans l’onglet « Groupes » de ton équipe, crée des sous-groupes (100 m/200 m, Haies, Relais…) pour planifier des séances spécifiques et adapter les charges.',
+  },
+  {
+    id: 'c-form',
+    roles: ['coach'],
+    question: 'Où voir la forme de mon équipe ?',
+    answer: 'Sur l’accueil, la carte « Forme de l’équipe » résume les check-ins du jour ; touche-la pour le détail par athlète. Tu ne vois que ce que chaque athlète a accepté de partager.',
+  },
+  {
+    id: 'c-ai',
+    roles: ['coach'],
+    question: 'Comment Sprinty peut-il m’aider ?',
+    answer: 'Sprinty peut proposer des séances, analyser la progression d’un athlète (touche l’athlète dans ton équipe puis « Analyser avec Sprinty ») ou faire un bilan de forme. Les données de l’athlète sont envoyées à notre prestataire d’IA uniquement quand tu lances une analyse.',
+  },
+  // ----- Les deux -----
+  {
+    id: 'phase',
     question: 'Comment définir une phase d’entraînement ?',
     answer: 'Depuis l’onglet Calendrier, touche le bouton « + Phase » en haut à droite ou « Définir une phase d’entraînement ». Choisis le nom (ex. : Prépa physique, Affûtage), les dates et la couleur associée.',
   },
   {
-    id: '3',
-    category: 'planning',
+    id: 'weather',
     question: 'Comment fonctionnent les conditions météo ?',
     answer: 'Sprintys analyse les prévisions de vent (vitesse, rafales, sens favorable ou défavorable à la ligne droite) ainsi que le risque de pluie pour t’indiquer l’état de la piste.',
   },
   {
-    id: '4',
-    category: 'team',
-    question: 'Comment inviter un athlète dans mon équipe ?',
-    answer: 'Dans l’onglet Équipe, utilise le bouton d’invitation pour partager le code de ton groupe ou envoyer un lien d’accès sécurisé à tes athlètes.',
-  },
-  {
-    id: '5',
-    category: 'team',
-    question: 'Puis-je créer des sous-groupes de niveau ou discipline ?',
-    answer: 'Oui ! Tu peux segmenter ton équipe en sous-groupes (ex. : 100 m/200 m, Haies, Relais) pour planifier des séances spécifiques et adapter les charges de travail.',
-  },
-  {
-    id: '6',
-    category: 'general',
+    id: 'data-athlete',
+    roles: ['athlete'],
     question: 'Où sont stockées mes données personnelles et de santé ?',
-    answer: 'Tes données sont hébergées dans l’Union européenne (Paris). Tu peux en exporter une copie et supprimer ton compte depuis les réglages. La politique de confidentialité, dans les réglages, détaille ce qui est partagé avec ton coach et avec notre prestataire d’IA.',
+    answer: 'Tes données sont hébergées dans l’Union européenne (Paris). Tu peux en exporter une copie et supprimer ton compte depuis ton profil. La politique de confidentialité détaille ce qui est partagé avec ton coach et avec notre prestataire d’IA.',
+  },
+  {
+    id: 'data-coach',
+    roles: ['coach'],
+    question: 'Où sont stockées mes données et celles de mes athlètes ?',
+    answer: 'Tout est hébergé dans l’Union européenne (Paris). Tu peux exporter tes données et supprimer ton compte depuis ton profil. Les données de tes athlètes ne te sont accessibles que tant qu’ils font partie de ton groupe.',
   },
 ];
 
 interface Props {
   visible: boolean;
   onClose: () => void;
+  role?: Role;
 }
 
 /** One accordion row: the height change is animated with LayoutAnimation, the chevron rotates. */
@@ -120,7 +166,7 @@ const FaqRow = ({ item, expanded, onToggle }: { item: FaqItem; expanded: boolean
   );
 };
 
-export const FaqModal = ({ visible, onClose }: Props) => {
+export const FaqModal = ({ visible, onClose, role = 'athlete' }: Props) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const toggleItem = (id: string) => {
@@ -158,7 +204,7 @@ export const FaqModal = ({ visible, onClose }: Props) => {
               </View>
             </View>
 
-            {FAQ_ITEMS.map(item => (
+            {FAQ_ITEMS.filter((item) => !item.roles || item.roles.includes(role)).map((item) => (
               <FaqRow key={item.id} item={item} expanded={expandedId === item.id} onToggle={() => toggleItem(item.id)} />
             ))}
 

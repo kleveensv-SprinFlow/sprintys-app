@@ -10,11 +10,25 @@ import { useConsentStore } from '../../store/consentStore';
 import { ConsentLink } from './ConsentCheck';
 import { FeedbackHost } from '../../shared/feedback/FeedbackHost';
 
-const POINTS: { icon: keyof typeof Feather.glyphMap; text: string }[] = [
-  { icon: 'send', text: 'Ton message, ta photo ou ta description de repas, et un résumé de ton contexte sont envoyés à OpenAI (États-Unis) pour générer la réponse.' },
-  { icon: 'shield', text: 'Ces données ne servent pas à entraîner leurs modèles.' },
-  { icon: 'alert-triangle', text: 'L’IA peut se tromper : ce n’est jamais un avis médical.' },
-];
+type Point = { icon: keyof typeof Feather.glyphMap; text: string };
+
+const ATHLETE = {
+  subtitle: 'Assistant Sprinty et analyse de repas.',
+  points: [
+    { icon: 'send', text: 'Ton message, ta photo ou ta description de repas, et un résumé de ton contexte sont envoyés à OpenAI (États-Unis) pour générer la réponse.' },
+    { icon: 'shield', text: 'Ces données ne servent pas à entraîner leurs modèles.' },
+    { icon: 'alert-triangle', text: 'L’IA peut se tromper : ce n’est jamais un avis médical.' },
+  ] as Point[],
+};
+
+const COACH = {
+  subtitle: 'Sprinty, ton assistant de coaching.',
+  points: [
+    { icon: 'send', text: 'Tes messages et, quand tu demandes l’analyse d’un athlète, les données qu’il partage avec toi (séances, forme, nutrition, poids) sont envoyés à OpenAI (États-Unis) pour générer la réponse.' },
+    { icon: 'shield', text: 'Ces données ne servent pas à entraîner leurs modèles.' },
+    { icon: 'alert-triangle', text: 'L’IA peut se tromper : ses analyses ne remplacent ni ton jugement de coach ni un avis médical.' },
+  ] as Point[],
+};
 
 /** Asked once, the first time an AI feature is used. Rendered in the root layout. */
 export function AIConsentSheet() {
@@ -22,6 +36,8 @@ export function AIConsentSheet() {
   const router = useRouter();
   const open = useConsentStore((s) => s.aiPromptOpen);
   const resolve = useConsentStore((s) => s.resolveAIPrompt);
+  const role = useConsentStore((s) => s.role);
+  const copy = role === 'coach' ? COACH : ATHLETE;
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -44,10 +60,10 @@ export function AIConsentSheet() {
             <Feather name="zap" size={24} color="#FFFFFF" />
           </LinearGradient>
           <Text style={styles.title}>Activer les fonctions d’IA</Text>
-          <Text style={styles.subtitle}>Assistant Sprinty et analyse de repas.</Text>
+          <Text style={styles.subtitle}>{copy.subtitle}</Text>
 
           <View style={styles.points}>
-            {POINTS.map((p) => (
+            {copy.points.map((p) => (
               <View key={p.icon} style={styles.point}>
                 <Feather name={p.icon} size={16} color={theme.colors.sprintyBlue} style={{ marginTop: 2 }} />
                 <Text style={styles.pointText}>{p.text}</Text>

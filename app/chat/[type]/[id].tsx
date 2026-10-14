@@ -350,8 +350,10 @@ export default function ChatScreen() {
             <Text style={styles.emptyChatTitle}>{type === 'team' ? "Salon d'équipe" : 'Discussion directe'}</Text>
             <Text style={styles.emptyChatSubtitle}>
               {type === 'team'
-                ? "Échange avec tous les athlètes, partage les annonces de séances et organise des sondages d’équipe."
-                : 'Envoyez un premier message.'}
+                ? user?.role === 'coach'
+                  ? 'Échange avec tous tes athlètes, partage les annonces de séances et organise des sondages d’équipe.'
+                  : 'Échange avec ton coach et les autres athlètes du groupe.'
+                : 'Envoie un premier message.'}
             </Text>
             {user?.role === 'coach' && type === 'team' && (
               <PressableScale style={styles.emptyQuickActionBtn} onPress={() => setIsCreatingPoll(true)} haptic="medium">
