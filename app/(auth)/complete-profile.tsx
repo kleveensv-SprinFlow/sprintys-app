@@ -53,6 +53,11 @@ export default function CompleteProfileScreen() {
     if (!user || !canSubmit) return;
     setSaving(true);
     setError(null);
+    // Whatever happens, the spinner must end: give the whole save 20 s
+    const guard = setTimeout(() => {
+      setSaving(false);
+      setError('Impossible d’enregistrer pour le moment. Vérifie ta connexion et réessaie.');
+    }, 20000);
     try {
       const fields: Record<string, any> = {};
       if (canChooseRole && role !== user.role) fields.role = role;
@@ -60,6 +65,7 @@ export default function CompleteProfileScreen() {
       if (Object.keys(fields).length) {
         const { error: saveError } = await supabase.from('profiles').update(fields).eq('id', user.id);
         if (saveError && !/date_of_birth/i.test(saveError.message)) throw saveError;
+        // Also kept in the account metadata: it is what the app reads while profiles has no date_of_birth column
         if (fields.date_of_birth) await supabase.auth.updateUser({ data: { date_of_birth: fields.date_of_birth } });
       }
       if (!(await grant(missing))) throw new Error('consents');
@@ -73,6 +79,7 @@ export default function CompleteProfileScreen() {
           : 'Impossible d’enregistrer pour le moment. Vérifie ta connexion et réessaie.'
       );
     } finally {
+      clearTimeout(guard);
       setSaving(false);
     }
   };

@@ -256,7 +256,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // 3. Set up real-time onAuthStateChange listener once
       if (!authListenerSubscribed) {
         authListenerSubscribed = true;
-        supabase.auth.onAuthStateChange(async (event, currentSession) => {
+        // The handler is deferred out of the callback: supabase-js awaits listeners while holding its internal
+        // auth lock (updateUser, setSession…), so a query made here would wait for that same lock forever.
+        const handleAuthChange = async (event: string, currentSession: any) => {
           if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
             if (currentSession?.user) {
               let { data: profile } = await supabase
@@ -289,6 +291,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             await AsyncStorage.removeItem(CACHE_PROFILE_KEY);
             set({ user: null, pendingEmail: null, isLoading: false });
           }
+        };
+        supabase.auth.onAuthStateChange((event, currentSession) => {
+          setTimeout(() => {
+            handleAuthChange(event, currentSession).catch((e) => console.warn('auth state change failed', e?.message));
+          }, 0);
         });
       }
     } catch (err: any) {
