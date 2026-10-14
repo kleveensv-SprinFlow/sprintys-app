@@ -1,3 +1,4 @@
+import { goBack } from '../../../src/core/navigation';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Animated } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -189,7 +190,7 @@ export default function MealDetailScreen() {
       <Header
         title={label}
         showBackButton
-        onBackPress={() => router.back()}
+        onBackPress={() => goBack(router, '/(athlete)')}
         scrollY={scrollY}
         rightComponent={
           !readonly && logs.length > 0 ? (

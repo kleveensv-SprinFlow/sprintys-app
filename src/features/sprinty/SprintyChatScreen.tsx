@@ -1,3 +1,4 @@
+import { goBack } from '../../core/navigation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, KeyboardAvoidingView, Platform, ScrollView, Pressable, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -312,7 +313,7 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
           <PressableScale
             style={styles.headerBtn}
             haptic="selection"
-            onPress={() => (isCoach ? router.replace('/(coach)') : router.back())}
+            onPress={() => (isCoach ? router.replace('/(coach)') : goBack(router, '/(athlete)'))}
             accessibilityLabel="Retour"
           >
             <Feather name="chevron-left" size={22} color={theme.colors.text} />

@@ -1,3 +1,4 @@
+import { Appear } from '../../src/shared/components/Appear';
 import React, { useState, useEffect } from 'react';
 import { Animated } from 'react-native';
 import { useNutritionStore } from '../../src/store/nutrition/nutritionStore';
@@ -65,11 +66,11 @@ export default function NutritionScreen() {
       />
 
       <Animated.ScrollView {...scrollProps} refreshControl={refreshControl} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: tabBarSpace }}>
-        <DateSelector athleteId={athleteId} />
-        <NutritionSummary athleteProfile={athleteProfile} />
-        <GoalProgressCard athleteProfile={athleteProfile} athleteId={athleteId} readonly={readonly} />
-        {!athleteId && !readonly && <AdaptiveTargetCard />}
-        <MealSection readonly={readonly} athleteId={athleteId} athleteProfile={athleteProfile} />
+        <Appear index={0}><DateSelector athleteId={athleteId} /></Appear>
+        <Appear index={1}><NutritionSummary athleteProfile={athleteProfile} /></Appear>
+        <Appear index={2}><GoalProgressCard athleteProfile={athleteProfile} athleteId={athleteId} readonly={readonly} /></Appear>
+        {!athleteId && !readonly && <Appear index={3}><AdaptiveTargetCard /></Appear>}
+        <Appear index={4}><MealSection readonly={readonly} athleteId={athleteId} athleteProfile={athleteProfile} /></Appear>
       </Animated.ScrollView>
 
       {!readonly && <FoodSearchModal />}

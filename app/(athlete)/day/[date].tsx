@@ -1,3 +1,4 @@
+import { goBack } from '../../../src/core/navigation';
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -105,7 +106,7 @@ export default function AthleteDayScreen() {
         title={formattedTitle}
         showBackButton
         onBackPress={() => {
-          router.back();
+          goBack(router, '/(athlete)');
         }}
       />
 

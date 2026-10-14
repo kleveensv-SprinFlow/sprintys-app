@@ -97,7 +97,7 @@ export default function CompleteProfileScreen() {
         <Text style={styles.subtitle}>
           {canChooseRole
             ? 'Encore quelques secondes pour finaliser ton compte.'
-            : 'Nous avons mis à jour nos conditions et notre politique de confidentialité (abonnement facultatif Plus, prestataire de paiement RevenueCat). Ton accord est nécessaire pour continuer ; rien d’autre ne change pour tes données.'}
+            : 'Nous avons mis à jour nos conditions et notre politique de confidentialité (abonnement facultatif Plus). Relis-les et accepte pour continuer.'}
         </Text>
 
         {canChooseRole && (

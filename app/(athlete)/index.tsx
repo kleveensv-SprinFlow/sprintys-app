@@ -1,3 +1,4 @@
+import { Appear } from '../../src/shared/components/Appear';
 import React, { useCallback, useRef, useState } from 'react';
 import { StyleSheet, Animated, View, Text, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -87,19 +88,21 @@ export default function DashboardScreen() {
             />
           }
         >
-          <View style={styles.greeting}>
+          <Appear index={0}><View style={styles.greeting}>
             <Text style={[styles.greetingDate, { color: theme.colors.textSecondary }]}>{dateLabel.toUpperCase()}</Text>
             <Text style={[styles.greetingTitle, { color: theme.colors.text }]} numberOfLines={1}>
               {firstName ? `${getGreeting()} ${firstName}` : getGreeting()}
             </Text>
-          </View>
+          </View></Appear>
 
-          <AthleteGauges refreshKey={refreshKey} />
-          <SessionCarousel />
-          <View style={styles.cardGutter}>
-            <WeatherCard />
-          </View>
-          <BodyCompositionCard refreshKey={refreshKey} />
+          <Appear index={1}><AthleteGauges refreshKey={refreshKey} /></Appear>
+          <Appear index={2}><SessionCarousel /></Appear>
+          <Appear index={3}>
+            <View style={styles.cardGutter}>
+              <WeatherCard />
+            </View>
+          </Appear>
+          <Appear index={4}><BodyCompositionCard refreshKey={refreshKey} /></Appear>
         </Animated.ScrollView>
       </View>
     </GlassScreen>

@@ -1,3 +1,4 @@
+import { goBack } from '../../../src/core/navigation';
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, Text, ScrollView, Animated } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -280,7 +281,7 @@ export default function CoachDayScreen() {
         showBackButton
         onBackPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          router.back();
+          goBack(router, '/(coach)');
         }}
       />
 

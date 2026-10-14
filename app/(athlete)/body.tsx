@@ -1,3 +1,4 @@
+import { goBack } from '../../src/core/navigation';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
@@ -264,7 +265,7 @@ export default function BodyCompositionScreen() {
         <View style={styles.header}>
           {/* Frosted only once content scrolls under it; reaches up under the status bar */}
           <FrostedBar opacity={headerBarOpacity} style={{ top: -insets.top }} />
-          <TouchableOpacity onPress={() => router.back()} style={[styles.iconBtn, glassSurface]}>
+          <TouchableOpacity onPress={() => goBack(router, '/(athlete)')} style={[styles.iconBtn, glassSurface]}>
             <Feather name="arrow-left" size={22} color={theme.colors.text} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Poids</Text>

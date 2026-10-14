@@ -1,3 +1,4 @@
+import { goBack } from '../../../src/core/navigation';
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated, Image } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -55,13 +56,13 @@ export default function AthleteDetailScreen() {
   if (!profile) {
     return (
       <GlassScreen>
-        <Header title="Athlète" showBackButton onBackPress={() => router.back()} />
+        <Header title="Athlète" showBackButton onBackPress={() => goBack(router, '/(coach)')} />
         <EmptyState
           icon="user-x"
           title="Athlète introuvable"
           message="Cet athlète ne fait plus partie de tes groupes."
           actionLabel="Retour"
-          onAction={() => router.back()}
+          onAction={() => goBack(router, '/(coach)')}
         />
       </GlassScreen>
     );
@@ -132,7 +133,7 @@ export default function AthleteDetailScreen() {
 
   return (
     <GlassScreen scrollY={scrollY}>
-      <Header title={name} showBackButton onBackPress={() => router.back()} scrollY={scrollY} />
+      <Header title={name} showBackButton onBackPress={() => goBack(router, '/(coach)')} scrollY={scrollY} />
 
       <Animated.ScrollView
         {...scrollProps}

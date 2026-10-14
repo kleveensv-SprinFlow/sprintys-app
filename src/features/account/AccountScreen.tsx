@@ -1,3 +1,4 @@
+import { goBack } from '../../core/navigation';
 import React, { useCallback, useState } from 'react';
 import Constants from 'expo-constants';
 import { View, Text, StyleSheet, Image, Linking, Animated, ActivityIndicator } from 'react-native';
@@ -303,7 +304,7 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
 
   return (
     <GlassScreen scrollY={scrollY}>
-      <Header title="Mon profil" showBackButton onBackPress={() => router.back()} scrollY={scrollY} />
+      <Header title="Mon profil" showBackButton onBackPress={() => goBack(router, '/')} scrollY={scrollY} />
 
       <Animated.ScrollView {...scrollProps} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>

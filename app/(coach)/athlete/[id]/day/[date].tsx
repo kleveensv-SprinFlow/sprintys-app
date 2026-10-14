@@ -1,3 +1,4 @@
+import { goBack } from '../../../../../src/core/navigation';
 import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, Text, Animated } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -73,7 +74,7 @@ export default function CoachAthleteDayScreen() {
         scrollY={scrollY}
         title={dateTitle}
         showBackButton
-        onBackPress={() => router.back()}
+        onBackPress={() => goBack(router, '/(coach)')}
       />
 
       <Animated.ScrollView {...scrollProps} refreshControl={refreshControl} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>

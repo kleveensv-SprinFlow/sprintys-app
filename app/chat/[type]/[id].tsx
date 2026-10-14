@@ -1,3 +1,4 @@
+import { goBack } from '../../../src/core/navigation';
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform,} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -320,7 +321,7 @@ export default function ChatScreen() {
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Header */}
         <View style={styles.header}>
-          <PressableScale onPress={() => router.back()} haptic="selection" style={[styles.headerBtn, glassSurface]}>
+          <PressableScale onPress={() => goBack(router, '/')} haptic="selection" style={[styles.headerBtn, glassSurface]}>
             <Feather name="chevron-left" size={22} color={theme.colors.text} />
           </PressableScale>
           <View style={[styles.headerAvatar, { backgroundColor: type === 'team' ? theme.colors.glassFill : BLUE_TINT }]}>

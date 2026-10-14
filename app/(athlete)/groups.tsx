@@ -1,3 +1,4 @@
+import { goBack } from '../../src/core/navigation';
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -372,7 +373,7 @@ export default function GroupsScreen() {
 
   return (
     <GlassScreen scrollY={scrollY}>
-      <Header title="Mon groupe" showBackButton onBackPress={() => router.back()} scrollY={scrollY} />
+      <Header title="Mon groupe" showBackButton onBackPress={() => goBack(router, '/(athlete)')} scrollY={scrollY} />
 
       <Animated.ScrollView
         {...scrollProps}

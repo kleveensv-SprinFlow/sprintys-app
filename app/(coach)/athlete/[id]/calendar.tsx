@@ -1,3 +1,4 @@
+import { goBack } from '../../../../src/core/navigation';
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -68,7 +69,7 @@ export default function CoachAthleteCalendarScreen() {
         scrollY={scrollY}
         title={`Entraînement de ${athleteName.split(' ')[0]}`}
         showBackButton
-        onBackPress={() => router.back()}
+        onBackPress={() => goBack(router, '/(coach)')}
       />
 
       <View style={styles.calendarContainer}>
