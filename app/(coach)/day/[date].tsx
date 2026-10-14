@@ -1,3 +1,4 @@
+import { sessionKindOf } from '../../../src/features/workout/sessionKind';
 import { goBack } from '../../../src/core/navigation';
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, Text, ScrollView, Animated } from 'react-native';
@@ -48,6 +49,7 @@ export default function CoachDayScreen() {
   const [workouts, setWorkouts] = useState<any[]>([]);
   const [activePeriod, setActivePeriod] = useState<TrainingPeriod | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [builderType, setBuilderType] = useState<'none' | 'hybrid' | 'strength' | 'escalier' | 'repos' | 'technique' | 'competition'>('none');
   const [builderTitle, setBuilderTitle] = useState('');
   const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
@@ -113,6 +115,7 @@ export default function CoachDayScreen() {
       // 1. Fetch workouts for the date (already intelligently merged per group_assignment_id)
       const data = await workoutService.fetchWorkoutsForDate(user.id, parsedDate, 'coach');
       setWorkouts(data || []);
+      setLoadError(false);
 
       // 2. Fetch coach periods to check if the day is in an active training phase
       const year = parsedDate.getFullYear();
@@ -123,6 +126,7 @@ export default function CoachDayScreen() {
       setActivePeriod(foundPeriod || null);
     } catch (error) {
       console.error('Error fetching day workouts:', error);
+      setLoadError(true);
     } finally {
       setIsLoading(false);
     }
@@ -162,16 +166,16 @@ export default function CoachDayScreen() {
     setSelectedWorkout(null);
     setEditingWorkout(w);
 
-    const type = (w.type_seance || '').toLowerCase();
-    if (type.includes('compétition') || type.includes('competition')) {
+    const kind = sessionKindOf(w);
+    if (kind === 'competition') {
       setBuilderType('competition');
-    } else if (type.includes('escalier')) {
+    } else if (kind === 'stairs') {
       setBuilderType('escalier');
-    } else if (type.includes('muscu') || type.includes('force') || type.includes('strength')) {
+    } else if (kind === 'strength') {
       setBuilderType('strength');
-    } else if (type.includes('repos')) {
+    } else if (kind === 'rest') {
       setBuilderType('repos');
-    } else if (type.includes('technique')) {
+    } else if (kind === 'technical') {
       setBuilderType('technique');
     } else {
       setBuilderType('hybrid');
@@ -316,6 +320,19 @@ export default function CoachDayScreen() {
           </View>
         ) : workouts.length === 0 ? (
           <View style={styles.emptyWrapper}>
+            {loadError && (
+              <PressableScale
+                onPress={() => fetchDayWorkouts()}
+                accessibilityRole="button"
+                accessibilityLabel="Réessayer le chargement des séances"
+                style={[glassSurface, { padding: 14, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }]}
+              >
+                <Feather name="wifi-off" size={18} color={theme.colors.error} />
+                <Text style={{ flex: 1, color: theme.colors.text, fontSize: 14, fontWeight: '600' }}>
+                  Impossible de charger les séances de ce jour. Touche pour réessayer.
+                </Text>
+              </PressableScale>
+            )}
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Planifier une séance</Text>
               <Text style={[styles.sectionSubtitle, { color: theme.colors.textSecondary }]}>

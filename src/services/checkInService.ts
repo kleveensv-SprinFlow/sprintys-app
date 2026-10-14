@@ -21,9 +21,9 @@ export interface CheckInData {
   // Pilier 2 : Physique (Douleurs)
   pains: PainInfo[];
   // Pilier 3 : Mental
-  stress_level: number; // 1 to 10
-  fatigue_level: number; // 1 to 10
-  motivation_level: number; // 1 to 10
+  stress_level: number; // 1 (serein) to 5 (très stressé)
+  fatigue_level: number; // 1 (frais) to 5 (épuisé)
+  motivation_level: number; // 1 (faible) to 5 (à bloc)
   // Pilier 4 : Cycle (Femmes)
   menstruation?: boolean;
   weight?: number;
@@ -77,8 +77,9 @@ export const checkInService = {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
     
-    // Format YYYY-MM-DD
-    const dateString = startDate.toISOString().split('T')[0];
+    // Format YYYY-MM-DD in the local day (toISOString would give the UTC day, off by one around midnight)
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const dateString = `${startDate.getFullYear()}-${pad(startDate.getMonth() + 1)}-${pad(startDate.getDate())}`;
 
     const { data, error } = await supabase
       .from('check_ins')

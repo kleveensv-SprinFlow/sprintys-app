@@ -65,6 +65,58 @@ const generateInviteCode = (): string => {
   return code;
 };
 
+/** Does an exercise/block target (several shapes exist: {subgroups, athletes} or {type, id}) include this athlete? */
+const targetApplies = (tg: any, athleteId: string, subgroupId: string | null): boolean => {
+  if (!tg || typeof tg !== 'object') return true;
+  if (Array.isArray(tg.subgroups) || Array.isArray(tg.athletes)) {
+    const sg: string[] = tg.subgroups || [];
+    const at: string[] = tg.athletes || [];
+    if (sg.length === 0 && at.length === 0) return true;
+    return (!!subgroupId && sg.includes(subgroupId)) || at.includes(athleteId);
+  }
+  if (tg.type) {
+    if (tg.type === 'all') return true;
+    if (tg.type === 'subgroup') return !!subgroupId && tg.id === subgroupId;
+    if (tg.type === 'athlete') return tg.id === athleteId;
+  }
+  return true;
+};
+
+/**
+ * The part of a team session that is meant for one athlete. The template may be the coach's master copy
+ * (the whole session) or one athlete's row, so exercises and technical notes are filtered by target and
+ * anything that belongs to someone else (master flag, comment) is dropped. Null when nothing is for them.
+ */
+const sessionForAthlete = (t: any, athleteId: string, subgroupId: string | null) => {
+  const measures: any = { ...(t.measures || {}) };
+  delete measures.is_master;
+  delete measures.athlete_feedback;
+  if (typeof measures.athlete_notes === 'string') delete measures.athlete_notes;
+  let description = t.description;
+
+  if (Array.isArray(measures.technical_notes)) {
+    const mine = measures.technical_notes.filter((n: any) =>
+      n?.targetType === 'team' ||
+      (n?.targetType === 'subgroup' && !!subgroupId && n?.targetId === subgroupId) ||
+      (n?.targetType === 'athlete' && n?.targetId === athleteId));
+    if (mine.length === 0) return null;
+    measures.athlete_notes = mine;
+    description = mine
+      .map((n: any) => `[${n.title?.trim() ? n.title.trim() : n.targetName}]\n${String(n.content ?? '').trim()}`)
+      .join('\n\n');
+  }
+
+  const srcBlocks: any[] = Array.isArray(t.blocks) ? t.blocks : [];
+  const hadExercises = srcBlocks.some((b: any) => (b?.exercises || []).length > 0);
+  const blocks = srcBlocks
+    .map((b: any) => ({ ...b, exercises: (b?.exercises || []).filter((ex: any) => targetApplies(ex?.targets ?? ex?.target, athleteId, subgroupId)) }))
+    .filter((b: any, i: number) => (srcBlocks[i]?.exercises || []).length === 0 || b.exercises.length > 0);
+  const exercises = (Array.isArray(t.exercises) ? t.exercises : []).filter((ex: any) => targetApplies(ex?.targets ?? ex?.target, athleteId, subgroupId));
+  if (hadExercises && blocks.every((b: any) => (b.exercises || []).length === 0)) return null;
+
+  return { blocks, exercises, description, measures };
+};
+
 /**
  * Synchronise les séances programmées futures d'une équipe pour un athlète
  * Utilisé lors de l'approbation d'un nouvel athlète ou du changement de son sous-groupe.
@@ -115,10 +167,12 @@ export const syncAthleteWorkouts = async (
     }
 
     // Dédoublonner les modèles d'entraînement de l'équipe
+    // On préfère la copie maître du coach (elle contient toute la séance) à la ligne d'un autre athlète
     const templatesMap = new Map<string, any>();
     teamWorkouts.forEach((w: any) => {
       const key = w.group_assignment_id || `${w.date_prevue}_${w.type_seance}`;
-      if (!templatesMap.has(key)) {
+      const current = templatesMap.get(key);
+      if (!current || (w.measures?.is_master && !current.measures?.is_master)) {
         templatesMap.set(key, w);
       }
     });
@@ -147,20 +201,23 @@ export const syncAthleteWorkouts = async (
         continue;
       }
 
+      const mine = sessionForAthlete(t, athleteId, subgroupId);
+      if (!mine) continue; // nothing in this session is meant for this athlete
+
       toInsert.push({
         athlete_id: athleteId,
         coach_id: t.coach_id,
         team_id: t.team_id,
-        subgroup_id: t.subgroup_id,
+        subgroup_id: subgroupId ?? t.subgroup_id,
         group_assignment_id: t.group_assignment_id,
         date_prevue: t.date_prevue,
         type_seance: t.type_seance,
         status: 'pending',
-        blocks: t.blocks,
-        exercises: t.exercises,
+        blocks: mine.blocks,
+        exercises: mine.exercises,
         intensity: t.intensity,
-        description: t.description,
-        measures: t.measures,
+        description: mine.description,
+        measures: mine.measures,
       });
     }
 
@@ -332,8 +389,6 @@ export const useCoachStore = create<CoachState>((set, get) => ({
         profile: Array.isArray(item.profiles) ? item.profiles[0] : item.profiles,
       }));
         
-      console.log("DEBUG fetchTeamMembers data:", JSON.stringify(data, null, 2));
-      console.log("DEBUG fetchTeamMembers allMembers mapped:", JSON.stringify(allMembers, null, 2));
 
       // Séparer les membres approuvés des demandes en attente
       const approved = allMembers.filter((m: TeamMember) => m.status === 'approved');

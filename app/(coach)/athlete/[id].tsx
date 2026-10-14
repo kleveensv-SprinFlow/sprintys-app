@@ -42,10 +42,8 @@ export default function AthleteDetailScreen() {
   const loadCheckIn = async (athleteId: string) => {
     setIsLoading(true);
     try {
-      const history = await checkInService.fetchRecentCheckIns(athleteId, 1);
-      if (history.length > 0) {
-        setLatestCheckIn(history[0]);
-      }
+      const history = await checkInService.fetchRecentCheckIns(athleteId, 3);
+      setLatestCheckIn(history.length > 0 ? history[0] : null);
     } catch (e) {
       console.error(e);
     } finally {
@@ -177,7 +175,11 @@ export default function AthleteDetailScreen() {
         </View>
 
         {/* CHECK-IN SECTION */}
-        <Text style={styles.sectionTitle}>Forme du jour</Text>
+        <Text style={styles.sectionTitle}>
+          {latestCheckIn && latestCheckIn.date !== localToday()
+            ? `Dernier bilan · ${String(latestCheckIn.date).split('-').reverse().slice(0, 2).join('/')}`
+            : 'Forme du jour'}
+        </Text>
 
         {isLoading ? (
           <View style={[glassCard, styles.checkInCard]}>
@@ -210,7 +212,7 @@ export default function AthleteDetailScreen() {
               <Text style={styles.globalScoreTitle}>Score de forme</Text>
               <View style={[styles.scoreBadge, { backgroundColor: getScoreColor(latestCheckIn.health_score) + '20' }]}>
                 <Text style={[styles.scoreBadgeText, { color: getScoreColor(latestCheckIn.health_score) }]}>
-                  {latestCheckIn.health_score} %
+                  {latestCheckIn.health_score ?? '–'} %
                 </Text>
               </View>
             </View>
@@ -256,6 +258,11 @@ export default function AthleteDetailScreen() {
     </GlassScreen>
   );
 }
+
+const localToday = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 function getScoreColor(score: number) {
   if (score >= 70) return theme.colors.success;

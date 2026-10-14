@@ -31,6 +31,7 @@ export default function AthleteDayScreen() {
 
   const [workouts, setWorkouts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutSession | null>(null);
   const [isWorkoutModalVisible, setIsWorkoutModalVisible] = useState(false);
@@ -70,8 +71,10 @@ export default function AthleteDayScreen() {
     try {
       const data = await workoutService.fetchWorkoutsForDate(user.id, parsedDate, 'athlete');
       setWorkouts(data || []);
+      setLoadError(false);
     } catch (error) {
       console.error('Error fetching day workouts:', error);
+      setLoadError(true);
     } finally {
       setIsLoading(false);
     }
@@ -116,6 +119,16 @@ export default function AthleteDayScreen() {
             <SkeletonCard avatar />
             <SkeletonCard avatar />
           </>
+        ) : loadError && workouts.length === 0 ? (
+          <View style={glassCard}>
+            <EmptyState
+              icon="wifi-off"
+              title="Impossible de charger tes séances"
+              message="Vérifie ta connexion et réessaie."
+              actionLabel="Réessayer"
+              onAction={() => fetchDayWorkouts()}
+            />
+          </View>
         ) : workouts.length === 0 ? (
           <View style={glassCard}>
             <EmptyState

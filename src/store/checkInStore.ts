@@ -47,9 +47,10 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
         wakeup_time: '07:00',
         sleep_hours: 8,
         sleep_quality: 3,
-        stress_level: 5,
-        fatigue_level: 5,
-        motivation_level: 5,
+        // Neutral starting point on the 1-5 scales: validating without touching must not read as "exhausted"
+        stress_level: 2,
+        fatigue_level: 3,
+        motivation_level: 3,
         pains: [],
       }
     });
@@ -146,9 +147,9 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
         wakeup_time: state.currentCheckIn.wakeup_time || '07:00',
         sleep_hours: state.currentCheckIn.sleep_hours ?? 8,
         sleep_quality: state.currentCheckIn.sleep_quality || 3,
-        stress_level: state.currentCheckIn.stress_level || 5,
-        fatigue_level: state.currentCheckIn.fatigue_level || 5,
-        motivation_level: state.currentCheckIn.motivation_level || 5,
+        stress_level: state.currentCheckIn.stress_level || 2,
+        fatigue_level: state.currentCheckIn.fatigue_level || 3,
+        motivation_level: state.currentCheckIn.motivation_level || 3,
         pains: state.currentCheckIn.pains || [],
       } as Omit<CheckInData, 'health_score'|'sleep_score'|'physical_score'|'mental_score'>;
       

@@ -18,6 +18,14 @@ function generateUUID() {
   });
 }
 
+/** A copy of a session is a fresh plan: what the athlete wrote on the original (comment) does not follow it. */
+const copyMeasures = (m: any) => {
+  if (!m || typeof m !== 'object') return m ?? null;
+  const { athlete_feedback, ...rest } = m;
+  if (typeof rest.athlete_notes === 'string') delete rest.athlete_notes;
+  return rest;
+};
+
 export const workoutService = {
   assignWorkoutToAthlete: async (assignment: WorkoutAssignment) => {
     const { data, error } = await supabase
@@ -143,10 +151,15 @@ export const workoutService = {
     return { type: 'team', id: null };
   },
 
-  smartUpdateWorkouts: async (oldGroupAssignmentId: string | undefined | null, newPayloads: any[]) => {
+  smartUpdateWorkouts: async (oldGroupAssignmentId: string | undefined | null, newPayloads: any[], legacyWorkoutId?: string | null) => {
     let existingWorkouts: any[] = [];
     if (oldGroupAssignmentId) {
       existingWorkouts = await workoutService.fetchWorkoutsByGroupAssignment(oldGroupAssignmentId);
+    } else if (legacyWorkoutId) {
+      // Older single-athlete sessions have no group_assignment_id: update that row instead of adding a duplicate
+      const { data, error } = await supabase.from('workouts').select('*').eq('id', legacyWorkoutId);
+      if (error) throw error;
+      existingWorkouts = data || [];
     }
 
     const payloadsToInsert: any[] = [];
@@ -155,8 +168,18 @@ export const workoutService = {
     for (const payload of newPayloads) {
       const existing = existingWorkouts.find((w: any) => w.athlete_id === payload.athlete_id);
       if (existing) {
-        // Option 1: Merge data! We keep the existing ID so athlete_efforts don't break.
-        await workoutService.updateWorkout(existing.id, payload);
+        // Keep the existing ID so athlete_efforts don't break, and keep what belongs to the athlete:
+        // a session already validated stays validated, and their own comment is not wiped by the coach's edit.
+        const prev = existing.measures || {};
+        const measures: any = { ...(payload.measures || {}) };
+        if (prev.athlete_feedback != null) measures.athlete_feedback = prev.athlete_feedback;
+        if (typeof prev.athlete_notes === 'string' && measures.athlete_notes === undefined) measures.athlete_notes = prev.athlete_notes;
+        const { status: _plannedStatus, ...rest } = payload;
+        await workoutService.updateWorkout(existing.id, {
+          ...rest,
+          measures,
+          status: existing.status || payload.status || 'pending',
+        });
         idsToKeep.push(existing.id);
       } else {
         payloadsToInsert.push(payload);
@@ -283,16 +306,21 @@ export const workoutService = {
     }
 
     if (role === 'coach') {
-      const seen = new Set<string>();
-      const deduped: any[] = [];
+      // One entry per group: an athlete's row (not the coach's hidden master copy), "completed" once every athlete has validated
+      const groups = new Map<string, { rep: any; done: number; total: number }>();
       for (const w of (data || [])) {
         const key = w.group_assignment_id || w.id;
-        if (!seen.has(key)) {
-          seen.add(key);
-          deduped.push(w);
+        const isMaster = !!w.measures?.is_master;
+        const g = groups.get(key) || { rep: null, done: 0, total: 0 };
+        if (!isMaster) {
+          g.total += 1;
+          if (w.status === 'completed') g.done += 1;
         }
+        if (!g.rep || (g.rep.measures?.is_master && !isMaster)) g.rep = w;
+        groups.set(key, g);
       }
-      return deduped;
+      return Array.from(groups.values()).map(({ rep, done, total }) =>
+        total > 0 ? { ...rep, status: done === total ? 'completed' : 'pending' } : rep);
     }
 
     return (data || []).filter((w: any) => !w.measures?.is_master);
@@ -329,8 +357,15 @@ export const workoutService = {
 
     if (role === 'coach') {
       const groupedMap = new Map<string, any>();
+      const progress = new Map<string, { done: number; total: number }>();
       for (const w of (data || [])) {
         const key = w.group_assignment_id || w.id;
+        if (!w.measures?.is_master) {
+          const p = progress.get(key) || { done: 0, total: 0 };
+          p.total += 1;
+          if (w.status === 'completed') p.done += 1;
+          progress.set(key, p);
+        }
         if (!groupedMap.has(key)) {
           groupedMap.set(key, {
             ...w,
@@ -338,7 +373,18 @@ export const workoutService = {
             exercises: Array.isArray(w.exercises) ? [...w.exercises] : [],
           });
         } else {
-          const existing = groupedMap.get(key);
+          let existing = groupedMap.get(key);
+          if (existing.measures?.is_master) continue; // the master copy already holds the whole session
+          if (w.measures?.is_master && !existing.measures?.is_master) {
+            // The coach's master copy holds the full session (athlete rows only hold their own part)
+            existing = {
+              ...w,
+              blocks: Array.isArray(w.blocks) ? [...w.blocks] : [],
+              exercises: Array.isArray(w.exercises) ? [...w.exercises] : [],
+            };
+            groupedMap.set(key, existing);
+            continue;
+          }
           const existingBlockKeys = new Set(
             (existing.blocks || []).map((b: any) => b.id || b.name)
           );
@@ -362,7 +408,12 @@ export const workoutService = {
           }
         }
       }
-      return Array.from(groupedMap.values());
+      return Array.from(groupedMap.entries()).map(([key, w]) => {
+        const p = progress.get(key);
+        if (!p) return w;
+        // The coach card stands for the whole group: validated only once every athlete has validated
+        return { ...w, status: p.total > 0 && p.done === p.total ? 'completed' : 'pending', done_count: p.done, athlete_count: p.total };
+      });
     }
 
     return (data || []).filter((w: any) => !w.measures?.is_master);
@@ -514,6 +565,7 @@ export const workoutService = {
         const { id, created_at, updated_at, athlete_efforts, ...rest } = w;
         return {
           ...rest,
+          measures: copyMeasures(rest.measures),
           date_prevue: target.toISOString(),
           status: 'pending',
           group_assignment_id: newGroupId,
@@ -529,6 +581,7 @@ export const workoutService = {
       const { id, created_at, updated_at, athlete_efforts, ...rest } = workout;
       const copy = {
         ...rest,
+        measures: copyMeasures(rest.measures),
         date_prevue: target.toISOString(),
         status: 'pending',
         group_assignment_id: null,
@@ -546,7 +599,8 @@ export const workoutService = {
    * @param count - Number of occurrences
    * @returns Number of copies created
    */
-  repeatWorkout: async (workout: any, mode: 'daily' | 'weekly' | 'monthly' | 'yearly', count: number): Promise<number> => {
+  repeatWorkout: async (workout: any, mode: 'daily' | 'weekly' | 'monthly' | 'yearly', requestedCount: number): Promise<number> => {
+    const count = Math.max(1, Math.min(365, Math.floor(Number(requestedCount) || 1)));
     const workoutDate = new Date(workout.date_prevue);
     const dates: Date[] = [];
 
@@ -585,6 +639,7 @@ export const workoutService = {
           const { id, created_at, updated_at, athlete_efforts, ...rest } = w;
           allCopies.push({
             ...rest,
+            measures: copyMeasures(rest.measures),
             date_prevue: targetDate.toISOString(),
             status: 'pending',
             group_assignment_id: newGroupId,
@@ -606,6 +661,7 @@ export const workoutService = {
         const { id, created_at, updated_at, athlete_efforts, ...rest } = workout;
         return {
           ...rest,
+          measures: copyMeasures(rest.measures),
           date_prevue: targetDate.toISOString(),
           status: 'pending',
           group_assignment_id: null,

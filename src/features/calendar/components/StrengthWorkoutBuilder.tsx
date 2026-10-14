@@ -198,14 +198,14 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
         const loaded: StrengthExerciseItem[] = exList.map((ex: any) => {
           const loadedSetsCount = ex.sets?.length || ex.sets_count || 4;
           const defaultReps = ex.sets?.[0]?.reps || ex.reps_count || 10;
-          const defaultWeight = ex.sets?.[0]?.weight || ex.weight || 0;
+          const defaultWeight = ex.sets?.[0]?.weight ?? ex.weight ?? 0;
           
           let parsedSets: StrengthSetItem[] = [];
           if (ex.sets && Array.isArray(ex.sets) && ex.sets.length > 0) {
             parsedSets = ex.sets.map((s: any) => ({
               id: String(uuid.v4()),
-              reps: s.reps || defaultReps,
-              weight: s.weight || defaultWeight,
+              reps: s.reps ?? defaultReps,
+              weight: s.weight ?? defaultWeight,
             }));
           } else {
             parsedSets = Array.from({ length: loadedSetsCount }).map(() => ({
@@ -224,7 +224,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
             repsCount: defaultReps,
             weight: defaultWeight,
             weightType: ex.sets?.[0]?.weight_type || ex.sets?.[0]?.weightType || ex.weight_type || 'kg',
-            restSets: ex.sets?.[0]?.restSeconds || ex.rest_between_sets_s || 90,
+            restSets: ex.sets?.[0]?.restSeconds ?? ex.rest_between_sets_s ?? 90,
             targets: ex.targets || { subgroups: [], athletes: [] },
             sets: parsedSets,
           };
@@ -699,9 +699,9 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
       }
 
       payloadsToUpdate.forEach((p: any) => {
-        p.measures = { ...(p.measures || {}), ...sessionTime.flag() };
+        p.measures = { ...(p.measures || {}), kind: 'strength', ...sessionTime.flag() };
       });
-      await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
+      await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate, initialWorkout?.id);
       // The first payload is the coach's master copy
       const athleteCount = payloadsToUpdate.length - 1;
       toast(

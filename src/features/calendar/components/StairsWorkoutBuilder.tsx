@@ -606,7 +606,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
         payloadsToUpdate.forEach((p: any) => {
         p.measures = { ...(p.measures || {}), ...sessionTime.flag() };
       });
-      await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
+      await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate, initialWorkout?.id);
       } else if (targetType === 'subgroup') {
         const subMembers = approvedMembers.filter((m) => m.subgroup_id === selectedSubgroupId);
         if (subMembers.length === 0) {
@@ -650,7 +650,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
         payloadsToUpdate.forEach((p: any) => {
         p.measures = { ...(p.measures || {}), ...sessionTime.flag() };
       });
-      await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
+      await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate, initialWorkout?.id);
       } else {
         const mappedExercises = mapExercisesToPayload(sessionExercises);
         payloadsToUpdate.push({
@@ -658,6 +658,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
           coach_id: user.id,
           team_id: activeTeamId,
           athlete_id: selectedAthleteId!,
+          group_assignment_id: uuid.v4() as string,
           date_prevue: targetDateIso,
           description: sessionNotes.trim() ? sessionNotes.trim() : `${sessionExercises.length} exercice${sessionExercises.length > 1 ? 's' : ''} d'escalier`,
           exercises: mappedExercises,
@@ -674,7 +675,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
         payloadsToUpdate.forEach((p: any) => {
         p.measures = { ...(p.measures || {}), ...sessionTime.flag() };
       });
-      await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
+      await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate, initialWorkout?.id);
       }
 
       // Persist unique exercises to personal library

@@ -147,12 +147,8 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
       targetDate.setTime(sessionTime.applyTo(targetDate, 12).getTime());
       const targetDateIso = targetDate.toISOString();
 
-      if (initialWorkout?.id) {
-        await workoutService.deleteWorkout(
-          initialWorkout.id,
-          initialWorkout.group_assignment_id || undefined
-        );
-      }
+      // Written in one batch and swapped for the previous rows only once it succeeded: a failure keeps the old rest day
+      const payloads: any[] = [];
 
       const cleanNote = restNote.trim() || 'Jour de repos';
 
@@ -174,7 +170,7 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
             blocks: [],
           };
           (athletePayload as any).measures = sessionTime.flag();
-          await workoutService.createPlannedWorkout(athletePayload);
+          payloads.push(athletePayload);
           assignedCount++;
         }
       } else if (targetType === 'subgroup') {
@@ -196,7 +192,7 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
             blocks: [],
           };
           (athletePayload as any).measures = sessionTime.flag();
-          await workoutService.createPlannedWorkout(athletePayload);
+          payloads.push(athletePayload);
         }
       } else {
         const athletePayload = {
@@ -211,8 +207,14 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
           blocks: [],
         };
         (athletePayload as any).measures = sessionTime.flag();
-        await workoutService.createPlannedWorkout(athletePayload);
+        payloads.push({ ...athletePayload, group_assignment_id: uuid.v4() as string });
       }
+
+      if (payloads.length === 0) {
+        setFormError('Aucun athlète validé ne correspond à ta sélection.');
+        return;
+      }
+      await workoutService.smartUpdateWorkouts(initialWorkout?.group_assignment_id || undefined, payloads, initialWorkout?.id);
 
       toast('success', 'Jour de repos enregistré.');
       onSave();

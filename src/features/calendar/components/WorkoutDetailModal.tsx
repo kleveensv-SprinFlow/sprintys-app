@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { timeLabelOf } from './TimeField';
+import { sessionKindOf, entryCategoryOf, effortCategoryOf } from '../../workout/sessionKind';
 import { SprintyBadge, isSprintyWorkout } from '../../sprinty/SprintyBadge';
 import { theme } from '../../../core/theme';
 import { glassCard } from '../../../core/glass';
@@ -46,13 +47,9 @@ function chronoToMs(value: string, distance?: number | string | null): number | 
   return Math.round(n * 1000);
 }
 
-// Determine the "category" of the session for athlete data entry
-const getSessionCategory = (typeSeance: string): 'muscu' | 'course' | 'other' => {
-  const t = (typeSeance || '').toLowerCase();
-  if (t.includes('musculation')) return 'muscu';
-  if (t.includes('course') || t.includes('sprint') || t.includes('piste') || t.includes('côte') || t.includes('cote')) return 'course';
-  return 'other';
-};
+/** Athlete's own comment. Technical sessions keep the coach's per-athlete instructions in measures.athlete_notes (an array), so the comment lives in athlete_feedback. */
+const readFeedback = (m: any): string =>
+  typeof m?.athlete_feedback === 'string' ? m.athlete_feedback : typeof m?.athlete_notes === 'string' ? m.athlete_notes : '';
 
 export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible, onClose, workout, onDelete, onEdit, onUpdated, readOnlyAthleteId }) => {
   const insets = useSafeAreaInsets();
@@ -60,6 +57,9 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
   const { subgroups, teamMembers } = useCoachStore();
   const isCoach = user?.role === 'coach' && !readOnlyAthleteId;
   const isReadOnly = !!readOnlyAthleteId;
+  // A coach looking at one athlete's day sees that athlete's results but cannot enter or validate anything
+  const canEdit = !isCoach && !isReadOnly;
+  const resultsOwnerId = readOnlyAthleteId || user?.id;
 
   const getTargetsLabel = (targets?: { subgroups?: string[]; athletes?: string[] } | any) => {
     if (!targets) return null;
@@ -119,39 +119,56 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
     : (insets.top > 0 ? insets.top + 6 : 16);
 
   // Computed before hooks that depend on it
-  const sessionCategory = getSessionCategory(workout?.type_seance || '');
+  const sessionCategory = entryCategoryOf(workout);
   const needsDataEntry = (!isCoach || isReadOnly) && (sessionCategory === 'muscu' || sessionCategory === 'course');
 
-  // Load existing athlete data when workout changes
+  // Load existing athlete data when workout changes. State is reset first: the same modal instance is reused
+  // from one session to the next and must never show (or save) another session's values.
   React.useEffect(() => {
-    if (visible && workout && (!isCoach || isReadOnly) && user) {
+    setSetData({});
+    setAthleteNotes('');
+    setJustSaved(false);
+    setActiveKeypad(null);
+    setIsValidated(workout?.status === 'completed');
+    if (visible && workout && (!isCoach || isReadOnly) && resultsOwnerId) {
       loadExistingData();
     }
-  }, [visible, workout?.id]);
+  }, [visible, workout?.id, resultsOwnerId]);
 
+  const loadSeq = React.useRef(0);
   const loadExistingData = async () => {
-    if (!workout?.id || !user?.id) return;
+    if (!workout?.id || !resultsOwnerId) return;
+    const workoutId = workout.id;
+    const seq = ++loadSeq.current;
     setIsLoadingData(true);
     try {
       // Load athlete_efforts for this workout
       const { data: efforts } = await supabase
         .from('athlete_efforts')
         .select('*')
-        .eq('workout_id', workout.id)
-        .eq('athlete_id', user.id)
+        .eq('workout_id', workoutId)
+        .eq('athlete_id', resultsOwnerId)
         .order('set_order', { ascending: true });
 
+      if (seq !== loadSeq.current) return; // another session was opened meanwhile
       if (efforts && efforts.length > 0) {
         const loaded: Record<string, any> = {};
-        // Map efforts back to exercise/set keys
+        // Efforts saved since this version carry the exercise/set they belong to; older ones only the global position
+        const byId = new Map<string, any>();
+        const legacy: any[] = [];
+        for (const e of efforts) {
+          const pe = (e as any).planned_extra;
+          if (pe && pe.exercise_id != null) byId.set(`${pe.exercise_id}_${pe.set_index}`, e);
+          else legacy.push(e);
+        }
         const blocks = workout.blocks || [{ id: 'main', exercises: workout.exercises || [] }];
         let globalIdx = 0;
         for (const block of blocks) {
           for (const exercise of (block.exercises || [])) {
             for (let si = 0; si < (exercise.sets || []).length; si++) {
-              const effort = efforts.find((e: any) => e.set_order === globalIdx);
+              const key = `${exercise.id}_${si}`;
+              const effort = byId.get(key) ?? legacy.find((e: any) => e.set_order === globalIdx);
               if (effort) {
-                const key = `${exercise.id}_${si}`;
                 const extra = effort.actual_extra || {};
                 loaded[key] = {
                   weight: extra.weight || (effort.actual_weight_kg != null ? String(effort.actual_weight_kg) : ''),
@@ -166,17 +183,12 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
         setSetData(loaded);
       }
 
-      // Load notes from measures
-      if (workout.measures?.athlete_notes) {
-        setAthleteNotes(workout.measures.athlete_notes);
-      }
-
-      // Check if already completed
+      setAthleteNotes(readFeedback(workout.measures));
       setIsValidated(workout.status === 'completed');
     } catch (e) {
       console.error('Error loading athlete data:', e);
     } finally {
-      setIsLoadingData(false);
+      if (seq === loadSeq.current) setIsLoadingData(false);
     }
   };
 
@@ -241,17 +253,50 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
     if (confirmed) onDelete?.(workout);
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    let hasResults = workout.status === 'completed';
+    if (!hasResults && workout.group_assignment_id) {
+      try {
+        const { count } = await supabase
+          .from('workouts')
+          .select('id', { count: 'exact', head: true })
+          .eq('group_assignment_id', workout.group_assignment_id)
+          .eq('status', 'completed');
+        hasResults = (count ?? 0) > 0;
+      } catch { /* no warning rather than a blocked edit */ }
+    }
+    if (hasResults) {
+      const ok = await confirmAsync({
+        title: 'Séance déjà validée',
+        message: 'Au moins un athlète a déjà saisi ses résultats. Ses données sont conservées, mais si tu ajoutes, retires ou réordonnes des séries ou des exercices, elles peuvent ne plus correspondre. Modifier quand même ?',
+        confirmText: 'Modifier',
+        icon: 'edit-2',
+      });
+      if (!ok) return;
+    }
     onEdit?.(workout);
   };
 
   const submitAthleteWorkout = async () => {
-    if (!user || !workout?.id) return;
+    if (!user || !workout?.id || !canEdit) return;
+    const sc = entryCategoryOf(workout);
+    const hasAnyValue = Object.values(setData).some((d: any) => d && (String(d.weight || '').trim() || String(d.chrono || '').trim()));
+    if (sc !== 'other' && !hasAnyValue && !athleteNotes.trim()) {
+      const ok = await confirmAsync({
+        title: 'Aucun résultat saisi',
+        message: 'Tu n’as rien renseigné pour cette séance. La valider quand même ?',
+        confirmText: 'Valider',
+        icon: 'check-circle',
+      });
+      if (!ok) return;
+    }
     setIsSubmitting(true);
     try {
-      const sc = getSessionCategory(workout.type_seance);
       const efforts: any[] = [];
+      // Results belong to the day of the session (not the day they are typed in), never in the future
+      const planned = workout.date_prevue ? new Date(workout.date_prevue) : null;
+      const effortDate = (planned && !Number.isNaN(planned.getTime()) && planned.getTime() < Date.now() ? planned : new Date()).toISOString();
       const blks = workout.blocks || [{ id: 'main', exercises: workout.exercises || [] }];
       
       let setOrderGlobal = 0;
@@ -266,9 +311,11 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
             const effort: any = {
               workout_id: workout.id,
               exercise_catalog_id: exercise.catalog_id ? String(exercise.catalog_id).trim() : null,
-              exercise_category: workout.type_seance || 'Général',
+              exercise_category: effortCategoryOf(workout),
+              date_achieved: effortDate,
               block_order: bIdx,
               set_order: setOrderGlobal,
+              planned_extra: { exercise_id: exercise.id, set_index: i, set_id: set?.id ?? null, exercise_name: exercise.name ?? null },
               planned_reps: set?.reps ? parseInt(String(set.reps), 10) : null,
               planned_weight_kg: set?.weight !== undefined && set?.weight !== null ? parseFloat(String(set.weight)) : null,
               planned_distance_m: set?.distance ? parseFloat(String(set.distance)) : null,
@@ -282,6 +329,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                 effort.actual_extra = {
                   weight: data.weight || '',
                   repsOk: data.repsOk !== false,
+                  exercise: exercise.name ?? null,
                 };
               }
             } else if (sc === 'course') {
@@ -301,7 +349,10 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
       }
 
       // Updated measures with athlete notes
-      const updatedMeasures = { ...(workout.measures || {}), athlete_notes: athleteNotes.trim() || null };
+      const feedback = athleteNotes.trim() || null;
+      const updatedMeasures: any = { ...(workout.measures || {}), athlete_feedback: feedback };
+      // Technical sessions keep the coach's instructions (an array) in athlete_notes: never overwrite them
+      if (!Array.isArray(updatedMeasures.athlete_notes)) updatedMeasures.athlete_notes = feedback;
 
       // Atomic RPC call: saves efforts, updates measures and marks status = 'completed'
       await workoutService.submitWorkoutResults(workout.id, efforts, updatedMeasures);
@@ -341,10 +392,23 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
   ];
 
   const sessionTitle = workout.type_seance || workout.name || 'Séance';
-  const isRestDay = sessionTitle.toLowerCase().includes('repos');
-  const isTechnical = sessionTitle.toLowerCase().includes('technique');
-  const isCompetition = sessionTitle.toLowerCase().includes('compétition') || sessionTitle.toLowerCase().includes('competition');
-  const technicalNotes = workout.measures?.technical_notes;
+  const kind = sessionKindOf(workout);
+  const isRestDay = kind === 'rest';
+  const isTechnical = kind === 'technical';
+  const isCompetition = kind === 'competition';
+  // An athlete only sees the instructions meant for them, the coach sees all of them
+  const forMe = (n: any) =>
+    n?.targetType === 'team' ||
+    (n?.targetType === 'subgroup' && !!workout.subgroup_id && n?.targetId === workout.subgroup_id) ||
+    (n?.targetType === 'athlete' && n?.targetId === workout.athlete_id);
+  const allTechnicalNotes = workout.measures?.technical_notes;
+  const technicalNotes = isCoach
+    ? allTechnicalNotes
+    : Array.isArray(workout.measures?.athlete_notes)
+      ? workout.measures.athlete_notes
+      : Array.isArray(allTechnicalNotes)
+        ? allTechnicalNotes.filter(forMe)
+        : allTechnicalNotes;
 
   const surfaceMeta = workout.measures?.surface || 
     (workout.description?.includes('Côte') ? 'cote' : workout.description?.includes('Piste') ? 'piste' : null);
@@ -765,6 +829,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                                     { minWidth: 90 },
                                     data.weight ? styles.athleteValueButtonFilled : null,
                                   ]}
+                                  disabled={!canEdit}
                                   onPress={() => {
                                     const idx = allSets.findIndex(s => s.exercise.id === exercise.id && s.setIndex === setIndex);
                                     if (idx >= 0) openKeypadAtIndex(idx);
@@ -777,7 +842,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                                     styles.athleteValueButtonText,
                                     data.weight ? styles.athleteValueFilledText : styles.athleteValuePlaceholder,
                                   ]}>
-                                    {data.weight ? `${data.weight} kg` : 'Poids'}
+                                    {data.weight ? `${data.weight} kg${data.repsOk === false ? ' ✗' : ''}` : canEdit ? 'Poids' : '—'}
                                   </Text>
                                 </PressableScale>
                               )}
@@ -791,6 +856,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                                     { minWidth: 105 },
                                     data.chrono ? styles.athleteValueButtonFilled : null,
                                   ]}
+                                  disabled={!canEdit}
                                   onPress={() => {
                                     const idx = allSets.findIndex(s => s.exercise.id === exercise.id && s.setIndex === setIndex);
                                     if (idx >= 0) openKeypadAtIndex(idx);
@@ -807,7 +873,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                                     styles.athleteValueButtonText,
                                     data.chrono ? styles.athleteValueFilledText : styles.athleteValuePlaceholder,
                                   ]}>
-                                    {data.chrono ? `${data.chrono} ${(set.distance || 0) >= 800 ? 'min' : 's'}` : 'Chrono'}
+                                    {data.chrono ? `${data.chrono} ${(set.distance || 0) >= 800 ? 'min' : 's'}` : canEdit ? 'Chrono' : '—'}
                                   </Text>
                                 </PressableScale>
                               )}
@@ -845,8 +911,16 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
           </View>
         )}
 
+        {/* ========== COACH LOOKING AT ONE ATHLETE: read-only comment ========== */}
+        {isReadOnly && !!athleteNotes.trim() && (
+          <View style={styles.athleteBottom}>
+            <Text style={styles.sectionLabel}>Commentaire de l’athlète</Text>
+            <Text style={styles.technicalNoteContent}>{athleteNotes.trim()}</Text>
+          </View>
+        )}
+
         {/* ========== ATHLETE BOTTOM SECTION ========== */}
-        {!isCoach && (
+        {canEdit && (
           <View style={styles.athleteBottom}>
             {/* Comment / Notes */}
             <View>

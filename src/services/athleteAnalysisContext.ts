@@ -271,7 +271,7 @@ function buildTrainingSection(workouts: any[], efforts: any[]) {
           if (st?.distance) plannedBits.push(`${st.distance}m`);
           if (st?.reps) plannedBits.push(`${st.reps} reps`);
           if (st?.weight !== undefined && st?.weight !== null && st?.weight !== '' && Number(st.weight) > 0) {
-            plannedBits.push(`${st.weight}${st.weightType === '%' ? '%' : 'kg'}`);
+            plannedBits.push(`${st.weight}${(st.weightType === '%' || st.weightType === 'percent_1rm' || st.weight_type === 'percent_1rm') ? '% 1RM' : 'kg'}`);
           }
           const planned = plannedBits.join(' ');
 
@@ -317,7 +317,8 @@ function buildTrainingSection(workouts: any[], efforts: any[]) {
     else if (day === today) statusLabel = '⏳ prévue aujourd\'hui';
     else statusLabel = '❌ non réalisée';
 
-    const notes = w.measures?.athlete_notes ? ` · Ressenti athlète : « ${String(w.measures.athlete_notes).trim()} »` : '';
+    const feedbackRaw = w.measures?.athlete_feedback ?? (typeof w.measures?.athlete_notes === 'string' ? w.measures.athlete_notes : '');
+    const notes = String(feedbackRaw || '').trim() ? ` · Ressenti athlète : « ${String(feedbackRaw).trim()} »` : '';
     const surface = w.measures?.surface ? ` · ${w.measures.surface}` : '';
     const intensity = w.intensity ? ` · Intensité prévue ${w.intensity}/10` : '';
     const desc = w.description ? ` · Consignes : ${String(w.description).replace(/\s+/g, ' ').slice(0, 160)}` : '';
@@ -479,7 +480,7 @@ function buildWellnessSection(checkins: any[]) {
     }
     const pains = formatPains(c.pains);
     lines.push(
-      `- ${day} · Forme ${fmt(num(c.health_score), '%', 0)} · Sommeil ${fmt(num(c.sleep_hours), 'h')} (qualité ${c.sleep_quality ?? '-'}/5) · Fatigue ${c.fatigue_level ?? '-'}/5 · Stress ${c.stress_level ?? '-'}/5 · Motivation ${c.motivation_level ?? '-'}/10 · Physique ${fmt(num(c.physical_score), '%', 0)} · Mental ${fmt(num(c.mental_score), '%', 0)} · Douleurs : ${pains || 'aucune'}`
+      `- ${day} · Forme ${fmt(num(c.health_score), '%', 0)} · Sommeil ${fmt(num(c.sleep_hours), 'h')} (qualité ${c.sleep_quality ?? '-'}/5) · Fatigue ${c.fatigue_level ?? '-'}/5 · Stress ${c.stress_level ?? '-'}/5 · Motivation ${c.motivation_level ?? '-'}/5 · Physique ${fmt(num(c.physical_score), '%', 0)} · Mental ${fmt(num(c.mental_score), '%', 0)} · Douleurs : ${pains || 'aucune'}`
     );
   });
   Array.from(weekly.entries()).forEach(([wk, list]) => {

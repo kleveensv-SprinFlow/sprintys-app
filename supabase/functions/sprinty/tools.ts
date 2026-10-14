@@ -356,7 +356,10 @@ const effortKind = (category: unknown): 'course' | 'muscu' | 'escalier' | 'autre
 const effortSeconds = (r: any): number | null => (r.actual_time_ms != null ? Number(r.actual_time_ms) / 1000 : parseSeconds(r.actual_extra?.chrono));
 const effortWeight = (r: any): number | null => (r.actual_weight_kg != null ? Number(r.actual_weight_kg) : parseNum(r.actual_extra?.weight));
 const EFFORT_COLS =
-  'date_achieved, exercise_category, exercise_catalog_id, actual_distance_m, actual_time_ms, actual_reps, actual_weight_kg, actual_height_cm, actual_intensity, actual_extra, is_pr';
+  'date_achieved, exercise_category, exercise_catalog_id, actual_distance_m, actual_time_ms, actual_reps, actual_weight_kg, actual_height_cm, actual_intensity, actual_extra, planned_extra, is_pr';
+// Name of the exercise a result belongs to: recorded with the result since 1.1.0, else the catalog id, else the session type
+const effortExercise = (r: any): string => String(r.actual_extra?.exercise ?? r.planned_extra?.exercise_name ?? r.exercise_catalog_id ?? r.exercise_category ?? '');
+const effortSurface = (r: any): 'côte' | 'piste' => (/cote/.test(norm(r.exercise_category)) ? 'côte' : 'piste');
 
 const STATUS: Record<string, string> = {
   get_profile: 'Je regarde ton profil…',
@@ -522,7 +525,7 @@ async function seriesFor(ctx: Ctx, athleteId: string, metric: string, days: numb
         v = effortSeconds(r);
       } else {
         if (kind !== 'muscu') continue;
-        if (ex && !norm(`${r.exercise_catalog_id ?? ''} ${r.exercise_category ?? ''}`).includes(ex)) continue;
+        if (ex && !norm(`${effortExercise(r)} ${r.exercise_catalog_id ?? ''} ${r.exercise_category ?? ''}`).includes(ex)) continue;
         v = effortWeight(r);
       }
       if (v == null) continue;
@@ -541,9 +544,9 @@ const METRIC_META: Record<string, { unit: string; better: 'higher' | 'lower' | n
   muscle_mass: { unit: 'kg', better: 'higher', kind: 'line', label: 'Masse musculaire' },
   readiness: { unit: '/100', better: 'higher', kind: 'line', label: 'Forme' },
   sleep_hours: { unit: 'h', better: 'higher', kind: 'bar', label: 'Sommeil' },
-  fatigue: { unit: '/10', better: 'lower', kind: 'line', label: 'Fatigue' },
-  stress: { unit: '/10', better: 'lower', kind: 'line', label: 'Stress' },
-  motivation: { unit: '/10', better: 'higher', kind: 'line', label: 'Motivation' },
+  fatigue: { unit: '/5', better: 'lower', kind: 'line', label: 'Fatigue' },
+  stress: { unit: '/5', better: 'lower', kind: 'line', label: 'Stress' },
+  motivation: { unit: '/5', better: 'higher', kind: 'line', label: 'Motivation' },
   kcal: { unit: 'kcal', better: null, kind: 'bar', label: 'Calories' },
   protein: { unit: 'g', better: null, kind: 'bar', label: 'Protéines' },
   sessions_per_week: { unit: 'séances', better: null, kind: 'bar', label: 'Séances faites par semaine' },
@@ -625,7 +628,7 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
       return {
         content: {
           athlete: who.name,
-          echelles: 'forme sur 100 ; fatigue, stress, motivation, qualité du sommeil sur 10',
+          echelles: 'forme sur 100 ; qualité du sommeil, fatigue, stress et motivation sur 5 (fatigue : 1 = frais, 5 = épuisé ; stress : 1 = serein, 5 = très stressé ; motivation : 1 = faible, 5 = à bloc ; qualité du sommeil : 5 = excellente)',
           nombre: rows.length,
           moyennes: {
             forme: avg(rows.map((r: any) => r.forme)),
@@ -694,12 +697,13 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
       const rows = (data ?? [])
         .filter((r: any) => (!wantKind || effortKind(r.exercise_category) === wantKind))
         .filter((r: any) => !dist || Number(r.actual_distance_m) === dist)
-        .filter((r: any) => !ex || norm(`${r.exercise_catalog_id ?? ''} ${r.exercise_category ?? ''}`).includes(ex))
+        .filter((r: any) => !ex || norm(`${effortExercise(r)} ${r.exercise_catalog_id ?? ''} ${r.exercise_category ?? ''}`).includes(ex))
         .map((r: any) => ({
           date: String(r.date_achieved).slice(0, 10),
           type: effortKind(r.exercise_category),
           seance: r.exercise_category,
-          exercice: r.exercise_catalog_id,
+          exercice: effortExercise(r),
+          terrain: effortKind(r.exercise_category) === 'course' ? effortSurface(r) : undefined,
           distance_m: r.actual_distance_m != null ? Number(r.actual_distance_m) : null,
           secondes: effortSeconds(r),
           reps: r.actual_reps,
@@ -711,7 +715,7 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
       // Short summary per distance (running) and per exercise (strength), so the model does not recompute
       const groups = new Map<string, { n: number; best: number | null; sum: number; first?: number; last?: number; unit: string }>();
       for (const r of [...rows].reverse()) {
-        const key = r.type === 'course' && r.distance_m ? `${r.distance_m} m` : r.type === 'muscu' ? String(r.exercice ?? r.seance) : null;
+        const key = r.type === 'course' && r.distance_m ? `${r.distance_m} m${r.terrain === 'côte' ? ' (côte)' : ''}` : r.type === 'muscu' ? String(r.exercice ?? r.seance) : null;
         const v = r.type === 'course' ? r.secondes : r.type === 'muscu' ? r.charge_kg : null;
         if (!key || v == null) continue;
         const g = groups.get(key) ?? { n: 0, best: null, sum: 0, unit: r.type === 'course' ? 's' : 'kg' };
@@ -738,7 +742,8 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
         .from('athlete_efforts')
         .select(EFFORT_COLS)
         .eq('athlete_id', who.id)
-        .limit(2000);
+        .order('date_achieved', { ascending: false })
+        .limit(3000);
       const best = new Map<string, { exercice: string; type: string; valeur: number; unite: string; distance_m?: number; date: string }>();
       for (const r of data ?? []) {
         const kind = effortKind(r.exercise_category);
@@ -746,13 +751,14 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
         if (kind === 'course') {
           const v = effortSeconds(r);
           if (v == null || !r.actual_distance_m) continue;
-          const key = `course ${Number(r.actual_distance_m)}`;
+          const surf = effortSurface(r);
+          const key = `course ${Number(r.actual_distance_m)} ${surf}`;
           const cur = best.get(key);
-          if (!cur || v < cur.valeur) best.set(key, { exercice: `${Number(r.actual_distance_m)} m`, type: 'course', valeur: v, unite: 's', distance_m: Number(r.actual_distance_m), date });
+          if (!cur || v < cur.valeur) best.set(key, { exercice: `${Number(r.actual_distance_m)} m${surf === 'côte' ? ' (côte)' : ''}`, type: 'course', valeur: v, unite: 's', distance_m: Number(r.actual_distance_m), date });
         } else if (kind === 'muscu') {
           const v = effortWeight(r);
           if (v == null || v <= 0) continue;
-          const name = String(r.exercise_catalog_id ?? r.exercise_category);
+          const name = effortExercise(r);
           const cur = best.get(`muscu ${name}`);
           if (!cur || v > cur.valeur) best.set(`muscu ${name}`, { exercice: name, type: 'muscu', valeur: v, unite: 'kg', date });
         }
@@ -947,7 +953,7 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
           seances_7j: `${mine.filter((w: any) => w.status === 'completed').length}/${mine.length}`,
         };
       });
-      return { content: { echelles: 'forme /100, fatigue et stress /10', athletes: rows } };
+      return { content: { echelles: 'forme /100 ; fatigue et stress sur 5 (1 = frais / serein, 5 = épuisé / très stressé)', athletes: rows } };
     }
 
     case 'missed_sessions': {

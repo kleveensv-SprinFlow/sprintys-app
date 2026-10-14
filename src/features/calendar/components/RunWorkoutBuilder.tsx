@@ -211,13 +211,16 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
 
     // Check if distances in sets differ
     const distances = sets.map((s: any) => s.distance || 100);
-    const isVaried = distances.length > 1 && distances.some((d: number) => d !== distances[0]);
+    const intensities = sets.map((s: any) => s.intensity ?? 95);
+    const isVaried =
+      distances.length > 1 &&
+      (distances.some((d: number) => d !== distances[0]) || intensities.some((i: number) => i !== intensities[0]));
 
     if (isVaried) {
       const runs: RunItem[] = sets.map((s: any) => ({
         id: s.id || String(uuid.v4()),
         distance: s.distance || 100,
-        intensity: s.intensity || 95,
+        intensity: s.intensity ?? 95,
       }));
       return {
         id: blk.id || String(uuid.v4()),
@@ -225,17 +228,17 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
         mode: 'varied',
         distance: runs[0]?.distance || 100,
         repsCount: runs.length,
-        intensity: runs[0]?.intensity || 95,
+        intensity: runs[0]?.intensity ?? 95,
         runs,
-        restReps: sets[0]?.restSeconds || 180,
-        restBlock: blk.restAfterBlock || 360,
+        restReps: sets[0]?.restSeconds ?? 180,
+        restBlock: blk.restAfterBlock ?? 360,
         targets: firstEx.targets || { subgroups: [], athletes: [] },
       };
     } else {
       const firstSet = sets[0] || {};
       const dist = firstSet.distance || 100;
       const reps = sets.length || 3;
-      const intens = firstSet.intensity || 95;
+      const intens = firstSet.intensity ?? 95;
       return {
         id: blk.id || String(uuid.v4()),
         name: blk.name || `Bloc ${idx + 1}`,
@@ -244,8 +247,8 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
         repsCount: reps,
         intensity: intens,
         runs: [],
-        restReps: firstSet.restSeconds || 180,
-        restBlock: blk.restAfterBlock || 360,
+        restReps: firstSet.restSeconds ?? 180,
+        restBlock: blk.restAfterBlock ?? 360,
         targets: firstEx.targets || { subgroups: [], athletes: [] },
       };
     }
@@ -755,7 +758,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
     setIsSubmitting(true);
     try {
       const activeTeamId = teams.length > 0 ? teams[0].id : null;
-      const targetDateIso = sessionTime.applyTo(date, date.getHours()).toISOString();
+      const targetDateIso = sessionTime.applyTo(date, 12).toISOString();
 
       AsyncStorage.setItem(STORAGE_RUN_SURFACE_KEY, surface);
       AsyncStorage.setItem(STORAGE_RUN_EQUIPMENT_KEY, equipment);
@@ -848,7 +851,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
         payloadsToUpdate.forEach((p: any) => {
         p.measures = { ...(p.measures || {}), ...sessionTime.flag() };
       });
-      await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
+      await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate, initialWorkout?.id);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       toast('success', initialWorkout ? 'Séance mise à jour.' : 'Séance enregistrée.');
       onSave();

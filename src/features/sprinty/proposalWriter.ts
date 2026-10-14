@@ -36,7 +36,17 @@ const dateIso = (s: ProposedSession) => {
 };
 
 /** Content columns of a workout row (blocks, exercises, description, measures). */
+const KIND_OF: Record<ProposedSession['kind'], string> = {
+  run: 'run', strength: 'strength', stairs: 'stairs', technical: 'technical', rest: 'rest', competition: 'competition', mobility: 'other',
+};
+
+/** Content columns of a workout row, tagged with the session kind so a custom title never hides what it is. */
 export function sessionToRow(s: ProposedSession) {
+  const row = sessionToRowContent(s) as any;
+  return { ...row, measures: { ...(row.measures || {}), kind: KIND_OF[s.kind] } };
+}
+
+function sessionToRowContent(s: ProposedSession) {
   const notes = s.notes?.trim() || '';
   const base = {
     type_seance: TYPE_SEANCE[s.kind](s),
@@ -348,7 +358,7 @@ export async function addSessionsForTarget(target: ProposalTarget, sessions: Pro
         team_id: teamId,
         subgroup_id: m.subgroup_id ?? null,
         athlete_id: m.user_id,
-        group_assignment_id: members.length > 1 ? assignment : null,
+        group_assignment_id: assignment,
       });
     }
     await workoutService.smartUpdateWorkouts(undefined, payloads);

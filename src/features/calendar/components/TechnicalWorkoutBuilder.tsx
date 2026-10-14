@@ -322,7 +322,7 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
       payloadsToUpdate.forEach((p: any) => {
         p.measures = { ...(p.measures || {}), ...sessionTime.flag() };
       });
-      await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
+      await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate, initialWorkout?.id);
 
       toast('success', initialWorkout ? 'Séance technique mise à jour.' : 'Séance technique enregistrée.');
       onSave();

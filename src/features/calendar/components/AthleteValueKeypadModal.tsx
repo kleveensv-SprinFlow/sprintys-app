@@ -96,6 +96,8 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
   visible,
   onClose,
   onSave,
+  onNext,
+  hasNextSet,
   initialValue = '',
   initialRepsOk = true,
   mode,
@@ -153,7 +155,7 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [visible, initialValue, initialRepsOk]);
+  }, [visible, initialValue, initialRepsOk, title]);
 
   // Hook rules: early return only after all hooks
   if (!visible) return null;
@@ -209,9 +211,14 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
   // Confirm and close
   const handleConfirm = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Keyboard.dismiss();
     onSave(buffer, repsOk);
-    onClose();
+    // On to the next set with the keyboard still up, or close after the last one
+    if (hasNextSet && onNext) {
+      onNext();
+    } else {
+      Keyboard.dismiss();
+      onClose();
+    }
   };
 
   const handleCancel = () => {
@@ -285,6 +292,26 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
               <Text style={[styles.heroUnit, { color: theme.colors.sprintyBlue }]}>{getUnit()}</Text>
             </View>
 
+            {/* Reps not completed (Musculation mode) */}
+            {mode === 'weight' && (
+              <PressableScale
+                haptic="selection"
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: !repsOk }}
+                accessibilityLabel="Je n’ai pas tenu toutes les répétitions"
+                style={[
+                  styles.quickWeightChip,
+                  { backgroundColor: !repsOk ? 'rgba(239, 68, 68, 0.12)' : theme.colors.glassFill, marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 6 },
+                ]}
+                onPress={() => setRepsOk((v) => !v)}
+              >
+                <Feather name={!repsOk ? 'check-square' : 'square'} size={14} color={!repsOk ? theme.colors.error : theme.colors.textSecondary} />
+                <Text style={[styles.quickWeightChipText, { color: !repsOk ? theme.colors.error : theme.colors.textSecondary }]}>
+                  Reps non tenues
+                </Text>
+              </PressableScale>
+            )}
+
             {/* Quick Weight Chips (Musculation mode) */}
             {mode === 'weight' && (
               <View style={styles.quickWeightRow}>
@@ -329,7 +356,9 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
             onPress={handleConfirm}
           >
             <Feather name="check" size={18} color={theme.colors.surface} style={{ marginRight: 8 }} />
-            <Text style={[styles.confirmActionBtnText, { color: theme.colors.surface }]}>Valider</Text>
+            <Text style={[styles.confirmActionBtnText, { color: theme.colors.surface }]}>
+              {hasNextSet && onNext ? 'Suivante' : 'Valider'}
+            </Text>
           </PressableScale>
         </View>
       </Animated.View>
