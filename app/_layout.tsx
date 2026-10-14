@@ -11,6 +11,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { AppErrorScreen } from '../src/shared/components/AppErrorScreen';
 import { OfflineBanner } from '../src/shared/components/OfflineBanner';
 import { AIConsentSheet } from '../src/features/legal/AIConsentSheet';
+import { WelcomeTour } from '../src/features/onboarding/WelcomeTour';
+import { useOnboardingStore } from '../src/store/onboardingStore';
 
 /** Any screen that crashes while rendering shows a friendly retry screen instead of a blank one. */
 export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Promise<void> }) {
@@ -41,6 +43,12 @@ export default function RootLayout() {
   const missingConsents = consentsReady
     ? requiredConsents(user!.role, inTeam).some((t) => !consents!.has(t)) || !user!.dateOfBirth
     : false;
+
+  // Welcome tour: once per account, as soon as the app is usable (existing users get it once too)
+  const inAppArea = segments[0] === '(athlete)' || segments[0] === '(coach)';
+  useEffect(() => {
+    if (user?.id && consentsReady && !missingConsents && inAppArea) useOnboardingStore.getState().checkAuto(user.id);
+  }, [user?.id, consentsReady, missingConsents, inAppArea]);
 
   useEffect(() => {
     if (isLoading || !isInitialized) return;
@@ -106,6 +114,7 @@ export default function RootLayout() {
       </Stack>
       <OfflineBanner />
       <AIConsentSheet />
+      <WelcomeTour />
       <FeedbackHost />
     </View>
   );

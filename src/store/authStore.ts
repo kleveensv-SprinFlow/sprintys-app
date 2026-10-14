@@ -7,6 +7,7 @@ import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import { supabase } from '../services/supabase';
 import { useSprintyChatStore } from './sprintyChatStore';
 import { useConsentStore } from './consentStore';
+import { useOnboardingStore } from './onboardingStore';
 import type { ConsentType } from '../legal/consents';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -616,6 +617,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // The AI chat history is personal: never leave it to the next account on this phone
     useSprintyChatStore.getState().reset();
     useConsentStore.getState().reset();
+    useOnboardingStore.getState().reset();
     set({ user: null, pendingEmail: null, isLoading: false });
   },
 

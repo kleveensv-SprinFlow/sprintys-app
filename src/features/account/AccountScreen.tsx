@@ -9,6 +9,7 @@ import { theme } from '../../core/theme';
 import { glassCard } from '../../core/glass';
 import { useAuthStore } from '../../store/authStore';
 import { useConsentStore } from '../../store/consentStore';
+import { useOnboardingStore } from '../../store/onboardingStore';
 import { supabase } from '../../services/supabase';
 import { exportMyData } from '../../services/exportService';
 import { moderationService } from '../../services/moderationService';
@@ -348,6 +349,12 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
         <Text style={styles.section}>AIDE</Text>
         <View style={[glassCard, styles.card]}>
           <GlassSheen radius={22} />
+          <ListRow
+            icon="compass"
+            title="Revoir le tutoriel"
+            subtitle="Le tour de bienvenue, en une minute"
+            onPress={() => useOnboardingStore.getState().start()}
+          />
           <ListRow icon="help-circle" title="Questions fréquentes" onPress={() => setFaqVisible(true)} />
           <ListRow icon="mail" title="Nous contacter" subtitle={PUBLISHER.contactEmail} onPress={contactSupport} />
           <ListRow icon="file-text" title="Conditions d’utilisation" onPress={() => openDoc('terms')} />
