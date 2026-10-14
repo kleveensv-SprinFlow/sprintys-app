@@ -80,14 +80,13 @@ Les trois workflows (APK, AAB Play Store, TestFlight) les lisent. Sans clé, l'a
 
 ## 7. Activer pour tous
 
-1. Dépose les clés (section 5), publie un build avec les achats sur les deux stores (les produits doivent avoir été validés par Apple / actifs chez Google).
-2. **Droit de transition pour les utilisateurs actuels** : dans RevenueCat, accorde à chaque utilisateur existant un droit promotionnel **Plus de 60 jours** (Customers → Grant entitlement), ou laisse-les tomber sur le plan gratuit si tu préfères. Le plus simple : ne pas activer le billing avant d'avoir accordé ce droit. Le webhook recopie ce droit dans `subscriptions`.
-3. Active la facturation côté serveur :
-   ```sql
-   update public.app_config set value = 'true' where key = 'billing_enabled';
-   ```
-   Retour arrière immédiat : même requête avec `'false'` (tout le monde revient au plan « legacy » généreux).
-4. Passe les textes légaux : les pages `docs/` sont à jour (Conditions 4 ter, Confidentialité : RevenueCat, Apple, Google). Vérifie que GitHub Pages est actif.
+1. Dépose les clés (section 5), puis lance les builds. Chez Apple, les produits doivent être créés (« Prêts à soumettre ») et rattachés à la version 1.1.0 : Apple les valide en même temps que l’app. Chez Google, ils doivent être actifs.
+2. **Transition et activation en une fois** : lance `supabase/scripts/activate_billing.sql` (Supabase → SQL Editor, ou demande-le à Claude) **au moment où tu soumets la version**, pour que le relecteur voie les limites et la page d'offre. Le script :
+   - donne à chaque compte existant **60 jours de Plus offerts** (ligne `launch_gift_60d`, source `promo`) : rien ne change pour eux le jour J, l'accès s'arrête seul à l'échéance, et un vrai achat ne l'écrase pas ; dans le profil, « Offert jusqu'au … » ;
+   - laisse gratuits les comptes de démonstration (`@sprintys.test`), pour que le relecteur voie l'offre ;
+   - active la facturation (`billing_enabled = 'true'`).
+   Retour arrière immédiat : `update public.app_config set value = 'false' where key = 'billing_enabled';` (tout le monde revient au plan « legacy » généreux).
+3. Passe les textes légaux : les pages `docs/` sont à jour (Conditions 4 ter, Confidentialité : RevenueCat, Apple, Google). Vérifie que GitHub Pages est actif.
 
 ## 8. Choses à savoir
 

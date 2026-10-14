@@ -69,6 +69,8 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
   const plan = useEntitlementStore((st) => st.info);
   const showSubscription = isAthlete && !!plan?.billing_enabled;
   const paidOwn = !!plan?.subscription && plan.source === 'own';
+  // Plus offered at launch: nothing to manage in the store, it simply ends
+  const gifted = plan?.subscription?.source === 'promo';
   const renewal = plan?.subscription?.current_period_end
     ? new Date(plan.subscription.current_period_end).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
     : null;
@@ -357,6 +359,8 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
                 subtitle={
                   plan.source === 'sponsored'
                     ? `Offert par ${plan.sponsor_name || 'ton coach'}, tant qu’il reste abonné`
+                    : paidOwn && gifted
+                      ? renewal ? `Offert jusqu’au ${renewal}, rien n’est supprimé ensuite` : 'Offert'
                     : paidOwn
                       ? renewal
                         ? plan.subscription!.will_renew
@@ -369,7 +373,7 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
                 onPress={paidOwn ? undefined : () => useEntitlementStore.getState().openPaywall('profile')}
               />
               {paidOwn && valueLine && <ListRow icon="award" title="Ce que ça t’a apporté ce mois-ci" subtitle={valueLine} chevron={false} />}
-              {paidOwn && <ListRow icon="settings" title="Gérer mon abonnement" subtitle="Dans les réglages de ton compte du store" onPress={() => openManageSubscriptions()} />}
+              {paidOwn && !gifted && <ListRow icon="settings" title="Gérer mon abonnement" subtitle="Dans les réglages de ton compte du store" onPress={() => openManageSubscriptions()} />}
               <ListRow
                 icon="refresh-cw"
                 title="Restaurer mes achats"

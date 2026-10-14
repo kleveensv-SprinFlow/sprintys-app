@@ -166,8 +166,10 @@ Légendes courtes, sur le fond bleu de la marque, par exemple :
 
 | Rôle | E-mail | Mot de passe |
 |---|---|---|
-| Athlète | `review.athlete@…` | à définir |
-| Coach | `review.coach@…` | à définir |
+| Athlète (formule gratuite, dans le groupe du coach) | `review.athlete@sprintys.test` | donné dans la conversation (ne jamais le committer : le dépôt est public) |
+| Coach (groupe « Sprint Club Démo ») | `review.coach@sprintys.test` | idem |
+
+Les deux comptes ont 4 semaines de données (check-ins, pesées, séances passées et à venir, chronos, repas). Les recréer : script de démo de Claude (supprime et recrée les mêmes données).
 
 **Note pour le reviewer (anglais conseillé) :**
 
@@ -180,7 +182,7 @@ Sprintys is a training app for track & field athletes and their coaches.
 - Team chat is user-generated content: users can report a message and block a user (long-press a message or use the chat menu). Reports are reviewed within 24 h.
 - Account deletion: Profile → Supprimer mon compte (deletes the account and all associated data).
 - Location is only used while the app is in use, approximately, for the weather card.
-- One optional auto-renewing subscription, "Plus" (monthly/yearly, 7-day free trial), removes the weekly limits of AI meal analysis (photo or natural-language entry), Sprinty messages and training plans, and adds PDF export, an adaptive calorie target, the weekly report and competition search. The free tier keeps unlimited food search and barcode scanning, plus a weekly allowance of each AI feature. Nothing is deleted when a subscription ends. The paywall opens only when the user taps a limited feature or "Découvrir Premium" in Profile, and always has a "Plus tard" button; "Restaurer mes achats" and "Gérer l'abonnement" are in Profile → Abonnement. Terms and Privacy links are on the paywall. Use the sandbox account provided in App Store Connect to test purchases.
+- One optional auto-renewing subscription, "Plus" (monthly/yearly, 7-day free trial), removes the weekly limits of AI meal analysis (photo or natural-language entry), Sprinty messages and training plans, and adds PDF export, an adaptive calorie target, the weekly report and competition search. The free tier keeps unlimited food search and barcode scanning, plus a weekly allowance of each AI feature. Nothing is deleted when a subscription ends. The paywall opens only when the user taps a limited feature or "Découvrir Premium" in Profile, and always has a "Plus tard" button; "Restaurer mes achats" and "Gérer l'abonnement" are in Profile → Abonnement. Terms and Privacy links are on the paywall. To reach it with the demo athlete (free plan): Profile (top right) → Abonnement → "Gratuit", or Nutrition → Ajouter → Photo/Phrase after 3 AI analyses in the week. Use a sandbox Apple ID to test purchases. The subscription products are attached to this version.
 ```
 
 ---
@@ -189,10 +191,10 @@ Sprintys is a training app for track & field athletes and their coaches.
 
 **À faire par toi** (impossible depuis cet environnement) :
 - [ ] Remplir les champs « À COMPLÉTER » de `src/legal/publisher.ts` (raison sociale, forme, SIRET, adresse, directeur de la publication), puis lancer `node scripts/build-legal-pages.js` et committer `docs/`.
-- [ ] Activer GitHub Pages : Settings → Pages → branche `master`, dossier `/docs`. Vérifier que les 4 URL ci-dessus répondent.
+- [ ] Activer GitHub Pages (gratuit, le dépôt est public) : Settings → Pages → Source « Deploy from a branch » → branche `master`, dossier `/docs` → Save. Après 1 à 2 minutes, les 4 URL ci-dessus doivent répondre (Supabase ne peut pas servir ces pages : il force du texte brut).
 - [ ] Créer et vérifier l'adresse de support définitive. Si elle change, mettre à jour `contactEmail` et `privacyEmail` dans `publisher.ts`.
 - [ ] Changer le mot de passe du compte dont les identifiants figuraient dans `scripts/create-coach.js` et `scripts/test-subgroup.js` (scripts supprimés du dépôt, mais encore présents dans l'historique git).
-- [ ] Approuver puis appliquer la migration `supabase/migrations/20261014090000_legal_consents_blocks.sql`. Elle ajoute :
+- [x] (fait le 14/10) Approuver puis appliquer la migration `supabase/migrations/20261014090000_legal_consents_blocks.sql`. Elle ajoute :
   - la date de naissance et la vérification des 15 ans côté serveur ;
   - la protection des accords ;
   - le blocage d'utilisateurs ;
@@ -202,7 +204,7 @@ Sprintys is a training app for track & field athletes and their coaches.
   - Supabase → Authentication → Providers → Apple : activer, puis renseigner le Services ID / Team ID / Key ID et la clé `.p8`. Ajouter `com.sprintflow.inc` dans « Authorized Client IDs ».
 - [ ] Supabase → Authentication → URL Configuration : vérifier que `sprintflowv2://auth/callback` est dans les Redirect URLs (connexion Google et lien « mot de passe oublié »).
 - [ ] Mettre en place les abonnements en suivant `store/MONETIZATION_SETUP.md` (produits, RevenueCat, clés dans les secrets GitHub, accord « Applications payantes »).
-- [ ] Créer les deux comptes de démonstration (section 7).
+- [x] (fait) Créer les deux comptes de démonstration (section 7).
 - [ ] Produire les captures (section 6).
 - [ ] Tester sur TestFlight :
   - connexion Apple ;
