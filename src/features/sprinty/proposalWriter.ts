@@ -16,6 +16,7 @@ const TYPE_SEANCE: Record<ProposedSession['kind'], (s: ProposedSession) => strin
   technical: () => 'Séance Technique',
   rest: () => 'Jour de repos',
   competition: () => 'Compétition',
+  mobility: () => 'Mobilité',
 };
 
 const HOURS: Record<ProposedSession['kind'], number> = {
@@ -25,6 +26,7 @@ const HOURS: Record<ProposedSession['kind'], number> = {
   technical: 12,
   rest: 12,
   competition: 9,
+  mobility: 19,
 };
 
 const dateIso = (s: ProposedSession) => {
@@ -151,6 +153,18 @@ export function sessionToRow(s: ProposedSession) {
       blocks: [],
       exercises: [],
       measures: { technical_notes: [{ title: s.title, content: notes }], athlete_notes: [{ title: s.title, content: notes }] },
+    };
+  }
+
+  if (s.kind === 'mobility') {
+    // No blocks: the routine is written in the instructions so the athlete simply reads it
+    const lines = s.steps.map((e) => `• ${e.name}${e.detail ? ` : ${e.detail}` : ''}`);
+    return {
+      ...base,
+      description: [s.title, notes, ...lines].filter(Boolean).join('\n'),
+      blocks: [],
+      exercises: [],
+      measures: {},
     };
   }
 

@@ -146,7 +146,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
         'Si tu n’as pas de coach dans l’application, Sprinty peut te proposer un objectif et un plan d’entraînement, que tu ajoutes ou non à ton calendrier. Ce plan est une proposition générale, établie à partir de tes réponses et de tes données : il ne remplace ni un entraîneur diplômé ni un suivi médical, et aucun résultat n’est garanti.',
         'Avant le premier plan, Sprinty te pose quelques questions de sécurité (douleur, problème cardiaque, malaise à l’effort, reprise après un arrêt). Si une réponse l’indique, il te conseille de consulter un médecin et ne propose qu’un plan doux. Pour les moins de 18 ans, les charges restent prudentes et aucun objectif de perte de poids n’est proposé.',
         'Tu restes responsable de ta pratique : échauffe-toi, adapte ou arrête une séance en cas de douleur, de malaise ou de fatigue inhabituelle, et consulte un professionnel de santé si besoin.',
-        'Quand tu rejoins un coach, c’est lui qui programme tes séances : Sprinty ne t’en propose plus et te permet de retirer les séances restantes de ton plan. Tu peux aussi retirer ton plan à tout moment depuis ton profil.',
+        'Quand tu rejoins un coach, c’est lui qui programme tes séances : Sprinty ne te propose plus de plan ni de séance physique, et te permet de retirer les séances restantes de ton plan. Il peut seulement t’ajouter des séances de récupération douce (mobilité, étirements, respiration), que tu valides toi-même ; ton coach ne les voit pas. Tu peux retirer ton plan à tout moment depuis ton profil.',
       ],
     },
     {

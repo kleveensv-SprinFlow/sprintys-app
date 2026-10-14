@@ -35,6 +35,7 @@ const KIND_ICON: Record<ProposedSession['kind'], string> = {
   technical: 'target',
   rest: 'sleep',
   competition: 'trophy-outline',
+  mobility: 'meditation',
 };
 
 const dayLabel = (iso: string) => {
@@ -50,6 +51,7 @@ export function describe(s: ProposedSession): string {
       .map((e) => `${e.name} ${e.sets}×${e.reps}${e.percent_1rm ? ` à ${e.percent_1rm} %` : e.weight_kg ? ` · ${e.weight_kg} kg` : ''}`)
       .join(' · ');
   if (s.kind === 'stairs') return s.stairs.map((e) => `${e.sets}×${e.reps} ${e.name} (${e.steps} marches)`).join(' · ');
+  if (s.kind === 'mobility') return s.steps.map((e) => `${e.name}${e.detail ? ` (${e.detail})` : ''}`).join(' · ');
   if (s.kind === 'competition') return s.location || '';
   return s.notes;
 }

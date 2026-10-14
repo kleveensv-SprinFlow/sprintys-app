@@ -1,6 +1,6 @@
 /** Visual blocks streamed by the `sprinty` edge function (see supabase/functions/sprinty/tools.ts). */
 
-export type SessionKind = 'run' | 'strength' | 'stairs' | 'technical' | 'rest' | 'competition';
+export type SessionKind = 'run' | 'strength' | 'stairs' | 'technical' | 'rest' | 'competition' | 'mobility';
 
 export interface ProposedSession {
   date: string;
@@ -12,6 +12,7 @@ export interface ProposedSession {
   run_blocks: { name: string; reps: number; distance_m: number; intensity_pct: number; rest_s: number; rest_after_s: number }[];
   strength: { name: string; sets: number; reps: number; weight_kg: number | null; percent_1rm: number | null; rest_s: number }[];
   stairs: { name: string; sets: number; reps: number; steps: number; rest_s: number }[];
+  steps: { name: string; detail: string }[];
 }
 
 export interface ProposalTarget {

@@ -70,7 +70,7 @@ const COACHED_STARTERS: Starter[] = [
   { icon: 'activity', label: 'Analyse ma semaine', hint: 'Séances, forme, sommeil', prompt: "Analyse ma semaine d'entraînement et ma forme." },
   { icon: 'trending-up', label: 'Mes chronos progressent ?', hint: 'Résultats et records', prompt: 'Est-ce que mes chronos progressent ? Montre-moi.' },
   { icon: 'coffee', label: 'Que manger avant ma séance ?', hint: 'Nutrition autour de l’effort', prompt: 'Que devrais-je manger avant ma prochaine séance ?' },
-  { icon: 'moon', label: 'Bien récupérer', hint: 'Sommeil et récupération', prompt: 'Comment bien récupérer après une grosse séance ?' },
+  { icon: 'moon', label: 'Une séance de récupération', hint: 'Mobilité, étirements, respiration', prompt: 'Propose-moi une séance de mobilité pour demain.' },
 ];
 
 export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' }) {
@@ -289,7 +289,7 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
   const intro = isCoach
     ? 'Ton assistant de préparation : forme de l’équipe, analyses, programmation, compétitions, annonces. Je pose des questions avant d’agir et tu valides toujours.'
     : hasCoach
-      ? 'Je connais tes séances, ta forme, tes résultats et tes repas. Ton coach programme tes séances ; moi, je t’aide à les comprendre et à progresser.'
+      ? 'Je connais tes séances, ta forme, tes résultats et tes repas. Ton coach programme tes séances ; moi, je t’aide à les comprendre, à récupérer (je peux t’ajouter des séances de mobilité) et à progresser.'
       : 'Je peux être ton coach : on fixe un objectif ensemble, je construis ton plan et tu l’ajoutes à ton calendrier. Je connais aussi ta forme, tes résultats et tes repas.';
 
   return (

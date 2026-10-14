@@ -4,10 +4,11 @@
  * app converts the result into the same payloads as the session builders.
  */
 
-export type SessionKind = 'run' | 'strength' | 'stairs' | 'technical' | 'rest' | 'competition';
+export type SessionKind = 'run' | 'strength' | 'stairs' | 'technical' | 'rest' | 'competition' | 'mobility';
 
 export interface RunBlock { name: string; reps: number; distance_m: number; intensity_pct: number; rest_s: number; rest_after_s: number }
 export interface StrengthItem { name: string; sets: number; reps: number; weight_kg: number | null; percent_1rm: number | null; rest_s: number }
+export interface MobilityStep { name: string; detail: string }
 export interface StairsItem { name: string; sets: number; reps: number; steps: number; rest_s: number }
 
 export interface Session {
@@ -20,15 +21,18 @@ export interface Session {
   run_blocks: RunBlock[];
   strength: StrengthItem[];
   stairs: StairsItem[];
+  steps: MobilityStep[];
 }
 
 export interface Caps {
   maxRunIntensity: number;
   maxPercent1rm: number;
   allowCompetition: boolean;
+  /** Athletes with a coach: only gentle recovery sessions (mobility, stretching, breathing). */
+  recoveryOnly?: boolean;
 }
 
-const KINDS: SessionKind[] = ['run', 'strength', 'stairs', 'technical', 'rest', 'competition'];
+const KINDS: SessionKind[] = ['run', 'strength', 'stairs', 'technical', 'rest', 'competition', 'mobility'];
 
 const num = (v: any, min: number, max: number, fallback: number) => {
   const n = typeof v === 'number' ? v : parseFloat(String(v ?? '').replace(',', '.'));
@@ -52,6 +56,7 @@ export function normalizeSession(raw: any, caps: Caps, minDate: string, maxDate:
   const kind: SessionKind = KINDS.includes(raw.kind) ? raw.kind : 'technical';
   if (!isIsoDate(raw.date) || raw.date < minDate || raw.date > maxDate) return null;
   if (kind === 'competition' && !caps.allowCompetition) return null;
+  if (caps.recoveryOnly && kind !== 'mobility') return null;
 
   const session: Session = {
     date: raw.date,
@@ -63,6 +68,7 @@ export function normalizeSession(raw: any, caps: Caps, minDate: string, maxDate:
     run_blocks: [],
     strength: [],
     stairs: [],
+    steps: [],
   };
 
   if (kind === 'run') {
@@ -100,6 +106,13 @@ export function normalizeSession(raw: any, caps: Caps, minDate: string, maxDate:
     }));
     if (!session.stairs.length) return null;
   }
+  if (kind === 'mobility') {
+    session.steps = (Array.isArray(raw.steps) ? raw.steps : []).slice(0, 12).map((e: any) => ({
+      name: text(e?.name, 60) || 'Exercice',
+      detail: text(e?.detail, 60),
+    }));
+    if (!session.steps.length) return null;
+  }
   return session;
 }
 
@@ -111,6 +124,7 @@ function defaultTitle(kind: SessionKind) {
     technical: 'Technique',
     rest: 'Repos',
     competition: 'Compétition',
+    mobility: 'Mobilité',
   }[kind];
 }
 
@@ -124,6 +138,9 @@ export function describeSession(s: Session): string {
   }
   if (s.kind === 'stairs') {
     return `${s.date} ${s.title} : ${s.stairs.map((e) => `${e.sets}×${e.reps} ${e.name}`).join(', ')}`;
+  }
+  if (s.kind === 'mobility') {
+    return `${s.date} ${s.title} : ${s.steps.map((e) => e.name).join(', ')}`;
   }
   return `${s.date} ${s.title}`;
 }

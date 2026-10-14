@@ -154,6 +154,7 @@ function sessionHtml(s: ProposedSession): string {
       .map((e) => `${esc(e.name)} : ${e.sets} × ${e.reps}${e.percent_1rm ? ` à ${e.percent_1rm} % 1RM` : e.weight_kg ? ` · ${e.weight_kg} kg` : ''} (récup ${e.rest_s} s)`)
       .join('<br/>');
   else if (s.kind === 'stairs') detail = s.stairs.map((e) => `${e.sets} × ${e.reps} ${esc(e.name)}, ${e.steps} marches`).join('<br/>');
+  else if (s.kind === 'mobility') detail = s.steps.map((e) => `${esc(e.name)}${e.detail ? ` : ${esc(e.detail)}` : ''}`).join('<br/>');
   else if (s.kind === 'competition') detail = esc(s.location);
   return `<tr><td class="day">${esc(longDate(s.date))}</td><td><strong>${esc(s.title)}</strong>${detail ? `<br/>${detail}` : ''}${
     s.notes && s.kind !== 'rest' ? `<div class="notes">${esc(s.notes)}</div>` : s.kind === 'rest' ? `<div class="notes">${esc(s.notes || 'Repos')}</div>` : ''

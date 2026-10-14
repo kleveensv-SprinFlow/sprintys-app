@@ -16,7 +16,7 @@ const SESSION_SCHEMA = {
   type: 'object',
   properties: {
     date: { type: 'string', description: 'YYYY-MM-DD' },
-    kind: { type: 'string', enum: ['run', 'strength', 'stairs', 'technical', 'rest', 'competition'] },
+    kind: { type: 'string', enum: ['run', 'strength', 'stairs', 'technical', 'rest', 'competition', 'mobility'] },
     title: { type: 'string' },
     surface: { type: 'string', enum: ['piste', 'cote'] },
     notes: { type: 'string', description: 'Échauffement, consignes, objectif de la séance.' },
@@ -49,6 +49,15 @@ const SESSION_SCHEMA = {
           rest_s: { type: 'integer' },
         },
         required: ['name', 'sets', 'reps', 'rest_s'],
+      },
+    },
+    steps: {
+      type: 'array',
+      description: 'kind mobility : exercices de mobilité, étirements, respiration.',
+      items: {
+        type: 'object',
+        properties: { name: { type: 'string' }, detail: { type: 'string', description: 'Durée ou répétitions, ex. « 2 × 30 s par côté ».' } },
+        required: ['name'],
       },
     },
     stairs: {
@@ -208,7 +217,16 @@ export function toolsFor(ctx: Ctx) {
         summary: { type: 'string', description: '5 à 10 lignes.' },
       }, ['summary'])
     );
-  } else if (!ctx.hasCoach) {
+  } else if (ctx.hasCoach) {
+    tools.push(
+      fn(
+        'propose_sessions',
+        "Affiche 1 à 3 séances de RÉCUPÉRATION DOUCE (kind mobility uniquement : mobilité, étirements, respiration, automassage) que l'athlète peut ajouter à son calendrier. Aucune séance physique : son coach programme l'entraînement.",
+        { intro: { type: 'string' }, title: { type: 'string' }, sessions: { type: 'array', items: SESSION_SCHEMA } },
+        ['title', 'sessions']
+      )
+    );
+  } else {
     tools.push(
       fn(
         'propose_goal',
@@ -893,16 +911,22 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
 
     case 'propose_sessions': {
       const caps = capsFor(ctx, null);
+      if (ctx.role !== 'coach' && ctx.hasCoach) caps.recoveryOnly = true;
       let target: any;
       if (ctx.role === 'coach') {
         target = await resolveTarget(ctx, a.target);
       } else {
-        if (ctx.hasCoach) throw new ToolError("C'est ton coach qui programme tes séances.");
         target = { type: 'self', id: ctx.userId, name: ctx.firstName || 'Moi' };
       }
       const max = ctx.role === 'coach' ? 14 : 3;
       const sessions = normalizeAll(a.sessions, caps, ctx.today, addDays(ctx.today, 120)).slice(0, max);
-      if (!sessions.length) throw new ToolError('Aucune séance valable (dates à partir d’aujourd’hui, contenu complet).');
+      if (!sessions.length) {
+        throw new ToolError(
+          caps.recoveryOnly
+            ? "Seules les séances de récupération douce (kind mobility, avec des exercices) sont possibles : l'entraînement est programmé par le coach."
+            : 'Aucune séance valable (dates à partir d’aujourd’hui, contenu complet).'
+        );
+      }
       if (a.intro) ctx.emit({ t: `${clipText(String(a.intro), 400)}\n` });
       ctx.emit({ ui: { type: 'sessions_proposal', title: clipText(a.title, 80) || 'Séances proposées', target, sessions } });
       return {

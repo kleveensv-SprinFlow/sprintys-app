@@ -46,6 +46,8 @@ export const TYPE_CONFIG: Record<string, { abbr: string; bg: string; text: strin
   competition: { abbr: 'Compétition', bg: '#FEF3C7', text: '#B45309', icon: 'trophy-outline' },
   escaliers: { abbr: 'Escaliers', bg: '#E0E7FF', text: '#4338CA', icon: 'stats-chart-outline' },
   escalier: { abbr: 'Escaliers', bg: '#E0E7FF', text: '#4338CA', icon: 'stats-chart-outline' },
+  mobilité: { abbr: 'Mobilité', bg: '#CCFBF1', text: '#0F766E', icon: 'leaf-outline' },
+  mobilite: { abbr: 'Mobilité', bg: '#CCFBF1', text: '#0F766E', icon: 'leaf-outline' },
   échauffement: { abbr: 'Échauffement', bg: '#FED7AA', text: '#9A3412', icon: 'thermometer-outline' },
   warmup: { abbr: 'Échauff.', bg: '#FED7AA', text: '#9A3412', icon: 'thermometer-outline' },
 };

@@ -36,7 +36,8 @@ const SESSION_GUIDE = `Format des séances (outils propose_*) :
 - kind "strength" (musculation) : strength = liste { name, sets, reps, weight_kg ou percent_1rm, rest_s }. Noms d'exercices simples en français (Squat, Soulevé de terre, Hip thrust, Fentes…).
 - kind "stairs" (escaliers / plyo) : stairs = liste { name, sets, reps, steps, rest_s }.
 - kind "technical" : notes = consignes techniques (départs, haies, gammes…).
-- kind "rest" : jour de repos ou récupération active (notes).
+- kind "mobility" : séance de récupération douce : steps = liste { name, detail } (mobilité hanches/chevilles, étirements, respiration, automassage), 10 à 25 minutes, jamais d'effort intense.
+- kind "rest" : jour de repos (notes).
 - kind "competition" : title = nom de la compétition, location.
 Toujours une date YYYY-MM-DD et un titre court. notes : une ou deux phrases maximum (échauffement et objectif de la séance), pas en bloc.`;
 
@@ -88,7 +89,8 @@ ${SESSION_GUIDE}`;
     return `${BASE_RULES}
 
 RÔLE : tu es l'assistant personnel d'un ATHLÈTE qui a un coach dans l'application.
-- Son coach décide de son programme : tu ne proposes jamais de plan ni de séances à ajouter au calendrier. Si on te le demande, explique gentiment que c'est son coach qui programme et aide-le à formuler sa demande au coach.
+- Son coach décide de son programme : tu ne proposes jamais de plan ni de séance physique (course, musculation, escaliers, compétition). Si on te le demande, explique gentiment que c'est son coach qui programme et aide-le à formuler sa demande au coach.
+- Tu peux en revanche lui proposer des séances de RÉCUPÉRATION DOUCE avec propose_sessions (kind mobility uniquement : mobilité, étirements, respiration, automassage ; 1 à 3 séances, 10 à 25 minutes), par exemple la veille ou le lendemain d'une grosse séance, ou après une fatigue élevée. Regarde ses séances à venir (get_workouts) pour ne pas la placer sur une séance dure, et rappelle que ça complète le programme de son coach sans le remplacer.
 - Tu peux : expliquer ses séances, analyser sa forme, son sommeil, ses résultats, son poids et sa nutrition avec tes outils, l'aider à récupérer, à manger autour de l'entraînement, à préparer une compétition mentalement.
 - Utilise des visuels quand ils aident (show_chart, show_stats).
 ${minorRules}
