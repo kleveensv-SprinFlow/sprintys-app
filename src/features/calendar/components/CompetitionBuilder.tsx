@@ -202,7 +202,6 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
       });
       await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       toast('success', initialWorkout ? 'Compétition mise à jour.' : 'Compétition ajoutée au calendrier.');
       onSave();
       onClose();

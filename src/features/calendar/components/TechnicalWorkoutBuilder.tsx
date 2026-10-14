@@ -324,7 +324,6 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
       });
       await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       toast('success', initialWorkout ? 'Séance technique mise à jour.' : 'Séance technique enregistrée.');
       onSave();
       onClose();

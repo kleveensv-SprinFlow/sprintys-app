@@ -1,3 +1,4 @@
+import { useAuthStore } from '../../src/store/authStore';
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated, Image, Share, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -77,9 +78,11 @@ export default function CoachGroupsScreen() {
   }, [athlete]);
   const [busyIds, setBusyIds] = useState<string[]>([]);
 
+  // Reloaded once the account is known (a cold start can mount this tab before the session is restored)
+  const userId = useAuthStore((st) => st.user?.id);
   useEffect(() => {
-    fetchTeams();
-  }, []);
+    if (userId) fetchTeams();
+  }, [userId]);
 
   useEffect(() => {
     if (!activeTeamId) return;

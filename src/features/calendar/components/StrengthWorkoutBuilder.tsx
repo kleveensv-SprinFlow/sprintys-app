@@ -702,7 +702,6 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
         p.measures = { ...(p.measures || {}), ...sessionTime.flag() };
       });
       await workoutService.smartUpdateWorkouts(oldGroupAssignmentId, payloadsToUpdate);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       // The first payload is the coach's master copy
       const athleteCount = payloadsToUpdate.length - 1;
       toast(

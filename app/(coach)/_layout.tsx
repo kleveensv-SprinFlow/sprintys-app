@@ -5,6 +5,8 @@ export default function CoachTabsLayout() {
   return (
     <Tabs
       tabBar={(props) => <CoachTabBar {...props} />}
+      // Back from a hidden screen (meal, day, profile…) returns to the screen it was opened from, not to Home
+      backBehavior="history"
       screenOptions={{
         headerShown: false,
         sceneStyle: { backgroundColor: 'transparent' },

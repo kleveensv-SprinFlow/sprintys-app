@@ -690,7 +690,6 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
         )
       );
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       toast('success', 'Séance escalier enregistrée.');
       onSave();
       onClose();

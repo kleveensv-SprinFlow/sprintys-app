@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { TouchableOpacity } from '../../shared/components/Tappable';
 import { supabase } from '../../services/supabase';
 import { theme } from '../../core/theme';
 

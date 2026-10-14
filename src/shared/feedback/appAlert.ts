@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useSprintyStore, SprintyStatus } from '../../store/sprintyStore';
 import { useFeedbackStore, DialogButton } from './feedbackStore';
 
@@ -28,6 +30,11 @@ const inferStatus = (title: string, message = ''): SprintyStatus => {
 export function toast(status: SprintyStatus, message: string, title?: string) {
   const length = (title?.length ?? 0) + message.length;
   const duration = Math.min(6500, Math.max(2600, 1800 + length * 45));
+  // A light tap confirms a success, a double buzz flags an error
+  if (Platform.OS !== 'web') {
+    if (status === 'success') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
+    else if (status === 'error') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => undefined);
+  }
   useSprintyStore.getState().showFeedback(status, message, duration, title);
 }
 

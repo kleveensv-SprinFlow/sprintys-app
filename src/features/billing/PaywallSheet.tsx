@@ -109,7 +109,6 @@ export function PaywallSheet() {
     const result = await purchaseOffer(selectedOffer);
     setBusy(false);
     if (result.status === 'success') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
       toast('success', 'Bienvenue dans Plus. Tout est déjà débloqué.', 'Merci !');
       close();
       useEntitlementStore.getState().refreshAfterPurchase();

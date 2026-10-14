@@ -1,3 +1,4 @@
+import { Appear } from '../../src/shared/components/Appear';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -136,13 +137,16 @@ export default function CoachDashboardScreen() {
         scrollEventThrottle={16}
         refreshControl={refreshControl}
       >
-        <View style={styles.greeting}>
-          <Text style={styles.greetingDate}>{dateLabel.toUpperCase()}</Text>
-          <Text style={styles.greetingTitle} numberOfLines={1}>
-            {firstName ? `${greeting()} ${firstName}` : greeting()}
-          </Text>
-        </View>
+        <Appear index={0}>
+          <View style={styles.greeting}>
+            <Text style={styles.greetingDate}>{dateLabel.toUpperCase()}</Text>
+            <Text style={styles.greetingTitle} numberOfLines={1}>
+              {firstName ? `${greeting()} ${firstName}` : greeting()}
+            </Text>
+          </View>
+        </Appear>
 
+        <Appear index={1}>
         {loadingTeams ? (
           <View style={[glassCard, styles.card]}>
             <Skeleton width="40%" height={12} />
@@ -185,18 +189,33 @@ export default function CoachDashboardScreen() {
                 <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />
               </View>
               <View style={styles.formRow}>
-                <Text style={styles.formValue}>{avg === null ? '—' : `${Math.round(avg)}%`}</Text>
-                <Text style={styles.formCount}>
-                  {scores.length}/{approved.length || '–'} check-in{scores.length > 1 ? 's' : ''}
-                </Text>
+                {avg === null ? (
+                  <>
+                    <Text style={[styles.formValue, styles.formValueEmpty]}>
+                      {scores.length}/{approved.length}
+                    </Text>
+                    <Text style={styles.formCount}>check-in aujourd’hui</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.formValue}>{Math.round(avg)}%</Text>
+                    <Text style={styles.formCount}>
+                      {scores.length}/{approved.length} check-in{scores.length > 1 ? 's' : ''}
+                    </Text>
+                  </>
+                )}
               </View>
               <Text style={styles.formLabel}>{form.label}</Text>
             </PressableScale>
           </>
         )}
+        </Appear>
 
-        <WeatherCard />
+        <Appear index={2}>
+          <WeatherCard />
+        </Appear>
 
+        <Appear index={3}>
         <Text style={styles.sectionTitle}>SÉANCES DU JOUR</Text>
         {team && todayWorkouts === null ? (
           <View style={[glassCard, styles.card]}>
@@ -218,7 +237,8 @@ export default function CoachDashboardScreen() {
         ) : (
           todayWorkouts.map((w, i) => {
             const d = new Date(w.date_prevue);
-            const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+            // Only an hour the coach chose is shown (older sessions carry a default hour)
+            const time = (w as any).measures?.has_time ? `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : '';
             return (
               <PressableScale
                 key={w.id || i}
@@ -234,8 +254,7 @@ export default function CoachDashboardScreen() {
                     {w.type_seance || 'Séance'}
                   </Text>
                   <Text style={styles.sessionMeta} numberOfLines={1}>
-                    {time}
-                    {w.description ? ` · ${w.description}` : ''}
+                    {[time, w.description].filter(Boolean).join(' · ') || 'Toute la journée'}
                   </Text>
                 </View>
                 <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />
@@ -243,6 +262,7 @@ export default function CoachDashboardScreen() {
             );
           })
         )}
+        </Appear>
       </Animated.ScrollView>
 
       <BroadcastModal visible={broadcastVisible} onClose={() => setBroadcastVisible(false)} />
@@ -271,6 +291,7 @@ const styles = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4 },
   cardLabel: { flex: 1, fontSize: 12, fontWeight: '700', letterSpacing: 0.6, color: theme.colors.textSecondary },
   formRow: { flexDirection: 'row', alignItems: 'baseline', gap: 10, marginTop: 10 },
+  formValueEmpty: { color: theme.colors.textMuted },
   formValue: { fontSize: 40, fontWeight: '800', letterSpacing: -1, color: theme.colors.text, fontVariant: ['tabular-nums'] },
   formCount: { fontSize: 14, fontWeight: '600', color: theme.colors.textMuted },
   formLabel: { fontSize: 14, fontWeight: '500', color: theme.colors.textSecondary, marginTop: 2 },

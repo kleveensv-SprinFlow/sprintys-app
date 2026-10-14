@@ -281,7 +281,7 @@ export default function CoachDayScreen() {
         showBackButton
         onBackPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          goBack(router, '/(coach)');
+          goBack(router, '/(coach)/calendar');
         }}
       />
 

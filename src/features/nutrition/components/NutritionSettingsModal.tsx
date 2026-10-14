@@ -1,16 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  TextInput,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+import { Modal, View, Text, StyleSheet, ScrollView, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { TouchableOpacity } from '../../../shared/components/Tappable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
@@ -236,7 +226,7 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <FeedbackHost />
       <KeyboardAvoidingView
         style={[styles.container, { backgroundColor: GLASS_BACKDROP }]}

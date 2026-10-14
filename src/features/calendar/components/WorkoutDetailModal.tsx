@@ -314,7 +314,6 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
       setJustSaved(true);
       setTimeout(() => setJustSaved(false), 4000);
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onUpdated?.();
 
       toast(

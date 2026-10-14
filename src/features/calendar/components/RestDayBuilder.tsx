@@ -214,7 +214,6 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
         await workoutService.createPlannedWorkout(athletePayload);
       }
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       toast('success', 'Jour de repos enregistré.');
       onSave();
       onClose();

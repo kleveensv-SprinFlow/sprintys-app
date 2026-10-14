@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, Image, KeyboardAvoidingView, Platform, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, StyleSheet, Modal, TextInput, Image, KeyboardAvoidingView, Platform, TouchableWithoutFeedback } from 'react-native';
+import { TouchableOpacity } from '../../../shared/components/Tappable';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import { SegmentedControl } from '../../../shared/components/SegmentedControl';
@@ -165,7 +166,7 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <FeedbackHost />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalContainer}>
         <TouchableWithoutFeedback onPress={onClose}>

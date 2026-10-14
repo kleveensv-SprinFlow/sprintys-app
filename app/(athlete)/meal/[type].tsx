@@ -1,6 +1,7 @@
 import { goBack } from '../../../src/core/navigation';
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Animated } from 'react-native';
+import { View, Text, StyleSheet, Modal, TextInput, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Animated } from 'react-native';
+import { TouchableOpacity } from '../../../src/shared/components/Tappable';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -17,6 +18,7 @@ import { GlassSheen } from '../../../src/shared/components/GlassSheen';
 import { MealIcon } from '../../../src/features/nutrition/components/MealIcon';
 import { MacroLanes } from '../../../src/features/nutrition/components/MacroLanes';
 import { MEALS, mealLabel, MEAL_ACCENT, MEAL_ACCENT_TINT } from '../../../src/features/nutrition/nutritionTheme';
+import { EmptyState } from '../../../src/shared/components/EmptyState';
 import { Header } from '../../../src/shared/components/Header';
 import { PressableScale } from '../../../src/shared/components/PressableScale';
 import { useFrostedHeader } from '../../../src/shared/hooks/useFrostedHeader';
@@ -104,7 +106,16 @@ export default function MealDetailScreen() {
   if (!type || !MEALS.some((m) => m.type === type)) {
     return (
       <View style={[styles.container, { backgroundColor: theme.colors.backdrop }]}>
-        <Text>Repas introuvable.</Text>
+        <GlowBackground />
+        <Header title="Repas" showBackButton onBackPress={() => goBack(router, '/(athlete)/nutrition')} />
+        <EmptyState
+          icon="coffee"
+          title="Repas introuvable"
+          message="Ce lien ne correspond à aucun repas."
+          actionLabel="Retour à la nutrition"
+          onAction={() => router.replace('/(athlete)/nutrition')}
+          style={{ marginTop: 80 }}
+        />
       </View>
     );
   }
@@ -190,7 +201,7 @@ export default function MealDetailScreen() {
       <Header
         title={label}
         showBackButton
-        onBackPress={() => goBack(router, '/(athlete)')}
+        onBackPress={() => goBack(router, '/(athlete)/nutrition')}
         scrollY={scrollY}
         rightComponent={
           !readonly && logs.length > 0 ? (
@@ -334,7 +345,7 @@ export default function MealDetailScreen() {
       )}
 
       {/* MODAL D'ÉDITION DE PORTION */}
-      <Modal visible={!!editingLog} transparent animationType="fade">
+      <Modal visible={!!editingLog} transparent animationType="fade" onRequestClose={() => setEditingLog(null)}>
         <FeedbackHost />
         <TouchableWithoutFeedback onPress={() => setEditingLog(null)}>
           <View style={styles.modalOverlay}>
@@ -397,7 +408,7 @@ export default function MealDetailScreen() {
       </Modal>
 
       {/* MODAL DE SAUVEGARDE DE REPAS TYPE */}
-      <Modal visible={showSaveModal} transparent animationType="fade">
+      <Modal visible={showSaveModal} transparent animationType="fade" onRequestClose={() => setShowSaveModal(false)}>
         <FeedbackHost />
         <TouchableWithoutFeedback onPress={() => setShowSaveModal(false)}>
           <View style={styles.modalOverlay}>

@@ -42,7 +42,7 @@ export const Header: React.FC<HeaderProps> = ({ title, rightComponent, showBackB
         <View style={styles.row}>
           <View style={styles.side}>
             {showBackButton && (
-              <PressableScale onPress={onBackPress} haptic="selection" hitSlop={8} style={[styles.backButton, glassSurface]}>
+              <PressableScale onPress={onBackPress} haptic="selection" hitSlop={8} style={[styles.backButton, glassSurface]} accessibilityRole="button" accessibilityLabel="Retour">
                 <Feather name="chevron-left" size={22} color={theme.colors.text} />
               </PressableScale>
             )}

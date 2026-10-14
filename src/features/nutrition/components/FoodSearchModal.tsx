@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Modal, TextInput, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { TouchableOpacity } from '../../../shared/components/Tappable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
@@ -602,7 +603,13 @@ export const FoodSearchModal: React.FC = () => {
   const isSearching = searchQuery.trim().length > 0;
 
   return (
-    <Modal visible={isSearchModalOpen} animationType="slide" presentationStyle="pageSheet">
+    <Modal
+      visible={isSearchModalOpen}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      // Android back leaves the scanner or the AI review first; an iOS swipe down always closes the sheet
+      onRequestClose={() => (Platform.OS === 'android' && (mode === 'barcode' || mode === 'ai-review') ? setMode('text') : closeSearchModal())}
+    >
       <FeedbackHost />
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.backdrop }]}>
         <GlowBackground />

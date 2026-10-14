@@ -1,19 +1,7 @@
 import { goBack } from '../../src/core/navigation';
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  useWindowDimensions,
-  Animated,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, useWindowDimensions, Animated, Modal, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
+import { TouchableOpacity } from '../../src/shared/components/Tappable';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -265,8 +253,8 @@ export default function BodyCompositionScreen() {
         <View style={styles.header}>
           {/* Frosted only once content scrolls under it; reaches up under the status bar */}
           <FrostedBar opacity={headerBarOpacity} style={{ top: -insets.top }} />
-          <TouchableOpacity onPress={() => goBack(router, '/(athlete)')} style={[styles.iconBtn, glassSurface]}>
-            <Feather name="arrow-left" size={22} color={theme.colors.text} />
+          <TouchableOpacity onPress={() => goBack(router, '/(athlete)')} style={[styles.iconBtn, glassSurface]} accessibilityRole="button" accessibilityLabel="Retour">
+            <Feather name="chevron-left" size={24} color={theme.colors.text} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Poids</Text>
           <PressableScale onPress={openNew} haptic="selection" style={[styles.iconBtn, glassSurface]}>
