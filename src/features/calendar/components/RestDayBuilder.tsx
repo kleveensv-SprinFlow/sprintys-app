@@ -147,7 +147,7 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
       targetDate.setTime(sessionTime.applyTo(targetDate, 12).getTime());
       const targetDateIso = targetDate.toISOString();
 
-      // Written in one batch and swapped for the previous rows only once it succeeded: a failure keeps the old rest day
+      // Existing rows are updated in place (ids kept) and new ones inserted in one batch
       const payloads: any[] = [];
 
       const cleanNote = restNote.trim() || 'Jour de repos';

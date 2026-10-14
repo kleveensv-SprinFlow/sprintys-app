@@ -15,11 +15,13 @@ export function sessionKindOf(workout: any): SessionKind {
   if (typeof declared === 'string' && (KINDS as string[]).includes(declared)) return declared as SessionKind;
 
   const t = lower(workout?.type_seance ?? workout?.name);
+  // Strength is tested before the other words: a coach can title a strength session "Complet haut du corps"
+  // or "Muscu technique", which must not read as a competition or a technical session
+  if (/^comp[ée]tition/.test(t)) return 'competition';
+  if (t.includes('muscu') || t.includes('force') || t.includes('strength')) return 'strength';
   if (t.includes('repos')) return 'rest';
-  if (t.startsWith('comp')) return 'competition';
   if (t.includes('technique')) return 'technical';
   if (t.includes('escalier')) return 'stairs';
-  if (t.includes('muscu') || t.includes('force') || t.includes('strength')) return 'strength';
   if (/(course|sprint|piste|côte|cote)/.test(t)) return 'run';
 
   const blocks: any[] = Array.isArray(workout?.blocks) && workout.blocks.length
@@ -56,7 +58,7 @@ export function entryCategoryOf(workout: any): 'muscu' | 'course' | 'other' {
 export function effortCategoryOf(workout: any): string {
   const title = String(workout?.type_seance ?? '').trim();
   const k = sessionKindOf(workout);
-  if (k === 'strength') return /muscu|force/i.test(title) ? title : 'Musculation';
+  if (k === 'strength') return /muscu/i.test(title) && !/sprint|course|piste|c[oô]te/i.test(title) ? title : 'Musculation';
   if (k === 'run') return /piste|côte|cote|sprint|course/i.test(title) ? title : 'Piste';
   return title || 'Général';
 }

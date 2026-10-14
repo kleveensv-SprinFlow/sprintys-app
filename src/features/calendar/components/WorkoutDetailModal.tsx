@@ -1008,6 +1008,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
             onSave={handleKeypadSave}
             onNext={handleKeypadNext}
             hasNextSet={activeKeypad.flattenedIndex < allSets.length - 1}
+            resetKey={activeKeypad.flattenedIndex}
             initialValue={activeKeypad.initialValue}
             initialRepsOk={activeKeypad.initialRepsOk}
             mode={activeKeypad.mode}

@@ -359,6 +359,9 @@ const EFFORT_COLS =
   'date_achieved, exercise_category, exercise_catalog_id, actual_distance_m, actual_time_ms, actual_reps, actual_weight_kg, actual_height_cm, actual_intensity, actual_extra, planned_extra, is_pr';
 // Name of the exercise a result belongs to: recorded with the result since 1.1.0, else the catalog id, else the session type
 const effortExercise = (r: any): string => String(r.actual_extra?.exercise ?? r.planned_extra?.exercise_name ?? r.exercise_catalog_id ?? r.exercise_category ?? '');
+// Same exercise whether the result is old (catalog id only) or recent (name recorded)
+const effortKey = (r: any): string => String(r.exercise_catalog_id ?? norm(effortExercise(r)));
+const repsMissed = (r: any): boolean => r.actual_extra?.repsOk === false;
 const effortSurface = (r: any): 'côte' | 'piste' => (/cote/.test(norm(r.exercise_category)) ? 'côte' : 'piste');
 
 const STATUS: Record<string, string> = {
@@ -526,6 +529,7 @@ async function seriesFor(ctx: Ctx, athleteId: string, metric: string, days: numb
       } else {
         if (kind !== 'muscu') continue;
         if (ex && !norm(`${effortExercise(r)} ${r.exercise_catalog_id ?? ''} ${r.exercise_category ?? ''}`).includes(ex)) continue;
+        if (repsMissed(r)) continue;
         v = effortWeight(r);
       }
       if (v == null) continue;
@@ -703,6 +707,8 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
           type: effortKind(r.exercise_category),
           seance: r.exercise_category,
           exercice: effortExercise(r),
+          _cle: effortKey(r),
+          reps_tenues: effortKind(r.exercise_category) === 'muscu' && repsMissed(r) ? false : undefined,
           terrain: effortKind(r.exercise_category) === 'course' ? effortSurface(r) : undefined,
           distance_m: r.actual_distance_m != null ? Number(r.actual_distance_m) : null,
           secondes: effortSeconds(r),
@@ -713,12 +719,13 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
           record: r.is_pr || undefined,
         }));
       // Short summary per distance (running) and per exercise (strength), so the model does not recompute
-      const groups = new Map<string, { n: number; best: number | null; sum: number; first?: number; last?: number; unit: string }>();
+      const groups = new Map<string, { label: string; n: number; best: number | null; sum: number; first?: number; last?: number; unit: string }>();
       for (const r of [...rows].reverse()) {
-        const key = r.type === 'course' && r.distance_m ? `${r.distance_m} m${r.terrain === 'côte' ? ' (côte)' : ''}` : r.type === 'muscu' ? String(r.exercice ?? r.seance) : null;
-        const v = r.type === 'course' ? r.secondes : r.type === 'muscu' ? r.charge_kg : null;
+        const key = r.type === 'course' && r.distance_m ? `${r.distance_m} m${r.terrain === 'côte' ? ' (côte)' : ''}` : r.type === 'muscu' ? `muscu|${r._cle}` : null;
+        const label = r.type === 'muscu' ? String(r.exercice ?? r.seance) : key;
+        const v = r.type === 'course' ? r.secondes : r.type === 'muscu' && r.reps_tenues !== false ? r.charge_kg : null;
         if (!key || v == null) continue;
-        const g = groups.get(key) ?? { n: 0, best: null, sum: 0, unit: r.type === 'course' ? 's' : 'kg' };
+        const g = groups.get(key) ?? { label: String(label), n: 0, best: null, sum: 0, unit: r.type === 'course' ? 's' : 'kg' };
         g.n++;
         g.sum += v;
         g.best = g.best == null ? v : r.type === 'course' ? Math.min(g.best, v) : Math.max(g.best, v);
@@ -730,8 +737,8 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
         content: {
           athlete: who.name,
           nombre: rows.length,
-          resume: [...groups.entries()].map(([k, g]) => ({ serie: k, mesures: g.n, meilleur: round(g.best, 2), moyenne: round(g.sum / g.n, 2), premier: round(g.first!, 2), dernier: round(g.last!, 2), unite: g.unit })),
-          resultats: rows.slice(0, 80),
+          resume: [...groups.values()].map((g) => ({ serie: g.label, mesures: g.n, meilleur: round(g.best, 2), moyenne: round(g.sum / g.n, 2), premier: round(g.first!, 2), dernier: round(g.last!, 2), unite: g.unit })),
+          resultats: rows.slice(0, 80).map(({ _cle, ...r }: any) => r),
         },
       };
     }
@@ -757,10 +764,11 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
           if (!cur || v < cur.valeur) best.set(key, { exercice: `${Number(r.actual_distance_m)} m${surf === 'côte' ? ' (côte)' : ''}`, type: 'course', valeur: v, unite: 's', distance_m: Number(r.actual_distance_m), date });
         } else if (kind === 'muscu') {
           const v = effortWeight(r);
-          if (v == null || v <= 0) continue;
+          if (v == null || v <= 0 || repsMissed(r)) continue; // a set whose reps were not completed is not a record
           const name = effortExercise(r);
-          const cur = best.get(`muscu ${name}`);
-          if (!cur || v > cur.valeur) best.set(`muscu ${name}`, { exercice: name, type: 'muscu', valeur: v, unite: 'kg', date });
+          const key = `muscu ${effortKey(r)}`;
+          const cur = best.get(key);
+          if (!cur || v > cur.valeur) best.set(key, { exercice: name, type: 'muscu', valeur: v, unite: 'kg', date });
         }
       }
       return { content: { athlete: who.name, records: [...best.values()].map((b) => ({ ...b, valeur: round(b.valeur, 2) })) } };

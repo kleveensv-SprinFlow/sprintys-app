@@ -23,6 +23,8 @@ export interface AthleteValueKeypadModalProps {
   onSave: (value: string, repsOk?: boolean) => void;
   onNext?: () => void;
   hasNextSet?: boolean;
+  /** Changes with each set so the sheet starts from that set's own value when moving on with « Suivante » */
+  resetKey?: number;
   initialValue?: string;
   initialRepsOk?: boolean;
   mode: 'sprint' | 'endurance' | 'weight';
@@ -98,6 +100,7 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
   onSave,
   onNext,
   hasNextSet,
+  resetKey,
   initialValue = '',
   initialRepsOk = true,
   mode,
@@ -155,7 +158,7 @@ export const AthleteValueKeypadModal: React.FC<AthleteValueKeypadModalProps> = (
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [visible, initialValue, initialRepsOk, title]);
+  }, [visible, initialValue, initialRepsOk, title, resetKey]);
 
   // Hook rules: early return only after all hooks
   if (!visible) return null;

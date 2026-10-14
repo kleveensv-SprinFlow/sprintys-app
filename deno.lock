@@ -62,6 +62,7 @@
         "npm:prettier@^3.8.3",
         "npm:react-dom@19.1.0",
         "npm:react-native-chart-kit@^7.0.2",
+        "npm:react-native-purchases@^10.13.0",
         "npm:react-native-reanimated@~4.1.1",
         "npm:react-native-safe-area-context@5.6",
         "npm:react-native-screens@4.16",

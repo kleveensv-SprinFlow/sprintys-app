@@ -173,13 +173,12 @@ export const workoutService = {
         const prev = existing.measures || {};
         const measures: any = { ...(payload.measures || {}) };
         if (prev.athlete_feedback != null) measures.athlete_feedback = prev.athlete_feedback;
+        // Comment written before athlete_feedback existed lived in athlete_notes (as text)
+        if (prev.athlete_feedback == null && typeof prev.athlete_notes === 'string' && prev.athlete_notes) measures.athlete_feedback = prev.athlete_notes;
         if (typeof prev.athlete_notes === 'string' && measures.athlete_notes === undefined) measures.athlete_notes = prev.athlete_notes;
+        // The status is left out of the update so the database keeps its own value (an athlete may validate meanwhile)
         const { status: _plannedStatus, ...rest } = payload;
-        await workoutService.updateWorkout(existing.id, {
-          ...rest,
-          measures,
-          status: existing.status || payload.status || 'pending',
-        });
+        await workoutService.updateWorkout(existing.id, { ...rest, measures });
         idsToKeep.push(existing.id);
       } else {
         payloadsToInsert.push(payload);
@@ -562,7 +561,7 @@ export const workoutService = {
       const newGroupId = generateUUID();
       
       const copies = allGroupWorkouts.map((w: any) => {
-        const { id, created_at, updated_at, athlete_efforts, ...rest } = w;
+        const { id, created_at, updated_at, athlete_efforts, done_count, athlete_count, ...rest } = w;
         return {
           ...rest,
           measures: copyMeasures(rest.measures),
@@ -578,7 +577,7 @@ export const workoutService = {
       }
     } else {
       // Single workout copy
-      const { id, created_at, updated_at, athlete_efforts, ...rest } = workout;
+      const { id, created_at, updated_at, athlete_efforts, done_count, athlete_count, ...rest } = workout;
       const copy = {
         ...rest,
         measures: copyMeasures(rest.measures),
@@ -636,7 +635,7 @@ export const workoutService = {
       for (const targetDate of dates) {
         const newGroupId = generateUUID();
         for (const w of allGroupWorkouts) {
-          const { id, created_at, updated_at, athlete_efforts, ...rest } = w;
+          const { id, created_at, updated_at, athlete_efforts, done_count, athlete_count, ...rest } = w;
           allCopies.push({
             ...rest,
             measures: copyMeasures(rest.measures),
@@ -658,7 +657,7 @@ export const workoutService = {
     } else {
       // Single workout: one copy per date
       const copies = dates.map(targetDate => {
-        const { id, created_at, updated_at, athlete_efforts, ...rest } = workout;
+        const { id, created_at, updated_at, athlete_efforts, done_count, athlete_count, ...rest } = workout;
         return {
           ...rest,
           measures: copyMeasures(rest.measures),
