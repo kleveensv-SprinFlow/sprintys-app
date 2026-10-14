@@ -253,7 +253,7 @@ export const SessionCarousel = () => {
                 {activeWorkout.type_seance}
               </Text>
               <Text style={[styles.cardSubtitle, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                {summary}
+                {activeWorkout.source === 'sprinty' ? `Sprinty · ${summary}` : summary}
               </Text>
             </View>
           </View>

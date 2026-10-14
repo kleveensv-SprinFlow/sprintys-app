@@ -925,7 +925,11 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
       if (!weeksRaw.length) throw new ToolError('Le plan doit contenir au moins une semaine.');
       const maxDate = addDays(ctx.today, ctx.limits.planWeeksMax * 7 + 6);
       // Sessions are regrouped into real calendar weeks (Monday to Sunday); the model's focus labels are kept in order
-      const all0 = normalizeAll(weeksRaw.flatMap((w: any) => (Array.isArray(w?.sessions) ? w.sessions : [])), caps, addDays(ctx.today, 1), maxDate);
+      // Remember which model week each session came from, to keep its focus label
+      const tagged = weeksRaw.flatMap((w: any, wi: number) => (Array.isArray(w?.sessions) ? w.sessions : []).map((x: any) => ({ ...x, __w: wi })));
+      const origin = new Map<string, number>();
+      for (const x of tagged) if (isIsoDate(x?.date) && !origin.has(x.date)) origin.set(x.date, x.__w);
+      const all0 = normalizeAll(tagged, caps, addDays(ctx.today, 1), maxDate);
       const mondayOf = (iso: string) => addDays(iso, -((new Date(`${iso}T12:00:00Z`).getUTCDay() + 6) % 7));
       const buckets = new Map<string, Session[]>();
       for (const x of all0) {
@@ -941,7 +945,7 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
           const training = sessions.filter((x) => x.kind !== 'rest');
           return {
             week: i + 1,
-            focus: clipText(String(weeksRaw[i]?.focus ?? ''), 120),
+            focus: clipText(String(weeksRaw[majority(sessions.map((x) => origin.get(x.date) ?? i))]?.focus ?? ''), 120) || `Semaine ${i + 1}`,
             // At most 6 training sessions a week: one full rest day is kept
             sessions: [...training.slice(0, 6), ...sessions.filter((x) => x.kind === 'rest')].sort((x, y) => x.date.localeCompare(y.date)),
           };
@@ -971,8 +975,10 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
         content: {
           affiche: true,
           prudent: cautious,
+          nombre_semaines: weeks.length,
+          nombre_seances: all.filter((x: any) => x.kind !== 'rest').length,
           semaines: weeks.map((w: any) => `S${w.week} ${w.focus} : ${w.sessions.length} séances`),
-          consigne: "Le plan est affiché : l'athlète peut l'ajouter à son calendrier. Résume-le en 3 lignes maximum et rappelle d'écouter son corps.",
+          consigne: "Le plan est affiché : l'athlète peut l'ajouter à son calendrier. Résume-le en 3 lignes maximum avec ces nombres exacts (semaines, séances) et rappelle d'écouter son corps.",
         },
         terminal: true,
       };
@@ -1022,6 +1028,12 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
       throw new ToolError('Outil inconnu.');
   }
 }
+
+const majority = (xs: number[]) => {
+  const count = new Map<number, number>();
+  for (const x of xs) count.set(x, (count.get(x) ?? 0) + 1);
+  return [...count.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 0;
+};
 
 function capsFor(ctx: Ctx, cautious: boolean | null): Caps {
   const minor = ctx.age !== null && ctx.age < 18;

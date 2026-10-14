@@ -26,6 +26,7 @@ import { EditProfileModal } from '../../shared/components/EditProfileModal';
 import { FaqModal } from '../../shared/components/FaqModal';
 import { useFrostedHeader } from '../../shared/hooks/useFrostedHeader';
 import { confirmAsync, toast } from '../../shared/feedback/appAlert';
+import { getActivePlan, removePlan } from '../sprinty/proposalWriter';
 
 const APP_VERSION = Constants.expoConfig?.version ?? '';
 
@@ -75,11 +76,33 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
   const [blockedSheet, setBlockedSheet] = useState(false);
   const [blocked, setBlocked] = useState<Blocked[] | null>(null);
 
+  // Athletes coached by Sprinty: their current plan can be removed from here
+  const [sprintyPlan, setSprintyPlan] = useState<{ id: string; title: string } | null>(null);
+
   useFocusEffect(
     useCallback(() => {
       reloadProfile();
-    }, []),
+      if (isAthlete) getActivePlan().then(setSprintyPlan).catch(() => setSprintyPlan(null));
+    }, [isAthlete]),
   );
+
+  const removeSprintyPlan = async () => {
+    if (!sprintyPlan) return;
+    const ok = await confirmAsync({
+      title: 'Retirer ton plan Sprinty ?',
+      message: `Les séances à venir de « ${sprintyPlan.title} » seront retirées de ton calendrier. Celles déjà faites restent.`,
+      confirmText: 'Retirer',
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await removePlan(sprintyPlan.id);
+      setSprintyPlan(null);
+      toast('success', 'Les séances à venir ont été retirées.', 'Plan retiré');
+    } catch {
+      toast('error', 'Le retrait n’a pas abouti. Réessaie.', 'Oups');
+    }
+  };
 
   const firstName = user?.firstName || user?.name?.split(' ')[0] || '';
   const lastName = user?.lastName || (user?.name?.includes(' ') ? user.name.split(' ').slice(1).join(' ') : '');
@@ -305,6 +328,17 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
             last
           />
         </View>
+
+        {isAthlete && sprintyPlan && (
+          <>
+            <Text style={styles.section}>MON PLAN SPRINTY</Text>
+            <View style={[glassCard, styles.card]}>
+              <GlassSheen radius={22} />
+              <ListRow icon="flag" title={sprintyPlan.title} subtitle="Proposé par Sprinty (IA)" onPress={() => router.push('/chat/sprinty')} />
+              <ListRow icon="x-circle" title="Retirer le plan" subtitle="Supprime les séances à venir" destructive chevron={false} onPress={removeSprintyPlan} last />
+            </View>
+          </>
+        )}
 
         <Text style={styles.section}>CONFIDENTIALITÉ</Text>
         <View style={[glassCard, styles.card]}>

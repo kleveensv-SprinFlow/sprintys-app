@@ -2,12 +2,15 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import uuid from 'react-native-uuid';
+import type { MessagePart } from '../features/sprinty/types';
 
 export interface ChatMessage {
   role: string;
   content: string;
   /** Message envoyé automatiquement par l'app (ex : demande d'analyse) — affiché de façon discrète. */
   auto?: boolean;
+  /** Sprinty 2: text and visual blocks in order. `content` keeps a plain-text version (memory, copy). */
+  parts?: MessagePart[];
 }
 
 /** Contexte d'une conversation « verrouillée » sur un athlète (mode analyse coach). */
@@ -50,6 +53,8 @@ interface SprintyChatState {
   togglePinConversation: (id: string) => void;
   deleteConversation: (id: string) => void;
   getCurrentMessages: () => ChatMessage[];
+  /** Updates a visual block of a stored message (e.g. "added to the calendar"). */
+  patchPart: (conversationId: string, messageIndex: number, partIndex: number, patch: Record<string, unknown>) => void;
   getCurrentConversation: () => Conversation | null;
 }
 
@@ -204,6 +209,22 @@ export const useSprintyChatStore = create<SprintyChatState>()(
             currentConversationId: state.currentConversationId === id ? null : state.currentConversationId
           };
         });
+      },
+
+      patchPart: (conversationId, messageIndex, partIndex, patch) => {
+        set((state) => ({
+          conversations: state.conversations.map((c) => {
+            if (c.id !== conversationId) return c;
+            const messages = c.messages.map((m, i) => {
+              if (i !== messageIndex || !m.parts) return m;
+              const parts = m.parts.map((p, j) =>
+                j === partIndex && p.kind === 'ui' ? { ...p, block: { ...p.block, ...patch } as any } : p
+              );
+              return { ...m, parts };
+            });
+            return { ...c, messages };
+          }),
+        }));
       },
 
       getCurrentMessages: () => {

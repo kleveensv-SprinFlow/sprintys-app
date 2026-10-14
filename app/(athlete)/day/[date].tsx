@@ -139,7 +139,7 @@ export default function AthleteDayScreen() {
                   key={w.id || i}
                   title={w.type_seance}
                   status={w.status}
-                  summary={summary}
+                  summary={w.source === 'sprinty' ? `Sprinty · ${summary}` : summary}
                   onPress={() => openWorkoutDetail(w)}
                 />
               );

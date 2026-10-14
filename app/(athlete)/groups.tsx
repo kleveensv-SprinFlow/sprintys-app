@@ -21,6 +21,7 @@ import { CoachSharingSheet } from '../../src/features/legal/CoachSharingSheet';
 import { useConsentStore } from '../../src/store/consentStore';
 
 import { appAlert, toast, confirmAsync } from '../../src/shared/feedback/appAlert';
+import { getActivePlan, removePlan } from '../../src/features/sprinty/proposalWriter';
 
 import { useRefresh } from '../../src/shared/hooks/useRefresh';
 
@@ -219,6 +220,24 @@ export default function GroupsScreen() {
       );
       setInviteCode('');
       fetchMyGroup();
+
+      // A coach will plan the sessions: avoid two programs in parallel
+      const plan = await getActivePlan().catch(() => null);
+      if (plan) {
+        const remove = await confirmAsync({
+          title: 'Et ton plan Sprinty ?',
+          message: `Une fois accepté, ton coach programmera tes séances. Tu peux retirer dès maintenant les séances à venir de « ${plan.title} », ou les garder en attendant.`,
+          confirmText: 'Retirer le plan',
+          cancelText: 'Garder pour l’instant',
+          destructive: true,
+        });
+        if (remove) {
+          await removePlan(plan.id).then(
+            () => toast('success', 'Les séances à venir de ton plan ont été retirées.', 'Plan retiré'),
+            () => toast('error', 'Le retrait n’a pas abouti. Tu peux le faire depuis ton profil.', 'Oups')
+          );
+        }
+      }
     } catch (err: any) {
       appAlert('Erreur', 'Impossible d’envoyer la demande. Réessaie plus tard.');
       console.error(err);

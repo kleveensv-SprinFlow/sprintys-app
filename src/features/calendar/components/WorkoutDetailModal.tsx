@@ -4,6 +4,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { SprintyBadge, isSprintyWorkout } from '../../sprinty/SprintyBadge';
 import { theme } from '../../../core/theme';
 import { glassCard } from '../../../core/glass';
 import { WorkoutBlock, Exercise } from '../../workout/types';
@@ -430,6 +431,11 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {/* Header Card with Title and Status */}
           <View style={styles.titleContainer}>
+            {isSprintyWorkout(workout) && (
+              <View style={{ marginBottom: 8 }}>
+                <SprintyBadge />
+              </View>
+            )}
             <View style={styles.titleRow}>
               <Text style={styles.workoutName}>{sessionTitle}</Text>
               {!isCoach && (
