@@ -47,14 +47,16 @@ POUR LES ATHLÈTES
 • Ton check-in quotidien en 30 secondes : sommeil, énergie, stress, motivation et douleurs éventuelles, pour un score de forme clair.
 • Ta nutrition : recherche d'aliments, scan de code-barres, objectifs caloriques et macros, repas favoris.
 • Ton poids et ta composition corporelle, avec une courbe d'évolution lisible.
-• Sprinty, ton assistant IA : il répond à tes questions sur l'entraînement, la récupération et la nutrition en tenant compte de ta semaine.
+• Sprinty, ton assistant IA : il répond à tes questions sur l'entraînement, la récupération et la nutrition à partir de tes vraies données, avec des graphiques clairs.
+• Pas encore de coach ? Sprinty fixe un objectif avec toi, pose les bonnes questions (y compris de sécurité) et te propose un plan semaine par semaine que tu ajoutes à ton calendrier.
+• Exporte un plan ou une analyse en PDF.
 
 POUR LES COACHS
 • Crée tes groupes et sous-groupes ; tes athlètes te rejoignent avec un code.
 • Construis des séances détaillées (blocs, répétitions, charges, récupérations) et assigne-les à l'équipe, un sous-groupe ou un athlète.
 • Visualise la forme de ton équipe chaque matin et repère qui a besoin de récupérer.
 • Discute avec ton équipe, publie des annonces et des sondages.
-• Demande à Sprinty une analyse complète de la progression d'un athlète.
+• Demande à Sprinty une analyse complète de la progression d'un athlète, compare tes athlètes en graphique, repère qui est fatigué, programme des séances pour un groupe, rédige une annonce ou cherche une compétition : tu valides toujours avant que quoi que ce soit soit enregistré.
 
 TES DONNÉES T'APPARTIENNENT
 • Hébergement dans l'Union européenne.
@@ -182,6 +184,7 @@ Sprintys is a training app for track & field athletes and their coaches.
 - Sign in with the demo athlete or coach account above (Sign in with Apple and Google are also available).
 - Health data (weight, wellness check-ins, pains) is only collected after explicit in-app consent.
 - AI features (assistant "Sprinty", meal photo analysis) require a separate consent shown before first use; the app works without them. Requests go through our server with per-user daily limits.
+- Sprinty never writes anything by itself: sessions, training plans, goals and announcements it proposes are shown as cards and saved only when the user taps to confirm. Everything it proposes is labelled "Sprinty (IA)". Before a first training plan it asks safety questions (pain, heart condition, fainting, return after a long break) and only proposes a gentle plan with advice to see a doctor if any answer is yes. It is not a medical device and says so in the chat header and on every plan.
 - Team chat is user-generated content: users can report a message and block a user (long-press a message or use the chat menu). Reports are reviewed within 24 h.
 - Account deletion: Profile → Supprimer mon compte (deletes the account and all associated data).
 - Location is only used while the app is in use, approximately, for the weather card.

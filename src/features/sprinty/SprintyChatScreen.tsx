@@ -22,6 +22,7 @@ import { appAlert } from '../../shared/feedback/appAlert';
 import { ALL_DOMAINS, DOMAIN_LABELS, AnalysisDomain } from '../../services/athleteAnalysisContext';
 import { streamSprinty } from './agentClient';
 import { getActivePlan, removePlan } from './proposalWriter';
+import { exportPartsToPdf, pdfTitleFor } from './pdf';
 import { confirmAsync, toast } from '../../shared/feedback/appAlert';
 import { SprintyMessageView } from './SprintyMessageView';
 import { partsToText, type MessagePart } from './types';
@@ -242,9 +243,21 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
     const text = (msg.parts ? msg.parts.filter((p) => p.kind === 'text').map((p: any) => p.text).join('\n') : msg.content).trim();
     appAlert('Message', undefined, [
       ...(text ? [{ text: 'Copier', onPress: () => Clipboard.setStringAsync(text) }] : []),
+      ...(msg.role === 'assistant' && msg.parts?.length ? [{ text: 'Exporter en PDF', onPress: () => exportPdf(msg) }] : []),
       ...(isLastAssistant && !isTyping ? [{ text: 'Réessayer', onPress: regenerate }] : []),
       { text: 'Annuler', style: 'cancel' as const },
     ]);
+  };
+
+  const exportPdf = async (msg: ChatMessage) => {
+    if (!msg.parts?.length) return;
+    const subtitle = athleteCtx ? `Analyse de ${athleteCtx.name}` : firstName ? `Pour ${firstName}` : undefined;
+    try {
+      await exportPartsToPdf(msg.parts, pdfTitleFor(msg.parts, conversation?.title || 'Sprinty'), subtitle);
+    } catch (e) {
+      console.error('pdf export failed', e);
+      appAlert('Export impossible', 'Le PDF n’a pas pu être créé. Réessaie.');
+    }
   };
 
   const askChange = (text: string) => {
@@ -432,6 +445,12 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
                       onAskChange={askChange}
                       onPatch={(partIndex, patch) => conversation && store().patchPart(conversation.id, index, partIndex, patch)}
                     />
+                    {rich && (
+                      <PressableScale haptic="selection" onPress={() => exportPdf(msg)} style={styles.pdfBtn} accessibilityLabel="Exporter en PDF">
+                        <Feather name="download" size={14} color={BLUE} />
+                        <Text style={styles.pdfText}>Exporter en PDF</Text>
+                      </PressableScale>
+                    )}
                   </Pressable>
                 </View>
               );
@@ -599,6 +618,8 @@ const styles = StyleSheet.create({
   userText: { fontSize: 15, lineHeight: 21, color: '#FFFFFF' },
   autoText: { color: BLUE, fontSize: 13, lineHeight: 18 },
   thinking: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  pdfBtn: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, minHeight: 36, paddingHorizontal: 8, marginTop: 4 },
+  pdfText: { fontSize: 13, fontWeight: '700', color: BLUE },
   statusText: { fontSize: 13, fontWeight: '600', color: theme.colors.textSecondary },
 
   errorBox: {

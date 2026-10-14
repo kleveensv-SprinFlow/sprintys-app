@@ -31,8 +31,9 @@ export const PRIVACY_POLICY: LegalDocument = {
         'Entraînement : séances, performances, calendrier, compétitions.',
         'Nutrition : repas et aliments notés, objectifs caloriques. Une photo de repas n’est utilisée que pour l’analyse demandée et n’est pas conservée par Sprintys.',
         'Échanges : messages et sondages avec ton coach et ton équipe, signalements et blocages.',
-        'Assistant Sprinty : tes conversations restent sur ton téléphone. Pour répondre, le contenu de la conversation et un résumé de ton contexte (prénom, séances de la semaine, derniers check-ins, calories du jour) sont envoyés à notre prestataire d’IA. Nous comptons le nombre de requêtes par jour pour éviter les abus.',
-        'Assistant Sprinty côté coach : tes échanges avec Sprinty sont envoyés à notre prestataire d’IA pour générer la réponse. Quand tu demandes l’analyse d’un athlète, les données que cet athlète a choisi de partager avec toi (séances, forme, nutrition, poids, et douleurs s’il l’a accepté) sont aussi envoyées, uniquement pour cette analyse.',
+        'Assistant Sprinty : tes conversations restent sur ton téléphone. Pour répondre, le contenu de la conversation est envoyé à notre prestataire d’IA, avec seulement les données utiles à ta question, lues dans ton compte au moment de la demande (par exemple tes check-ins des deux dernières semaines, tes séances, tes résultats, tes pesées ou tes apports du jour), sous forme résumée et sans ton nom de famille. Les graphiques sont calculés par Sprintys à partir de tes données. Nous comptons le nombre de requêtes par jour pour éviter les abus.',
+        'Objectifs et plans Sprinty (athlètes sans coach) : quand tu enregistres un objectif ou ajoutes un plan proposé par Sprinty, nous conservons l’objectif (épreuve, échéance, niveau, disponibilités), le plan, tes réponses au questionnaire de sécurité et les séances ajoutées à ton calendrier.',
+        'Assistant Sprinty côté coach : tes échanges avec Sprinty sont envoyés à notre prestataire d’IA pour générer la réponse. Quand ta question porte sur tes athlètes, seules les données qu’ils ont choisi de partager avec toi et qui sont utiles à la question (séances, forme, résultats, nutrition, poids, et douleurs s’ils l’ont accepté) sont envoyées, sous forme résumée, uniquement pour cette réponse.',
         'Position approximative : uniquement pendant l’utilisation, pour la météo de ton lieu d’entraînement. Elle n’est pas enregistrée.',
         'Accords : le type d’accord, le texte accepté, sa version et la date.',
         'Nous n’utilisons ni publicité, ni outil de suivi publicitaire, ni revente de données.',
@@ -64,7 +65,7 @@ export const PRIVACY_POLICY: LegalDocument = {
         'OpenAI (États-Unis) : génération des réponses de l’assistant, analyse des photos et descriptions de repas. Les données transmises ne sont pas utilisées pour entraîner leurs modèles (conditions de l’API). Le transfert est encadré par les clauses contractuelles types de la Commission européenne et le cadre de protection des données UE–États-Unis.',
         'Open-Meteo : prévisions météo à partir de ta position approximative, sans identifiant personnel.',
         'Open Food Facts : recherche d’un aliment par nom ou code-barres, sans identifiant personnel.',
-        'Tavily (États-Unis) : recherche de compétitions à partir de critères (région, dates), sans donnée personnelle.',
+        'Tavily (États-Unis) : recherche de compétitions sur le web à partir de critères (région, période, discipline), sans donnée personnelle.',
         'Google et Apple : uniquement si tu choisis de te connecter avec eux.',
       ],
     },
@@ -135,6 +136,17 @@ export const TERMS_OF_SERVICE: LegalDocument = {
       paragraphs: [
         'Les réponses de Sprinty sont générées automatiquement et peuvent être inexactes ou incomplètes. Vérifie toute information importante.',
         'Sprinty est conçu pour le sport et la nutrition. N’y partage pas d’informations sensibles concernant d’autres personnes. Une limite d’utilisation quotidienne s’applique pour éviter les abus.',
+        'Sprinty ne modifie rien seul : les séances, plans, objectifs et annonces qu’il propose ne sont enregistrés que si tu les valides. Tout ce qu’il propose porte la mention « Sprinty (IA) ».',
+        'Les résultats de recherche de compétitions viennent du web et peuvent être inexacts : vérifie les dates et les inscriptions auprès de l’organisateur ou de la fédération.',
+      ],
+    },
+    {
+      title: '4 bis. Sprinty coach IA (athlètes sans coach)',
+      paragraphs: [
+        'Si tu n’as pas de coach dans l’application, Sprinty peut te proposer un objectif et un plan d’entraînement, que tu ajoutes ou non à ton calendrier. Ce plan est une proposition générale, établie à partir de tes réponses et de tes données : il ne remplace ni un entraîneur diplômé ni un suivi médical, et aucun résultat n’est garanti.',
+        'Avant le premier plan, Sprinty te pose quelques questions de sécurité (douleur, problème cardiaque, malaise à l’effort, reprise après un arrêt). Si une réponse l’indique, il te conseille de consulter un médecin et ne propose qu’un plan doux. Pour les moins de 18 ans, les charges restent prudentes et aucun objectif de perte de poids n’est proposé.',
+        'Tu restes responsable de ta pratique : échauffe-toi, adapte ou arrête une séance en cas de douleur, de malaise ou de fatigue inhabituelle, et consulte un professionnel de santé si besoin.',
+        'Quand tu rejoins un coach, c’est lui qui programme tes séances : Sprinty ne t’en propose plus et te permet de retirer les séances restantes de ton plan. Tu peux aussi retirer ton plan à tout moment depuis ton profil.',
       ],
     },
     {
