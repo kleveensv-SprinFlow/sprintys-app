@@ -27,4 +27,4 @@ export const HOSTS = {
 };
 
 /** Date of the current version of the legal texts. */
-export const LEGAL_VERSION = '2026-10-14';
+export const LEGAL_VERSION = '2026-10-18';

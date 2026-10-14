@@ -27,10 +27,10 @@ export default function CompleteProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, reloadProfile, logout } = useAuthStore();
-  const { active, inTeam, grant } = useConsentStore();
+  const { active, inTeam, grant, termsEver } = useConsentStore();
 
   // Social sign-ups choose their role here (the email flow asks it in step 1)
-  const canChooseRole = !!user && user.authProvider !== 'email' && !active?.has('terms');
+  const canChooseRole = !!user && user.authProvider !== 'email' && !termsEver;
   const [role, setRole] = useState<Role>((user?.role as Role) || 'athlete');
   const needsDob = !user?.dateOfBirth;
   const [dob, setDob] = useState<Date | null>(null);
@@ -97,7 +97,7 @@ export default function CompleteProfileScreen() {
         <Text style={styles.subtitle}>
           {canChooseRole
             ? 'Encore quelques secondes pour finaliser ton compte.'
-            : 'Nous avons mis à jour nos conditions. Ton accord est nécessaire pour continuer.'}
+            : 'Nous avons mis à jour nos conditions et notre politique de confidentialité (abonnement facultatif Plus, prestataire de paiement RevenueCat). Ton accord est nécessaire pour continuer ; rien d’autre ne change pour tes données.'}
         </Text>
 
         {canChooseRole && (

@@ -7,6 +7,8 @@ interface ConsentState {
   active: Set<ConsentType> | null;
   /** Whether the athlete belongs to a team (pending or approved), which makes coach sharing required. */
   inTeam: boolean;
+  /** True when a Terms consent was given at some point, even for an older version of the texts. */
+  termsEver: boolean;
   loadedFor: string | null;
   /** Role of the signed-in account: the AI consent wording differs for coaches and athletes. */
   role: string | null;
@@ -27,13 +29,14 @@ let aiResolver: ((ok: boolean) => void) | null = null;
 export const useConsentStore = create<ConsentState>((set, get) => ({
   active: null,
   inTeam: false,
+  termsEver: false,
   loadedFor: null,
   role: null,
 
   load: async (userId, role) => {
     if (role !== undefined) set({ role });
     const [{ data, error }, team] = await Promise.all([
-      supabase.from('user_consents').select('consent_type').eq('user_id', userId).is('revoked_at', null),
+      supabase.from('user_consents').select('consent_type, version').eq('user_id', userId).is('revoked_at', null),
       supabase.from('team_members').select('team_id').eq('user_id', userId).limit(1),
     ]);
     if (error) {
@@ -42,8 +45,14 @@ export const useConsentStore = create<ConsentState>((set, get) => ({
       if (get().loadedFor !== userId) set({ active: new Set(['terms', 'health_profile', 'coach_sharing']), loadedFor: userId });
       return;
     }
+    // The Terms count only for the current version of the texts: when they change, they are asked again
+    const rows = (data || []) as { consent_type: ConsentType; version: string | null }[];
+    const active = new Set<ConsentType>(rows.filter((r) => r.consent_type !== 'terms').map((r) => r.consent_type));
+    const termsRows = rows.filter((r) => r.consent_type === 'terms');
+    if (termsRows.some((r) => (r.version ?? '') >= CONSENT_VERSION)) active.add('terms');
     set({
-      active: new Set((data || []).map((r: any) => r.consent_type as ConsentType)),
+      active,
+      termsEver: termsRows.length > 0,
       inTeam: (team.data?.length || 0) > 0,
       loadedFor: userId,
     });
@@ -61,7 +70,7 @@ export const useConsentStore = create<ConsentState>((set, get) => ({
     }
     const next = new Set(get().active || []);
     types.forEach((t) => next.add(t));
-    set({ active: next });
+    set({ active: next, termsEver: get().termsEver || types.includes('terms') });
     return true;
   },
 
@@ -87,7 +96,7 @@ export const useConsentStore = create<ConsentState>((set, get) => ({
 
   has: (type) => !!get().active?.has(type),
 
-  reset: () => set({ active: null, inTeam: false, loadedFor: null, role: null, aiPromptOpen: false }),
+  reset: () => set({ active: null, inTeam: false, termsEver: false, loadedFor: null, role: null, aiPromptOpen: false }),
 
   aiPromptOpen: false,
 
