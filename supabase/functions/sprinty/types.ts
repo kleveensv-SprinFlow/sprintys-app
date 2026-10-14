@@ -5,6 +5,8 @@ export interface Limits {
   planWeeksMax: number;
   plansActive: number;
   competitionSearch: boolean;
+  /** Pro: weekly report and weekly adjustment of an existing plan. */
+  weeklyReport: boolean;
 }
 
 export interface AthleteRef {

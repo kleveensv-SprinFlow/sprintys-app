@@ -293,6 +293,21 @@ export function toolsFor(ctx: Ctx) {
     );
   }
 
+  if (ctx.limits.weeklyReport) {
+    tools.push(
+      fn(
+        'weekly_summary',
+        "Bilan chiffré de la semaine écoulée (7 jours avant aujourd'hui) : séances, résultats, forme, sommeil, nutrition, poids. À utiliser pour « mon bilan de la semaine » ; commente ensuite avec show_stats et show_chart.",
+        { ...target }
+      )
+    );
+    if (!coach && !ctx.hasCoach) {
+      tools.push(
+        fn('get_plan_sessions', "Séances à venir de son plan Sprinty actif (pour l'ajuster semaine après semaine).", {})
+      );
+    }
+  }
+
   if (ctx.limits.competitionSearch && (coach || !ctx.hasCoach)) {
     tools.push(
       fn(
@@ -345,6 +360,8 @@ const EFFORT_COLS =
 
 const STATUS: Record<string, string> = {
   get_profile: 'Je regarde ton profil…',
+  weekly_summary: 'Je prépare ton bilan de la semaine…',
+  get_plan_sessions: 'Je regarde ton plan…',
   get_checkins: 'Je regarde les check-ins…',
   get_workouts: 'Je regarde les séances…',
   get_results: 'Je regarde les résultats…',
@@ -762,6 +779,78 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
           premier: w[0] ?? null,
           dernier: w[w.length - 1] ?? null,
           pesees: rows.slice(-40),
+        },
+      };
+    }
+
+    case 'weekly_summary': {
+      if (!ctx.limits.weeklyReport) throw new ToolError('Le bilan de la semaine fait partie de la formule Pro.');
+      const who = await resolveAthlete(ctx, a.athlete_id);
+      const from = sinceIso(ctx, 7);
+      const to = addDays(ctx.today, -1);
+      const [{ data: ws }, { data: checks }, { data: meals }, { data: bm }, { data: prof }, { data: eff }] = await Promise.all([
+        sb.from('workouts').select('date_prevue, type_seance, status, measures').eq('athlete_id', who.id).gte('date_prevue', from).lt('date_prevue', `${ctx.today}T00:00:00`),
+        sb.from('check_ins').select('date, health_score, sleep_hours, fatigue_level, stress_level').eq('athlete_id', who.id).gte('date', from).lte('date', to),
+        sb.from('meal_logs').select('consumed_at, calories, proteines').eq('user_id', who.id).gte('consumed_at', from).lte('consumed_at', to),
+        sb.from('body_metrics').select('created_at, weight').eq('athlete_id', who.id).gte('created_at', sinceIso(ctx, 14)).order('created_at'),
+        sb.from('profiles').select('manual_kcal_goal, objective, target_weight').eq('id', who.id).maybeSingle(),
+        sb.from('athlete_efforts').select(EFFORT_COLS).eq('athlete_id', who.id).gte('date_achieved', from).limit(500),
+      ]);
+      const sessions = (ws ?? []).filter((w: any) => !w?.measures?.is_master && !/repos/i.test(w.type_seance ?? ''));
+      const byDay = new Map<string, { kcal: number; prot: number }>();
+      for (const m of meals ?? []) {
+        const d = byDay.get(m.consumed_at) ?? { kcal: 0, prot: 0 };
+        d.kcal += Number(m.calories ?? 0);
+        d.prot += Number(m.proteines ?? 0);
+        byDay.set(m.consumed_at, d);
+      }
+      const days = [...byDay.values()];
+      const weights = (bm ?? []).filter((r: any) => r.weight != null).map((r: any) => Number(r.weight));
+      const runs = (eff ?? []).filter((r: any) => effortKind(r.exercise_category) === 'course' && effortSeconds(r) != null && r.actual_distance_m);
+      const bestByDist = new Map<number, number>();
+      for (const r of runs) {
+        const d = Number(r.actual_distance_m);
+        const v = effortSeconds(r)!;
+        bestByDist.set(d, Math.min(bestByDist.get(d) ?? v, v));
+      }
+      return {
+        content: {
+          athlete: who.name,
+          periode: `${from} → ${to}`,
+          seances: {
+            prevues: sessions.length,
+            avec_resultats_saisis: sessions.filter((w: any) => w.status === 'completed').length,
+            note: "Sans résultats saisis ne veut pas dire non faite.",
+          },
+          meilleurs_chronos: [...bestByDist.entries()].map(([d, v]) => ({ distance_m: d, secondes: round(v, 2) })),
+          forme: { moyenne: avg((checks ?? []).map((c: any) => c.health_score)), jours_renseignes: (checks ?? []).length },
+          sommeil_moyen_h: avg((checks ?? []).map((c: any) => c.sleep_hours)),
+          fatigue_moyenne: avg((checks ?? []).map((c: any) => c.fatigue_level)),
+          stress_moyen: avg((checks ?? []).map((c: any) => c.stress_level)),
+          nutrition: {
+            jours_renseignes: days.length,
+            kcal_moyennes: avg(days.map((d) => Math.round(d.kcal))),
+            proteines_moyennes_g: avg(days.map((d) => Math.round(d.prot))),
+            objectif_kcal: prof?.manual_kcal_goal ?? null,
+          },
+          poids: { debut: weights[0] ?? null, fin: weights[weights.length - 1] ?? null, cible: prof?.target_weight ?? null, objectif: prof?.objective ?? null },
+          consigne: "Rédige le bilan : 3 points forts, 2 points de vigilance, 3 actions pour la semaine qui vient. Utilise show_stats pour les chiffres clés. Ne cite que ces données ; si une rubrique est vide, dis-le simplement. Ne dis jamais qu'une séance a été « respectée » ou « manquée » : parle de séances avec ou sans résultats saisis. L'échelle de la forme est sur 100.",
+        },
+      };
+    }
+
+    case 'get_plan_sessions': {
+      if (ctx.role === 'coach' || ctx.hasCoach) throw new ToolError('Réservé aux athlètes sans coach.');
+      const { data: plan } = await sb.from('ai_plans').select('id, title, start_date, end_date, weeks').eq('athlete_id', ctx.userId).eq('status', 'active').order('created_at', { ascending: false }).limit(1).maybeSingle();
+      if (!plan) return { content: { plan: null, note: "Aucun plan Sprinty actif : propose d'en créer un." } };
+      const { data } = await sb.from('workouts').select('date_prevue, type_seance, status, description').eq('ai_plan_id', plan.id).order('date_prevue');
+      const rows = (data ?? []).map((w: any) => ({ date: String(w.date_prevue).slice(0, 10), type: w.type_seance, titre: clipText(String(w.description ?? '').split('\n')[0], 70), resultats_saisis: w.status === 'completed' }));
+      return {
+        content: {
+          plan: { titre: plan.title, debut: plan.start_date, fin: plan.end_date, semaines: plan.weeks },
+          a_venir: rows.filter((r: any) => r.date >= ctx.today),
+          passees: rows.filter((r: any) => r.date < ctx.today).length,
+          consigne: "Pour ajuster : regarde aussi get_checkins et get_results, explique en 2 phrases ce que tu changes et pourquoi, puis propose_plan pour les semaines restantes (il remplacera l'ancien après confirmation de l'athlète).",
         },
       };
     }

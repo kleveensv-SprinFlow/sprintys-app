@@ -118,6 +118,7 @@ serve(async (req) => {
         planWeeksMax: Math.max(1, Math.min(16, Number(plan?.ai_plan_weeks_max ?? 4))),
         plansActive: Number(plan?.ai_plans_active ?? 1),
         competitionSearch: plan ? plan.competition_search === true : true,
+        weeklyReport: plan ? plan.weekly_report === true : true,
       },
       focusAthlete: null,
       emit,

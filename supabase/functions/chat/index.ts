@@ -119,7 +119,7 @@ serve(async (req) => {
     const purpose: Purpose =
       typeof body?.purpose === 'string' && body.purpose in PURPOSES ? body.purpose : hasImage ? 'meal_photo' : 'chat';
     const config = PURPOSES[purpose];
-    const safeModel = ['gpt-4o-mini', 'gpt-3.5-turbo'].includes(model) ? model : 'gpt-4o-mini';
+    const baseModel = ['gpt-4o-mini', 'gpt-3.5-turbo'].includes(model) ? model : 'gpt-4o-mini';
 
     const apiKey = Deno.env.get('OPENAI_API_KEY');
     if (!apiKey) {
@@ -135,12 +135,32 @@ serve(async (req) => {
     });
     if (!cleaned.length) return json({ error: 'Message vide.' }, 400);
 
-    // Anti-abuse net. If the quota table is missing, fail open rather than break the app.
-    const { data: allowed, error: quotaError } = await supabase.rpc('consume_ai_quota', { p_limit: DAILY_REQUESTS });
-    if (quotaError) {
-      console.error('consume_ai_quota failed', quotaError.message);
-    } else if (allowed === false) {
-      return json({ error: 'Sprinty se repose, reviens demain.', code: 'quota' }, 429);
+    // Quota by plan. Meal photo and meal text have their own daily counters (consume_feature), everything else
+    // uses the Sprinty message quota. If the plan functions fail, fall back on the old anti-abuse counter.
+    let smartVision = false;
+    const feature = purpose === 'meal_photo' ? 'photo' : purpose === 'meal_text' ? 'text' : null;
+    const quota = feature
+      ? await supabase.rpc('consume_feature', { p_kind: feature })
+      : await supabase.rpc('consume_ai_quota_plan', { p_kind: 'chat' });
+    if (quota.error) {
+      console.error('plan quota failed', quota.error.message);
+      const { data: allowed, error: quotaError } = await supabase.rpc('consume_ai_quota', { p_limit: DAILY_REQUESTS });
+      if (quotaError) console.error('consume_ai_quota failed', quotaError.message);
+      else if (allowed === false) return json({ error: 'Sprinty se repose, reviens demain.', code: 'quota' }, 429);
+    } else if (quota.data?.allowed === false) {
+      return json(
+        {
+          error: feature ? 'Tu as atteint ta limite du jour pour cette fonction.' : 'Tu as utilisé tous tes messages Sprinty du jour.',
+          code: 'quota',
+          feature: feature ?? 'chat',
+          plan: quota.data?.plan,
+          limit: quota.data?.limit,
+        },
+        429
+      );
+    } else if (feature === 'photo') {
+      const { data: plan } = await supabase.rpc('get_my_plan_full');
+      smartVision = plan?.smart_vision === true;
     }
 
     const rules = purpose === 'chat' || purpose === 'coach_chat' ? CONVERSATION_RULES : ANALYSIS_RULES;
@@ -155,7 +175,7 @@ serve(async (req) => {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: safeModel,
+        model: smartVision ? (Deno.env.get('MEAL_MODEL_SMART') || 'gpt-4.1') : (Deno.env.get('MEAL_MODEL_FAST') || baseModel),
         messages: [{ role: 'system', content: system }, ...cleaned],
         temperature: config.temperature,
         max_tokens: config.maxTokens,
