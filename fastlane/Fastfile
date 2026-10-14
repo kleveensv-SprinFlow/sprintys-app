@@ -51,9 +51,14 @@ platform :ios do
       team_id: team_id
     )
 
+    # The Xcode project takes the app's display name (prebuild), so detect it instead of hard-coding it
+    workspace_path = Dir.glob(File.expand_path("../ios/*.xcworkspace", __dir__)).first
+    UI.user_error!("No .xcworkspace found in ios/") if workspace_path.nil?
+    scheme_name = File.basename(workspace_path, ".xcworkspace")
+
     build_app(
-      workspace: "ios/Sprintflow.xcworkspace",
-      scheme: "Sprintflow",
+      workspace: workspace_path,
+      scheme: scheme_name,
       export_method: "app-store",
       export_options: {
         teamID: team_id,
