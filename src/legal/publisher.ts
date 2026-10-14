@@ -1,23 +1,23 @@
 /**
  * Publisher details shown in the legal texts (mentions légales, privacy policy, terms).
  *
- * ⚠️ To complete before publishing on the stores: every field marked "À COMPLÉTER".
+ * Empty fields are not shown. Add the SIRET and the address once the micro-enterprise is registered.
  * Keep docs/*.html in sync (same values) — they are the public versions of these texts.
  */
 export const PUBLISHER = {
-  /** Raison sociale (ex. « Sprintys SAS »). */
-  companyName: 'À COMPLÉTER — raison sociale',
-  /** Forme juridique et capital (ex. « SAS au capital de 1 000 € »). */
-  legalForm: 'À COMPLÉTER — forme juridique et capital',
-  /** Numéro SIREN / SIRET et RCS. */
-  registration: 'À COMPLÉTER — SIRET / RCS',
-  /** Adresse du siège social. */
-  address: 'À COMPLÉTER — adresse du siège',
+  /** Nom de l'éditeur (personne physique tant que la micro-entreprise n'est pas immatriculée). */
+  companyName: 'Kleveens Verviers',
+  /** Statut. À remplacer par « Entrepreneur individuel (micro-entreprise) » à l'immatriculation. */
+  legalForm: 'éditeur à titre personnel',
+  /** SIRET, à ajouter dès réception (laisser vide sinon : la ligne n'est pas affichée). */
+  registration: '',
+  /** Adresse, à ajouter avec le SIRET (laisser vide sinon : la ligne n'est pas affichée). */
+  address: '',
   /** Directeur ou directrice de la publication. */
-  publicationDirector: 'À COMPLÉTER — nom du directeur de la publication',
+  publicationDirector: 'Kleveens Verviers',
   /** Adresse de contact et d'exercice des droits RGPD. */
-  contactEmail: 'support@sprintflow.app',
-  privacyEmail: 'support@sprintflow.app',
+  contactEmail: 'sprinty.flow@gmail.com',
+  privacyEmail: 'sprinty.flow@gmail.com',
 };
 
 /** Hosting providers (required by the LCEN). */

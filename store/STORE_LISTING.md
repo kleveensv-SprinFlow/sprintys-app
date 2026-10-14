@@ -16,7 +16,7 @@ Les réponses sur la confidentialité correspondent à ce que l'app fait réelle
 | Catégorie secondaire (Apple) | Sports |
 | Bundle iOS / package Android | `com.sprintflow.inc` (déjà publié sous cet identifiant, ne pas le changer) |
 | Langue principale | Français (France) |
-| Site / assistance | `support@sprintflow.app` (à remplacer par l'adresse définitive dans `src/legal/publisher.ts`) |
+| Site / assistance | `sprinty.flow@gmail.com` |
 | Politique de confidentialité | https://kleveensv-sprinflow.github.io/sprintys-app/confidentialite.html |
 | Conditions d'utilisation | https://kleveensv-sprinflow.github.io/sprintys-app/cgu.html |
 | Suppression du compte (Google Play) | https://kleveensv-sprinflow.github.io/sprintys-app/suppression-compte.html |
@@ -190,7 +190,7 @@ Sprintys is a training app for track & field athletes and their coaches.
 ## 8. Checklist avant publication
 
 **À faire par toi** (impossible depuis cet environnement) :
-- [ ] Remplir les champs « À COMPLÉTER » de `src/legal/publisher.ts` (raison sociale, forme, SIRET, adresse, directeur de la publication), puis lancer `node scripts/build-legal-pages.js` et committer `docs/`.
+- [x] Mentions légales remplies (nom, e-mail). **À compléter dès la micro-entreprise créée** : SIRET et adresse dans `src/legal/publisher.ts` (`registration`, `address`, `legalForm`), puis `node scripts/build-legal-pages.js`.
 - [ ] Activer GitHub Pages (gratuit, le dépôt est public) : Settings → Pages → Source « Deploy from a branch » → branche `master`, dossier `/docs` → Save. Après 1 à 2 minutes, les 4 URL ci-dessus doivent répondre (Supabase ne peut pas servir ces pages : il force du texte brut).
 - [ ] Créer et vérifier l'adresse de support définitive. Si elle change, mettre à jour `contactEmail` et `privacyEmail` dans `publisher.ts`.
 - [ ] Changer le mot de passe du compte dont les identifiants figuraient dans `scripts/create-coach.js` et `scripts/test-subgroup.js` (scripts supprimés du dépôt, mais encore présents dans l'historique git).

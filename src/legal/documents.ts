@@ -18,7 +18,7 @@ export const PRIVACY_POLICY: LegalDocument = {
     {
       title: '1. Qui est responsable de tes données',
       paragraphs: [
-        `Le responsable du traitement est ${PUBLISHER.companyName}, ${PUBLISHER.legalForm}, ${PUBLISHER.registration}, ${PUBLISHER.address}.`,
+        `Le responsable du traitement est ${[PUBLISHER.companyName, PUBLISHER.legalForm, PUBLISHER.registration, PUBLISHER.address].filter(Boolean).join(', ')}.`,
         `Pour toute question sur tes données ou pour exercer tes droits : ${PUBLISHER.privacyEmail}.`,
       ],
     },
@@ -211,11 +211,11 @@ export const LEGAL_NOTICE: LegalDocument = {
       title: 'Éditeur',
       paragraphs: [
         `${PUBLISHER.companyName}, ${PUBLISHER.legalForm}.`,
-        `${PUBLISHER.registration}.`,
-        `Siège : ${PUBLISHER.address}.`,
+        PUBLISHER.registration ? `${PUBLISHER.registration}.` : '',
+        PUBLISHER.address ? `Adresse : ${PUBLISHER.address}.` : '',
         `Contact : ${PUBLISHER.contactEmail}.`,
         `Directeur de la publication : ${PUBLISHER.publicationDirector}.`,
-      ],
+      ].filter(Boolean),
     },
     {
       title: 'Hébergement',
