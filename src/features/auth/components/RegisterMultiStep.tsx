@@ -49,7 +49,7 @@ export const RegisterMultiStep: React.FC<RegisterMultiStepProps> = ({ onSwitchTo
       duration: 260,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
-    }).start();
+    }).start(() => enter.setValue(1));
   }, [step]);
 
   const isCoach = formData.role === 'coach';

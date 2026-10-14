@@ -18,10 +18,17 @@ export const AuthScreen: React.FC<{ initialTab?: Tab }> = ({ initialTab = 'login
   const [tab, setTab] = useState<Tab>(initialTab);
   const fade = useRef(new Animated.Value(1)).current;
 
-  // Soft cross-fade between login and signup
+  // Soft cross-fade between login and signup. Never on first display: after a sign-out the screen can be
+  // mounted during a navigation transition, where a native animation may be dropped and leave the card invisible.
+  const mounted = useRef(false);
   useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      fade.setValue(1);
+      return;
+    }
     fade.setValue(0);
-    Animated.timing(fade, { toValue: 1, duration: 220, useNativeDriver: true }).start();
+    Animated.timing(fade, { toValue: 1, duration: 220, useNativeDriver: true }).start(() => fade.setValue(1));
   }, [tab]);
 
   const openDoc = (doc: string) => router.push({ pathname: '/legal/[doc]', params: { doc } });
