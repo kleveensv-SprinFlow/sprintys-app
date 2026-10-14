@@ -67,14 +67,13 @@ export const WeatherCard = () => {
       const data = await weatherService.fetchWeather(location.coords.latitude, location.coords.longitude);
       setWeather(data);
 
-      let geocode = await Location.reverseGeocodeAsync({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude
-      });
-
-      if (geocode && geocode.length > 0) {
-        setLocationName(geocode[0].city || geocode[0].region || 'Position actuelle');
-      }
+      // The town name is a nice-to-have: never let it block or break the card (it can fail or hang on some devices)
+      const geocode = await Promise.race([
+        Location.reverseGeocodeAsync({ latitude: location.coords.latitude, longitude: location.coords.longitude }).catch(() => null),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
+      ]);
+      const place = geocode?.[0];
+      setLocationName(place?.city || place?.region || 'Autour de toi');
     } catch (error) {
       console.error('Error fetching weather:', error);
       setLocationName('Erreur météo');

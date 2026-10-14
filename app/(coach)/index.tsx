@@ -73,9 +73,9 @@ export default function CoachDashboardScreen() {
 
   const loadTeamData = useCallback(async () => {
     if (!team || !user?.id) return;
-    const [, , , workouts] = await Promise.all([
-      fetchTeamMembers(team.id),
-      fetchTeamCheckIns(team.id, todayStr),
+    // Check-ins are read for the team's athletes: load the members first, the rest in parallel
+    const [, , workouts] = await Promise.all([
+      fetchTeamMembers(team.id).then(() => fetchTeamCheckIns(team.id, todayStr)),
       fetchAllPendingRequests(),
       workoutService.fetchWorkoutsForDate(user.id, new Date(), 'coach', team.id).catch(() => []),
     ]);
