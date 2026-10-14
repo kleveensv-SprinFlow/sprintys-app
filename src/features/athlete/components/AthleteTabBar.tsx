@@ -8,6 +8,7 @@ import { GlassTabBarBackground, glassTabBar } from '../../../shared/components/G
 import { useTabBarStore } from '../../../shared/hooks/useTabBarSpace';
 import { useTheme } from '../../../core/theme';
 
+import { tourRef } from '../../onboarding/tourRegistry';
 interface TabConfig {
   name: string;
   label: string;
@@ -104,6 +105,7 @@ const TabItem = ({
 
   return (
     <TouchableOpacity
+      ref={tourRef(`athlete.tab.${tab.name}`)}
       accessibilityRole="button"
       accessibilityState={isFocused ? { selected: true } : {}}
       accessibilityLabel={tab.label}

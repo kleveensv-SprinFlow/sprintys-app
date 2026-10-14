@@ -21,6 +21,7 @@ import { formatListTime } from '../../src/shared/utils/chatTime';
 
 import { useRefresh } from '../../src/shared/hooks/useRefresh';
 
+import { tourRef } from '../../src/features/onboarding/tourRegistry';
 const BLUE_TINT = 'rgba(0, 105, 232, 0.1)';
 
 /** One line of plain text from an AI reply (no markdown marks, no JSON blocks). */
@@ -129,6 +130,7 @@ export default function MessagesHubScreen() {
         
           {/* SPRINTY IA CARD */}
           <PressableScale
+            targetRef={tourRef('athlete.sprinty')}
             style={styles.discussionCard}
             onPress={() => router.push('/chat/sprinty')}
           >

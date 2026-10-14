@@ -6,6 +6,9 @@ const keyFor = (userId: string) => `@sprintys_tour_seen_v${TOUR_VERSION}:${userI
 
 interface OnboardingState {
   visible: boolean;
+  /** Current step of the guided tour. */
+  step: number;
+  setStep: (step: number) => void;
   /** Accounts already looked at in this session, so the automatic check runs once. */
   checkedFor: string | null;
   /** Automatic first showing: only if this account has never seen (or skipped) the tour. */
@@ -19,6 +22,8 @@ interface OnboardingState {
 
 export const useOnboardingStore = create<OnboardingState>((set, get) => ({
   visible: false,
+  step: 0,
+  setStep: (step) => set({ step }),
   checkedFor: null,
 
   checkAuto: async (userId) => {
@@ -26,16 +31,16 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
     set({ checkedFor: userId });
     try {
       const seen = await AsyncStorage.getItem(keyFor(userId));
-      if (!seen) set({ visible: true });
+      if (!seen) set({ visible: true, step: 0 });
     } catch {
       // storage unavailable: don't nag
     }
   },
 
-  start: () => set({ visible: true }),
+  start: () => set({ visible: true, step: 0 }),
 
   finish: async (userId) => {
-    set({ visible: false });
+    set({ visible: false, step: 0 });
     if (!userId) return;
     try {
       await AsyncStorage.setItem(keyFor(userId), String(Date.now()));
@@ -44,5 +49,5 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
     }
   },
 
-  reset: () => set({ visible: false, checkedFor: null }),
+  reset: () => set({ visible: false, step: 0, checkedFor: null }),
 }));

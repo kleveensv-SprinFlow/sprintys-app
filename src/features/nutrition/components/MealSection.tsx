@@ -13,6 +13,7 @@ import { PressableScale } from '../../../shared/components/PressableScale';
 import { MealIcon } from './MealIcon';
 import { MEALS, MEAL_ACCENT, MEAL_ACCENT_TINT } from '../nutritionTheme';
 
+import { tourRef } from '../../onboarding/tourRegistry';
 interface MealSectionProps {
   readonly?: boolean;
   athleteId?: string;
@@ -106,7 +107,12 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
               </View>
 
               {!readonly && (
-                <PressableScale onPress={() => handleAddFood(meal.type)} hitSlop={6} style={styles.addPill}>
+                <PressableScale
+                  onPress={() => handleAddFood(meal.type)}
+                  hitSlop={6}
+                  style={styles.addPill}
+                  targetRef={meal.type === MEALS[0].type ? tourRef('athlete.addMeal') : undefined}
+                >
                   <Feather name="plus" size={15} color={MEAL_ACCENT} />
                   <Text style={styles.addPillText}>Ajouter</Text>
                 </PressableScale>

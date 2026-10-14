@@ -11,6 +11,8 @@ interface PressableScaleProps extends Omit<PressableProps, 'style'> {
   /** Scale reached while pressed (iOS-like "press in" feel). */
   activeScale?: number;
   haptic?: HapticKind;
+  /** Ref to the outer touch area (used by the guided tour to find the button). */
+  targetRef?: React.Ref<any>;
   children: React.ReactNode;
 }
 
@@ -36,6 +38,7 @@ export const PressableScale = ({
   onPressIn,
   onPressOut,
   onPress,
+  targetRef,
   children,
   ...rest
 }: PressableScaleProps) => {
@@ -52,6 +55,7 @@ export const PressableScale = ({
   return (
     <Pressable
       {...rest}
+      ref={targetRef}
       style={containerStyle}
       onPressIn={(e) => {
         animateTo(activeScale);

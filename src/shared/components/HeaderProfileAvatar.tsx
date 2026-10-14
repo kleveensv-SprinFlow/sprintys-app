@@ -8,6 +8,7 @@ interface HeaderProfileAvatarProps {
   onPress: () => void;
   size?: number;
   style?: StyleProp<ViewStyle>;
+  targetRef?: React.Ref<any>;
 }
 
 export const HeaderProfileAvatar: React.FC<HeaderProfileAvatarProps> = ({
@@ -15,6 +16,7 @@ export const HeaderProfileAvatar: React.FC<HeaderProfileAvatarProps> = ({
   onPress,
   size = 42,
   style,
+  targetRef,
 }) => {
   const theme = useTheme();
   const radius = size / 2;
@@ -22,6 +24,7 @@ export const HeaderProfileAvatar: React.FC<HeaderProfileAvatarProps> = ({
 
   return (
     <TouchableOpacity
+      ref={targetRef}
       onPress={onPress}
       activeOpacity={0.8}
       style={[

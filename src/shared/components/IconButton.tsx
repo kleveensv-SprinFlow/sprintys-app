@@ -13,6 +13,7 @@ interface IconButtonProps {
   tone?: 'glass' | 'blue' | 'danger' | 'plain';
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
+  targetRef?: React.Ref<any>;
 }
 
 const TONES = {
@@ -32,6 +33,7 @@ export const IconButton: React.FC<IconButtonProps> = ({
   tone = 'glass',
   disabled,
   style,
+  targetRef,
 }) => {
   const t = TONES[tone];
   const slop = Math.max(0, (44 - size) / 2);
@@ -39,6 +41,7 @@ export const IconButton: React.FC<IconButtonProps> = ({
     <PressableScale
       haptic="selection"
       onPress={onPress}
+      targetRef={targetRef}
       disabled={disabled}
       hitSlop={{ top: slop, bottom: slop, left: slop, right: slop }}
       accessibilityRole="button"

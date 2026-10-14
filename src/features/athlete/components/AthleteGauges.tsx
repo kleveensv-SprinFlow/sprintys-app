@@ -15,6 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { workoutService } from '../../../services/workoutService';
 import { GlassSheen } from '../../../shared/components/GlassSheen';
 
+import { tourRef } from '../../onboarding/tourRegistry';
 const toLocalDateString = (d: Date): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
@@ -198,7 +199,7 @@ export const AthleteGauges = ({ refreshKey = 0 }: { refreshKey?: number }) => {
   return (
     <View style={styles.container}>
       {/* 1. Hero card: Check-In / Readiness */}
-      <PressableScale onPress={handleCheckInPress} haptic="medium" style={glassCard}>
+      <PressableScale onPress={handleCheckInPress} haptic="medium" style={glassCard} targetRef={tourRef('athlete.checkin')}>
         <GlassSheen radius={22} />
         {!showScore ? (
           <View style={styles.mainCardInner}>

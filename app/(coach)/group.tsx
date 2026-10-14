@@ -23,6 +23,7 @@ import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
 import { useRefresh } from '../../src/shared/hooks/useRefresh';
 import { appAlert, confirmAsync, toast } from '../../src/shared/feedback/appAlert';
 
+import { tourRef } from '../../src/features/onboarding/tourRegistry';
 type Tab = 'members' | 'subgroups' | 'pending' | 'settings';
 type NameSheet = { kind: 'create_team' | 'rename_team' | 'create_sg' | 'rename_sg'; id?: string; value: string } | null;
 
@@ -433,7 +434,13 @@ export default function CoachGroupsScreen() {
           large
           scrollY={scrollY}
           rightComponent={
-            <IconButton icon="plus" tone="blue" accessibilityLabel="Créer un groupe" onPress={() => setNameSheet({ kind: 'create_team', value: '' })} />
+            <IconButton
+              icon="plus"
+              tone="blue"
+              accessibilityLabel="Créer un groupe"
+              onPress={() => setNameSheet({ kind: 'create_team', value: '' })}
+              targetRef={tourRef('coach.createGroup')}
+            />
           }
         />
       )}

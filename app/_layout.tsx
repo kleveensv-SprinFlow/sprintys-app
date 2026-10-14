@@ -11,7 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { AppErrorScreen } from '../src/shared/components/AppErrorScreen';
 import { OfflineBanner } from '../src/shared/components/OfflineBanner';
 import { AIConsentSheet } from '../src/features/legal/AIConsentSheet';
-import { WelcomeTour } from '../src/features/onboarding/WelcomeTour';
+import { TourOverlay } from '../src/features/onboarding/TourOverlay';
 import { useOnboardingStore } from '../src/store/onboardingStore';
 
 /** Any screen that crashes while rendering shows a friendly retry screen instead of a blank one. */
@@ -113,8 +113,8 @@ export default function RootLayout() {
         <Stack.Screen name="legal/[doc]" options={{ presentation: 'modal' }} />
       </Stack>
       <OfflineBanner />
+      <TourOverlay />
       <AIConsentSheet />
-      <WelcomeTour />
       <FeedbackHost />
     </View>
   );

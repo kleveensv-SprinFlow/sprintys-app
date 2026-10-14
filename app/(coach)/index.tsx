@@ -24,6 +24,7 @@ import { Skeleton } from '../../src/shared/components/Skeleton';
 import { useTabBarSpace } from '../../src/shared/hooks/useTabBarSpace';
 import { useRefresh } from '../../src/shared/hooks/useRefresh';
 
+import { tourRef } from '../../src/features/onboarding/tourRegistry';
 const DAY_NAMES = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 const MONTH_NAMES = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 
@@ -118,11 +119,12 @@ export default function CoachDashboardScreen() {
             onPress={() => setBroadcastVisible(true)}
             disabled={!team}
             style={glassCard as any}
+            targetRef={tourRef('coach.announce')}
           />
           <View style={styles.logo}>
             <SprintyLogo width={120} height={38} />
           </View>
-          <HeaderProfileAvatar avatarUrl={user?.avatarUrl} onPress={() => router.push('/(coach)/profile')} size={44} />
+          <HeaderProfileAvatar avatarUrl={user?.avatarUrl} onPress={() => router.push('/(coach)/profile')} targetRef={tourRef('coach.profile')} size={44} />
         </View>
       </View>
 
@@ -175,7 +177,7 @@ export default function CoachDashboardScreen() {
               </PressableScale>
             )}
 
-            <PressableScale onPress={() => setTeamHealthVisible(true)} style={[glassCard, styles.card]}>
+            <PressableScale onPress={() => setTeamHealthVisible(true)} style={[glassCard, styles.card]} targetRef={tourRef('coach.form')}>
               <GlassSheen radius={22} />
               <View style={styles.cardHead}>
                 <View style={[styles.dot, { backgroundColor: form.color }]} />

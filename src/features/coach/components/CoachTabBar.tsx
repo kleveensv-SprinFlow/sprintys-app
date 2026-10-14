@@ -9,6 +9,7 @@ import { useCoachStore } from '../../../store/coach/coachStore';
 import { GlassTabBarBackground, glassTabBar } from '../../../shared/components/GlassTabBarBackground';
 import { useTabBarStore } from '../../../shared/hooks/useTabBarSpace';
 
+import { tourRef } from '../../onboarding/tourRegistry';
 interface TabConfig {
   name: string;
   label: string;
@@ -94,6 +95,7 @@ const TabItem = ({
 
   return (
     <TouchableOpacity
+      ref={tourRef(`coach.tab.${tab.name}`)}
       accessibilityRole="button"
       accessibilityState={isFocused ? { selected: true } : {}}
       accessibilityLabel={tab.label}

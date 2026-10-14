@@ -9,6 +9,7 @@ import { useAuthStore } from '../../../store/authStore';
 import { HeaderProfileAvatar } from '../../../shared/components/HeaderProfileAvatar';
 import { glassCard } from '../../../shared/components/DashboardCard';
 
+import { tourRef } from '../../onboarding/tourRegistry';
 export const AthleteHeader = () => {
   const theme = useTheme();
   const router = useRouter();
@@ -18,6 +19,7 @@ export const AthleteHeader = () => {
     <View style={styles.container}>
       {/* Left: Group Button Minimalist */}
       <TouchableOpacity 
+        ref={tourRef('athlete.groups')}
         onPress={() => router.push('/(athlete)/groups')} 
         style={styles.iconButton}
         activeOpacity={0.7}
@@ -34,6 +36,7 @@ export const AthleteHeader = () => {
       <HeaderProfileAvatar
         avatarUrl={user?.avatarUrl}
         onPress={() => router.push('/(athlete)/settings')}
+        targetRef={tourRef('athlete.profile')}
         size={44}
       />
     </View>
