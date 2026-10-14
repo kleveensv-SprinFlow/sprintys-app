@@ -51,7 +51,15 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
   noteUse: (kind) =>
     set((s) =>
       s.info
-        ? { info: { ...s.info, usage_today: { ...s.info.usage_today, [kind]: (s.info.usage_today?.[kind] ?? 0) + 1 } } }
+        ? {
+            info: {
+              ...s.info,
+              usage_today: { ...s.info.usage_today, [kind]: (s.info.usage_today?.[kind] ?? 0) + 1 },
+              usage_week: s.info.usage_week
+                ? { photo_text: s.info.usage_week.photo_text + (kind === 'photo' || kind === 'text' ? 1 : 0), chat: s.info.usage_week.chat + (kind === 'chat' ? 1 : 0) }
+                : s.info.usage_week,
+            },
+          }
         : s
     ),
 
@@ -61,8 +69,14 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
 /** True when the server applies plan limits (billing switched on). Until then nothing is limited and no paywall shows. */
 export const billingOn = () => useEntitlementStore.getState().info?.billing_enabled === true;
 
+/**
+ * Uses left in the current window for a limited plan, or null when there is nothing to count (billing off, or no limit
+ * for this feature: barcode scans are free for everyone). Photo and sentence share one weekly pool on the free plan.
+ */
 export const remainingToday = (info: PlanInfo | null, kind: 'photo' | 'text' | 'scan'): number | null => {
-  if (!info || !info.billing_enabled) return null;
-  const limit = kind === 'photo' ? info.photo_per_day : kind === 'text' ? info.text_per_day : info.scan_per_day;
+  if (!info || !info.billing_enabled || kind === 'scan') return null;
+  if (info.photo_text_per_week != null) return Math.max(0, info.photo_text_per_week - (info.usage_week?.photo_text ?? 0));
+  const limit = kind === 'photo' ? info.photo_per_day : info.text_per_day;
   return Math.max(0, limit - (info.usage_today?.[kind] ?? 0));
 };
+

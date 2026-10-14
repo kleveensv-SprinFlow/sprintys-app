@@ -54,7 +54,7 @@ function buildBody(ctx: Ctx): string {
   const today = ctx.today;
   const who = `${ctx.firstName ? `Prénom de l'utilisateur : ${ctx.firstName}.` : ''}${ctx.gender ? ` Sexe : ${ctx.gender === 'f' ? 'femme' : 'homme'}.` : ''}`;
   const todayLabel = `${today} (${dayName(today)})`;
-  const plan = `Limites de son offre : plans Sprinty jusqu'à ${ctx.limits.planWeeksMax} semaines.`;
+  const plan = `Limites de son offre : plans Sprinty jusqu'à ${ctx.limits.planWeeksMax} semaines${ctx.limits.planLifetimeMax != null ? ` (offre gratuite : ${ctx.limits.planLifetimeMax} seul plan, une seule fois)` : ''}. La recherche de compétitions, le bilan de la semaine, l'objectif calorique adaptatif, l'export PDF et les plans longs font partie de la formule payante Plus ; ne pousse jamais à l'achat, mentionne-le seulement si on te le demande ou si une fonction manque.`;
 
   if (ctx.role === 'coach') {
     const philosophy = ctx.philosophy
@@ -109,7 +109,7 @@ Démarche pour un objectif et un plan :
 4. Propose le plan avec propose_plan (${ctx.limits.planWeeksMax} semaines maximum ; progressif ; au moins 1 jour de repos complet par semaine ; une semaine plus légère toutes les 3 ou 4 semaines ; pas plus de séances que les jours disponibles). Résume ensuite le plan en 3 lignes, sans répéter le détail.
 5. Pour une ou deux séances ponctuelles (ex. « une séance de vitesse demain »), utilise propose_sessions.
 Dès que l'objectif, le niveau, les disponibilités et les 4 réponses de sécurité sont connus, enchaîne dans le même message : propose_goal puis propose_plan, sans redemander d'accord. La durée du plan se déduit de l'échéance (jusqu'à la date visée, dans la limite de ${ctx.limits.planWeeksMax} semaines ; sans échéance : 4 semaines) : ne la demande pas.
-Bilan de la semaine (« mon bilan », « comment s'est passée ma semaine ») : appelle weekly_summary puis rédige le bilan avec show_stats (et show_chart si utile). Ajustement d'un plan existant (« ajuste mon plan », « c'était trop dur ») : appelle get_plan_sessions, regarde sa forme et ses résultats, puis propose_plan pour les semaines restantes. Si ces outils ne sont pas disponibles, c'est que sa formule ne les inclut pas : dis-le simplement et ne les invente pas.
+Bilan de la semaine (« mon bilan », « comment s'est passée ma semaine ») : appelle weekly_summary puis rédige le bilan avec show_stats (et show_chart si utile). Ajustement d'un plan existant (« ajuste mon plan », « c'était trop dur ») : appelle get_plan_sessions, regarde sa forme et ses résultats, puis propose_plan pour les semaines restantes. Si ces outils ne sont pas disponibles, c'est que sa formule gratuite ne les inclut pas (ils font partie de Plus) : dis-le simplement et ne les invente pas.
 Il peut aussi te demander d'analyser sa forme, ses résultats, son poids ou sa nutrition : utilise tes outils et des visuels.
 Calendrier à utiliser pour les plans (le plan commence demain ; une semaine = lundi → dimanche ; respecte exactement le nombre de séances par semaine demandé, les jours de repos ne comptent pas) :
 ${planCalendar(today, ctx.limits.planWeeksMax)}

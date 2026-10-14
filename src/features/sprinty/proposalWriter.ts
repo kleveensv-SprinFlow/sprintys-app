@@ -1,3 +1,4 @@
+import { useEntitlementStore } from '../../store/entitlementStore';
 import uuid from 'react-native-uuid';
 import { supabase } from '../../services/supabase';
 import { workoutService } from '../../services/workoutService';
@@ -204,6 +205,10 @@ const sprintyRows = (uid: string, sessions: ProposedSession[], planId: string | 
 /** Explains database refusals in plain words. */
 export function writeErrorMessage(err: any): string {
   const msg = String(err?.message ?? '');
+  if (msg.includes('sprinty_plan_limit')) {
+    useEntitlementStore.getState().openPaywall('plan_long');
+    return 'Ton plan gratuit est déjà utilisé. Les plans plus longs font partie de Plus.';
+  }
   if (msg.includes('sprinty_has_coach')) return 'Tu as un coach : c’est lui qui programme tes séances.';
   if (msg.includes('row-level security')) return 'Tu n’as pas le droit de faire cette modification.';
   return 'L’ajout n’a pas abouti. Vérifie ta connexion et réessaie.';

@@ -11,67 +11,59 @@ import { Button } from '../../shared/components/Button';
 import { toast } from '../../shared/feedback/appAlert';
 import { useEntitlementStore } from '../../store/entitlementStore';
 import { loadOffers, purchaseOffer, redeemPromoCode, restorePurchases, purchasesAvailable, type Offer } from '../../services/purchases';
-import { FALLBACK_PRICES, TIER_NAMES, tierOf, type Feature, type PaidTier, type Period } from './plans';
+import { FALLBACK_PRICES, tierOf, type Feature, type Period } from './plans';
 
 const BLUE = theme.colors.sprintyBlue;
 
 interface Reason {
   title: string;
   text: string;
-  /** Tier that solves the problem. */
-  tier: PaidTier;
   icon: keyof typeof Feather.glyphMap;
 }
 
 const reasonFor = (feature: Feature | 'profile', detail?: string): Reason => {
   switch (feature) {
     case 'photo':
-      return { title: 'Analyse tes repas sans compter', text: detail || 'Tu as utilisé tes analyses photo du jour. Avec Plus, plus de limite.', tier: 'plus', icon: 'camera' };
+      return { title: 'Analyse tes repas sans compter', text: detail || 'Tu as utilisé tes 3 analyses de repas de la semaine. Avec Plus, plus de limite.', icon: 'camera' };
     case 'text':
-      return { title: 'Dis ce que tu as mangé, c’est noté', text: detail || 'Tu as utilisé tes saisies en une phrase du jour. Avec Plus, plus de limite.', tier: 'plus', icon: 'edit-3' };
-    case 'scan':
-      return { title: 'Scanne autant que tu veux', text: detail || 'Tu as utilisé tes scans du jour. Avec Plus, plus de limite.', tier: 'plus', icon: 'maximize' };
+      return { title: 'Dis ce que tu as mangé, c’est noté', text: detail || 'Tu as utilisé tes 3 analyses de repas de la semaine. Avec Plus, plus de limite.', icon: 'edit-3' };
     case 'chat':
-      return { title: 'Sprinty a encore des choses à te dire', text: detail || 'Tu as utilisé tes messages du jour. Plus et Pro en donnent beaucoup plus.', tier: 'plus', icon: 'message-circle' };
+      return { title: 'Sprinty a encore des choses à te dire', text: detail || 'Tu as utilisé tes 7 messages de la semaine. Avec Plus, Sprinty te répond jusqu’à 60 fois par jour.', icon: 'message-circle' };
     case 'pdf':
-      return { title: 'Garde tes plans et analyses', text: 'L’export en PDF est inclus avec Plus et Pro.', tier: 'plus', icon: 'download' };
+      return { title: 'Garde tes plans et analyses', text: 'L’export en PDF est inclus avec Plus.', icon: 'download' };
     case 'plan_long':
-      return { title: 'Un plan sur la durée', text: 'Les plans jusqu’à 12 semaines, avec ajustement chaque semaine, sont dans Pro.', tier: 'pro', icon: 'flag' };
+      return { title: 'Un plan sur la durée', text: detail || 'Ton plan gratuit de 2 semaines est utilisé. Avec Plus : des plans jusqu’à 12 semaines, ajustés chaque semaine.', icon: 'flag' };
     case 'weekly_report':
-      return { title: 'Ton bilan de la semaine', text: 'Séances, nutrition, sommeil et poids résumés, avec 3 actions concrètes, en PDF. C’est dans Pro.', tier: 'pro', icon: 'bar-chart-2' };
+      return { title: 'Ton bilan de la semaine', text: 'Séances, nutrition, sommeil et poids résumés, avec 3 actions concrètes, en PDF. C’est dans Plus.', icon: 'bar-chart-2' };
     case 'adaptive_target':
-      return { title: 'Un objectif qui s’adapte à toi', text: 'Chaque semaine, tes calories s’ajustent à ta vraie courbe de poids. C’est dans Pro.', tier: 'pro', icon: 'trending-up' };
+      return { title: 'Un objectif qui s’adapte à toi', text: 'Chaque semaine, tes calories s’ajustent à ta vraie courbe de poids. C’est dans Plus.', icon: 'trending-up' };
     case 'competitions':
-      return { title: 'Trouve ta prochaine compétition', text: 'La recherche de compétitions est dans Pro.', tier: 'pro', icon: 'award' };
+      return { title: 'Trouve ta prochaine compétition', text: 'La recherche de compétitions est dans Plus.', icon: 'award' };
     default:
-      return { title: 'Sprintys Plus et Pro', text: 'Tout ce que tu fais déjà, en allant plus vite, avec un coach IA qui te connaît.', tier: 'plus', icon: 'zap' };
+      return { title: 'Sprintys Plus', text: 'Tout ce que tu fais déjà, en allant plus vite, avec un coach IA qui te connaît.', icon: 'zap' };
   }
 };
 
-const PLUS_BENEFITS = [
-  { icon: 'camera', text: 'Photo, phrase et scan sans limite' },
-  { icon: 'message-circle', text: 'Sprinty : 40 messages par jour' },
+const BENEFITS = [
+  { icon: 'camera', text: 'Photo et saisie en une phrase, sans limite' },
+  { icon: 'message-circle', text: 'Sprinty : 60 messages par jour' },
+  { icon: 'trending-up', text: 'Objectif calorique qui s’adapte à ta courbe de poids' },
+  { icon: 'bar-chart-2', text: 'Bilan de la semaine, en PDF' },
+  { icon: 'flag', text: 'Plans coach IA jusqu’à 12 semaines' },
+  { icon: 'award', text: 'Recherche de compétitions' },
   { icon: 'download', text: 'Export PDF de tes plans et analyses' },
 ] as const;
 
-const PRO_BENEFITS = [
-  { icon: 'check-circle', text: 'Tout ce qu’il y a dans Plus' },
-  { icon: 'trending-up', text: 'Objectif calorique qui s’adapte à ta courbe de poids' },
-  { icon: 'bar-chart-2', text: 'Bilan de la semaine en PDF' },
-  { icon: 'flag', text: 'Coach IA complet : plans de 12 semaines, ajustés chaque semaine' },
-  { icon: 'aperture', text: 'Analyse photo plus précise, Sprinty : 150 messages par jour' },
-] as const;
-
-const COMPARE: { label: string; free: string; plus: string; pro: string }[] = [
-  { label: 'Photo IA du repas', free: '3 / jour', plus: 'Sans limite', pro: 'Sans limite, plus précise' },
-  { label: 'Saisie en une phrase', free: '5 / jour', plus: 'Sans limite', pro: 'Sans limite' },
-  { label: 'Scan de code-barres', free: '5 / jour', plus: 'Sans limite', pro: 'Sans limite' },
-  { label: 'Messages Sprinty', free: '10 / jour', plus: '40 / jour', pro: '150 / jour' },
-  { label: 'Export PDF', free: '—', plus: 'Oui', pro: 'Oui' },
-  { label: 'Plan coach IA', free: '4 semaines', plus: '4 semaines', pro: '12 sem., ajusté' },
-  { label: 'Objectif calorique adaptatif', free: '—', plus: '—', pro: 'Oui' },
-  { label: 'Bilan de la semaine', free: '—', plus: '—', pro: 'Oui' },
-  { label: 'Recherche de compétitions', free: '—', plus: '—', pro: 'Oui' },
+const COMPARE: { label: string; free: string; plus: string }[] = [
+  { label: 'Recherche d’aliments', free: 'Libre', plus: 'Libre' },
+  { label: 'Scan de code-barres', free: 'Libre', plus: 'Libre' },
+  { label: 'Photo ou phrase (IA)', free: '3 / semaine', plus: 'Sans limite' },
+  { label: 'Messages Sprinty', free: '7 / semaine', plus: '60 / jour' },
+  { label: 'Plan coach IA', free: '1 plan, 2 sem.', plus: 'Jusqu’à 12 sem.' },
+  { label: 'Objectif calorique adaptatif', free: '—', plus: 'Oui' },
+  { label: 'Bilan de la semaine', free: '—', plus: 'Oui' },
+  { label: 'Recherche de compétitions', free: '—', plus: 'Oui' },
+  { label: 'Export PDF', free: '—', plus: 'Oui' },
 ];
 
 /** The offer page. Opened only when someone touches a limited feature or taps "Découvrir Premium". */
@@ -82,10 +74,9 @@ export function PaywallSheet() {
   const close = useEntitlementStore((s) => s.closePaywall);
 
   const reason = useMemo(() => reasonFor(paywall?.feature ?? 'profile', paywall?.detail), [paywall]);
-  const currentTier = tierOf(info?.plan);
+  const owned = tierOf(info?.plan) !== null;
 
   const [period, setPeriod] = useState<Period>('yearly');
-  const [selected, setSelected] = useState<PaidTier>('plus');
   const [offers, setOffers] = useState<Offer[]>([]);
   const [live, setLive] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -94,7 +85,6 @@ export function PaywallSheet() {
 
   useEffect(() => {
     if (!paywall) return;
-    setSelected(currentTier === 'plus' ? 'pro' : reason.tier);
     setShowCompare(false);
     enter.setValue(0);
     Animated.timing(enter, { toValue: 1, duration: 420, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
@@ -106,18 +96,12 @@ export function PaywallSheet() {
 
   if (!paywall) return null;
 
-  const offerOf = (tier: PaidTier, p: Period) => offers.find((o) => o.tier === tier && o.period === p);
-  const priceOf = (tier: PaidTier, p: Period) => offerOf(tier, p)?.price || FALLBACK_PRICES[tier][p];
-  const monthlyEquivalent = (tier: PaidTier) => offerOf(tier, 'yearly')?.perMonth;
-  const selectedOffer = offerOf(selected, period);
+  const offerOf = (p: Period) => offers.find((o) => o.tier === 'plus' && o.period === p);
+  const priceOf = (p: Period) => offerOf(p)?.price || FALLBACK_PRICES.plus[p];
+  const monthlyEquivalent = offerOf('yearly')?.perMonth;
+  const selectedOffer = offerOf(period);
   const trial = selectedOffer?.trialDays ?? (live ? undefined : 7);
   const canBuy = purchasesAvailable() && live && !!selectedOffer?.pkg;
-
-  const choose = (tier: PaidTier) => {
-    if (tier === currentTier) return;
-    Haptics.selectionAsync().catch(() => undefined);
-    setSelected(tier);
-  };
 
   const buy = async () => {
     if (!selectedOffer) return;
@@ -126,7 +110,7 @@ export function PaywallSheet() {
     setBusy(false);
     if (result.status === 'success') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
-      toast('success', `Bienvenue dans ${TIER_NAMES[selected]}. Tout est déjà débloqué.`, 'Merci !');
+      toast('success', 'Bienvenue dans Plus. Tout est déjà débloqué.', 'Merci !');
       close();
       useEntitlementStore.getState().refreshAfterPurchase();
     } else if (result.status === 'error') {
@@ -149,53 +133,36 @@ export function PaywallSheet() {
     router.push({ pathname: '/legal/[doc]', params: { doc } });
   };
 
-  const card = (tier: PaidTier) => {
-    const on = selected === tier;
-    const owned = currentTier === tier;
-    const benefits = tier === 'plus' ? PLUS_BENEFITS : PRO_BENEFITS;
-    const yearly = period === 'yearly';
-    return (
-      <PressableScale
-        key={tier}
-        haptic="none"
-        onPress={() => choose(tier)}
-        style={[styles.plan, on && styles.planOn, owned && styles.planOwned]}
-        accessibilityRole="radio"
-        accessibilityState={{ selected: on, disabled: owned }}
-        accessibilityLabel={`Formule ${TIER_NAMES[tier]}`}
-      >
-        {tier === 'pro' && (
-          <LinearGradient colors={['#0069E8', '#00B4D8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.ribbon}>
-            <Feather name="star" size={11} color="#FFFFFF" />
-            <Text style={styles.ribbonText}>Le plus complet</Text>
-          </LinearGradient>
-        )}
-        <View style={styles.planHead}>
-          <View style={[styles.radio, on && styles.radioOn]}>{on && <Feather name="check" size={13} color="#FFFFFF" />}</View>
-          <Text style={styles.planName}>{TIER_NAMES[tier]}</Text>
-          {owned && <Text style={styles.owned}>Ta formule</Text>}
-          <View style={{ flex: 1 }} />
-          <View style={{ alignItems: 'flex-end' }}>
-            <Text style={styles.price}>
-              {yearly ? priceOf(tier, 'yearly') : priceOf(tier, 'monthly')}
-              <Text style={styles.priceUnit}>{yearly ? ' / an' : ' / mois'}</Text>
-            </Text>
-            {yearly && <Text style={styles.perMonth}>{monthlyEquivalent(tier) ? `soit ${monthlyEquivalent(tier)} / mois` : '2 mois offerts'}</Text>}
+  const yearly = period === 'yearly';
+  const card = (
+    <View style={[styles.plan, styles.planOn]} accessibilityLabel="Formule Plus">
+      <LinearGradient colors={['#0069E8', '#00B4D8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.ribbon}>
+        <Feather name="star" size={11} color="#FFFFFF" />
+        <Text style={styles.ribbonText}>{owned ? 'Ta formule' : 'Tout débloqué'}</Text>
+      </LinearGradient>
+      <View style={styles.planHead}>
+        <Text style={styles.planName}>Plus</Text>
+        <View style={{ flex: 1 }} />
+        <View style={{ alignItems: 'flex-end' }}>
+          <Text style={styles.price}>
+            {priceOf(period)}
+            <Text style={styles.priceUnit}>{yearly ? ' / an' : ' / mois'}</Text>
+          </Text>
+          {yearly && <Text style={styles.perMonth}>{monthlyEquivalent ? `soit ${monthlyEquivalent} / mois` : '2 mois offerts'}</Text>}
+        </View>
+      </View>
+      <View style={styles.benefits}>
+        {BENEFITS.map((b) => (
+          <View key={b.text} style={styles.benefit}>
+            <Feather name={b.icon as any} size={15} color={BLUE} />
+            <Text style={styles.benefitText}>{b.text}</Text>
           </View>
-        </View>
-        <View style={styles.benefits}>
-          {benefits.map((b) => (
-            <View key={b.text} style={styles.benefit}>
-              <Feather name={b.icon as any} size={15} color={BLUE} />
-              <Text style={styles.benefitText}>{b.text}</Text>
-            </View>
-          ))}
-        </View>
-      </PressableScale>
-    );
-  };
+        ))}
+      </View>
+    </View>
+  );
 
-  const cta = currentTier === 'pro' ? null : trial ? `Essayer ${trial} jours gratuits` : `Choisir ${TIER_NAMES[selected]}`;
+  const cta = owned ? null : trial ? `Essayer ${trial} jours gratuits` : 'Choisir Plus';
 
   return (
     <Modal visible animationType="slide" presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined} onRequestClose={close}>
@@ -225,11 +192,10 @@ export function PaywallSheet() {
                 ))}
               </View>
 
-              {card('plus')}
-              {card('pro')}
+              {card}
 
               <PressableScale haptic="selection" onPress={() => setShowCompare((v) => !v)} style={styles.compareBtn} accessibilityRole="button">
-                <Text style={styles.compareText}>{showCompare ? 'Masquer la comparaison' : 'Comparer Gratuit, Plus et Pro'}</Text>
+                <Text style={styles.compareText}>{showCompare ? 'Masquer la comparaison' : 'Comparer Gratuit et Plus'}</Text>
                 <Feather name={showCompare ? 'chevron-up' : 'chevron-down'} size={16} color={BLUE} />
               </PressableScale>
               {showCompare && (
@@ -237,15 +203,13 @@ export function PaywallSheet() {
                   <View style={[styles.tr, styles.thead]}>
                     <Text style={[styles.td, styles.tdLabel]} />
                     <Text style={[styles.td, styles.th]}>Gratuit</Text>
-                    <Text style={[styles.td, styles.th]}>Plus</Text>
-                    <Text style={[styles.td, styles.th, { color: BLUE }]}>Pro</Text>
+                    <Text style={[styles.td, styles.th, { color: BLUE }]}>Plus</Text>
                   </View>
                   {COMPARE.map((r) => (
                     <View key={r.label} style={styles.tr}>
                       <Text style={[styles.td, styles.tdLabel]}>{r.label}</Text>
                       <Text style={styles.td}>{r.free}</Text>
-                      <Text style={styles.td}>{r.plus}</Text>
-                      <Text style={[styles.td, styles.tdPro]}>{r.pro}</Text>
+                      <Text style={[styles.td, styles.tdPro]}>{r.plus}</Text>
                     </View>
                   ))}
                 </View>

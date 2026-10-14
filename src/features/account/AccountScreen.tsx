@@ -29,7 +29,7 @@ import { confirmAsync, toast } from '../../shared/feedback/appAlert';
 import { getActivePlan, removePlan } from '../sprinty/proposalWriter';
 import { useEntitlementStore } from '../../store/entitlementStore';
 import { openManageSubscriptions, restorePurchases } from '../../services/purchases';
-import { planLabel, tierOf } from '../billing/plans';
+import { planLabel } from '../billing/plans';
 
 const APP_VERSION = Constants.expoConfig?.version ?? '';
 
@@ -362,15 +362,11 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
                           ? `Se renouvelle le ${renewal}`
                           : `Prend fin le ${renewal}, rien n’est supprimé`
                         : undefined
-                      : 'Photo IA, phrase et scan limités chaque jour'
+                      : 'Essai gratuit : 3 analyses de repas et 7 messages Sprinty par semaine'
                 }
                 chevron={!paidOwn}
                 onPress={paidOwn ? undefined : () => useEntitlementStore.getState().openPaywall('profile')}
-                last={!paidOwn && tierOf(plan.plan) === null}
               />
-              {tierOf(plan.plan) !== 'pro' && (paidOwn || plan.source === 'sponsored') && (
-                <ListRow icon="trending-up" title="Passer à Pro" subtitle="Objectif adaptatif, bilan de la semaine, plans de 12 semaines" onPress={() => useEntitlementStore.getState().openPaywall('profile')} last={!paidOwn} />
-              )}
               {paidOwn && valueLine && <ListRow icon="award" title="Ce que ça t’a apporté ce mois-ci" subtitle={valueLine} chevron={false} />}
               {paidOwn && <ListRow icon="settings" title="Gérer mon abonnement" subtitle="Dans les réglages de ton compte du store" onPress={() => openManageSubscriptions()} />}
               <ListRow

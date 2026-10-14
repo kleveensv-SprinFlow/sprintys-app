@@ -784,7 +784,7 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
     }
 
     case 'weekly_summary': {
-      if (!ctx.limits.weeklyReport) throw new ToolError('Le bilan de la semaine fait partie de la formule Pro.');
+      if (!ctx.limits.weeklyReport) throw new ToolError('Le bilan de la semaine fait partie de la formule Plus.');
       const who = await resolveAthlete(ctx, a.athlete_id);
       const from = sinceIso(ctx, 7);
       const to = addDays(ctx.today, -1);
@@ -1098,6 +1098,12 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
 
     case 'propose_plan': {
       if (ctx.role === 'coach' || ctx.hasCoach) throw new ToolError('Les plans Sprinty sont réservés aux athlètes sans coach.');
+      if (ctx.limits.planLifetimeMax != null) {
+        const { count } = await ctx.supabase.from('ai_plans').select('id', { count: 'exact', head: true }).eq('athlete_id', ctx.userId);
+        if ((count ?? 0) >= ctx.limits.planLifetimeMax) {
+          throw new ToolError("Son plan gratuit (un seul plan de 2 semaines) a déjà été utilisé. Un nouveau plan et les plans jusqu'à 12 semaines font partie de la formule Plus : dis-le simplement, sans insister, et propose-lui de continuer à discuter ou de regarder la page des formules.");
+        }
+      }
       const s = a.safety ?? {};
       const safety = { pain: s.pain === true, heart: s.heart === true, malaise: s.malaise === true, comeback: s.comeback === true };
       const cautious = Object.values(safety).some(Boolean);

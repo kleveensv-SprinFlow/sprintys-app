@@ -428,7 +428,7 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
                           </Text>
                           {s.pro && planInfo && planInfo.billing_enabled && !planInfo.weekly_report && (
                             <View style={styles.proPill}>
-                              <Text style={styles.proPillText}>PRO</Text>
+                              <Text style={styles.proPillText}>PLUS</Text>
                             </View>
                           )}
                         </View>

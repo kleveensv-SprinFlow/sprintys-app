@@ -19,7 +19,7 @@ const WEEK = 7 * 86400000;
 const fmt = (n: number, d = 1) => (Math.round(n * 10 ** d) / 10 ** d).toString().replace('.', ',');
 
 /**
- * "Objectif qui s'adapte" (Pro): once a week at most, compares the real weight trend with the wanted pace and offers a
+ * "Objectif qui s'adapte" (Plus): once a week at most, compares the real weight trend with the wanted pace and offers a
  * small change of the daily calories. Always the person's choice.
  */
 export const AdaptiveTargetCard: React.FC = () => {
@@ -60,7 +60,7 @@ export const AdaptiveTargetCard: React.FC = () => {
         <Feather name="trending-up" size={16} color={BLUE} />
         <Text style={styles.teaser}>Objectif calorique qui s’adapte à ta courbe de poids</Text>
         <View style={styles.pro}>
-          <Text style={styles.proText}>PRO</Text>
+          <Text style={styles.proText}>PLUS</Text>
         </View>
       </PressableScale>
     );

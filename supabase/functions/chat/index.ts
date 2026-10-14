@@ -150,8 +150,11 @@ serve(async (req) => {
     } else if (quota.data?.allowed === false) {
       return json(
         {
-          error: feature ? 'Tu as atteint ta limite du jour pour cette fonction.' : 'Tu as utilisé tous tes messages Sprinty du jour.',
+          error: quota.data?.window === 'week'
+            ? 'Tu as atteint ta limite de la semaine pour cette fonction.'
+            : feature ? 'Tu as atteint ta limite du jour pour cette fonction.' : 'Tu as utilisé tous tes messages Sprinty du jour.',
           code: 'quota',
+          window: quota.data?.window,
           feature: feature ?? 'chat',
           plan: quota.data?.plan,
           limit: quota.data?.limit,

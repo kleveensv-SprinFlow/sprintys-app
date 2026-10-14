@@ -51,26 +51,10 @@ POUR LES ATHLÈTES
 • Pas encore de coach ? Sprinty fixe un objectif avec toi, pose les bonnes questions (y compris de sécurité) et te propose un plan semaine par semaine que tu ajoutes à ton calendrier.
 • Exporte un plan ou une analyse en PDF.
 
-ABONNEMENTS FACULTATIFS (Plus et Pro)
-• Gratuit : un essai chaque jour de la photo IA, de la saisie en une phrase et du scan de code-barres, et la recherche d'aliments sans limite.
-• Plus : photo, phrase et scan sans limite, plus de messages à Sprinty, export PDF.
-• Pro : tout Plus, l'analyse photo la plus précise, un objectif calorique qui s'adapte à ta courbe de poids, le bilan de la semaine en PDF et des plans d'entraînement jusqu'à 12 semaines.
+ABONNEMENT FACULTATIF (Plus)
+• Gratuit : recherche d'aliments et scan de code-barres sans limite, plus chaque semaine un essai de l'analyse de repas par IA (photo ou phrase), de Sprinty et d'un plan de 2 semaines.
+• Plus : analyse de repas par photo et en une phrase sans limite, plus de messages à Sprinty, objectif calorique qui s'adapte à ta courbe de poids, bilan de la semaine en PDF, plans d'entraînement jusqu'à 12 semaines, recherche de compétitions et export PDF.
 • 7 jours d'essai gratuit. Abonnement à renouvellement automatique, résiliable à tout moment dans les réglages de ton compte Apple ou Google Play. Rien n'est supprimé si tu arrêtes.
-
-POUR LES COACHS
-• Crée tes groupes et sous-groupes ; tes athlètes te rejoignent avec un code.
-• Construis des séances détaillées (blocs, répétitions, charges, récupérations) et assigne-les à l'équipe, un sous-groupe ou un athlète.
-• Visualise la forme de ton équipe chaque matin et repère qui a besoin de récupérer.
-• Discute avec ton équipe, publie des annonces et des sondages.
-• Demande à Sprinty une analyse complète de la progression d'un athlète, compare tes athlètes en graphique, repère qui est fatigué, programme des séances pour un groupe, rédige une annonce ou cherche une compétition : tu valides toujours avant que quoi que ce soit soit enregistré.
-
-TES DONNÉES T'APPARTIENNENT
-• Hébergement dans l'Union européenne.
-• Accords explicites pour les données de santé et les fonctions d'IA, modifiables à tout moment.
-• Export de toutes tes données et suppression du compte depuis l'app.
-• Ni publicité, ni revente de données.
-
-Sprintys ne remplace pas un avis médical. En cas de douleur ou de doute, consulte un professionnel de santé.
 ```
 
 ### Mots-clés (App Store, 100 caractères max, séparés par des virgules)
@@ -196,7 +180,7 @@ Sprintys is a training app for track & field athletes and their coaches.
 - Team chat is user-generated content: users can report a message and block a user (long-press a message or use the chat menu). Reports are reviewed within 24 h.
 - Account deletion: Profile → Supprimer mon compte (deletes the account and all associated data).
 - Location is only used while the app is in use, approximately, for the weather card.
-- Optional auto-renewing subscriptions "Plus" and "Pro" (monthly/yearly, 7-day free trial) unlock higher daily limits for AI meal photo analysis, natural-language meal entry, barcode scanning and Sprinty messages, plus PDF export (Plus) and an adaptive calorie target, weekly report and longer training plans (Pro). The free tier keeps a daily allowance of every feature and unlimited food search. Nothing is deleted when a subscription ends. The paywall opens only when the user taps a limited feature or "Découvrir Premium" in Profile, and always has a "Plus tard" button; "Restaurer mes achats" and "Gérer l'abonnement" are in Profile → Abonnement. Terms and Privacy links are on the paywall. Use the sandbox account provided in App Store Connect to test purchases.
+- One optional auto-renewing subscription, "Plus" (monthly/yearly, 7-day free trial), removes the weekly limits of AI meal analysis (photo or natural-language entry), Sprinty messages and training plans, and adds PDF export, an adaptive calorie target, the weekly report and competition search. The free tier keeps unlimited food search and barcode scanning, plus a weekly allowance of each AI feature. Nothing is deleted when a subscription ends. The paywall opens only when the user taps a limited feature or "Découvrir Premium" in Profile, and always has a "Plus tard" button; "Restaurer mes achats" and "Gérer l'abonnement" are in Profile → Abonnement. Terms and Privacy links are on the paywall. Use the sandbox account provided in App Store Connect to test purchases.
 ```
 
 ---

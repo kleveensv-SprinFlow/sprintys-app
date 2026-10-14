@@ -163,30 +163,21 @@ export const FoodSearchModal: React.FC = () => {
 
   const limitDetail = (kind: 'photo' | 'text' | 'scan') => {
     const info = useEntitlementStore.getState().info;
-    const limit = kind === 'photo' ? info?.photo_per_day : kind === 'text' ? info?.text_per_day : info?.scan_per_day;
-    const label = kind === 'photo' ? 'analyses photo' : kind === 'text' ? 'saisies en une phrase' : 'scans';
-    return limit ? `Tu as utilisé tes ${limit} ${label} du jour. Avec Plus, plus de limite.` : undefined;
+    if (kind === 'scan') return undefined;
+    if (info?.photo_text_per_week != null) return `Tu as utilisé tes ${info.photo_text_per_week} analyses de repas de la semaine (photo ou phrase). Avec Plus, plus de limite.`;
+    const limit = kind === 'photo' ? info?.photo_per_day : info?.text_per_day;
+    return limit ? `Tu as atteint ta limite de ${kind === 'photo' ? 'photos' : 'saisies en une phrase'} du jour.` : undefined;
   };
 
   /** Quick check before opening the camera or the keyboard, so nobody takes a photo for nothing. */
   const limitReached = (kind: 'photo' | 'text' | 'scan') => {
-    if (!billingOn()) return false;
+    if (!billingOn() || kind === 'scan') return false;
     if (remainingToday(useEntitlementStore.getState().info, kind) !== 0) return false;
     showPaywall(kind, limitDetail(kind));
     return true;
   };
 
   const handleBarcodeScanned = async ({ data }: { data: string }) => {
-    // Scans are counted on the server too; if that check fails, the scan is allowed
-    if (billingOn()) {
-      const { data: used } = await supabase.rpc('consume_feature' as any, { p_kind: 'scan' });
-      if ((used as any)?.allowed === false) {
-        setMode('text');
-        showPaywall('scan', limitDetail('scan'));
-        return;
-      }
-      useEntitlementStore.getState().noteUse('scan');
-    }
     setMode('text');
     setIsLoading(true);
     try {

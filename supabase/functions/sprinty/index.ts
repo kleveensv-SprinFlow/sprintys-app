@@ -89,7 +89,8 @@ serve(async (req) => {
       const legacy = await supabase.rpc('consume_ai_quota', { p_limit: LEGACY_DAILY });
       if (!legacy.error && legacy.data === false) return json({ error: 'Sprinty se repose, reviens demain.', code: 'quota' }, 429);
     } else if (quota.data?.allowed === false) {
-      return json({ error: 'Tu as utilisé tous tes messages Sprinty du jour.', code: 'quota', plan: quota.data?.plan, limit: quota.data?.limit }, 429);
+      const weekly = quota.data?.window === 'week';
+      return json({ error: weekly ? `Tu as utilisé tes ${quota.data?.limit} messages Sprinty de la semaine.` : 'Tu as utilisé tous tes messages Sprinty du jour.', code: 'quota', window: quota.data?.window, plan: quota.data?.plan, limit: quota.data?.limit }, 429);
     }
 
     const focusId = typeof body?.focusAthleteId === 'string' ? body.focusAthleteId : null;
@@ -117,6 +118,7 @@ serve(async (req) => {
       limits: {
         planWeeksMax: Math.max(1, Math.min(16, Number(plan?.ai_plan_weeks_max ?? 4))),
         plansActive: Number(plan?.ai_plans_active ?? 1),
+        planLifetimeMax: plan?.ai_plan_lifetime_max == null ? null : Number(plan.ai_plan_lifetime_max),
         competitionSearch: plan ? plan.competition_search === true : true,
         weeklyReport: plan ? plan.weekly_report === true : true,
       },

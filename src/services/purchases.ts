@@ -65,14 +65,14 @@ export interface Offer {
 
 const tierPeriodOf = (productId: string): { tier: PaidTier; period: Period } | null => {
   const id = productId.toLowerCase();
-  const tier: PaidTier | null = id.includes('athlete_pro') ? 'pro' : id.includes('athlete_plus') || id.includes('athlete_premium') ? 'plus' : null;
+  const tier: PaidTier | null = id.includes('athlete_plus') || id.includes('athlete_premium') || id.includes('athlete_pro') ? 'plus' : null;
   if (!tier) return null;
   return { tier, period: id.includes('year') || id.includes('annual') ? 'yearly' : 'monthly' };
 };
 
 /** Offers sold by the stores, with localised prices. Falls back on the starting prices when unavailable. */
 export async function loadOffers(): Promise<{ offers: Offer[]; live: boolean }> {
-  const fallback: Offer[] = (['plus', 'pro'] as PaidTier[]).flatMap((tier) =>
+  const fallback: Offer[] = (['plus'] as PaidTier[]).flatMap((tier) =>
     (['monthly', 'yearly'] as Period[]).map((period) => ({
       tier,
       period,

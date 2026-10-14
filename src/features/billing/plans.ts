@@ -10,7 +10,8 @@ export type PlanName =
   | 'coach_plus'
   | 'coach_pro';
 
-export type PaidTier = 'plus' | 'pro';
+/** One paid formula for athletes. (Older Pro products, if any, are served as Plus.) */
+export type PaidTier = 'plus';
 export type Period = 'monthly' | 'yearly';
 export type Feature = 'photo' | 'text' | 'scan' | 'chat' | 'plan_long' | 'pdf' | 'weekly_report' | 'adaptive_target' | 'competitions';
 
@@ -25,6 +26,13 @@ export interface PlanInfo {
   photo_per_day: number;
   text_per_day: number;
   scan_per_day: number;
+  /** Free plan: shared weekly pool for photo + sentence meal analyses (null = no weekly pool). */
+  photo_text_per_week?: number | null;
+  sprinty_per_week?: number | null;
+  /** Free plan: Sprinty plans one account may ever create (null = no limit). */
+  ai_plan_lifetime_max?: number | null;
+  plans_created?: number;
+  usage_week?: { photo_text: number; chat: number };
   smart_vision: boolean;
   adaptive_target: boolean;
   weekly_report: boolean;
@@ -40,25 +48,22 @@ export interface PlanInfo {
 /** What the paywall sells. Product ids are the ones to create in App Store Connect and Google Play. */
 export const PRODUCT_IDS: Record<PaidTier, Record<Period, string>> = {
   plus: { monthly: 'athlete_plus_monthly', yearly: 'athlete_plus_yearly' },
-  pro: { monthly: 'athlete_pro_monthly', yearly: 'athlete_pro_yearly' },
 };
 
 /** Starting prices, shown only when the store cannot give the localised ones. */
 export const FALLBACK_PRICES: Record<PaidTier, Record<Period, string>> = {
-  plus: { monthly: '2,99 €', yearly: '24,99 €' },
-  pro: { monthly: '5,99 €', yearly: '49,99 €' },
+  plus: { monthly: '3,99 €', yearly: '39,99 €' },
 };
 
-export const TIER_NAMES: Record<PaidTier, string> = { plus: 'Plus', pro: 'Pro' };
+export const TIER_NAMES: Record<PaidTier, string> = { plus: 'Plus' };
 
 export const tierOf = (plan?: PlanName | null): PaidTier | null =>
-  plan === 'athlete_pro' || plan === 'coach_pro' ? 'pro' : plan === 'athlete_plus' || plan === 'athlete_premium' || plan === 'coach_plus' || plan === 'sponsored' ? 'plus' : null;
+  plan && plan !== 'legacy' && plan !== 'free_athlete' && plan !== 'free_coach' ? 'plus' : null;
 
 export const planLabel = (info?: PlanInfo | null): string => {
   if (!info) return 'Gratuit';
   if (info.source === 'sponsored') return 'Plus offert par ton coach';
   const t = tierOf(info.plan);
-  if (t === 'pro') return 'Pro';
   if (t === 'plus') return 'Plus';
   return info.plan === 'legacy' ? 'Toutes les fonctions' : 'Gratuit';
 };

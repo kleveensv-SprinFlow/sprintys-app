@@ -4,8 +4,10 @@ export type Role = 'athlete' | 'coach';
 export interface Limits {
   planWeeksMax: number;
   plansActive: number;
+  /** Free plan: how many Sprinty plans one account may ever create (null = no limit). */
+  planLifetimeMax: number | null;
   competitionSearch: boolean;
-  /** Pro: weekly report and weekly adjustment of an existing plan. */
+  /** Plus: weekly report and weekly adjustment of an existing plan. */
   weeklyReport: boolean;
 }
 
