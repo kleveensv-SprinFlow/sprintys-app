@@ -124,8 +124,8 @@ describe('Team Weekly Summary Service — Tâche T4', () => {
 
       // Mock check-ins
       const mockCheckins = [
-        { id: 'c1', athlete_id: 'ath-1', date: '2026-10-13', health_score: 80, sleep_hours: 8, sleep_quality: 4, pain: null },
-        { id: 'c2', athlete_id: 'ath-2', date: '2026-10-14', health_score: 60, sleep_hours: 6, sleep_quality: 3, pain: { zones: [{ label: 'mollet droit' }] } },
+        { id: 'c1', athlete_id: 'ath-1', date: '2026-10-13', health_score: 80, sleep_hours: 8, sleep_quality: 4, pains: [] },
+        { id: 'c2', athlete_id: 'ath-2', date: '2026-10-14', health_score: 60, sleep_hours: 6, sleep_quality: 3, pains: [{ muscle_id: 'mollets', muscle_name: 'mollet droit', intensity: 6, type: 'Contracture' }] },
       ];
 
       (supabase.from as jest.Mock).mockImplementation((table: string) => {

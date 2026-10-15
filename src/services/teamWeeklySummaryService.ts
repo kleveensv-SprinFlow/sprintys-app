@@ -159,7 +159,7 @@ export const teamWeeklySummaryService = {
     // 3. Check-ins de la semaine pour ces athlètes
     const { data: checkins } = await supabase
       .from('check_ins')
-      .select('id, athlete_id, date, health_score, sleep_hours, sleep_quality, pain')
+      .select('id, athlete_id, date, health_score, sleep_hours, sleep_quality, pains')
       .in('athlete_id', athleteIds)
       .gte('date', range.startStr)
       .lte('date', range.endStr);
@@ -199,13 +199,10 @@ export const teamWeeklySummaryService = {
 
     // Extraction des zones de douleur
     const zoneSet = new Set<string>();
+    // Les zones restent sur l'écran du coach, mais ne partent jamais vers l'IA (donnée de santé)
     checkinList.forEach((c) => {
-      if (c.pain) {
-        if (typeof c.pain === 'object' && Array.isArray(c.pain.zones)) {
-          c.pain.zones.forEach((z: any) => z?.label && zoneSet.add(z.label));
-        } else if (typeof c.pain === 'string' && c.pain.trim()) {
-          zoneSet.add(c.pain.trim());
-        }
+      if (Array.isArray(c.pains)) {
+        c.pains.forEach((p: any) => p?.muscle_name && zoneSet.add(String(p.muscle_name)));
       }
     });
     const painZones = Array.from(zoneSet);
@@ -290,10 +287,7 @@ RÈGLES ABSOLUES ET STRICTES :
 - Athlètes : ${stats.totalAthletes} au total
 - Séances : ${stats.completedWorkouts} réalisées sur ${stats.plannedWorkouts} planifiées (${stats.workoutCompletionRate}% d'assiduité)
 - Check-ins : ${stats.recordedCheckIns} saisis sur ${stats.expectedCheckIns} attendus (${stats.checkInRate}% de complétion)
-- Forme moyenne : ${stats.avgHealthScore !== null ? `${stats.avgHealthScore}%` : 'non renseigné'}
-- Sommeil moyen : ${stats.avgSleepHours !== null ? `${stats.avgSleepHours}h/nuit` : 'non renseigné'}${stats.avgSleepQuality !== null ? ` (qualité ${stats.avgSleepQuality}/5)` : ''}
 - Alertes : ${stats.flaggedAthletesCount} athlète(s) sous surveillance (${stats.activeAlertsCount} alertes)
-- Zones de tension : ${stats.painZones.length ? stats.painZones.join(', ') : 'aucune'}
 
 Rédige la synthèse en 5 lignes précises.`;
 
