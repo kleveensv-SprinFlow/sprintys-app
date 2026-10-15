@@ -1,3 +1,4 @@
+import { PerformanceView } from '../../../src/features/performance/PerformanceView';
 import { goBack } from '../../../src/core/navigation';
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated, Image } from 'react-native';
@@ -12,10 +13,11 @@ import { GlassScreen } from '../../../src/shared/components/GlassScreen';
 import { Header } from '../../../src/shared/components/Header';
 import { PressableScale } from '../../../src/shared/components/PressableScale';
 import { EmptyState } from '../../../src/shared/components/EmptyState';
-import { Skeleton } from '../../../src/shared/components/Skeleton';
+import { Skeleton, SkeletonCard } from '../../../src/shared/components/Skeleton';
 import { ListRow } from '../../../src/shared/components/ListRow';
 import { useFrostedHeader } from '../../../src/shared/hooks/useFrostedHeader';
 import { useRefresh } from '../../../src/shared/hooks/useRefresh';
+import { useAuthStore } from '../../../src/store/authStore';
 
 type FeatherName = keyof typeof Feather.glyphMap;
 
@@ -24,15 +26,47 @@ export default function AthleteDetailScreen() {
   const router = useRouter();
   const { scrollY, scrollProps } = useFrostedHeader();
 
-  const { teamMembers } = useCoachStore();
+  const { teamMembers, subgroups, fetchTeams, fetchTeamMembers, fetchSubgroups } = useCoachStore();
   // Find athlete profile from the new store structure
   const athleteMember = teamMembers.find(m => m.user_id === id);
   const profile = athleteMember?.profile;
 
+  // Opened without the team in memory (restart, link, notification): load the teams before concluding the athlete is unknown
+  const coachId = useAuthStore((st) => st.user?.id);
+  const [resolving, setResolving] = useState(!athleteMember);
+  useEffect(() => {
+    if (athleteMember) {
+      setResolving(false);
+      return;
+    }
+    if (!coachId) return; // session still restoring: stay on the loading state
+    let alive = true;
+    (async () => {
+      try {
+        await fetchTeams();
+        for (const t of useCoachStore.getState().teams) {
+          await fetchTeamMembers(t.id);
+          await fetchSubgroups(t.id);
+        }
+      } catch {
+        /* falls through to the not-found state */
+      } finally {
+        if (alive) setResolving(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [id, coachId, !!athleteMember]);
+
   const [latestCheckIn, setLatestCheckIn] = useState<CheckInData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const refreshControl = useRefresh(() => id ? loadCheckIn(id as string) : undefined);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const refreshControl = useRefresh(() => {
+    setRefreshKey((k) => k + 1);
+    return id ? loadCheckIn(id as string) : undefined;
+  });
   useEffect(() => {
     if (id) {
       loadCheckIn(id);
@@ -50,6 +84,18 @@ export default function AthleteDetailScreen() {
       setIsLoading(false);
     }
   };
+
+  if (!profile && resolving) {
+    return (
+      <GlassScreen scrollY={scrollY}>
+        <Header title="Athlète" showBackButton onBackPress={() => goBack(router, '/(coach)')} />
+        <View style={{ padding: 16 }}>
+          <SkeletonCard avatar />
+          <SkeletonCard />
+        </View>
+      </GlassScreen>
+    );
+  }
 
   if (!profile) {
     return (
@@ -94,12 +140,12 @@ export default function AthleteDetailScreen() {
       onPress: () => router.push(`/(athlete)/nutrition?athleteId=${id}&readonly=true`),
     },
     {
-      key: 'training',
-      label: 'Entraînement',
-      icon: 'activity',
+      key: 'performance',
+      label: 'Performance',
+      icon: 'trending-up',
       color: theme.colors.sprintyBlue,
       tint: 'rgba(0, 105, 232, 0.1)',
-      onPress: () => router.push(`/(coach)/athlete/${id}/calendar`),
+      onPress: () => router.push(`/(coach)/athlete/${id}/performance`),
     },
     {
       key: 'sessions',
@@ -149,7 +195,9 @@ export default function AthleteDetailScreen() {
             )}
           </View>
           <Text style={styles.profileName}>{name}</Text>
-          <Text style={styles.profileGroup}>{profile.subgroups?.join(', ') || 'Sans sous-groupe'}</Text>
+          <Text style={styles.profileGroup}>
+            {subgroups.find((g) => g.id === athleteMember?.subgroup_id)?.name || profile.subgroups?.join(', ') || 'Sans sous-groupe'}
+          </Text>
         </View>
 
         {/* ACTIONS RAPIDES */}
@@ -243,6 +291,18 @@ export default function AthleteDetailScreen() {
             )}
           </View>
         )}
+
+        {/* PERFORMANCE */}
+        <Text style={styles.sectionTitle}>Performance</Text>
+        <View style={{ marginHorizontal: -16 }}>
+          <PerformanceView
+            athleteId={String(id)}
+            mode="summary"
+            audience="coach"
+            refreshKey={refreshKey}
+            onSeeAll={() => router.push(`/(coach)/athlete/${id}/performance`)}
+          />
+        </View>
 
         {/* ACTIONS */}
         <Text style={styles.sectionTitle}>Messagerie</Text>

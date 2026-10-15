@@ -4,6 +4,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { timeLabelOf } from './TimeField';
 import { sessionKindOf, entryCategoryOf, effortCategoryOf } from '../../workout/sessionKind';
 import { SprintyBadge, isSprintyWorkout } from '../../sprinty/SprintyBadge';
@@ -92,6 +93,15 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
   // For course: { "exerciseId_setIndex": { chrono: "12.34" } }
   const [setData, setSetData] = React.useState<Record<string, any>>({});
   const [athleteNotes, setAthleteNotes] = React.useState('');
+  // Felt effort (1-10) and duration: together they give the session load that the coach follows
+  const [rpe, setRpe] = React.useState<number | null>(null);
+  const [durationMin, setDurationMin] = React.useState('');
+  // Per-athlete validation of a group session (coach view)
+  const [validations, setValidations] = React.useState<{ athlete_id: string; status: string }[]>([]);
+  const draftReady = React.useRef(false);
+  // Rest timer started when a set is entered (uses the set's planned rest)
+  const [restEnd, setRestEnd] = React.useState<number | null>(null);
+  const [restLeft, setRestLeft] = React.useState(0);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isValidated, setIsValidated] = React.useState(false);
   const [justSaved, setJustSaved] = React.useState(false);
@@ -127,8 +137,12 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
   React.useEffect(() => {
     setSetData({});
     setAthleteNotes('');
+    setRpe(null);
+    setDurationMin('');
+    draftReady.current = false;
     setJustSaved(false);
     setActiveKeypad(null);
+    setRestEnd(null);
     setIsValidated(workout?.status === 'completed');
     if (visible && workout && (!isCoach || isReadOnly) && resultsOwnerId) {
       loadExistingData();
@@ -174,6 +188,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                   weight: extra.weight || (effort.actual_weight_kg != null ? String(effort.actual_weight_kg) : ''),
                   repsOk: extra.repsOk !== undefined ? extra.repsOk : true,
                   chrono: extra.chrono || '',
+                  pr: !!(effort as any).is_pr,
                 };
               }
               globalIdx++;
@@ -184,13 +199,80 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
       }
 
       setAthleteNotes(readFeedback(workout.measures));
+      const m = workout.measures || {};
+      setRpe(typeof m.rpe === 'number' ? m.rpe : null);
+      setDurationMin(typeof m.duration_min === 'number' ? String(m.duration_min) : '');
       setIsValidated(workout.status === 'completed');
+
+      // A session that was started but not validated comes back as it was left (lost connection, app closed...)
+      if (canEdit && workout.status !== 'completed') {
+        try {
+          const raw = await AsyncStorage.getItem(`session-draft:${resultsOwnerId}:${workoutId}`);
+          if (raw && seq === loadSeq.current) {
+            const draft = JSON.parse(raw);
+            if (draft?.setData && Object.keys(draft.setData).length) setSetData(draft.setData);
+            if (typeof draft?.notes === 'string') setAthleteNotes(draft.notes);
+            if (typeof draft?.rpe === 'number') setRpe(draft.rpe);
+            if (typeof draft?.durationMin === 'string') setDurationMin(draft.durationMin);
+          }
+        } catch { /* a missing draft is not an error */ }
+      }
+      if (seq === loadSeq.current) draftReady.current = true;
     } catch (e) {
       console.error('Error loading athlete data:', e);
     } finally {
       if (seq === loadSeq.current) setIsLoadingData(false);
     }
   };
+
+  // Rest countdown: ticks every second, buzzes at zero
+  React.useEffect(() => {
+    if (restEnd == null) return;
+    const tick = () => {
+      const left = Math.max(0, Math.ceil((restEnd - Date.now()) / 1000));
+      setRestLeft(left);
+      if (left === 0) {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        setTimeout(() => setRestEnd((cur) => (cur === restEnd ? null : cur)), 2500);
+        return true;
+      }
+      return false;
+    };
+    if (tick()) return;
+    const id = setInterval(() => {
+      if (tick()) clearInterval(id);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [restEnd]);
+
+  // Keep what the athlete typed until the session is validated
+  React.useEffect(() => {
+    if (!canEdit || !visible || !workout?.id || !resultsOwnerId || !draftReady.current || isValidated) return;
+    const key = `session-draft:${resultsOwnerId}:${workout.id}`;
+    const t = setTimeout(() => {
+      const empty = !Object.keys(setData).length && !athleteNotes && rpe == null && !durationMin;
+      (empty ? AsyncStorage.removeItem(key) : AsyncStorage.setItem(key, JSON.stringify({ setData, notes: athleteNotes, rpe, durationMin }))).catch(() => undefined);
+    }, 500);
+    return () => clearTimeout(t);
+  }, [setData, athleteNotes, rpe, durationMin, isValidated, visible, workout?.id]);
+
+  // Coach: who has validated a group session
+  React.useEffect(() => {
+    setValidations([]);
+    if (!visible || !isCoach || !workout?.group_assignment_id) return;
+    let alive = true;
+    supabase
+      .from('workouts')
+      .select('athlete_id, status, measures')
+      .eq('group_assignment_id', workout.group_assignment_id)
+      .then(({ data }) => {
+        if (!alive || !data) return;
+        setValidations(data.filter((r: any) => r.measures?.is_master !== true).map((r: any) => ({ athlete_id: r.athlete_id, status: r.status })));
+      });
+    return () => {
+      alive = false;
+    };
+  }, [visible, isCoach, workout?.id, workout?.group_assignment_id]);
 
   // Flattened sets array for seamless sequential keypad navigation
   const allSets = React.useMemo(() => {
@@ -291,6 +373,11 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
       });
       if (!ok) return;
     }
+    const minutes = durationMin.trim() ? parseInt(durationMin.trim(), 10) : null;
+    if (minutes != null && (!Number.isFinite(minutes) || minutes < 1 || minutes > 600)) {
+      appAlert('Durée', 'Indique une durée en minutes entre 1 et 600, ou laisse le champ vide.');
+      return;
+    }
     setIsSubmitting(true);
     try {
       const efforts: any[] = [];
@@ -350,7 +437,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
 
       // Updated measures with athlete notes
       const feedback = athleteNotes.trim() || null;
-      const updatedMeasures: any = { ...(workout.measures || {}), athlete_feedback: feedback };
+      const updatedMeasures: any = { ...(workout.measures || {}), athlete_feedback: feedback, rpe: rpe ?? null, duration_min: minutes };
       // Technical sessions keep the coach's instructions (an array) in athlete_notes: never overwrite them
       if (!Array.isArray(updatedMeasures.athlete_notes)) updatedMeasures.athlete_notes = feedback;
 
@@ -364,8 +451,34 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
       setIsValidated(true);
       setJustSaved(true);
       setTimeout(() => setJustSaved(false), 4000);
+      AsyncStorage.removeItem(`session-draft:${user.id}:${workout.id}`).catch(() => undefined);
+
+      // Records set during this session (computed by the database when the results are saved)
+      let recordLines: string[] = [];
+      try {
+        const { data: prs } = await supabase
+          .from('athlete_efforts')
+          .select('exercise_category, actual_distance_m, actual_time_ms, actual_weight_kg, actual_extra, planned_extra, set_order')
+          .eq('workout_id', workout.id)
+          .eq('is_pr', true)
+          .order('set_order');
+        const seen = new Set<string>();
+        for (const r of prs || []) {
+          const isRun = (r as any).actual_time_ms != null && (r as any).actual_distance_m;
+          const label = isRun ? `${Number((r as any).actual_distance_m)} m` : String((r as any).actual_extra?.exercise ?? (r as any).planned_extra?.exercise_name ?? 'Exercice');
+          if (seen.has(label)) continue;
+          seen.add(label);
+          recordLines.push(isRun ? `${label} : ${((r as any).actual_time_ms / 1000).toFixed(2).replace('.', ',')} s` : `${label} : ${(r as any).actual_weight_kg ?? (r as any).actual_extra?.weight} kg`);
+        }
+      } catch { /* the celebration is a bonus */ }
+      loadExistingData();
 
       onUpdated?.();
+      if (recordLines.length > 0) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        toast('success', recordLines.slice(0, 2).join(' · '), recordLines.length > 1 ? `${recordLines.length} nouveaux records` : 'Nouveau record');
+        return;
+      }
 
       toast(
         'success',
@@ -458,6 +571,12 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
 
   const handleKeypadSave = (value: string, repsOk?: boolean) => {
     if (!activeKeypad) return;
+    // Planned rest after this set starts the timer (nothing after the last set of the session)
+    const planned = allSets[activeKeypad.flattenedIndex];
+    const restSeconds = Number(planned?.set?.restSeconds ?? 0);
+    if (value && restSeconds > 0 && activeKeypad.flattenedIndex < allSets.length - 1) {
+      setRestEnd(Date.now() + restSeconds * 1000);
+    }
     const key = `${activeKeypad.exerciseId}_${activeKeypad.setIndex}`;
     setSetData(prev => ({
       ...prev,
@@ -586,6 +705,31 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
               </View>
             )}
           </View>
+
+          {/* Coach: who validated this group session */}
+          {isCoach && validations.length > 1 && (
+            <View style={styles.validationsCard}>
+              <View style={styles.validationsHeader}>
+                <Feather name="check-circle" size={14} color={theme.colors.success} />
+                <Text style={styles.validationsTitle}>
+                  {validations.filter((v) => v.status === 'completed').length}/{validations.length} athlètes ont validé
+                </Text>
+              </View>
+              <View style={styles.validationsChips}>
+                {validations.map((v) => {
+                  const mem = teamMembers.find((m) => m.user_id === v.athlete_id);
+                  const name = mem?.profile?.first_name || mem?.profile?.full_name?.split(' ')[0] || 'Athlète';
+                  const done = v.status === 'completed';
+                  return (
+                    <View key={v.athlete_id} style={[styles.validationChip, done ? styles.validationChipDone : styles.validationChipTodo]}>
+                      <Feather name={done ? 'check' : 'clock'} size={11} color={done ? theme.colors.success : theme.colors.textSecondary} />
+                      <Text style={[styles.validationChipText, { color: done ? theme.colors.success : theme.colors.textSecondary }]}>{name}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          )}
 
           {/* Consignes / Notes if provided (for non-technical sessions) */}
           {!isTechnical && cleanDescription ? (
@@ -837,7 +981,8 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                                   accessibilityRole="button"
                                   accessibilityLabel={data.weight ? `Charge série ${setIndex + 1} : ${data.weight} kg` : `Saisir la charge de la série ${setIndex + 1}`}
                                 >
-                                  {!data.weight && <Feather name="plus" size={13} color={theme.colors.textSecondary} />}
+                                  {!data.weight && canEdit && <Feather name="plus" size={13} color={theme.colors.textSecondary} />}
+                                  {!!data.pr && <Feather name="award" size={13} color="#F59E0B" />}
                                   <Text style={[
                                     styles.athleteValueButtonText,
                                     data.weight ? styles.athleteValueFilledText : styles.athleteValuePlaceholder,
@@ -865,9 +1010,9 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                                   accessibilityLabel={data.chrono ? `Chrono série ${setIndex + 1} : ${data.chrono}` : `Saisir le chrono de la série ${setIndex + 1}`}
                                 >
                                   <Feather
-                                    name="clock"
+                                    name={data.pr ? 'award' : 'clock'}
                                     size={13}
-                                    color={data.chrono ? theme.colors.sprintyBlue : theme.colors.textSecondary}
+                                    color={data.pr ? '#F59E0B' : data.chrono ? theme.colors.sprintyBlue : theme.colors.textSecondary}
                                   />
                                   <Text style={[
                                     styles.athleteValueButtonText,
@@ -922,6 +1067,48 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
         {/* ========== ATHLETE BOTTOM SECTION ========== */}
         {canEdit && (
           <View style={styles.athleteBottom}>
+            {/* Felt effort and duration: session load */}
+            {kind !== 'rest' && kind !== 'competition' && (
+              <View>
+                <Text style={styles.sectionLabel}>Effort ressenti (facultatif)</Text>
+                <View style={styles.rpeRow}>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                    <PressableScale
+                      key={n}
+                      haptic="selection"
+                      containerStyle={styles.rpeCellContainer}
+                      style={[styles.rpeCell, rpe === n && styles.rpeCellActive]}
+                      onPress={() => setRpe(rpe === n ? null : n)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: rpe === n }}
+                      accessibilityLabel={`Effort ressenti ${n} sur 10`}
+                    >
+                      <Text style={[styles.rpeText, rpe === n && styles.rpeTextActive]}>{n}</Text>
+                    </PressableScale>
+                  ))}
+                </View>
+                <View style={styles.rpeLegend}>
+                  <Text style={styles.rpeLegendText}>Très facile</Text>
+                  <Text style={styles.rpeLegendText}>Maximal</Text>
+                </View>
+                <View style={styles.durationRow}>
+                  <Feather name="clock" size={15} color={theme.colors.textSecondary} />
+                  <Text style={styles.durationLabel}>Durée de la séance</Text>
+                  <TextInput
+                    style={styles.durationInput}
+                    value={durationMin}
+                    onChangeText={(t) => setDurationMin(t.replace(/[^0-9]/g, '').slice(0, 3))}
+                    keyboardType="number-pad"
+                    placeholder="—"
+                    placeholderTextColor={theme.colors.textMuted}
+                    selectionColor={theme.colors.sprintyBlue}
+                    accessibilityLabel="Durée de la séance en minutes"
+                  />
+                  <Text style={styles.durationUnit}>min</Text>
+                </View>
+              </View>
+            )}
+
             {/* Comment / Notes */}
             <View>
               <Text style={styles.sectionLabel}>
@@ -1000,6 +1187,20 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
         )}
         </ScrollView>
         </KeyboardAvoidingView>
+
+        {restEnd != null && !activeKeypad && (
+          <View style={styles.restBanner} pointerEvents="box-none">
+            <View style={styles.restPill}>
+              <Feather name="pause-circle" size={16} color={restLeft === 0 ? theme.colors.success : theme.colors.sprintyBlue} />
+              <Text style={styles.restText}>
+                {restLeft === 0 ? 'C’est reparti !' : `Récupération ${Math.floor(restLeft / 60)}:${String(restLeft % 60).padStart(2, '0')}`}
+              </Text>
+              <PressableScale haptic="selection" onPress={() => setRestEnd(null)} accessibilityRole="button" accessibilityLabel="Arrêter le minuteur" hitSlop={8}>
+                <Text style={styles.restSkip}>{restLeft === 0 ? 'OK' : 'Passer'}</Text>
+              </PressableScale>
+            </View>
+          </View>
+        )}
 
         {activeKeypad && (
           <AthleteValueKeypadModal
@@ -1528,6 +1729,70 @@ const styles = StyleSheet.create({
     marginTop: 24,
     gap: 16,
   },
+  rpeRow: { flexDirection: 'row', gap: 4 },
+  rpeCellContainer: { flex: 1 },
+  rpeCell: {
+    height: 40,
+    borderRadius: 10,
+    borderCurve: 'continuous',
+    backgroundColor: theme.colors.glassFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rpeCellActive: { backgroundColor: theme.colors.sprintyBlue },
+  rpeText: { fontSize: 14, fontWeight: '700', color: theme.colors.textSecondary, fontVariant: ['tabular-nums'] },
+  rpeTextActive: { color: '#FFFFFF' },
+  rpeLegend: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 },
+  rpeLegendText: { fontSize: 11, fontWeight: '600', color: theme.colors.textMuted },
+  durationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 14,
+    paddingHorizontal: 14,
+    height: 48,
+    borderRadius: 14,
+    borderCurve: 'continuous',
+    backgroundColor: theme.colors.glassFill,
+  },
+  durationLabel: { flex: 1, flexShrink: 1, fontSize: 15, fontWeight: '600', color: theme.colors.text },
+  durationInput: { width: 56, textAlign: 'right', fontSize: 17, fontWeight: '800', color: theme.colors.text, padding: 0 },
+  durationUnit: { fontSize: 14, fontWeight: '600', color: theme.colors.textSecondary },
+  restBanner: { position: 'absolute', left: 0, right: 0, bottom: 28, alignItems: 'center', zIndex: 50 },
+  restPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 999,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.hairline,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  restText: { fontSize: 15, fontWeight: '800', color: theme.colors.text, fontVariant: ['tabular-nums'] },
+  restSkip: { fontSize: 14, fontWeight: '700', color: theme.colors.sprintyBlue },
+  validationsCard: {
+    marginTop: 12,
+    marginBottom: 12,
+    padding: 14,
+    borderRadius: 16,
+    borderCurve: 'continuous',
+    backgroundColor: theme.colors.glassFill,
+    gap: 10,
+  },
+  validationsHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  validationsTitle: { fontSize: 14, fontWeight: '700', color: theme.colors.text },
+  validationsChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  validationChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999 },
+  validationChipDone: { backgroundColor: 'rgba(16, 185, 129, 0.12)' },
+  validationChipTodo: { backgroundColor: 'rgba(100, 116, 139, 0.12)' },
+  validationChipText: { fontSize: 12.5, fontWeight: '700' },
   notesInput: {
     minHeight: 96,
     borderRadius: 14,

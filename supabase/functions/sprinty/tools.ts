@@ -107,6 +107,7 @@ export function toolsFor(ctx: Ctx) {
       exercise: { type: 'string', description: "Filtrer un exercice de musculation par son nom (ex. squat)." },
     }),
     fn('get_records', 'Meilleures performances (records personnels).', { ...target }),
+    fn('get_performance', "Vue d'ensemble de la performance : records (et ceux battus ces 14 derniers jours), progression par distance/exercice, assiduité par semaine, charge d'entraînement (effort ressenti × durée, ratio charge aiguë/chronique) et forme récente.", { ...target }),
     fn('get_weight', 'Pesées et composition corporelle.', { ...target, days: DAYS(90) }),
     fn('get_nutrition', 'Apports nutritionnels par jour (kcal, protéines, glucides, lipides) et objectif.', { ...target, days: DAYS(7) }),
     fn(
@@ -372,6 +373,7 @@ const STATUS: Record<string, string> = {
   get_workouts: 'Je regarde les séances…',
   get_results: 'Je regarde les résultats…',
   get_records: 'Je regarde les records…',
+  get_performance: 'Je regarde la progression…',
   get_weight: 'Je regarde les pesées…',
   get_nutrition: 'Je regarde la nutrition…',
   list_athletes: 'Je regarde ton équipe…',
@@ -739,6 +741,19 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
           nombre: rows.length,
           resume: [...groups.values()].map((g) => ({ serie: g.label, mesures: g.n, meilleur: round(g.best, 2), moyenne: round(g.sum / g.n, 2), premier: round(g.first!, 2), dernier: round(g.last!, 2), unite: g.unit })),
           resultats: rows.slice(0, 80).map(({ _cle, ...r }: any) => r),
+        },
+      };
+    }
+
+    case 'get_performance': {
+      const who = await resolveAthlete(ctx, a.athlete_id);
+      const { data, error } = await sb.rpc('get_athlete_performance', { p_athlete: who.id, p_weeks: 8 });
+      if (error) throw new ToolError('Impossible de lire la performance de cet athlète.');
+      return {
+        content: {
+          athlete: who.name,
+          note: "charge = effort ressenti (1-10) × minutes ; ratio = charge des 7 derniers jours / moyenne hebdomadaire des 28 jours (0,8 à 1,3 = zone optimale, au-dessus de 1,5 = risque). Si la charge est vide, l'athlète ne renseigne pas l'effort ressenti.",
+          ...(data as Record<string, unknown>),
         },
       };
     }

@@ -18,6 +18,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="message" />
       
       {/* Hidden screens from the tab bar */}
+      <Tabs.Screen name="performance" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="body" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="groups" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="settings" options={{ href: null, tabBarStyle: { display: 'none' } }} />

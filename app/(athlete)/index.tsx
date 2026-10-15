@@ -7,6 +7,7 @@ import { AthleteHeader } from '../../src/features/athlete/components/AthleteHead
 import { AthleteGauges } from '../../src/features/athlete/components/AthleteGauges';
 import { SessionCarousel } from '../../src/features/athlete/components/SessionCarousel';
 import { BodyCompositionCard } from '../../src/features/athlete/components/BodyCompositionCard';
+import { PerformanceCard } from '../../src/features/athlete/components/PerformanceCard';
 import { WeatherCard } from '../../src/shared/components/WeatherCard';
 import { GlassScreen } from '../../src/shared/components/GlassScreen';
 import { FrostedBar } from '../../src/shared/components/FrostedBar';
@@ -102,7 +103,8 @@ export default function DashboardScreen() {
               <WeatherCard />
             </View>
           </Appear>
-          <Appear index={4}><BodyCompositionCard refreshKey={refreshKey} /></Appear>
+          <Appear index={4}><PerformanceCard refreshKey={refreshKey} /></Appear>
+          <Appear index={5}><BodyCompositionCard refreshKey={refreshKey} /></Appear>
         </Animated.ScrollView>
       </View>
     </GlassScreen>
