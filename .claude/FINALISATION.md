@@ -9,7 +9,7 @@ Point de départ : état du dépôt le 2026-10-15 (v1.1.0, build 130). À confir
 - [ ] Ajouter scripts `typecheck`, `lint`, `test` dans `package.json`
 - [ ] Parcours critiques athlète / coach / abonnement testés sur appareil réel
 - [ ] Gestion hors-ligne et erreurs réseau uniformes
-- [ ] Rapport de crashs (ex. Sentry) — avec `data-produit`
+- [x] Rapport de crashs (ex. Sentry) — avec `data-produit`
 
 ## Backend (dev-backend-supabase)
 - [ ] RLS vérifiée sur toutes les tables (advisors Supabase)

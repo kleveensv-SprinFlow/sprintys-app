@@ -19,13 +19,22 @@ import { useOnboardingStore } from '../src/store/onboardingStore';
 import { useEntitlementStore } from '../src/store/entitlementStore';
 import { syncPurchasesUser } from '../src/services/purchases';
 import { PaywallSheet } from '../src/features/billing/PaywallSheet';
+import {
+  initMonitoring,
+  captureException,
+  setMonitoringUser,
+  wrapWithMonitoring,
+} from '../src/services/monitoring';
+
+initMonitoring();
 
 /** Any screen that crashes while rendering shows a friendly retry screen instead of a blank one. */
 export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Promise<void> }) {
+  captureException(error);
   return <AppErrorScreen error={error} retry={retry} />;
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const theme = useTheme();
   const isDark = theme.isDark;
   const { user, pendingEmail, isLoading, isInitialized, initializeAuth } = useAuthStore();
@@ -43,6 +52,7 @@ export default function RootLayout() {
   // Plan of the signed-in account, and its store purchases (never blocks the app)
   useEffect(() => {
     const id = user?.id ?? null;
+    setMonitoringUser(id);
     syncPurchasesUser(id);
     if (id) useEntitlementStore.getState().refresh(id);
   }, [user?.id]);
@@ -146,5 +156,4 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#EDF1F7' }
 });
 
-
-
+export default wrapWithMonitoring(RootLayout);

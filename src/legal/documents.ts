@@ -70,6 +70,7 @@ export const PRIVACY_POLICY: LegalDocument = {
         'Google et Apple : si tu choisis de te connecter avec eux, et pour le paiement des abonnements via l’App Store ou Google Play (nous ne recevons jamais ton moyen de paiement).',
         'Firebase Cloud Messaging (Google) et le service de notifications d’Apple : acheminement des notifications vers ton téléphone. Ils reçoivent l’identifiant technique de ton téléphone et le texte de la notification (par exemple le début d’un message).',
         'RevenueCat (États-Unis) : gestion des abonnements. Reçoit ton identifiant Sprintys, la formule achetée, les dates de début et de fin et l’historique d’achat, sans nom ni coordonnée bancaire. Transfert encadré par les clauses contractuelles types de la Commission européenne.',
+        'Sentry (Functional Software Inc., États-Unis) : détection et analyse des erreurs techniques et plantages de l’application. Reçoit des informations techniques sur l’appareil, la version de l’application et la trace du plantage, sans aucune donnée de santé, sportive ou personnelle. Transfert encadré par le cadre de protection des données UE–États-Unis.',
       ],
     },
     {
