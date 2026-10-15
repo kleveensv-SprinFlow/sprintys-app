@@ -4,6 +4,11 @@ import { workoutService } from '../../src/services/workoutService';
 import { periodService } from '../../src/services/periodService';
 import { TrainingPeriod } from '../../src/types/period';
 import { PeriodModal } from '../../src/features/calendar/components/PeriodModal';
+import { CopyWeekModal } from '../../src/features/calendar/components/CopyWeekModal';
+import { PressableScale } from '../../src/shared/components/PressableScale';
+import { Feather } from '@expo/vector-icons';
+import { Text } from 'react-native';
+import { useTheme } from '../../src/core/theme';
 import { useAuthStore } from '../../src/store/authStore';
 import { useCoachStore } from '../../src/store/coach/coachStore';
 import * as Haptics from 'expo-haptics';
@@ -20,6 +25,8 @@ export default function CoachCalendarScreen() {
   const { user } = useAuthStore();
   const { teams, fetchTeams, fetchSubgroups, fetchTeamMembers } = useCoachStore();
   const router = useRouter();
+  const theme = useTheme();
+  const [isCopyWeekVisible, setIsCopyWeekVisible] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [monthWorkouts, setMonthWorkouts] = useState<MonthWorkout[]>([]);
@@ -113,7 +120,29 @@ export default function CoachCalendarScreen() {
         onPressCreatePeriod={handleOpenCreatePeriod}
         isCoach={true}
         onMonthChange={handleMonthChange}
+        headerAccessory={
+          <PressableScale
+            haptic="light"
+            onPress={() => setIsCopyWeekVisible(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Copier la semaine"
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: theme.colors.glassFill }}
+          >
+            <Feather name="copy" size={13} color={theme.colors.sprintyBlue} />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.sprintyBlue }}>Copier la semaine</Text>
+          </PressableScale>
+        }
       />
+
+      {user?.id ? (
+        <CopyWeekModal
+          visible={isCopyWeekVisible}
+          onClose={() => setIsCopyWeekVisible(false)}
+          coachId={user.id}
+          day={selectedDate}
+          onCopied={() => loadMonthData(selectedDate.getFullYear(), selectedDate.getMonth())}
+        />
+      ) : null}
 
       {/* Planning Modal for Periods */}
       <PeriodModal

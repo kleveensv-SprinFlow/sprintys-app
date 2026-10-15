@@ -1,4 +1,6 @@
 import { supabase } from './supabase';
+import { sessionForAthlete } from './sessionForAthlete';
+import { sessionKindOf } from '../features/workout/sessionKind';
 import { Database } from '../types/supabase';
 import { BuilderExercise } from '../store/workoutBuilderStore';
 
@@ -21,7 +23,7 @@ function generateUUID() {
 /** A copy of a session is a fresh plan: what the athlete wrote on the original (comment) does not follow it. */
 const copyMeasures = (m: any) => {
   if (!m || typeof m !== 'object') return m ?? null;
-  const { athlete_feedback, ...rest } = m;
+  const { athlete_feedback, rpe, duration_min, ...rest } = m;
   if (typeof rest.athlete_notes === 'string') delete rest.athlete_notes;
   return rest;
 };
@@ -211,7 +213,7 @@ export const workoutService = {
     return data;
   },
 
-  fetchWorkoutTemplates: async (coachId: string, typeSeance?: string) => {
+  fetchWorkoutTemplates: async (coachId: string, typeSeance?: string | string[]) => {
     try {
       let query = supabase
         .from('workout_templates')
@@ -219,7 +221,9 @@ export const workoutService = {
         .eq('coach_id', coachId)
         .order('created_at', { ascending: false });
 
-      if (typeSeance) {
+      if (Array.isArray(typeSeance)) {
+        query = query.in('type_seance', typeSeance);
+      } else if (typeSeance) {
         query = query.eq('type_seance', typeSeance);
       }
 
@@ -233,6 +237,145 @@ export const workoutService = {
       console.error('Unexpected error fetching templates:', err);
       return [];
     }
+  },
+
+  /**
+   * Keep a planned session as a reusable template (any type). What belongs to the athletes (comment, felt effort,
+   * validation) and to this particular day (group, master flag) is not kept.
+   */
+  saveSessionAsTemplate: async (coachId: string, name: string, workout: any) => {
+    const measures: any = { ...(workout.measures || {}) };
+    for (const k of ['is_master', 'athlete_feedback', 'rpe', 'duration_min', 'has_time']) delete measures[k];
+    if (typeof measures.athlete_notes === 'string') delete measures.athlete_notes;
+    measures.kind = sessionKindOf(workout);
+    if (workout.measures?.has_time && workout.date_prevue) {
+      const d = new Date(workout.date_prevue);
+      measures.time_hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    }
+    return workoutService.saveWorkoutTemplate({
+      coach_id: coachId,
+      name: name.trim(),
+      type_seance: workout.type_seance,
+      description: workout.description || null,
+      intensity: workout.intensity ?? null,
+      blocks: workout.blocks || [],
+      exercises: workout.exercises || [],
+      measures,
+    });
+  },
+
+  /**
+   * Plan a template on a day for a team: one row per athlete (only what targets them) sharing a group id,
+   * plus the coach's master copy for sessions that have exercises, like the builders do.
+   */
+  createFromTemplate: async (
+    coachId: string,
+    teamId: string,
+    members: { user_id: string; subgroup_id?: string | null }[],
+    template: any,
+    day: Date,
+  ): Promise<number> => {
+    if (members.length === 0) throw new Error('no_members');
+    const at = new Date(day);
+    const hm = typeof template.measures?.time_hm === 'string' ? template.measures.time_hm.match(/^(\d{2}):(\d{2})$/) : null;
+    if (hm) at.setHours(parseInt(hm[1], 10), parseInt(hm[2], 10), 0, 0);
+    else at.setHours(12, 0, 0, 0);
+
+    const base = {
+      coach_id: coachId,
+      team_id: teamId,
+      group_assignment_id: generateUUID(),
+      date_prevue: at.toISOString(),
+      type_seance: template.type_seance,
+      intensity: template.intensity ?? null,
+      status: 'pending',
+    };
+    const flags: any = hm ? { has_time: true } : {};
+    const kind = (template.measures?.kind as string) || sessionKindOf(template);
+    const withMaster = members.length > 1 && ['run', 'strength', 'stairs'].includes(kind);
+
+    const rows: any[] = [];
+    if (withMaster) {
+      const { time_hm: _t, ...m } = template.measures || {};
+      rows.push({
+        ...base,
+        athlete_id: coachId,
+        description: template.description || null,
+        blocks: template.blocks || [],
+        exercises: template.exercises || [],
+        measures: { ...m, ...flags, is_master: true },
+      });
+    }
+    for (const member of members) {
+      const mine = sessionForAthlete(template, member.user_id, member.subgroup_id ?? null);
+      if (!mine) continue;
+      const { time_hm: _t, ...m } = mine.measures || {};
+      rows.push({
+        ...base,
+        athlete_id: member.user_id,
+        subgroup_id: member.subgroup_id ?? null,
+        description: mine.description || null,
+        blocks: mine.blocks,
+        exercises: mine.exercises,
+        measures: { ...m, ...flags },
+      });
+    }
+    const athleteRows = rows.filter((r) => !r.measures?.is_master);
+    if (athleteRows.length === 0) throw new Error('nobody_targeted');
+    await workoutService.smartUpdateWorkouts(undefined, rows);
+    return athleteRows.length;
+  },
+
+  /** Monday 00:00 (local) of the week containing a date. */
+  weekStart: (d: Date): Date => {
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+    return x;
+  },
+
+  /** Sessions of the coach in the week starting at `monday` (rows of every athlete and the master copies). */
+  fetchWeekRows: async (coachId: string, monday: Date) => {
+    const end = new Date(monday);
+    end.setDate(end.getDate() + 7);
+    const { data, error } = await supabase
+      .from('workouts')
+      .select('*')
+      .eq('coach_id', coachId)
+      .gte('date_prevue', monday.toISOString())
+      .lt('date_prevue', end.toISOString());
+    if (error) throw error;
+    return data || [];
+  },
+
+  /**
+   * Copy a whole week onto another one. Every session is copied as a fresh plan (nothing validated, no athlete
+   * comment), each group keeps being one group, and the original week is left as it is.
+   */
+  copyWeek: async (coachId: string, fromMonday: Date, toMonday: Date): Promise<{ sessions: number; rows: number }> => {
+    const rows = await workoutService.fetchWeekRows(coachId, fromMonday);
+    if (rows.length === 0) return { sessions: 0, rows: 0 };
+    const days = Math.round((toMonday.getTime() - fromMonday.getTime()) / 86400000);
+    const groupIds = new Map<string, string>();
+    const copies = rows.map((w: any) => {
+      const { id, created_at, updated_at, athlete_efforts, done_count, athlete_count, ...rest } = w;
+      const key = w.group_assignment_id || w.id;
+      if (!groupIds.has(key)) groupIds.set(key, generateUUID());
+      const at = new Date(w.date_prevue);
+      at.setDate(at.getDate() + days);
+      return {
+        ...rest,
+        measures: copyMeasures(rest.measures),
+        date_prevue: at.toISOString(),
+        status: 'pending',
+        group_assignment_id: groupIds.get(key),
+      };
+    });
+    for (let i = 0; i < copies.length; i += 50) {
+      const { error } = await supabase.from('workouts').insert(copies.slice(i, i + 50));
+      if (error) throw error;
+    }
+    return { sessions: groupIds.size, rows: copies.length };
   },
 
   deleteWorkoutTemplate: async (templateId: string) => {

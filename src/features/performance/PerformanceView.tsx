@@ -18,6 +18,8 @@ interface Props {
   /** Who is looking: only changes the wording of empty states. */
   audience?: 'athlete' | 'coach';
   onSeeAll?: () => void;
+  /** Opens the weekly report (Sprinty) for this athlete */
+  onWeeklyReport?: () => void;
   refreshKey?: number;
 }
 
@@ -27,7 +29,7 @@ const weekLabel = (iso: string) => {
   return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
 };
 
-export const PerformanceView: React.FC<Props> = ({ athleteId, mode = 'full', audience = 'athlete', onSeeAll, refreshKey = 0 }) => {
+export const PerformanceView: React.FC<Props> = ({ athleteId, mode = 'full', audience = 'athlete', onSeeAll, onWeeklyReport, refreshKey = 0 }) => {
   const theme = useTheme();
   const [data, setData] = useState<AthletePerformance | null>(null);
   const [loading, setLoading] = useState(true);
@@ -216,6 +218,12 @@ export const PerformanceView: React.FC<Props> = ({ athleteId, mode = 'full', aud
             <PressableScale onPress={onSeeAll} accessibilityRole="button" style={[glassCard, styles.seeAll]}>
               <Text style={[styles.seeAllText, { color: blue }]}>Voir toute la performance</Text>
               <Feather name="chevron-right" size={16} color={blue} />
+            </PressableScale>
+          )}
+          {onWeeklyReport && (
+            <PressableScale onPress={onWeeklyReport} accessibilityRole="button" style={[glassCard, styles.seeAll]}>
+              <Text style={[styles.seeAllText, { color: blue }]}>Bilan de la semaine avec Sprinty</Text>
+              <Feather name="file-text" size={16} color={blue} />
             </PressableScale>
           )}
         </>

@@ -59,6 +59,11 @@ export interface StrengthExerciseItem {
   restSets: number; // in seconds
   targets: MultiTarget;
   sets: StrengthSetItem[];
+  /** Execution details shown to the athlete */
+  notes?: string;
+  tempo?: string; // e.g. 3-1-1-0 (down - pause - up - pause, in seconds)
+  rpeTarget?: number; // 5-10
+  superset?: string; // 'A', 'B'... exercises sharing a letter are done back to back
 }
 
 interface StrengthWorkoutBuilderProps {
@@ -132,6 +137,16 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
 
   // Exercise Targets
   const [exTargets, setExTargets] = useState<MultiTarget>({ subgroups: [], athletes: [] });
+  const [exNotes, setExNotes] = useState('');
+  const [exTempo, setExTempo] = useState('');
+  const [exRpe, setExRpe] = useState<number | null>(null);
+  const [exSuperset, setExSuperset] = useState<string | null>(null);
+  const resetExtras = () => {
+    setExNotes('');
+    setExTempo('');
+    setExRpe(null);
+    setExSuperset(null);
+  };
   const [isMultiTargetModalVisible, setIsMultiTargetModalVisible] = useState(false);
 
   // Exercise Search Modal
@@ -227,6 +242,10 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
             restSets: ex.sets?.[0]?.restSeconds ?? ex.rest_between_sets_s ?? 90,
             targets: ex.targets || { subgroups: [], athletes: [] },
             sets: parsedSets,
+            notes: typeof ex.notes === 'string' ? ex.notes : undefined,
+            tempo: typeof ex.tempo === 'string' ? ex.tempo : undefined,
+            rpeTarget: typeof ex.rpe_target === 'number' ? ex.rpe_target : undefined,
+            superset: typeof ex.superset === 'string' ? ex.superset : undefined,
           };
         });
         setSessionExercises(loaded);
@@ -366,6 +385,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
     setExerciseNameEn(undefined);
     setCatalogId(undefined);
     setExTargets({ subgroups: [], athletes: [] });
+    resetExtras();
     const parsedWeight = parseFloat(weightValueText.replace(',', '.')) || 0;
     const initialSets = Array.from({ length: setsCount }).map(() => ({
       id: String(uuid.v4()),
@@ -389,6 +409,10 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
     setWeightType(item.weightType);
     setRestSets(item.restSets);
     setExTargets(item.targets || { subgroups: [], athletes: [] });
+    setExNotes(item.notes || '');
+    setExTempo(item.tempo || '');
+    setExRpe(item.rpeTarget ?? null);
+    setExSuperset(item.superset || null);
     
     if (item.sets && item.sets.length > 0) {
       setSetsData([...item.sets]);
@@ -436,6 +460,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
     setWeightType(targetWeightType);
     setRestSets(targetRest);
     setExTargets({ subgroups: [], athletes: [] });
+    resetExtras();
     
     const parsedWeight = parseFloat(targetWeight.replace(',', '.')) || 0;
     const initialSets = Array.from({ length: targetSets }).map(() => ({
@@ -487,6 +512,10 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
                 restSets,
                 targets: exTargets,
                 sets: setsData,
+                notes: exNotes.trim() || undefined,
+                tempo: exTempo.trim() || undefined,
+                rpeTarget: exRpe ?? undefined,
+                superset: exSuperset ?? undefined,
               }
             : item
         )
@@ -505,6 +534,10 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
         restSets,
         targets: exTargets,
         sets: setsData,
+        notes: exNotes.trim() || undefined,
+        tempo: exTempo.trim() || undefined,
+        rpeTarget: exRpe ?? undefined,
+        superset: exSuperset ?? undefined,
       };
       setSessionExercises((prev) => [...prev, newEx]);
     }
@@ -603,6 +636,10 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
           weightType: ex.weightType,
           rest_between_sets_s: ex.restSets,
           targets: ex.targets,
+          ...(ex.notes ? { notes: ex.notes } : {}),
+          ...(ex.tempo ? { tempo: ex.tempo } : {}),
+          ...(ex.rpeTarget ? { rpe_target: ex.rpeTarget } : {}),
+          ...(ex.superset ? { superset: ex.superset } : {}),
           sets: ex.sets.map((s, idx) => ({
             id: s.id || `${ex.id}_set_${idx}`,
             set_index: idx + 1,
@@ -1174,6 +1211,76 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
                   </View>
                 </PressableScale>
 
+                {/* Execution details: tempo, target effort, superset and a note for the athlete */}
+                <Text style={[styles.sectionCaption, styles.sectionHeader]}>Exécution</Text>
+                <View style={[styles.card, { padding: 14, gap: 14 }]}>
+                  <View>
+                    <Text style={styles.settingLabel}>Tempo</Text>
+                    <Text style={styles.settingHint}>Descente - pause - montée - pause, en secondes</Text>
+                    <TextInput
+                      style={styles.execInput}
+                      value={exTempo}
+                      onChangeText={(t) => setExTempo(t.replace(/[^0-9xX-]/g, '').slice(0, 11))}
+                      placeholder="3-1-1-0"
+                      placeholderTextColor={theme.colors.textMuted}
+                      selectionColor={theme.colors.sprintyBlue}
+                      autoCapitalize="none"
+                      accessibilityLabel="Tempo d’exécution"
+                    />
+                  </View>
+                  <View>
+                    <Text style={styles.settingLabel}>Effort visé (RPE)</Text>
+                    <Text style={styles.settingHint}>10 = effort maximal, 8 = il en reste 2 en réserve</Text>
+                    <View style={styles.chipRow}>
+                      {[6, 7, 8, 9, 10].map((n) => (
+                        <PressableScale
+                          key={n}
+                          haptic="selection"
+                          style={[styles.execChip, exRpe === n && styles.execChipActive]}
+                          onPress={() => setExRpe(exRpe === n ? null : n)}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: exRpe === n }}
+                          accessibilityLabel={`RPE ${n}`}
+                        >
+                          <Text style={[styles.execChipText, exRpe === n && styles.execChipTextActive]}>{n}</Text>
+                        </PressableScale>
+                      ))}
+                    </View>
+                  </View>
+                  <View>
+                    <Text style={styles.settingLabel}>Superset</Text>
+                    <Text style={styles.settingHint}>Les exercices d’une même lettre s’enchaînent sans repos</Text>
+                    <View style={styles.chipRow}>
+                      {[null, 'A', 'B', 'C', 'D'].map((l) => (
+                        <PressableScale
+                          key={l ?? 'none'}
+                          haptic="selection"
+                          style={[styles.execChip, exSuperset === l && styles.execChipActive]}
+                          onPress={() => setExSuperset(l)}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: exSuperset === l }}
+                          accessibilityLabel={l ? `Superset ${l}` : 'Pas de superset'}
+                        >
+                          <Text style={[styles.execChipText, exSuperset === l && styles.execChipTextActive]}>{l ?? 'Aucun'}</Text>
+                        </PressableScale>
+                      ))}
+                    </View>
+                  </View>
+                  <View>
+                    <Text style={styles.settingLabel}>Consigne pour l’athlète</Text>
+                    <TextInput
+                      style={[styles.execInput, { minHeight: 72, textAlignVertical: 'top', paddingTop: 10 }]}
+                      value={exNotes}
+                      onChangeText={(t) => setExNotes(t.slice(0, 280))}
+                      placeholder="Ex. dos plat, poitrine haute, ne pas verrouiller les genoux"
+                      placeholderTextColor={theme.colors.textMuted}
+                      selectionColor={theme.colors.sprintyBlue}
+                      multiline
+                      accessibilityLabel="Consigne pour l’athlète"
+                    />
+                  </View>
+                </View>
+
                 {/* Bottom action, mirrors the header pill for long tables */}
                 <Button
                   title={editingId ? 'Mettre à jour l’exercice' : 'Ajouter à la séance'}
@@ -1589,6 +1696,31 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: theme.colors.sprintyBlue,
   },
+  execInput: {
+    marginTop: 8,
+    minHeight: 44,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    backgroundColor: theme.colors.glassFill,
+    paddingHorizontal: 12,
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  chipRow: { flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' },
+  execChip: {
+    minWidth: 44,
+    height: 38,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    backgroundColor: theme.colors.glassFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  execChipActive: { backgroundColor: theme.colors.sprintyBlue },
+  execChipText: { fontSize: 15, fontWeight: '700', color: theme.colors.textSecondary },
+  execChipTextActive: { color: '#FFFFFF' },
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',

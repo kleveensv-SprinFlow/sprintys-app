@@ -1,3 +1,4 @@
+import { TeamAlertsCard } from '../../src/features/coach/components/TeamAlertsCard';
 import { Appear } from '../../src/shared/components/Appear';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
@@ -67,6 +68,7 @@ export default function CoachDashboardScreen() {
   const [broadcastVisible, setBroadcastVisible] = useState(false);
   const [teamHealthVisible, setTeamHealthVisible] = useState(false);
   const [todayWorkouts, setTodayWorkouts] = useState<any[] | null>(null);
+  const [alertsKey, setAlertsKey] = useState(0);
 
   const team = teams[0];
   const todayStr = localDateStr(new Date());
@@ -80,6 +82,7 @@ export default function CoachDashboardScreen() {
       workoutService.fetchWorkoutsForDate(user.id, new Date(), 'coach', team.id).catch(() => []),
     ]);
     setTodayWorkouts(workouts || []);
+    setAlertsKey((k) => k + 1);
   }, [team?.id, user?.id, todayStr]);
 
   // Teams were only loaded by other tabs before: the home stayed empty on cold start
@@ -216,6 +219,7 @@ export default function CoachDashboardScreen() {
         </Appear>
 
         <Appear index={3}>
+        <TeamAlertsCard teamId={team?.id} refreshKey={alertsKey} />
         <Text style={styles.sectionTitle}>SÉANCES DU JOUR</Text>
         {team && todayWorkouts === null ? (
           <View style={[glassCard, styles.card]}>

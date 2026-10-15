@@ -110,6 +110,9 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
   // Copy/Repeat modal state (coach only)
   const [showCopyModal, setShowCopyModal] = React.useState(false);
   const [showRepeatModal, setShowRepeatModal] = React.useState(false);
+  const [showTemplateName, setShowTemplateName] = React.useState(false);
+  const [templateName, setTemplateName] = React.useState('');
+  const [savingTemplate, setSavingTemplate] = React.useState(false);
 
   // Active Keypad State for intelligent athlete data entry
   const [activeKeypad, setActiveKeypad] = React.useState<{
@@ -702,6 +705,20 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                   <Feather name="repeat" size={15} color={theme.colors.sprintyBlue} />
                   <Text style={styles.actionBtnText}>Répéter</Text>
                 </PressableScale>
+
+                <PressableScale
+                  containerStyle={styles.actionBtnContainer}
+                  style={styles.actionBtn}
+                  onPress={() => {
+                    setTemplateName(workout.type_seance || 'Ma séance');
+                    setShowTemplateName(true);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Enregistrer en séance type"
+                >
+                  <Feather name="star" size={15} color={theme.colors.sprintyBlue} />
+                  <Text style={styles.actionBtnText}>Type</Text>
+                </PressableScale>
               </View>
             )}
           </View>
@@ -890,6 +907,35 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                   <View key={exercise.id} style={styles.exerciseCard}>
                     <Text style={styles.exerciseName}>{exercise.name}</Text>
 
+                    {(() => {
+                      const ex: any = exercise;
+                      const group = ex.superset ? (block.exercises || []).filter((e: any) => e.superset === ex.superset) : [];
+                      const superset = group.length > 1 ? `${ex.superset}${group.indexOf(exercise) + 1}` : null;
+                      if (!superset && !ex.tempo && !ex.rpe_target) return null;
+                      return (
+                        <View style={styles.execMetaRow}>
+                          {!!superset && (
+                            <View style={styles.execMetaChip}>
+                              <Feather name="link" size={11} color={theme.colors.sprintyBlue} />
+                              <Text style={styles.execMetaText}>Superset {superset}</Text>
+                            </View>
+                          )}
+                          {!!ex.tempo && (
+                            <View style={styles.execMetaChip}>
+                              <Feather name="clock" size={11} color={theme.colors.sprintyBlue} />
+                              <Text style={styles.execMetaText}>Tempo {ex.tempo}</Text>
+                            </View>
+                          )}
+                          {!!ex.rpe_target && (
+                            <View style={styles.execMetaChip}>
+                              <Feather name="activity" size={11} color={theme.colors.sprintyBlue} />
+                              <Text style={styles.execMetaText}>RPE {ex.rpe_target}</Text>
+                            </View>
+                          )}
+                        </View>
+                      );
+                    })()}
+
                     {!!(exercise as any).target && (exercise as any).target.type !== 'all' && (
                       <View style={styles.targetBadge}>
                         <Feather name="user" size={11} color={theme.colors.sprintyBlue} />
@@ -930,6 +976,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                         }
                         if (set.distance) setDetails.push(`${set.distance}m`);
                         if ((set as any).intensity) setDetails.push(`${(set as any).intensity}%`);
+                        if ((set as any).target_time_s) setDetails.push(`objectif ${String(Number((set as any).target_time_s).toFixed(2)).replace('.', ',')} s`);
                         if (set.duration) setDetails.push(set.duration);
                         if (set.weight !== undefined && set.weight !== null) {
                           const wType = (set as any).weight_type || (set as any).weightType;
@@ -1222,6 +1269,52 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
         {/* Copy/Repeat Modals (Coach only) */}
         {isCoach && (
           <>
+            <Modal visible={showTemplateName} transparent animationType="fade" onRequestClose={() => setShowTemplateName(false)}>
+              <FeedbackHost />
+              <View style={styles.nameBackdrop}>
+                <View style={styles.nameCard}>
+                  <Text style={styles.nameTitle}>Enregistrer en séance type</Text>
+                  <Text style={styles.nameHint}>Tu pourras la reprogrammer sur n’importe quel jour depuis « Séances types ».</Text>
+                  <TextInput
+                    style={styles.nameInput}
+                    value={templateName}
+                    onChangeText={setTemplateName}
+                    placeholder="Nom de la séance type"
+                    placeholderTextColor={theme.colors.textMuted}
+                    selectionColor={theme.colors.sprintyBlue}
+                    maxLength={60}
+                    autoFocus
+                    accessibilityLabel="Nom de la séance type"
+                  />
+                  <View style={styles.nameActions}>
+                    <PressableScale containerStyle={{ flex: 1 }} style={styles.nameCancel} onPress={() => setShowTemplateName(false)} accessibilityRole="button">
+                      <Text style={styles.nameCancelText}>Annuler</Text>
+                    </PressableScale>
+                    <PressableScale
+                      containerStyle={{ flex: 1 }}
+                      style={[styles.nameConfirm, (!templateName.trim() || savingTemplate) && { opacity: 0.5 }]}
+                      disabled={!templateName.trim() || savingTemplate}
+                      accessibilityRole="button"
+                      onPress={async () => {
+                        if (!user?.id) return;
+                        setSavingTemplate(true);
+                        try {
+                          await workoutService.saveSessionAsTemplate(user.id, templateName, workout);
+                          setShowTemplateName(false);
+                          toast('success', 'Séance type enregistrée.');
+                        } catch {
+                          appAlert('Erreur', 'Impossible d’enregistrer la séance type.');
+                        } finally {
+                          setSavingTemplate(false);
+                        }
+                      }}
+                    >
+                      {savingTemplate ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.nameConfirmText}>Enregistrer</Text>}
+                    </PressableScale>
+                  </View>
+                </View>
+              </View>
+            </Modal>
             <CopyWorkoutModal
               visible={showCopyModal}
               onClose={() => setShowCopyModal(false)}
@@ -1576,6 +1669,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: theme.colors.sprintyBlue,
   },
+  execMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
+  execMetaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: 'rgba(0, 105, 232, 0.08)',
+  },
+  execMetaText: { fontSize: 12, fontWeight: '700', color: theme.colors.sprintyBlue },
   exerciseCard: {
     ...glassCard,
   },
@@ -1758,6 +1862,16 @@ const styles = StyleSheet.create({
   durationLabel: { flex: 1, flexShrink: 1, fontSize: 15, fontWeight: '600', color: theme.colors.text },
   durationInput: { width: 56, textAlign: 'right', fontSize: 17, fontWeight: '800', color: theme.colors.text, padding: 0 },
   durationUnit: { fontSize: 14, fontWeight: '600', color: theme.colors.textSecondary },
+  nameBackdrop: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.45)', justifyContent: 'center', padding: 24 },
+  nameCard: { borderRadius: 24, borderCurve: 'continuous', padding: 20, gap: 12, backgroundColor: theme.colors.surface },
+  nameTitle: { fontSize: 18, fontWeight: '800', color: theme.colors.text, letterSpacing: -0.2 },
+  nameHint: { fontSize: 13.5, lineHeight: 19, color: theme.colors.textSecondary },
+  nameInput: { height: 48, borderRadius: 14, borderCurve: 'continuous', paddingHorizontal: 14, fontSize: 16, fontWeight: '600', color: theme.colors.text, backgroundColor: theme.colors.glassFill },
+  nameActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  nameCancel: { height: 46, borderRadius: 14, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.glassFill },
+  nameCancelText: { fontSize: 15, fontWeight: '700', color: theme.colors.textSecondary },
+  nameConfirm: { height: 46, borderRadius: 14, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.sprintyBlue },
+  nameConfirmText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
   restBanner: { position: 'absolute', left: 0, right: 0, bottom: 28, alignItems: 'center', zIndex: 50 },
   restPill: {
     flexDirection: 'row',

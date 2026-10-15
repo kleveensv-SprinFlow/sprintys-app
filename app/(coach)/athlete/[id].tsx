@@ -301,6 +301,19 @@ export default function AthleteDetailScreen() {
             audience="coach"
             refreshKey={refreshKey}
             onSeeAll={() => router.push(`/(coach)/athlete/${id}/performance`)}
+            onWeeklyReport={() =>
+              router.push({
+                pathname: '/(coach)/chat',
+                params: {
+                  athleteId: String(id),
+                  athleteName: name,
+                  avatarUrl: profile.avatar_url || '',
+                  domains: 'training,nutrition,wellness,body',
+                  initialPrompt: `Fais le bilan de la semaine de ${name.split(' ')[0]} : séances, nutrition, sommeil, poids et charge.`,
+                  ts: String(Date.now()),
+                },
+              })
+            }
           />
         </View>
 

@@ -28,7 +28,8 @@ import { GlassScreen } from '../../../src/shared/components/GlassScreen';
 import { glassSurface, glassRim } from '../../../src/core/glass';
 import { useFrostedHeader } from '../../../src/shared/hooks/useFrostedHeader';
 
-import { appAlert } from '../../../src/shared/feedback/appAlert';
+import { appAlert, toast } from '../../../src/shared/feedback/appAlert';
+import { TemplatePickerModal } from '../../../src/features/calendar/components/TemplatePickerModal';
 
 import { useRefresh } from '../../../src/shared/hooks/useRefresh';
 import { timeLabelOf } from '../../../src/features/calendar/components/TimeField';
@@ -56,8 +57,9 @@ export default function CoachDayScreen() {
   const [editingWorkout, setEditingWorkout] = useState<any>(null);
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
   const [showAddOptions, setShowAddOptions] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
 
-  const { teams, fetchTeams, fetchSubgroups, fetchTeamMembers } = useCoachStore();
+  const { teams, teamMembers, fetchTeams, fetchSubgroups, fetchTeamMembers } = useCoachStore();
 
   useEffect(() => {
     fetchTeams();
@@ -241,7 +243,32 @@ export default function CoachDayScreen() {
     },
   ];
 
+  const handlePickTemplate = useCallback(async (tpl: any) => {
+    const team = teams[0];
+    const approved = teamMembers.filter((m: any) => m.status === 'approved');
+    if (!user?.id || !team) {
+      appAlert('Aucune équipe', 'Crée ou rejoins une équipe pour planifier cette séance.');
+      return;
+    }
+    try {
+      const n = await workoutService.createFromTemplate(user.id, team.id, approved, tpl, parsedDate);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      toast('success', `« ${tpl.name} » planifiée pour ${n} athlète${n > 1 ? 's' : ''}.`);
+      setShowTemplates(false);
+      setShowAddOptions(false);
+      fetchDayWorkouts();
+    } catch (e: any) {
+      const msg = e?.message === 'no_members'
+        ? 'Aucun athlète validé dans ton équipe.'
+        : e?.message === 'nobody_targeted'
+          ? 'Aucun athlète de ton équipe n’est concerné par cette séance.'
+          : 'Impossible de planifier cette séance type.';
+      appAlert('Séance type', msg);
+    }
+  }, [teams, teamMembers, user?.id, parsedDate, fetchDayWorkouts]);
+
   const renderCreationGrid = () => (
+    <>
     <View style={styles.gridContainer}>
       {CREATION_OPTIONS.map((item) => (
         <PressableScale
@@ -264,6 +291,21 @@ export default function CoachDayScreen() {
         </PressableScale>
       ))}
     </View>
+    <PressableScale
+      haptic="light"
+      style={[styles.templatesRow, glassSurface]}
+      onPress={() => setShowTemplates(true)}
+      accessibilityRole="button"
+      accessibilityLabel="Planifier une séance type"
+    >
+      <Feather name="star" size={18} color={theme.colors.sprintyBlue} />
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.gridOptionTitle, { color: theme.colors.text }]}>Séances types</Text>
+        <Text style={[styles.gridOptionSubtitle, { color: theme.colors.textSecondary }]}>Reprogrammer une séance enregistrée</Text>
+      </View>
+      <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />
+    </PressableScale>
+    </>
   );
 
   const getSummaryText = () => {
@@ -526,6 +568,15 @@ export default function CoachDayScreen() {
         onSave={handleSaveWorkout}
       />
 
+      {user?.id ? (
+        <TemplatePickerModal
+          visible={showTemplates}
+          onClose={() => setShowTemplates(false)}
+          coachId={user.id}
+          onPick={handlePickTemplate}
+        />
+      ) : null}
+
       <WorkoutDetailModal
         visible={isDetailModalVisible}
         workout={selectedWorkout}
@@ -659,6 +710,15 @@ const styles = StyleSheet.create({
   // Empty State - Athletic 2x3 Grid
   emptyWrapper: {
     paddingTop: 8,
+  },
+  templatesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 18,
+    marginTop: 12,
   },
   gridContainer: {
     flexDirection: 'row',

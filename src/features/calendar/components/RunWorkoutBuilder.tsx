@@ -69,6 +69,8 @@ export interface RunBlockItem {
   restReps: number; // in seconds
   restBlock: number; // in seconds
   targets: { subgroups: string[]; athletes: string[] };
+  /** Time goal per run, in seconds (identical blocks only) */
+  targetTime?: number;
 }
 
 export interface WorkoutTemplateItem {
@@ -132,6 +134,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
   const [manualDistanceText, setManualDistanceText] = useState('120');
   const [repsCount, setRepsCount] = useState<number>(3);
   const [intensity, setIntensity] = useState<number>(95);
+  const [targetTimeText, setTargetTimeText] = useState('');
   const [variedRuns, setVariedRuns] = useState<RunItem[]>([
     { id: '1', distance: 120, intensity: 95 },
     { id: '2', distance: 150, intensity: 95 },
@@ -249,6 +252,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
         runs: [],
         restReps: firstSet.restSeconds ?? 180,
         restBlock: blk.restAfterBlock ?? 360,
+        targetTime: typeof firstSet.target_time_s === 'number' ? firstSet.target_time_s : undefined,
         targets: firstEx.targets || { subgroups: [], athletes: [] },
       };
     }
@@ -374,6 +378,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
 
   // Open Add Sheet
   const handleOpenAddSheet = () => {
+    setTargetTimeText('');
     setDistanceError(null);
     setEditingBlockId(null);
     setBlockMode('identical');
@@ -396,6 +401,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
     setManualDistanceText(String(block.distance));
     setRepsCount(block.repsCount);
     setIntensity(block.intensity);
+    setTargetTimeText(block.targetTime ? String(block.targetTime).replace('.', ',') : '');
     if (block.runs && block.runs.length > 0) {
       setVariedRuns(block.runs.map((r) => ({ ...r })));
     } else {
@@ -450,6 +456,19 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
         return;
       }
 
+      const rawTarget = targetTimeText.trim().replace(',', '.');
+      let parsedTarget: number | undefined;
+      if (rawTarget) {
+        // 7.20 or 1:05.3
+        const m = rawTarget.match(/^(\d+):(\d+(?:\.\d+)?)$/);
+        const v = m ? parseInt(m[1], 10) * 60 + parseFloat(m[2]) : parseFloat(rawTarget);
+        if (!Number.isFinite(v) || v <= 0 || v > 3600) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          toast('warning', 'Objectif chrono invalide', 'Écris-le comme 7,20 ou 1:05,3.');
+          return;
+        }
+        parsedTarget = Math.round(v * 100) / 100;
+      }
       const defaultTitle = `${repsCount} × ${distNum}m (${intensity}%)`;
       const finalName = blockName.trim() || defaultTitle;
 
@@ -468,6 +487,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                   restReps,
                   restBlock,
                   targets: blockTargets,
+                  targetTime: parsedTarget,
                 }
               : b
           )
@@ -484,6 +504,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
           restReps,
           restBlock,
           targets: blockTargets,
+          targetTime: parsedTarget,
         };
         setBlocks((prev) => [...prev, newBlock]);
       }
@@ -553,7 +574,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
     setIsLoadingTemplates(true);
     try {
       // 1. Favorites from Supabase + Cache
-      const supaFavorites = await workoutService.fetchWorkoutTemplates(user.id);
+      const supaFavorites = await workoutService.fetchWorkoutTemplates(user.id, ['Piste', 'Côte']);
       if (supaFavorites && supaFavorites.length > 0) {
         const mapped: WorkoutTemplateItem[] = supaFavorites.map((t: any) => ({
           id: t.id,
@@ -724,6 +745,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
             id: `${blk.id}_set_${sIdx}`,
             distance: blk.distance,
             intensity: blk.intensity,
+            ...(blk.targetTime ? { target_time_s: blk.targetTime } : {}),
             restSeconds: isLastRep ? blk.restBlock : blk.restReps,
           };
         });
@@ -1353,6 +1375,25 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                           () => setIntensity((i) => Math.max(5, i - 5)),
                           () => setIntensity((i) => Math.min(100, i + 5))
                         )}
+                      </View>
+
+                      <View style={styles.rowDivider} />
+
+                      <View style={styles.paramRow}>
+                        <View style={styles.paramLabelBox}>
+                          <Text style={styles.rowTitle}>Objectif chrono</Text>
+                          <Text style={styles.rowSub}>Facultatif, par course (ex. 7,20)</Text>
+                        </View>
+                        <TextInput
+                          style={styles.targetTimeInput}
+                          value={targetTimeText}
+                          onChangeText={(t) => setTargetTimeText(t.replace(/[^0-9.,:]/g, '').slice(0, 8))}
+                          keyboardType="numbers-and-punctuation"
+                          placeholder="—"
+                          placeholderTextColor={theme.colors.textMuted}
+                          selectionColor={theme.colors.sprintyBlue}
+                          accessibilityLabel="Objectif chrono par course, en secondes"
+                        />
                       </View>
                     </View>
                   </>
@@ -2107,6 +2148,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginLeft: 4,
     color: BLUE,
+  },
+  targetTimeInput: {
+    width: 96,
+    flexShrink: 0,
+    height: 40,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    paddingHorizontal: 12,
+    textAlign: 'center',
+    fontSize: 17,
+    fontWeight: '700',
+    color: C.text,
+    backgroundColor: C.glassFill,
   },
   paramRow: {
     flexDirection: 'row',
