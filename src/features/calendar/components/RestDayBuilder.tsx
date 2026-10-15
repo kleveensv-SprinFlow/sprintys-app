@@ -18,7 +18,7 @@ import { glassCard } from '../../../core/glass';
 import * as Haptics from 'expo-haptics';
 import uuid from 'react-native-uuid';
 import { useAuthStore } from '../../../store/authStore';
-import { useCoachStore } from '../../../store/coach/coachStore';
+import { useCoachStore, useCurrentTeam } from '../../../store/coach/coachStore';
 import { workoutService } from '../../../services/workoutService';
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 import { appAlert, toast } from '../../../shared/feedback/appAlert';
@@ -58,6 +58,8 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
 
   const { user } = useAuthStore();
   const { teams, subgroups, teamMembers, fetchTeamMembers, fetchSubgroups } = useCoachStore();
+  const currentTeam = useCurrentTeam();
+  const ensureTeamLoaded = useCoachStore((st) => st.ensureTeamLoaded);
 
   // Target
   const [targetType, setTargetType] = useState<RestTarget>('team');
@@ -75,11 +77,10 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
 
   useEffect(() => {
     if (visible && teams.length > 0) {
-      const activeTeamId = teams[0].id;
-      if (teamMembers.length === 0) fetchTeamMembers(activeTeamId);
-      if (subgroups.length === 0) fetchSubgroups(activeTeamId);
+      const activeTeamId = currentTeam!.id;
+      ensureTeamLoaded(activeTeamId);
     }
-  }, [visible, teams, teamMembers.length, subgroups.length]);
+  }, [visible, currentTeam?.id]);
 
   useEffect(() => {
     if (visible) {
@@ -123,7 +124,7 @@ export const RestDayBuilder: React.FC<RestDayBuilderProps> = ({
       setFormError('Choisis un athlète.');
       return;
     }
-    const activeTeamId = teams.length > 0 ? teams[0].id : null;
+    const activeTeamId = currentTeam?.id ?? null;
     // Checked before anything is deleted: editing must never lose the existing rest day
     if (targetType === 'team' && !activeTeamId) {
       setFormError('Crée d’abord un groupe pour planifier un jour de repos.');

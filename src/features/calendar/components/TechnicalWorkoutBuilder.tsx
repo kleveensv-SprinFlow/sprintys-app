@@ -18,7 +18,7 @@ import { glassCard } from '../../../core/glass';
 import * as Haptics from 'expo-haptics';
 import uuid from 'react-native-uuid';
 import { useAuthStore } from '../../../store/authStore';
-import { useCoachStore } from '../../../store/coach/coachStore';
+import { useCoachStore, useCurrentTeam } from '../../../store/coach/coachStore';
 import { workoutService } from '../../../services/workoutService';
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 import { appAlert, toast } from '../../../shared/feedback/appAlert';
@@ -69,6 +69,8 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
 
   const { user } = useAuthStore();
   const { teams, subgroups, teamMembers, fetchTeams, fetchTeamMembers, fetchSubgroups } = useCoachStore();
+  const currentTeam = useCurrentTeam();
+  const ensureTeamLoaded = useCoachStore((st) => st.ensureTeamLoaded);
 
   const [notes, setNotes] = useState<TechnicalNoteItem[]>([
     {
@@ -95,11 +97,10 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
 
   useEffect(() => {
     if (visible && teams.length > 0) {
-      const activeTeamId = teams[0].id;
-      if (teamMembers.length === 0) fetchTeamMembers(activeTeamId);
-      if (subgroups.length === 0) fetchSubgroups(activeTeamId);
+      const activeTeamId = currentTeam!.id;
+      ensureTeamLoaded(activeTeamId);
     }
-  }, [visible, teams, teamMembers.length, subgroups.length]);
+  }, [visible, currentTeam?.id]);
 
   useEffect(() => {
     if (visible) {
@@ -259,7 +260,7 @@ export const TechnicalWorkoutBuilder: React.FC<TechnicalWorkoutBuilderProps> = (
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      const activeTeamId = teams.length > 0 ? teams[0].id : null;
+      const activeTeamId = currentTeam?.id ?? null;
       const targetDate = new Date(date);
       targetDate.setTime(sessionTime.applyTo(targetDate, 12).getTime());
       const targetDateIso = targetDate.toISOString();

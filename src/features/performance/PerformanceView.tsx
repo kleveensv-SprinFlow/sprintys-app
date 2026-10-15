@@ -10,6 +10,7 @@ import { SkeletonCard } from '../../shared/components/Skeleton';
 import { WeightAreaChart } from '../body/components/WeightChart';
 import { performanceService, AthletePerformance, PerfSeries } from '../../services/performanceService';
 import { formatValue, shortDate, loadZone } from './format';
+import { MaxesBlock } from './MaxesBlock';
 
 interface Props {
   athleteId: string;
@@ -238,6 +239,7 @@ export const PerformanceView: React.FC<Props> = ({ athleteId, mode = 'full', aud
       ) : (
         <>
           {recordsBlock}
+          <MaxesBlock athleteId={athleteId} audience={audience} />
           {seriesBlock}
           {loadBlock}
         </>

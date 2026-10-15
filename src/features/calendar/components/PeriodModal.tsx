@@ -21,7 +21,7 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { periodService } from '../../../services/periodService';
 import { useAuthStore } from '../../../store/authStore';
-import { useCoachStore } from '../../../store/coach/coachStore';
+import { useCoachStore, useCurrentTeam } from '../../../store/coach/coachStore';
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 import { appAlert, confirmAsync, toast } from '../../../shared/feedback/appAlert';
 import { IconButton } from '../../../shared/components/IconButton';
@@ -58,6 +58,7 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
 }) => {
   const { user } = useAuthStore();
   const { teams, subgroups, teamMembers } = useCoachStore();
+  const currentTeam = useCurrentTeam();
 
   const [name, setName] = useState('');
   const [color, setColor] = useState<string>(PERIOD_COLORS[0].hex);
@@ -147,7 +148,7 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
   const conflictInfo = useMemo(() => {
     if (!startDateStr || !endDateStr || startDateStr > endDateStr) return null;
 
-    const activeTeamId = teams.length > 0 ? teams[0].id : null;
+    const activeTeamId = currentTeam?.id ?? null;
 
     for (const p of existingPeriods) {
       // Exclure la période en cours d'édition pour ne pas la croiser avec elle-même
@@ -258,7 +259,7 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
     setIsSubmitting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    const activeTeamId = teams.length > 0 ? teams[0].id : null;
+    const activeTeamId = currentTeam?.id ?? null;
 
     try {
       if (periodToEdit) {

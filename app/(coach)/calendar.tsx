@@ -7,10 +7,11 @@ import { PeriodModal } from '../../src/features/calendar/components/PeriodModal'
 import { CopyWeekModal } from '../../src/features/calendar/components/CopyWeekModal';
 import { PressableScale } from '../../src/shared/components/PressableScale';
 import { Feather } from '@expo/vector-icons';
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
 import { useTheme } from '../../src/core/theme';
 import { useAuthStore } from '../../src/store/authStore';
-import { useCoachStore } from '../../src/store/coach/coachStore';
+import { useCoachStore, useCurrentTeam } from '../../src/store/coach/coachStore';
+import { TeamSwitcher } from '../../src/features/coach/components/TeamSwitcher';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -23,7 +24,11 @@ export default function CoachCalendarScreen() {
   const tabBarSpace = useTabBarSpace(8);
   const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
-  const { teams, fetchTeams, fetchSubgroups, fetchTeamMembers } = useCoachStore();
+  const { teams, fetchTeams } = useCoachStore();
+  const currentTeam = useCurrentTeam();
+  const ensureTeamLoaded = useCoachStore((st) => st.ensureTeamLoaded);
+  // With several groups the calendar shows the picked one only
+  const scopeTeamId = teams.length > 1 ? currentTeam?.id ?? null : null;
   const router = useRouter();
   const theme = useTheme();
   const [isCopyWeekVisible, setIsCopyWeekVisible] = useState(false);
@@ -41,7 +46,7 @@ export default function CoachCalendarScreen() {
     if (!user?.id) return;
     try {
       const [workoutsData, periodsData] = await Promise.all([
-        workoutService.fetchWorkoutsForMonth(user.id, year, month, 'coach'),
+        workoutService.fetchWorkoutsForMonth(user.id, year, month, 'coach', scopeTeamId),
         periodService.fetchPeriodsForMonth(user.id, year, month, 'coach'),
       ]);
       setMonthWorkouts(workoutsData || []);
@@ -49,24 +54,20 @@ export default function CoachCalendarScreen() {
     } catch (error) {
       console.error('Error loading calendar month data:', error);
     }
-  }, [user?.id]);
+  }, [user?.id, scopeTeamId]);
 
   // Load current month on mount & screen focus
   useFocusEffect(
     useCallback(() => {
       loadMonthData(selectedDate.getFullYear(), selectedDate.getMonth());
-      fetchTeams();
-    }, [loadMonthData, selectedDate, fetchTeams])
+      if (user?.id) fetchTeams();
+    }, [loadMonthData, selectedDate, fetchTeams, user?.id])
   );
 
   // Load team details (subgroups, members) for the period modal
   useEffect(() => {
-    if (teams.length > 0) {
-      const activeTeamId = teams[0].id;
-      fetchSubgroups(activeTeamId);
-      fetchTeamMembers(activeTeamId);
-    }
-  }, [teams, fetchSubgroups, fetchTeamMembers]);
+    if (currentTeam) ensureTeamLoaded(currentTeam.id);
+  }, [currentTeam?.id]);
 
   const handleMonthChange = useCallback((year: number, month: number) => {
     loadMonthData(year, month);
@@ -121,6 +122,8 @@ export default function CoachCalendarScreen() {
         isCoach={true}
         onMonthChange={handleMonthChange}
         headerAccessory={
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <TeamSwitcher />
           <PressableScale
             haptic="light"
             onPress={() => setIsCopyWeekVisible(true)}
@@ -131,6 +134,7 @@ export default function CoachCalendarScreen() {
             <Feather name="copy" size={13} color={theme.colors.sprintyBlue} />
             <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.sprintyBlue }}>Copier la semaine</Text>
           </PressableScale>
+          </View>
         }
       />
 
@@ -139,6 +143,7 @@ export default function CoachCalendarScreen() {
           visible={isCopyWeekVisible}
           onClose={() => setIsCopyWeekVisible(false)}
           coachId={user.id}
+          teamId={scopeTeamId}
           day={selectedDate}
           onCopied={() => loadMonthData(selectedDate.getFullYear(), selectedDate.getMonth())}
         />

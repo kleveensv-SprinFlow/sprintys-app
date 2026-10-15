@@ -23,6 +23,9 @@ import { appAlert, confirmAsync, toast } from '../../../shared/feedback/appAlert
 import { IconButton } from '../../../shared/components/IconButton';
 import { PressableScale } from '../../../shared/components/PressableScale';
 import { formatSeconds, formatValue } from '../../performance/format';
+import { resultsOutbox, isNetworkError, useOutboxStore } from '../../../services/resultsOutbox';
+import { maxesService, exerciseKey, loadFromPercent, formatLoad, AthleteMax } from '../../../services/maxesService';
+import { MaxEditSheet } from '../../performance/MaxEditSheet';
 
 interface WorkoutDetailModalProps {
   visible: boolean;
@@ -106,6 +109,20 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isValidated, setIsValidated] = React.useState(false);
   const [justSaved, setJustSaved] = React.useState(false);
+  // Results typed offline and not sent yet
+  // Reference maxima (1RM) of the athlete: turn a prescribed "% 1RM" into kilos
+  const [maxes, setMaxes] = React.useState<Record<string, AthleteMax>>({});
+  const [maxEdit, setMaxEdit] = React.useState<{ key: string; label: string } | null>(null);
+  const loadMaxes = React.useCallback(async () => {
+    if (!resultsOwnerId) return;
+    try {
+      const list = await maxesService.fetch(resultsOwnerId);
+      setMaxes(Object.fromEntries(list.map((m) => [m.key, m])));
+    } catch {
+      /* the percentage is still shown without kilos */
+    }
+  }, [resultsOwnerId]);
+  const awaitingSend = useOutboxStore((st) => !!workout?.id && st.pendingIds.includes(workout.id));
   const [isLoadingData, setIsLoadingData] = React.useState(false);
 
   // Copy/Repeat modal state (coach only)
@@ -144,6 +161,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
     setRpe(null);
     setDurationMin('');
     draftReady.current = false;
+    wasAwaiting.current = false;
     setJustSaved(false);
     setActiveKeypad(null);
     setRestEnd(null);
@@ -152,6 +170,33 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
       loadExistingData();
     }
   }, [visible, workout?.id, resultsOwnerId]);
+
+  const hasPercentSets = React.useMemo(
+    () => JSON.stringify(workout?.blocks ?? workout?.exercises ?? '').includes('percent_1rm'),
+    [workout?.id, workout?.blocks, workout?.exercises],
+  );
+  React.useEffect(() => {
+    setMaxes({});
+    if (visible && hasPercentSets && resultsOwnerId && (!isCoach || isReadOnly)) loadMaxes();
+  }, [visible, workout?.id, hasPercentSets, resultsOwnerId]);
+
+  // The results typed offline just left the phone: show them as validated
+  const wasAwaiting = React.useRef(false);
+  React.useEffect(() => {
+    if (awaitingSend) {
+      wasAwaiting.current = true;
+      return;
+    }
+    if (wasAwaiting.current) {
+      wasAwaiting.current = false;
+      if (visible && workout?.id) {
+        workout.status = 'completed';
+        setIsValidated(true);
+        loadExistingData();
+        onUpdated?.();
+      }
+    }
+  }, [awaitingSend]);
 
   const loadSeq = React.useRef(0);
   const loadExistingData = async () => {
@@ -444,7 +489,18 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
       if (!Array.isArray(updatedMeasures.athlete_notes)) updatedMeasures.athlete_notes = feedback;
 
       // Atomic RPC call: saves efforts, updates measures and marks status = 'completed'
-      await workoutService.submitWorkoutResults(workout.id, efforts, updatedMeasures);
+      try {
+        await workoutService.submitWorkoutResults(workout.id, efforts, updatedMeasures);
+      } catch (netErr: any) {
+        if (!isNetworkError(netErr) || !resultsOwnerId) throw netErr;
+        // No connection: keep the results on the phone, they are sent as soon as the network is back
+        await resultsOutbox.enqueue(resultsOwnerId, { workoutId: workout.id, efforts, measures: updatedMeasures });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => undefined);
+        toast('info', 'Pas de connexion : tes résultats sont gardés sur ton téléphone et partiront dès que le réseau revient.', 'Enregistré hors ligne');
+        return;
+      }
+      // Sent now: an older copy waiting in the outbox must not overwrite it later
+      if (resultsOwnerId) resultsOutbox.drop(resultsOwnerId, workout.id);
       
       // Update local workout properties so UI updates immediately
       workout.status = 'completed';
@@ -973,6 +1029,25 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                         </View>
                       )}
 
+                      {canEdit && (exercise.sets || []).some((st: any) => (st.weight_type || st.weightType) === 'percent_1rm') && (() => {
+                        const mx = maxes[exerciseKey(exercise as any)];
+                        const label = exercise.name || 'Exercice';
+                        return (
+                          <PressableScale
+                            haptic="selection"
+                            onPress={() => setMaxEdit({ key: exerciseKey(exercise as any), label })}
+                            accessibilityRole="button"
+                            accessibilityLabel={mx?.best_kg ? `Max ${label} : ${mx.best_kg} kg. Modifier` : `Renseigner mon max pour ${label}`}
+                            style={styles.maxChip}
+                          >
+                            <Feather name="sliders" size={12} color={theme.colors.sprintyBlue} />
+                            <Text style={[styles.maxChipText, { color: theme.colors.sprintyBlue }]}>
+                              {mx?.best_kg ? `Mon max : ${formatLoad(mx.best_kg)}${mx.manual_kg == null ? ' (estimé)' : ''}` : 'Renseigne ton max pour voir les kilos'}
+                            </Text>
+                          </PressableScale>
+                        );
+                      })()}
+
                       {(exercise.sets || []).map((set, setIndex) => {
                         // Build set objective string
                         const setDetails = [];
@@ -988,7 +1063,12 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                         if (set.weight !== undefined && set.weight !== null) {
                           const wType = (set as any).weight_type || (set as any).weightType;
                           if (wType === 'percent_1rm' || String(set.weight).includes('%')) {
-                            setDetails.push(`${set.weight}% 1RM`);
+                            const pct = parseFloat(String(set.weight).replace('%', '').replace(',', '.'));
+                            const mx = maxes[exerciseKey(exercise as any)];
+                            const oneRm = mx?.best_kg ?? null;
+                            setDetails.push(
+                              oneRm && Number.isFinite(pct) && pct > 0 ? `${set.weight}% 1RM ≈ ${formatLoad(loadFromPercent(oneRm, pct))}` : `${set.weight}% 1RM`,
+                            );
                           } else {
                             setDetails.push(`${set.weight}kg`);
                           }
@@ -1014,7 +1094,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                               </View>
 
                               {/* Objective */}
-                              <Text style={styles.athleteObjective} numberOfLines={1}>
+                              <Text style={styles.athleteObjective} numberOfLines={2}>
                                 {setDetails.join(' · ')}
                               </Text>
 
@@ -1216,7 +1296,16 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
               </Text>
             </PressableScale>
 
-            {isValidated && (
+            {awaitingSend && (
+              <View style={styles.validatedHint}>
+                <Feather name="clock" size={14} color={theme.colors.warning} />
+                <Text style={styles.validatedHintText}>
+                  Enregistré sur ce téléphone : il sera envoyé à ton coach dès que le réseau revient.
+                </Text>
+              </View>
+            )}
+
+            {isValidated && !awaitingSend && (
               <View style={styles.validatedHint}>
                 <Feather name="check-circle" size={14} color={theme.colors.success} />
                 <Text style={styles.validatedHintText}>
@@ -1270,6 +1359,19 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
             distance={activeKeypad.distance}
             title={activeKeypad.title}
             subtitle={activeKeypad.subtitle}
+          />
+        )}
+
+        {canEdit && resultsOwnerId && maxEdit && (
+          <MaxEditSheet
+            visible={!!maxEdit}
+            onClose={() => setMaxEdit(null)}
+            athleteId={resultsOwnerId}
+            exerciseKey={maxEdit.key}
+            label={maxEdit.label}
+            manualKg={maxes[maxEdit.key]?.manual_kg ?? null}
+            estimatedKg={maxes[maxEdit.key]?.estimated_kg ?? null}
+            onSaved={loadMaxes}
           />
         )}
 
@@ -1802,6 +1904,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: theme.colors.text,
   },
+  maxChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    marginBottom: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: 'rgba(0, 105, 232, 0.08)',
+  },
+  maxChipText: { fontSize: 12, fontWeight: '700' },
   athleteObjective: {
     flex: 1,
     fontSize: 13,

@@ -3,6 +3,7 @@ import { Database } from '../../types/supabase';
 import { create } from 'zustand';
 import { supabase } from '../../services/supabase';
 import { useAuthStore } from '../authStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface Team {
   id: string;
@@ -35,8 +36,13 @@ interface CoachState {
   isLoading: boolean;
   hasFetchedTeams: boolean;
   error: string | null;
+  /** The group the coach is working on (a coach may run several); members and subgroups in the store belong to `loadedTeamId` */
+  selectedTeamId: string | null;
+  loadedTeamId: string | null;
 
   fetchTeams: () => Promise<void>;
+  selectTeam: (teamId: string) => void;
+  ensureTeamLoaded: (teamId: string) => Promise<void>;
   createTeam: (name: string) => Promise<Team | null>;
   updateTeam: (teamId: string, name: string) => Promise<void>;
   deleteTeam: (teamId: string) => Promise<void>;
@@ -56,6 +62,10 @@ interface CoachState {
   subscribeToTeam: (teamId: string) => void;
   unsubscribe: () => void;
 }
+
+// Latest-request-wins counters (switching group quickly must not show the previous group's people)
+let membersSeq = 0;
+let subgroupsSeq = 0;
 
 // Génère un code à 8 chiffres (ex: 48291037)
 const generateInviteCode = (): string => {
@@ -188,6 +198,20 @@ export const useCoachStore = create<CoachState>((set, get) => ({
   isLoading: false,
   hasFetchedTeams: false,
   error: null,
+  selectedTeamId: null,
+  loadedTeamId: null,
+
+  selectTeam: (teamId: string) => {
+    set({ selectedTeamId: teamId });
+    const uid = useAuthStore.getState().user?.id;
+    if (uid) AsyncStorage.setItem(`coach-team:${uid}`, teamId).catch(() => undefined);
+    get().ensureTeamLoaded(teamId);
+  },
+
+  ensureTeamLoaded: async (teamId: string) => {
+    if (get().loadedTeamId === teamId) return;
+    await Promise.all([get().fetchTeamMembers(teamId), get().fetchSubgroups(teamId)]);
+  },
 
   fetchTeams: async () => {
     set({ isLoading: true, error: null });
@@ -202,7 +226,13 @@ export const useCoachStore = create<CoachState>((set, get) => ({
         .eq('coach_id', user.id);
 
       if (error) throw error;
-      set({ teams: data as Team[], isLoading: false, hasFetchedTeams: true });
+      const teams = data as Team[];
+      let selected = get().selectedTeamId;
+      if (!selected || !teams.some((t) => t.id === selected)) {
+        const saved = await AsyncStorage.getItem(`coach-team:${user.id}`).catch(() => null);
+        selected = teams.find((t) => t.id === saved)?.id ?? teams[0]?.id ?? null;
+      }
+      set({ teams, selectedTeamId: selected, isLoading: false, hasFetchedTeams: true });
     } catch (err: any) {
       set({ error: err.message, isLoading: false, hasFetchedTeams: true });
     }
@@ -226,7 +256,11 @@ export const useCoachStore = create<CoachState>((set, get) => ({
 
       if (error) throw error;
       
-      set((state) => ({ teams: [...state.teams, data as Team], isLoading: false }));
+      set((state) => ({
+        teams: [...state.teams, data as Team],
+        selectedTeamId: state.selectedTeamId ?? (data as Team).id,
+        isLoading: false,
+      }));
       return data as Team;
     } catch (err: any) {
       set({ error: err.message, isLoading: false });
@@ -252,6 +286,8 @@ export const useCoachStore = create<CoachState>((set, get) => ({
       if (error) throw error;
       set((state) => ({
         teams: state.teams.filter(t => t.id !== teamId),
+        selectedTeamId: state.selectedTeamId === teamId ? (state.teams.find((t) => t.id !== teamId)?.id ?? null) : state.selectedTeamId,
+        loadedTeamId: state.loadedTeamId === teamId ? null : state.loadedTeamId,
         subgroups: state.subgroups.filter(sg => sg.team_id !== teamId),
         teamMembers: state.teamMembers.filter(m => m.team_id !== teamId),
         pendingMembers: state.pendingMembers.filter(m => m.team_id !== teamId)
@@ -262,13 +298,14 @@ export const useCoachStore = create<CoachState>((set, get) => ({
   },
 
   fetchSubgroups: async (teamId: string) => {
+    const mine = ++subgroupsSeq;
     try {
       const { data, error } = await supabase
         .from('subgroups')
         .select('*')
         .eq('team_id', teamId);
       if (error) throw error;
-      set({ subgroups: data as Subgroup[] });
+      if (mine === subgroupsSeq) set({ subgroups: data as Subgroup[] });
     } catch (err: any) {
       set({ error: err.message });
     }
@@ -317,6 +354,7 @@ export const useCoachStore = create<CoachState>((set, get) => ({
   },
 
   fetchTeamMembers: async (teamId: string) => {
+    const mine = ++membersSeq;
     set({ isLoading: true, error: null });
     try {
       const { data, error } = await supabase
@@ -343,7 +381,10 @@ export const useCoachStore = create<CoachState>((set, get) => ({
       // Séparer les membres approuvés des demandes en attente
       const approved = allMembers.filter((m: TeamMember) => m.status === 'approved');
       const pending = allMembers.filter((m: TeamMember) => m.status === 'pending');
+      // A newer request (another group picked meanwhile) wins: this answer is dropped
+      if (mine !== membersSeq) return;
       set((state) => ({
+        loadedTeamId: teamId,
         teamMembers: approved,
         pendingMembers: [
           ...state.pendingMembers.filter((m) => m.team_id !== teamId),
@@ -559,3 +600,8 @@ export const useCoachStore = create<CoachState>((set, get) => ({
     }
   },
 }));
+
+
+/** The group being worked on: the picked one, else the first. */
+export const useCurrentTeam = (): Team | undefined =>
+  useCoachStore((s) => s.teams.find((t) => t.id === s.selectedTeamId) ?? s.teams[0]);

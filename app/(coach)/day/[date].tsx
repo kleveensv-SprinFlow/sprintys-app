@@ -23,7 +23,8 @@ import { CompetitionBuilder } from '../../../src/features/calendar/components/Co
 import { periodService } from '../../../src/services/periodService';
 import { TrainingPeriod } from '../../../src/types/period';
 import { getWorkoutColor } from '../../../src/shared/components/MonthlyCalendar';
-import { useCoachStore } from '../../../src/store/coach/coachStore';
+import { TeamSwitcher } from '../../../src/features/coach/components/TeamSwitcher';
+import { useCoachStore, useCurrentTeam } from '../../../src/store/coach/coachStore';
 import { GlassScreen } from '../../../src/shared/components/GlassScreen';
 import { glassSurface, glassRim } from '../../../src/core/glass';
 import { useFrostedHeader } from '../../../src/shared/hooks/useFrostedHeader';
@@ -59,19 +60,19 @@ export default function CoachDayScreen() {
   const [showAddOptions, setShowAddOptions] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
 
-  const { teams, teamMembers, fetchTeams, fetchSubgroups, fetchTeamMembers } = useCoachStore();
+  const { teams, fetchTeams } = useCoachStore();
+  const currentTeam = useCurrentTeam();
+  const ensureTeamLoaded = useCoachStore((st) => st.ensureTeamLoaded);
+  const scopeTeamId = teams.length > 1 ? currentTeam?.id ?? null : null;
 
   useEffect(() => {
-    fetchTeams();
-  }, [fetchTeams]);
+    // Also retried once the session is restored (a direct link can mount this before the account is known)
+    if (user?.id) fetchTeams();
+  }, [fetchTeams, user?.id]);
 
   useEffect(() => {
-    if (teams.length > 0) {
-      const activeTeamId = teams[0].id;
-      fetchSubgroups(activeTeamId);
-      fetchTeamMembers(activeTeamId);
-    }
-  }, [teams, fetchSubgroups, fetchTeamMembers]);
+    if (currentTeam) ensureTeamLoaded(currentTeam.id);
+  }, [currentTeam?.id]);
 
   const dateString = date as string;
 
@@ -115,7 +116,7 @@ export default function CoachDayScreen() {
     setIsLoading(true);
     try {
       // 1. Fetch workouts for the date (already intelligently merged per group_assignment_id)
-      const data = await workoutService.fetchWorkoutsForDate(user.id, parsedDate, 'coach');
+      const data = await workoutService.fetchWorkoutsForDate(user.id, parsedDate, 'coach', scopeTeamId ?? undefined);
       setWorkouts(data || []);
       setLoadError(false);
 
@@ -132,7 +133,7 @@ export default function CoachDayScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, dateString]);
+  }, [user?.id, dateString, scopeTeamId]);
 
   const refreshControl = useRefresh(() => fetchDayWorkouts());
   useEffect(() => {
@@ -244,7 +245,7 @@ export default function CoachDayScreen() {
   ];
 
   const handlePickTemplate = useCallback(async (tpl: any) => {
-    const team = teams[0];
+    const team = currentTeam;
     if (!user?.id || !team) {
       appAlert('Aucune équipe', 'Crée ou rejoins une équipe pour planifier cette séance.');
       return;
@@ -266,7 +267,7 @@ export default function CoachDayScreen() {
           : 'Impossible de planifier cette séance type.';
       appAlert('Séance type', msg);
     }
-  }, [teams, user?.id, parsedDate, fetchDayWorkouts]);
+  }, [currentTeam?.id, user?.id, parsedDate, fetchDayWorkouts]);
 
   const renderCreationGrid = () => (
     <>
@@ -350,6 +351,11 @@ export default function CoachDayScreen() {
         </View>
         <IconButton icon="chevron-right" tone="plain" size={40} color={theme.colors.text} accessibilityLabel="Jour suivant" onPress={() => navigateDay(1)} />
       </View>
+      {teams.length > 1 && (
+        <View style={{ paddingHorizontal: 16, paddingTop: 10 }}>
+          <TeamSwitcher />
+        </View>
+      )}
 
       <Animated.ScrollView {...scrollProps} refreshControl={refreshControl}
         style={styles.scroll}

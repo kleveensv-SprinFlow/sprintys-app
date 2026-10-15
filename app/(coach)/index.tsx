@@ -9,7 +9,8 @@ import { Feather } from '@expo/vector-icons';
 import { theme } from '../../src/core/theme';
 import { glassCard } from '../../src/core/glass';
 import { useAuthStore } from '../../src/store/authStore';
-import { useCoachStore } from '../../src/store/coach/coachStore';
+import { useCoachStore, useCurrentTeam } from '../../src/store/coach/coachStore';
+import { TeamSwitcher } from '../../src/features/coach/components/TeamSwitcher';
 import { workoutService } from '../../src/services/workoutService';
 import { WeatherCard } from '../../src/shared/components/WeatherCard';
 import { BroadcastModal } from '../../src/features/coach/components/BroadcastModal';
@@ -70,7 +71,7 @@ export default function CoachDashboardScreen() {
   const [todayWorkouts, setTodayWorkouts] = useState<any[] | null>(null);
   const [alertsKey, setAlertsKey] = useState(0);
 
-  const team = teams[0];
+  const team = useCurrentTeam();
   const todayStr = localDateStr(new Date());
 
   const loadTeamData = useCallback(async () => {
@@ -146,6 +147,7 @@ export default function CoachDashboardScreen() {
             <Text style={styles.greetingTitle} numberOfLines={1}>
               {firstName ? `${greeting()} ${firstName}` : greeting()}
             </Text>
+            <TeamSwitcher style={{ marginTop: 10 }} />
           </View>
         </Appear>
 

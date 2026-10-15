@@ -12,6 +12,8 @@ interface Props {
   visible: boolean;
   onClose: () => void;
   coachId: string;
+  /** Group whose week is copied (a coach may run several) */
+  teamId?: string | null;
   /** Any day of the week to copy */
   day: Date;
   onCopied: () => void;
@@ -20,7 +22,7 @@ interface Props {
 const fmt = (d: Date) => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 
 /** Copy the planned week (every group and athlete) to a later week. */
-export const CopyWeekModal: React.FC<Props> = ({ visible, onClose, coachId, day, onCopied }) => {
+export const CopyWeekModal: React.FC<Props> = ({ visible, onClose, coachId, teamId, day, onCopied }) => {
   const theme = useTheme();
   const monday = workoutService.weekStart(day);
   const sunday = new Date(monday);
@@ -33,7 +35,7 @@ export const CopyWeekModal: React.FC<Props> = ({ visible, onClose, coachId, day,
     setCount(null);
     let alive = true;
     workoutService
-      .fetchWeekRows(coachId, monday)
+      .fetchWeekRows(coachId, monday, teamId)
       .then((rows) => {
         if (!alive) return;
         setCount(new Set(rows.map((r: any) => r.group_assignment_id || r.id)).size);
@@ -42,7 +44,7 @@ export const CopyWeekModal: React.FC<Props> = ({ visible, onClose, coachId, day,
     return () => {
       alive = false;
     };
-  }, [visible, coachId, monday.getTime()]);
+  }, [visible, coachId, teamId, monday.getTime()]);
 
   const copyTo = async (weeksAhead: number) => {
     const target = new Date(monday);
@@ -50,7 +52,7 @@ export const CopyWeekModal: React.FC<Props> = ({ visible, onClose, coachId, day,
     setBusy(weeksAhead);
     try {
       // A week that already has sessions would get them twice: ask first
-      const existing = await workoutService.fetchWeekRows(coachId, target);
+      const existing = await workoutService.fetchWeekRows(coachId, target, teamId);
       if (existing.length > 0) {
         const n = new Set(existing.map((r: any) => r.group_assignment_id || r.id)).size;
         const go = await confirmAsync({
@@ -60,7 +62,7 @@ export const CopyWeekModal: React.FC<Props> = ({ visible, onClose, coachId, day,
         });
         if (!go) return;
       }
-      const { sessions } = await workoutService.copyWeek(coachId, monday, target);
+      const { sessions } = await workoutService.copyWeek(coachId, monday, target, teamId);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       toast('success', `${sessions} séance${sessions > 1 ? 's' : ''} copiée${sessions > 1 ? 's' : ''} sur la semaine du ${fmt(target)}`);
       onCopied();

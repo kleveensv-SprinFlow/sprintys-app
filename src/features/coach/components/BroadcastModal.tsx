@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Modal, TextInput, KeyboardAvoidingView, Platfor
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
 import { glassCard } from '../../../core/glass';
-import { useCoachStore } from '../../../store/coach/coachStore';
+import { useCoachStore, useCurrentTeam } from '../../../store/coach/coachStore';
 import { useAuthStore } from '../../../store/authStore';
 import { chatService } from '../../../services/chatService';
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
@@ -20,7 +20,8 @@ interface Props {
 export const BroadcastModal = ({ visible, onClose }: Props) => {
   const theme = useTheme();
   const { teams, teamMembers, subgroups } = useCoachStore();
-  const team = teams[0];
+  const currentTeam = useCurrentTeam();
+  const team = currentTeam;
 
   const [target, setTarget] = useState<'all' | 'subgroup'>('all');
   const [selectedSubgroup, setSelectedSubgroup] = useState<string | null>(null);

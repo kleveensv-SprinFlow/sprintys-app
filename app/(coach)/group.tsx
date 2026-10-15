@@ -86,6 +86,8 @@ export default function CoachGroupsScreen() {
 
   useEffect(() => {
     if (!activeTeamId) return;
+    // The group opened here becomes the one the rest of the app works on
+    useCoachStore.setState({ selectedTeamId: activeTeamId });
     setTab('members');
     fetchTeamMembers(activeTeamId);
     fetchSubgroups(activeTeamId);

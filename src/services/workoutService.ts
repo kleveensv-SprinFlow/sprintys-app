@@ -348,15 +348,17 @@ export const workoutService = {
   },
 
   /** Sessions of the coach in the week starting at `monday` (rows of every athlete and the master copies). */
-  fetchWeekRows: async (coachId: string, monday: Date) => {
+  fetchWeekRows: async (coachId: string, monday: Date, teamId?: string | null) => {
     const end = new Date(monday);
     end.setDate(end.getDate() + 7);
-    const { data, error } = await supabase
+    let query = supabase
       .from('workouts')
       .select('*')
       .eq('coach_id', coachId)
       .gte('date_prevue', monday.toISOString())
       .lt('date_prevue', end.toISOString());
+    if (teamId) query = query.or(`team_id.eq.${teamId},team_id.is.null`);
+    const { data, error } = await query;
     if (error) throw error;
     return data || [];
   },
@@ -365,8 +367,8 @@ export const workoutService = {
    * Copy a whole week onto another one. Every session is copied as a fresh plan (nothing validated, no athlete
    * comment), each group keeps being one group, and the original week is left as it is.
    */
-  copyWeek: async (coachId: string, fromMonday: Date, toMonday: Date): Promise<{ sessions: number; rows: number }> => {
-    const fetched = await workoutService.fetchWeekRows(coachId, fromMonday);
+  copyWeek: async (coachId: string, fromMonday: Date, toMonday: Date, teamId?: string | null): Promise<{ sessions: number; rows: number }> => {
+    const fetched = await workoutService.fetchWeekRows(coachId, fromMonday, teamId);
     // Only athletes still approved in their team receive a copy (people who left or were removed are skipped)
     const teamIds = [...new Set(fetched.map((w: any) => w.team_id).filter(Boolean))] as string[];
     const approved = new Set<string>();
@@ -458,7 +460,7 @@ export const workoutService = {
   },
 
   
-    fetchWorkoutsForMonth: async (userId: string, year: number, month: number, role: 'athlete' | 'coach') => {
+    fetchWorkoutsForMonth: async (userId: string, year: number, month: number, role: 'athlete' | 'coach', teamId?: string | null) => {
     const startDate = new Date(year, month, 1);
     const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
     
@@ -470,6 +472,8 @@ export const workoutService = {
 
     if (role === 'coach') {
       query = query.eq('coach_id', userId);
+      // Coach with several groups: only the picked one (rows from before groups were recorded stay visible)
+      if (teamId) query = query.or(`team_id.eq.${teamId},team_id.is.null`);
     } else {
       query = query.eq('athlete_id', userId);
     }
@@ -515,11 +519,8 @@ export const workoutService = {
       // Therefore, the RLS policy naturally protects it and we only need this simple equality check.
       query = query.eq('athlete_id', userId);
     } else if (role === 'coach') {
-      if (teamId) {
-        query = query.eq('team_id', teamId);
-      } else {
-        query = query.eq('coach_id', userId);
-      }
+      query = query.eq('coach_id', userId);
+      if (teamId) query = query.or(`team_id.eq.${teamId},team_id.is.null`);
     }
 
     query = query

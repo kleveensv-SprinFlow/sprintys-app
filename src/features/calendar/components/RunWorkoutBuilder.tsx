@@ -19,7 +19,7 @@ import { glassSurface, glassCard } from '../../../core/glass';
 import * as Haptics from 'expo-haptics';
 import uuid from 'react-native-uuid';
 import { useAuthStore } from '../../../store/authStore';
-import { useCoachStore } from '../../../store/coach/coachStore';
+import { useCoachStore, useCurrentTeam } from '../../../store/coach/coachStore';
 import { workoutService } from '../../../services/workoutService';
 import { RestTimePickerModal } from './RestTimePickerModal';
 import { MultiTargetSelectorModal, MultiTarget } from '../../../shared/components/MultiTargetSelectorModal';
@@ -108,6 +108,8 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
 
   const { user } = useAuthStore();
   const { teams, subgroups, teamMembers, fetchTeams, fetchTeamMembers, fetchSubgroups } = useCoachStore();
+  const currentTeam = useCurrentTeam();
+  const ensureTeamLoaded = useCoachStore((st) => st.ensureTeamLoaded);
 
   // Session Target
   const [targetType, setTargetType] = useState<'team' | 'subgroup' | 'athlete'>('team');
@@ -319,11 +321,10 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
   // Ensure subgroups and members are loaded
   useEffect(() => {
     if (visible && teams.length > 0) {
-      const activeTeamId = teams[0].id;
-      if (teamMembers.length === 0) fetchTeamMembers(activeTeamId);
-      if (subgroups.length === 0) fetchSubgroups(activeTeamId);
+      const activeTeamId = currentTeam!.id;
+      ensureTeamLoaded(activeTeamId);
     }
-  }, [visible, teams, teamMembers.length, subgroups.length]);
+  }, [visible, currentTeam?.id]);
 
   // Reset form when modal closes
   useEffect(() => {
@@ -779,7 +780,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
     setSaveNotice(null);
     setIsSubmitting(true);
     try {
-      const activeTeamId = teams.length > 0 ? teams[0].id : null;
+      const activeTeamId = currentTeam?.id ?? null;
       const targetDateIso = sessionTime.applyTo(date, 12).toISOString();
 
       AsyncStorage.setItem(STORAGE_RUN_SURFACE_KEY, surface);

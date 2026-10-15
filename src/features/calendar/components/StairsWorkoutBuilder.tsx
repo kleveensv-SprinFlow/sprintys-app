@@ -19,7 +19,7 @@ import { glassCard } from '../../../core/glass';
 import * as Haptics from 'expo-haptics';
 import uuid from 'react-native-uuid';
 import { useAuthStore } from '../../../store/authStore';
-import { useCoachStore } from '../../../store/coach/coachStore';
+import { useCoachStore, useCurrentTeam } from '../../../store/coach/coachStore';
 import { workoutService } from '../../../services/workoutService';
 import { coachExerciseService, CoachExercise } from '../../../services/coachExerciseService';
 import { RestTimePickerModal } from './RestTimePickerModal';
@@ -77,6 +77,8 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
 
   const { user } = useAuthStore();
   const { teams, subgroups, teamMembers, fetchTeams, fetchTeamMembers, fetchSubgroups } = useCoachStore();
+  const currentTeam = useCurrentTeam();
+  const ensureTeamLoaded = useCoachStore((st) => st.ensureTeamLoaded);
 
   // Session-level Target
   const [targetType, setTargetType] = useState<'team' | 'subgroup' | 'athlete'>('team');
@@ -194,15 +196,10 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
   // Ensure subgroups and members are loaded for the active team
   useEffect(() => {
     if (visible && teams.length > 0) {
-      const activeTeamId = teams[0].id;
-      if (teamMembers.length === 0) {
-        fetchTeamMembers(activeTeamId);
-      }
-      if (subgroups.length === 0) {
-        fetchSubgroups(activeTeamId);
-      }
+      const activeTeamId = currentTeam!.id;
+      ensureTeamLoaded(activeTeamId);
     }
-  }, [visible, teams, teamMembers.length, subgroups.length]);
+  }, [visible, currentTeam?.id]);
 
   // Set default targets when data arrives
   useEffect(() => {
@@ -490,7 +487,7 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      const activeTeamId = teams.length > 0 ? teams[0].id : null;
+      const activeTeamId = currentTeam?.id ?? null;
 
       // Safe date anchor at midday
       const targetDate = new Date(date);

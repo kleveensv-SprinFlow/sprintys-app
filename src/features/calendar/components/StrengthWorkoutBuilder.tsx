@@ -18,7 +18,7 @@ import { useTheme, theme } from '../../../core/theme';
 import * as Haptics from 'expo-haptics';
 import uuid from 'react-native-uuid';
 import { useAuthStore } from '../../../store/authStore';
-import { useCoachStore } from '../../../store/coach/coachStore';
+import { useCoachStore, useCurrentTeam } from '../../../store/coach/coachStore';
 import { workoutService } from '../../../services/workoutService';
 import { coachExerciseService, CoachExercise } from '../../../services/coachExerciseService';
 import { RestTimePickerModal } from './RestTimePickerModal';
@@ -110,6 +110,8 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
     fetchTeamMembers,
     fetchSubgroups,
   } = useCoachStore();
+  const currentTeam = useCurrentTeam();
+  const ensureTeamLoaded = useCoachStore((st) => st.ensureTeamLoaded);
 
   // Session-level Target
   const [targetType, setTargetType] = useState<'team'>('team');
@@ -172,7 +174,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
     setSetsError(null);
   };
 
-  const activeTeam = teams[0];
+  const activeTeam = currentTeam;
   const approvedMembers = useMemo(
     () => teamMembers.filter((m) => m.status === 'approved'),
     [teamMembers]
@@ -259,15 +261,10 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
 
   useEffect(() => {
     if (visible && teams.length > 0) {
-      const activeTeamId = teams[0].id;
-      if (teamMembers.length === 0) {
-        fetchTeamMembers(activeTeamId);
-      }
-      if (subgroups.length === 0) {
-        fetchSubgroups(activeTeamId);
-      }
+      const activeTeamId = currentTeam!.id;
+      ensureTeamLoaded(activeTeamId);
     }
-  }, [visible, teams, teamMembers.length, subgroups.length]);
+  }, [visible, currentTeam?.id]);
 
   const getTargetsLabel = (targets?: { subgroups: string[]; athletes: string[] }) => {
     if (!targets) return null;
@@ -615,7 +612,7 @@ export const StrengthWorkoutBuilder: React.FC<StrengthWorkoutBuilderProps> = ({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      const activeTeamId = teams.length > 0 ? teams[0].id : null;
+      const activeTeamId = currentTeam?.id ?? null;
 
       // Midday date anchor to avoid timezone offsets
       const targetDate = new Date(date);
