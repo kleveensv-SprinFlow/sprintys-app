@@ -4,6 +4,9 @@ export interface PrevMuscuSet {
   kg: number;
   reps: number | null;
   ok: boolean;
+  /** Position of the set in its exercise, and the exercise instance it came from */
+  idx?: number;
+  ex?: string;
 }
 
 export interface PrevResults {

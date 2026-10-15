@@ -1,7 +1,7 @@
 /** Parsing and sanity checks for running times typed by athletes. */
 
 /** "9.85", "1:02.45", "14:35" → seconds (null when unreadable) */
-export function chronoToSeconds(value: string | null | undefined): number | null {
+export function chronoToSeconds(value: string | null | undefined, distanceM?: number | string | null): number | null {
   const s = String(value ?? '').trim().replace(',', '.');
   if (!s) return null;
   if (s.includes(':')) {
@@ -10,7 +10,9 @@ export function chronoToSeconds(value: string | null | undefined): number | null
     return parts.reduce((acc, p) => acc * 60 + p, 0);
   }
   const n = parseFloat(s);
-  return Number.isNaN(n) ? null : n;
+  if (Number.isNaN(n)) return null;
+  // A bare number on 800 m and more is minutes (same rule as when the result is stored)
+  return parseFloat(String(distanceM ?? '0')) >= 800 ? n * 60 : n;
 }
 
 /** Average speeds no human runs outside of: slower than a walk or faster than the world record sprinters' top speed. */

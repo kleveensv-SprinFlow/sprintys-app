@@ -460,7 +460,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
         for (const ex of b.exercises || []) {
           (ex.sets || []).forEach((st: any, i: number) => {
             const v = setData[`${ex.id}_${i}`]?.chrono;
-            const sec = v ? chronoToSeconds(v) : null;
+            const sec = v ? chronoToSeconds(v, st?.distance) : null;
             if (v && st?.distance && !isPlausibleChrono(sec, st.distance)) odd.push(`série ${i + 1} : ${v} sur ${st.distance} m`);
           });
         }
@@ -1169,7 +1169,9 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                                   let hint: string | null = null;
                                   if (sessionCategory === 'muscu') {
                                     const p = prev.muscu[exerciseKey(exercise as any)];
-                                    const ps = p ? p.sets[setIndex] ?? p.sets[p.sets.length - 1] : null;
+                                    // Same exercise instance, matched by set position (a skipped set must not shift the others)
+                                    const same = p ? p.sets.filter((x) => x.ex === p.sets[0].ex) : [];
+                                    const ps = p ? same.find((x) => x.idx === setIndex) ?? same[same.length - 1] ?? null : null;
                                     if (ps) hint = `Dernière fois : ${formatLoad(ps.kg)}${ps.reps ? ` × ${ps.reps}` : ''}${ps.ok ? '' : ' ✗'}`;
                                   } else if (sessionCategory === 'course') {
                                     const k = courseKey((set as any).distance, workout?.type_seance);

@@ -227,7 +227,8 @@ export const PerformanceView: React.FC<Props> = ({ athleteId, mode = 'full', aud
     if (exporting) return;
     setExporting(true);
     try {
-      const name = athleteName || me?.name || [me?.firstName, me?.lastName].filter(Boolean).join(' ') || 'Athlète';
+      const own = audience === 'athlete' ? me?.name || [me?.firstName, me?.lastName].filter(Boolean).join(' ') : '';
+      const name = athleteName || own || 'Athlète';
       await exportAthleteReport({ athleteId, athleteName: name, audience });
     } catch {
       toast('error', 'Impossible de créer le bilan. Vérifie ta connexion et réessaie.');

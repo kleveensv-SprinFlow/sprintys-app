@@ -24,6 +24,7 @@ export const sessionForAthlete = (t: any, athleteId: string, subgroupId: string 
   const measures: any = { ...(t.measures || {}) };
   delete measures.is_master;
   delete measures.athlete_feedback;
+  delete measures.coach_feedback;
   if (typeof measures.athlete_notes === 'string') delete measures.athlete_notes;
   let description = t.description;
 

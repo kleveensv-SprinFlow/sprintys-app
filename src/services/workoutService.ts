@@ -829,11 +829,12 @@ export const workoutService = {
       : [workout];
     const copies: any[] = [];
     for (const plan of plans) {
-      const at = new Date(workout.date_prevue);
-      at.setDate(at.getDate() + 7 * plan.week);
       const groupId = generateUUID();
       for (const w of source) {
         const { id, created_at, updated_at, athlete_efforts, done_count, athlete_count, ...rest } = w;
+        // Each row keeps its own day (an athlete's session may have been moved on its own)
+        const at = new Date(w.date_prevue);
+        at.setDate(at.getDate() + 7 * plan.week);
         copies.push({
           ...rest,
           blocks: progressBlocks(rest.blocks, plan, o),
@@ -845,10 +846,9 @@ export const workoutService = {
         });
       }
     }
-    for (let i = 0; i < copies.length; i += 50) {
-      const { error } = await supabase.from('workouts').insert(copies.slice(i, i + 50));
-      if (error) throw error;
-    }
+    // One insert: either every week is created or none (a retry never duplicates half of them)
+    const { error } = await supabase.from('workouts').insert(copies);
+    if (error) throw error;
     return plans.length;
   },
 

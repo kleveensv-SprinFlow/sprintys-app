@@ -21,7 +21,7 @@ BEGIN
 
   -- Musculation : par exercice, la séance la plus récente (hors celle-ci) qui le contient
   WITH base AS (
-    SELECT btrim(public._effort_exercise_key(e)) AS k, e.workout_id, e.date_achieved, e.set_order,
+    SELECT btrim(public._effort_exercise_key(e)) AS k, e.workout_id, e.date_achieved, e.set_order, COALESCE((e.planned_extra->>'set_index')::int, -1) AS sidx, COALESCE(e.planned_extra->>'exercise_id', '') AS exid,
            public._effort_weight(e) AS kg, e.actual_reps AS reps,
            (COALESCE(e.actual_extra->>'repsOk', 'true') <> 'false') AS ok
     FROM public.athlete_efforts e
@@ -36,7 +36,7 @@ BEGIN
   )
   SELECT COALESCE(jsonb_object_agg(l.k, jsonb_build_object(
            'date', l.date_achieved,
-           'sets', (SELECT jsonb_agg(jsonb_build_object('kg', b.kg, 'reps', b.reps, 'ok', b.ok) ORDER BY b.set_order)
+           'sets', (SELECT jsonb_agg(jsonb_build_object('kg', b.kg, 'reps', b.reps, 'ok', b.ok, 'idx', b.sidx, 'ex', b.exid) ORDER BY b.set_order)
                     FROM base b WHERE b.k = l.k AND b.workout_id = l.workout_id),
            'best_kg', (SELECT max(b.kg) FROM base b WHERE b.k = l.k AND b.ok)
          )), '{}'::jsonb)
@@ -45,7 +45,7 @@ BEGIN
 
   -- Course : par distance et terrain, dernier chrono et meilleur
   WITH c AS (
-    SELECT actual_distance_m::numeric AS d,
+    SELECT actual_distance_m::numeric AS d, workout_id, set_order,
            CASE WHEN lower(COALESCE(exercise_category, '')) ~ 'c[oô]te' THEN 'cote' ELSE 'piste' END AS surf,
            actual_time_ms AS t, date_achieved
     FROM public.athlete_efforts
@@ -57,8 +57,8 @@ BEGIN
   ),
   agg AS (
     SELECT d, surf,
-           (array_agg(t ORDER BY date_achieved DESC))[1] AS last_ms,
-           (array_agg(date_achieved ORDER BY date_achieved DESC))[1] AS last_at,
+           (array_agg(t ORDER BY date_achieved DESC, workout_id DESC, set_order DESC))[1] AS last_ms,
+           (array_agg(date_achieved ORDER BY date_achieved DESC, workout_id DESC, set_order DESC))[1] AS last_at,
            min(t) AS best_ms
     FROM c GROUP BY d, surf
   )
