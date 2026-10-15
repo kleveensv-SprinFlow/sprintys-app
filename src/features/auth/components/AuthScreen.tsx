@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { theme } from '../../../core/theme';
 import { glassCard } from '../../../core/glass';
 import { SprintyLogo } from '../../../shared/components/SprintyLogo';
+import { SprintyAvatar } from '../../sprinty/avatar/SprintyAvatar';
 import { GlowBackground } from '../../../shared/components/GlowBackground';
 import { GlassSheen } from '../../../shared/components/GlassSheen';
 import { SegmentedControl } from '../../../shared/components/SegmentedControl';
@@ -44,6 +45,7 @@ export const AuthScreen: React.FC<{ initialTab?: Tab }> = ({ initialTab = 'login
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.hero}>
+              <SprintyAvatar size={120} mood="success" interactive />
               <SprintyLogo width={170} height={44} />
               <Text style={styles.tagline}>L’athlétisme, de la séance à la performance</Text>
             </View>

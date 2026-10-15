@@ -6,6 +6,7 @@ import { useTheme } from '../../src/core/theme';
 import { AthleteHeader } from '../../src/features/athlete/components/AthleteHeader';
 import { AthleteGauges } from '../../src/features/athlete/components/AthleteGauges';
 import { NotificationInvite } from '../../src/features/notifications/NotificationInvite';
+import { SprintyWordCard } from '../../src/features/sprinty/SprintyWordCard';
 import { SessionCarousel } from '../../src/features/athlete/components/SessionCarousel';
 import { BodyCompositionCard } from '../../src/features/athlete/components/BodyCompositionCard';
 import { PerformanceCard } from '../../src/features/athlete/components/PerformanceCard';
@@ -97,7 +98,7 @@ export default function DashboardScreen() {
             </Text>
           </View></Appear>
 
-          <Appear index={1}><NotificationInvite role="athlete" /><AthleteGauges refreshKey={refreshKey} /></Appear>
+          <Appear index={1}><NotificationInvite role="athlete" /><SprintyWordCard /><AthleteGauges refreshKey={refreshKey} /></Appear>
           <Appear index={2}><SessionCarousel /></Appear>
           <Appear index={3}>
             <View style={styles.cardGutter}>

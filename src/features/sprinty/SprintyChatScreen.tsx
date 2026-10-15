@@ -6,7 +6,9 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import LottieView from 'lottie-react-native';
+import { SprintyAvatar } from './avatar/SprintyAvatar';
+import { SprintyFace } from './avatar/SprintyFace';
+import type { MoodKey } from './avatar/poses.generated';
 import { theme } from '../../core/theme';
 import { glassSurface } from '../../core/glass';
 import { supabase } from '../../services/supabase';
@@ -15,7 +17,6 @@ import { useAuthStore } from '../../store/authStore';
 import { useSprintyChatStore, ChatMessage } from '../../store/sprintyChatStore';
 import { useConsentStore } from '../../store/consentStore';
 import SprintyHistoryModal from '../../components/SprintyHistoryModal';
-import AILoadingIndicator from '../../components/AILoadingIndicator';
 import { useKeyboardOffset } from '../../shared/hooks/useKeyboardOffset';
 import { GlowBackground } from '../../shared/components/GlowBackground';
 import { PressableScale } from '../../shared/components/PressableScale';
@@ -27,6 +28,7 @@ import { useEntitlementStore, billingOn } from '../../store/entitlementStore';
 import { exportPartsToPdf, pdfTitleFor } from './pdf';
 import { confirmAsync, toast } from '../../shared/feedback/appAlert';
 import { SprintyMessageView } from './SprintyMessageView';
+import { ThinkingDots } from './ThinkingDots';
 import { partsToText, type MessagePart } from './types';
 
 const BLUE = theme.colors.sprintyBlue;
@@ -112,6 +114,12 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
   /** A Sprinty plan still running although a coach now plans the sessions. */
   const [leftoverPlan, setLeftoverPlan] = useState<{ id: string; title: string } | null>(null);
 
+  // Humeur : il réfléchit pendant la réponse, s'excuse en cas d'erreur, se réjouit juste après une réponse
+  const [justAnswered, setJustAnswered] = useState(false);
+  const mood: MoodKey = error ? 'caution' : isTyping ? 'perplexed' : justAnswered ? 'success' : 'neutral';
+  const answeredTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (answeredTimer.current) clearTimeout(answeredTimer.current); }, []);
+
   const scrollRef = useRef<ScrollView>(null);
   const inputRef = useRef<TextInput>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -196,6 +204,9 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
       });
       save(parts.length ? parts : partial);
       haptic('success');
+      setJustAnswered(true);
+      if (answeredTimer.current) clearTimeout(answeredTimer.current);
+      answeredTimer.current = setTimeout(() => setJustAnswered(false), 2600);
     } catch (err) {
       if (controller.signal.aborted) {
         // Stopped by the user: keep what was already written
@@ -320,12 +331,7 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
           </PressableScale>
           <View style={styles.headerCenter}>
             <View style={styles.avatarWrapper}>
-              <LottieView
-                source={isTyping ? require('../../assets/animations/active.json') : require('../../assets/animations/idle.json')}
-                autoPlay
-                loop
-                style={styles.lottieAvatar}
-              />
+              <SprintyAvatar size={50} mood={mood} />
             </View>
             <View style={{ flexShrink: 1 }}>
               <Text style={styles.title}>Sprinty</Text>
@@ -394,6 +400,9 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
           >
             {!hasExchange && !isTyping && !athleteCtx && (
               <View style={styles.hero}>
+                <View style={styles.heroAvatar}>
+                  <SprintyAvatar size={168} mood={mood} interactive />
+                </View>
                 <Text style={styles.heroTitle}>{firstName ? `Salut ${firstName} !` : 'Salut !'}</Text>
                 <Text style={styles.heroSub}>{intro}</Text>
                 {leftoverPlan && (
@@ -460,6 +469,7 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
               const rich = !!msg.parts?.some((p) => p.kind === 'ui');
               return (
                 <View key={index} style={styles.rowLeft}>
+                  {!rich && <SprintyFace size={30} disc style={styles.bubbleFace} />}
                   <Pressable
                     delayLongPress={300}
                     onLongPress={() => openActions(msg, index === lastAssistantIndex)}
@@ -486,13 +496,14 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
 
             {isTyping && (
               <View style={styles.rowLeft}>
+                {!liveParts.some((p) => p.kind === 'ui') && <SprintyFace size={30} disc mood="perplexed" style={styles.bubbleFace} />}
                 <View style={[styles.bubbleAssistant, liveParts.some((p) => p.kind === 'ui') && styles.bubbleWide]}>
                   {liveParts.length ? (
                     <SprintyMessageView parts={liveParts} content="" interactive={false} onAnswer={() => undefined} onAskChange={() => undefined} onPatch={() => undefined} />
                   ) : (
                     <View style={styles.thinking}>
-                      <AILoadingIndicator />
-                      {status ? <Text style={styles.statusText}>{status}</Text> : null}
+                      <ThinkingDots />
+                      <Text style={styles.statusText}>{status || 'Je réfléchis…'}</Text>
                     </View>
                   )}
                   {liveParts.length > 0 && status ? <Text style={[styles.statusText, { marginTop: 8 }]}>{status}</Text> : null}
@@ -566,17 +577,9 @@ const styles = StyleSheet.create({
   headerBtn: { ...glassSurface, width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center' },
   headerActions: { flexDirection: 'row', gap: 8 },
   headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center' },
-  avatarWrapper: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-    overflow: 'hidden',
-  },
-  lottieAvatar: { width: 38, height: 38 },
+  avatarWrapper: { width: 50, height: 50, justifyContent: 'center', alignItems: 'center', marginRight: 8 },
+  heroAvatar: { alignSelf: 'center', marginBottom: 6, shadowColor: '#0F172A', shadowOpacity: 0.16, shadowRadius: 16, shadowOffset: { width: 0, height: 10 } },
+  bubbleFace: { marginRight: 8, marginBottom: 2, alignSelf: 'flex-end' },
   title: { fontSize: 16, fontWeight: '800', color: theme.colors.text, letterSpacing: -0.2 },
   subtitle: { fontSize: 12, fontWeight: '600', color: theme.colors.textSecondary, marginTop: 1 },
 
@@ -598,8 +601,8 @@ const styles = StyleSheet.create({
 
   chatContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
   hero: { marginTop: 20, marginBottom: 24, paddingHorizontal: 4 },
-  heroTitle: { fontSize: 28, fontWeight: '800', color: theme.colors.text, letterSpacing: -0.6, marginBottom: 8 },
-  heroSub: { fontSize: 15, color: theme.colors.textSecondary, marginBottom: 20, lineHeight: 21 },
+  heroTitle: { fontSize: 28, fontWeight: '800', color: theme.colors.text, letterSpacing: -0.6, marginBottom: 8, textAlign: 'center' },
+  heroSub: { fontSize: 15, color: theme.colors.textSecondary, marginBottom: 20, lineHeight: 21, textAlign: 'center' },
   starters: { gap: 10 },
   leftover: {
     flexDirection: 'row',

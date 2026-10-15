@@ -15,13 +15,13 @@ import { useTabBarSpace } from '../../src/shared/hooks/useTabBarSpace';
 import { GlassSheen } from '../../src/shared/components/GlassSheen';
 import { FrostedBar } from '../../src/shared/components/FrostedBar';
 import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSprintyChatStore } from '../../src/store/sprintyChatStore';
 import { formatListTime } from '../../src/shared/utils/chatTime';
 
 import { useRefresh } from '../../src/shared/hooks/useRefresh';
 
 import { tourRef } from '../../src/features/onboarding/tourRegistry';
+import { SprintyFace } from '../../src/features/sprinty/avatar/SprintyFace';
 const BLUE_TINT = 'rgba(0, 105, 232, 0.1)';
 
 /** One line of plain text from an AI reply (no markdown marks, no JSON blocks). */
@@ -135,14 +135,7 @@ export default function MessagesHubScreen() {
             onPress={() => router.push('/chat/sprinty')}
           >
             <GlassSheen radius={18} />
-            <LinearGradient
-              colors={[theme.colors.sprintyBlue, theme.colors.sprintyCyan]}
-              start={{ x: 0, y: 1 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.discussionAvatar}
-            >
-              <Feather name="zap" size={20} color="#FFFFFF" />
-            </LinearGradient>
+            <SprintyFace size={48} disc style={styles.sprintyFace} />
             <View style={styles.discussionContent}>
               <View style={styles.discussionTopRow}>
                 <Text style={styles.discussionTitle}>Sprinty</Text>
@@ -265,6 +258,7 @@ const styles = StyleSheet.create({
   content: { padding: 24 },
   sectionLabel: { fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginTop: 24, marginBottom: 12, letterSpacing: 0.5 },
   discussionCard: { flexDirection: 'row', alignItems: 'center', ...glassSurface, padding: 14, borderRadius: 18, borderCurve: 'continuous', marginBottom: 10 },
+  sprintyFace: { marginRight: 12 },
   discussionAvatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   discussionContent: { flex: 1, justifyContent: 'center' },
   discussionTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
