@@ -50,7 +50,15 @@ D2 Répondre à un message (citation au-dessus de la bulle).
 D3 Annonce épinglée par le coach en haut du salon (l'annonce rédigée avec Sprinty peut y aller directement).
 Plus tard (à décider) : photos dans le chat, « vu par » sur les annonces.
 
-## Questions pour l'utilisateur
+## Décisions (2026-10-15)
+1. Animation : on garde les animations actuelles et on peut en créer de nouvelles à partir du logo ; effet « 3D » = relief (ombres, reflets, légère rotation de la tête) seulement si faisable sans alourdir ; sinon on ne le fait pas.
+2. « Le mot de Sprinty » sur l'accueil : oui.
+3. Réactions : 4 réactions (❤️ 👍 🔥 💪) + 1 emoji personnalisable au choix.
+
+## État
+- Phase A faite (2026-10-15) : messages chargés par pages de 50, sondage vérifié (question, 2 options distinctes, choix multiple), copie du texte (tous messages), photos de profil dans bulles et en-tête.
+
+## Questions (réponses ci-dessus)
 1. Animation de Sprinty : garder les animations Lottie actuelles (à revoir à l'écran) ou un avatar animé refait à
    partir du logo (plus léger, cohérent partout) ?
 2. « Le mot de Sprinty » sur l'accueil : oui / non ?

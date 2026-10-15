@@ -25,6 +25,9 @@ export interface GroupDiscussionsSummary {
   };
 }
 
+/** Taille d'une page de messages (le reste se charge en remontant). */
+export const MESSAGES_PAGE = 50;
+
 export const chatService = {
   async getOrCreateTeamConversation(teamId: string): Promise<Conversation | null> {
     try {
@@ -162,12 +165,19 @@ export const chatService = {
     }
   },
 
-  async getMessages(conversationId: string): Promise<Message[]> {
-    const { data, error } = await supabase
+  /**
+   * Une page de messages, du plus récent au plus ancien. `before` = `created_at` du plus ancien déjà chargé,
+   * pour remonter dans l'historique sans tout recharger.
+   */
+  async getMessages(conversationId: string, opts: { before?: string; limit?: number } = {}): Promise<Message[]> {
+    let q = supabase
       .from('messages')
       .select('*')
       .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(opts.limit ?? MESSAGES_PAGE);
+    if (opts.before) q = q.lt('created_at', opts.before);
+    const { data, error } = await q;
 
     if (error) {
       console.error('Error fetching messages:', error);

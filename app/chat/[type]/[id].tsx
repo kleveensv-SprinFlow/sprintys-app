@@ -1,6 +1,7 @@
 import { goBack } from '../../../src/core/navigation';
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, FlatList, KeyboardAvoidingView, Platform, Image, ActivityIndicator } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { TouchableOpacity } from '../../../src/shared/components/Tappable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -8,7 +9,7 @@ import { Feather } from '@expo/vector-icons';
 import { theme } from '../../../src/core/theme';
 import { glassSurface } from '../../../src/core/glass';
 import { useAuthStore } from '../../../src/store/authStore';
-import { chatService } from '../../../src/services/chatService';
+import { chatService, MESSAGES_PAGE } from '../../../src/services/chatService';
 import { supabase } from '../../../src/services/supabase';
 import { PollMessage } from '../../../src/features/chat/PollMessage';
 import { useKeyboardOffset } from '../../../src/shared/hooks/useKeyboardOffset';
@@ -18,7 +19,7 @@ import { formatDayLabel, isSameDay } from '../../../src/shared/utils/chatTime';
 import { moderationService, REPORT_REASONS, ReportReason } from '../../../src/services/moderationService';
 import { useSprintyStore } from '../../../src/store/sprintyStore';
 
-import { appAlert } from '../../../src/shared/feedback/appAlert';
+import { appAlert, toast } from '../../../src/shared/feedback/appAlert';
 
 const BLUE = theme.colors.sprintyBlue;
 const BLUE_TINT = 'rgba(0, 105, 232, 0.1)';
@@ -58,6 +59,10 @@ export default function ChatScreen() {
   profilesRef.current = profiles;
 
   // For Poll creation
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [sendingPoll, setSendingPoll] = useState(false);
+  const [pollMultiple, setPollMultiple] = useState(false);
   const [isCreatingPoll, setIsCreatingPoll] = useState(false);
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState(['', '']);
@@ -78,7 +83,7 @@ export default function ChatScreen() {
   const loadProfiles = async (ids: string[]) => {
     const missing = ids.filter((pid) => pid && !profilesRef.current[pid]);
     if (!missing.length) return;
-    const { data } = await supabase.from('profiles').select('id, first_name, last_name, full_name').in('id', missing);
+    const { data } = await supabase.from('profiles').select('id, first_name, last_name, full_name, avatar_url').in('id', missing);
     if (data) {
       setProfiles((prev) => {
         const next = { ...prev };
@@ -99,6 +104,7 @@ export default function ChatScreen() {
     setConversation(convo);
     await chatService.ensureParticipant(convo.id, user.id);
     fetchMessages(convo.id);
+    if (type !== 'team') loadProfiles([id as string]); // photo de l'interlocuteur dans l'en-tête
 
     channelRef.current = supabase
       .channel(`chat_${convo.id}`)
@@ -130,10 +136,27 @@ export default function ChatScreen() {
   const fetchMessages = async (convoId: string) => {
     const msgs = (await chatService.getMessages(convoId)) as ChatItem[];
     setMessages(msgs);
+    setHasMore(msgs.length >= MESSAGES_PAGE);
     if (msgs.length > 0 && user?.id) {
       chatService.markAsRead(convoId, user.id, msgs[0].id);
     }
     loadProfiles([...new Set(msgs.map((m) => m.sender_id).filter(Boolean))]);
+  };
+
+  /** Remonte dans l'historique : la page de messages plus anciens. */
+  const loadOlder = async () => {
+    if (!hasMore || loadingOlder || !conversation) return;
+    const oldest = [...messages].reverse().find((m) => !m.pending && !m.failed);
+    if (!oldest) return;
+    setLoadingOlder(true);
+    try {
+      const older = (await chatService.getMessages(conversation.id, { before: oldest.created_at })) as ChatItem[];
+      setMessages((prev) => [...prev, ...older.filter((o) => !prev.some((m) => m.id === o.id))]);
+      setHasMore(older.length >= MESSAGES_PAGE);
+      loadProfiles([...new Set(older.map((m) => m.sender_id).filter(Boolean))]);
+    } finally {
+      setLoadingOlder(false);
+    }
   };
 
   const deliver = async (tempId: string, text: string) => {
@@ -167,19 +190,27 @@ export default function ChatScreen() {
     deliver(item.id, item.content);
   };
 
-  const handleSendPoll = async () => {
-    if (!pollQuestion.trim() || !conversation || !user) return;
-    const validOptions = pollOptions.filter((o) => o.trim() !== '').map((text, i) => ({ id: `opt_${i}`, text }));
-    if (validOptions.length < 2) return;
+  const pollValid = pollOptions.map((o) => o.trim()).filter(Boolean);
+  const pollReady = pollQuestion.trim().length > 0 && pollValid.length >= 2 && new Set(pollValid.map((o) => o.toLowerCase())).size === pollValid.length;
 
-    await chatService.sendMessage(conversation.id, user.id, 'Sondage', 'poll', {
-      question: pollQuestion,
-      options: validOptions,
-      multipleChoice: false,
-    });
-    setIsCreatingPoll(false);
-    setPollQuestion('');
-    setPollOptions(['', '']);
+  const handleSendPoll = async () => {
+    if (!pollReady || sendingPoll || !conversation || !user) return;
+    setSendingPoll(true);
+    try {
+      await chatService.sendMessage(conversation.id, user.id, 'Sondage', 'poll', {
+        question: pollQuestion.trim(),
+        options: pollValid.map((text, i) => ({ id: `opt_${i}`, text })),
+        multipleChoice: pollMultiple,
+      });
+      setIsCreatingPoll(false);
+      setPollQuestion('');
+      setPollOptions(['', '']);
+      setPollMultiple(false);
+    } catch {
+      toast('error', 'Le sondage n’a pas pu être envoyé. Réessaie.');
+    } finally {
+      setSendingPoll(false);
+    }
   };
 
   const chooseReason = (onPick: (reason: ReportReason) => void) =>
@@ -221,10 +252,24 @@ export default function ChatScreen() {
     }
   };
 
-  /** Long press on someone else's message. */
+  /** Long press on a message: copy for everyone, report / block for other people's. */
   const messageActions = (item: ChatItem) => {
     const name = nameOf(item.sender_id);
+    const copy =
+      item.type === 'poll'
+        ? null
+        : {
+            text: 'Copier le texte',
+            onPress: () => {
+              Clipboard.setStringAsync(item.content).then(() => toast('success', 'Texte copié.')).catch(() => undefined);
+            },
+          };
+    if (item.sender_id === user?.id) {
+      if (copy) appAlert('Mon message', undefined, [copy, { text: 'Annuler', style: 'cancel' }]);
+      return;
+    }
     appAlert(name, undefined, [
+      ...(copy ? [copy] : []),
       {
         text: 'Signaler le message',
         onPress: () => chooseReason((r) => sendReport({ reportedUserId: item.sender_id, messageId: item.id, excerpt: item.content }, r)),
@@ -273,7 +318,11 @@ export default function ChatScreen() {
         <View style={[styles.messageRow, isMe ? styles.messageRowMe : styles.messageRowOther, firstOfGroup && styles.groupStart]}>
           {!isMe && type === 'team' && (
             <View style={[styles.avatar, !firstOfGroup && { opacity: 0 }]}>
-              <Text style={styles.avatarText}>{senderName.charAt(0).toUpperCase()}</Text>
+              {profiles[item.sender_id]?.avatar_url ? (
+                <Image source={{ uri: profiles[item.sender_id].avatar_url }} style={styles.avatarImg} />
+              ) : (
+                <Text style={styles.avatarText}>{senderName.charAt(0).toUpperCase()}</Text>
+              )}
             </View>
           )}
           <View style={styles.bubbleColumn}>
@@ -281,9 +330,9 @@ export default function ChatScreen() {
 
             <TouchableOpacity
               activeOpacity={item.failed ? 0.6 : 0.85}
-              disabled={!item.failed && isMe}
+              disabled={false}
               onPress={() => item.failed && retry(item)}
-              onLongPress={() => !isMe && !item.pending && messageActions(item)}
+              onLongPress={() => !item.pending && !item.failed && messageActions(item)}
               delayLongPress={300}
               style={[
                 styles.messageBubble,
@@ -328,6 +377,8 @@ export default function ChatScreen() {
           <View style={[styles.headerAvatar, { backgroundColor: type === 'team' ? theme.colors.glassFill : BLUE_TINT }]}>
             {type === 'team' ? (
               <Feather name="users" size={16} color={theme.colors.text} />
+            ) : profiles[id as string]?.avatar_url ? (
+              <Image source={{ uri: profiles[id as string].avatar_url }} style={styles.headerAvatarImg} />
             ) : (
               <Text style={styles.headerAvatarText}>{headerTitle.replace(/^Coach\s+/i, '').charAt(0).toUpperCase()}</Text>
             )}
@@ -370,6 +421,9 @@ export default function ChatScreen() {
             keyExtractor={(item) => item.id}
             renderItem={renderMessage}
             inverted
+            onEndReached={loadOlder}
+            onEndReachedThreshold={0.4}
+            ListFooterComponent={loadingOlder ? <ActivityIndicator style={styles.olderSpinner} color={theme.colors.textMuted} /> : null}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             keyboardDismissMode="interactive"
@@ -414,8 +468,30 @@ export default function ChatScreen() {
                 }}
               />
             ))}
-            <PressableScale style={styles.sendPollBtn} onPress={handleSendPoll} haptic="medium">
-              <Text style={styles.sendPollBtnText}>Envoyer le sondage</Text>
+            <PressableScale
+              haptic="selection"
+              onPress={() => setPollMultiple((v) => !v)}
+              style={styles.pollToggle}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: pollMultiple }}
+            >
+              <View style={[styles.pollCheck, pollMultiple && { backgroundColor: BLUE, borderColor: BLUE }]}>
+                {pollMultiple && <Feather name="check" size={13} color="#FFFFFF" />}
+              </View>
+              <Text style={styles.pollToggleText}>Plusieurs réponses possibles</Text>
+            </PressableScale>
+            {!pollReady && pollQuestion.trim().length > 0 && (
+              <Text style={styles.pollHint}>
+                {pollValid.length < 2 ? 'Il faut au moins 2 options.' : 'Deux options ne peuvent pas être identiques.'}
+              </Text>
+            )}
+            <PressableScale
+              style={[styles.sendPollBtn, !pollReady && styles.sendPollBtnDisabled]}
+              onPress={handleSendPoll}
+              disabled={!pollReady || sendingPoll}
+              haptic="medium"
+            >
+              <Text style={styles.sendPollBtnText}>{sendingPoll ? 'Envoi…' : 'Envoyer le sondage'}</Text>
             </PressableScale>
           </View>
         ) : (
@@ -545,6 +621,14 @@ const styles = StyleSheet.create({
     marginRight: 8,
     marginBottom: 18,
   },
+  avatarImg: { width: 28, height: 28, borderRadius: 14 },
+  headerAvatarImg: { width: 36, height: 36, borderRadius: 18 },
+  olderSpinner: { paddingVertical: 16 },
+  pollToggle: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44 },
+  pollCheck: { width: 22, height: 22, borderRadius: 7, borderWidth: 1.5, borderColor: theme.colors.border, alignItems: 'center', justifyContent: 'center' },
+  pollToggleText: { fontSize: 14, fontWeight: '600', color: theme.colors.text },
+  pollHint: { fontSize: 12, color: theme.colors.warning, marginBottom: 4 },
+  sendPollBtnDisabled: { opacity: 0.4 },
   avatarText: {
     fontWeight: '700',
     color: theme.colors.text,
