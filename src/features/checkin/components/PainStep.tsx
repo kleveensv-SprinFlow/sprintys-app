@@ -13,6 +13,7 @@ import { PressableScale } from '../../../shared/components/PressableScale';
 import { Button } from '../../../shared/components/Button';
 import { BottomSheet } from '../../../shared/components/BottomSheet';
 import { StepFooter } from './StepFooter';
+import { PAIN_TYPES, PainSide, painKey, painLabel } from '../painTaxonomy';
 
 interface PainStepProps {
   onBack: () => void;
@@ -74,11 +75,6 @@ const BODY_SECTIONS = [
   }
 ];
 
-const PAIN_TYPES = [
-  'Courbature', 'Contracture', 'Élongation', 'Déchirure', 'Articulaire', 'Autre'
-];
-
-const SIDES = ['Gauche', 'Droit', 'Bilatéral'] as const;
 
 export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
   const theme = useTheme();
@@ -102,19 +98,23 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
     onSubmit();
   };
 
-  const handleZonePress = (zone: any) => {
-    const existingPain = currentPains.find(p => p.muscle_id === zone.id);
-    if (existingPain) {
-      setActiveType(existingPain.type);
-      setActiveSide((existingPain.side as any) || 'Gauche');
-      setIntensity(existingPain.intensity || 3);
-      setComment(existingPain.comment || '');
-    } else {
-      setActiveType('Courbature');
-      setActiveSide('Gauche');
-      setIntensity(3);
-      setComment('');
-    }
+  // Charge dans la feuille la douleur existante de cette zone + ce côté, ou un formulaire vierge.
+  const loadPair = (zone: { id: string; sides: boolean }, side: PainSide) => {
+    const key = painKey({ muscle_id: zone.id, side: zone.sides ? side : undefined });
+    const existing = currentPains.find(p => painKey(p) === key);
+    setActiveSide(side);
+    setActiveType(existing?.type ?? 'Courbature');
+    setIntensity(existing?.intensity || 3);
+    setComment(existing?.comment || '');
+  };
+
+  const handleZonePress = (zone: { id: string; name: string; sides: boolean }) => {
+    // Premier côté encore libre (gauche, droit, les deux) pour pouvoir noter les deux côtés d'une même zone
+    const firstFree =
+      (['Gauche', 'Droit', 'Bilatéral'] as const).find(
+        s => !currentPains.some(p => painKey(p) === painKey({ muscle_id: zone.id, side: s }))
+      ) ?? 'Gauche';
+    loadPair(zone, zone.sides ? firstFree : 'Gauche');
     setSelectedZone(zone);
   };
 
@@ -155,7 +155,10 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
     setIntensity(value);
   };
 
-  const zoneHasPain = currentPains.some(p => p.muscle_id === selectedZone?.id);
+  const activeKey = selectedZone
+    ? painKey({ muscle_id: selectedZone.id, side: selectedZone.sides ? activeSide : undefined })
+    : '';
+  const zoneHasPain = currentPains.some(p => painKey(p) === activeKey);
 
   return (
     <View style={styles.container}>
@@ -203,16 +206,16 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
               </Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.summaryList}>
                 {currentPains.map(pain => (
-                  <View key={pain.muscle_id} style={[styles.painChip, { backgroundColor: theme.colors.surface, borderColor: theme.colors.hairline }]}>
+                  <View key={painKey(pain)} style={[styles.painChip, { backgroundColor: theme.colors.surface, borderColor: theme.colors.hairline }]}>
                     <View style={[styles.intensityDot, { backgroundColor: getIntensityColor(pain.intensity) }]} />
-                    <Text style={[styles.painChipText, { color: theme.colors.text }]}>{pain.muscle_name}</Text>
+                    <Text style={[styles.painChipText, { color: theme.colors.text }]}>{painLabel(pain)}</Text>
                     <PressableScale
                       haptic="selection"
-                      onPress={() => removePain(pain.muscle_id)}
+                      onPress={() => removePain(painKey(pain))}
                       style={[styles.removePainBtn, { backgroundColor: theme.colors.glassFill }]}
                       hitSlop={12}
                       accessibilityRole="button"
-                      accessibilityLabel={`Retirer ${pain.muscle_name}`}
+                      accessibilityLabel={`Retirer ${painLabel(pain)}`}
                     >
                       <Feather name="x" size={12} color={theme.colors.textSecondary} />
                     </PressableScale>
@@ -253,7 +256,7 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
                 {isExpanded && (
                   <View style={[styles.zonesContainer, { borderTopColor: theme.colors.hairline }]}>
                     {section.zones.map((zone, index) => {
-                      const pain = currentPains.find(p => p.muscle_id === zone.id);
+                      const zonePains = currentPains.filter(p => p.muscle_id === zone.id);
                       const isLast = index === section.zones.length - 1;
 
                       return (
@@ -264,16 +267,20 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
                           style={[styles.zoneRow, !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.hairline }]}
                           onPress={() => handleZonePress(zone)}
                           accessibilityRole="button"
-                          accessibilityLabel={pain ? `${zone.name}, ${pain.intensity} sur 10, ${pain.type}` : `Signaler ${zone.name}`}
+                          accessibilityLabel={zonePains.length ? `${zone.name}, ${zonePains.map(p => `${p.side && p.side !== "Aucun" ? p.side + " " : ""}${p.intensity} sur 10, ${p.type}`).join(" ; ")}` : `Signaler ${zone.name}`}
                         >
                           <Text style={[styles.zoneName, { color: theme.colors.text }]}>{zone.name}</Text>
 
-                          {pain ? (
-                            <View style={[styles.zoneStateBadge, { backgroundColor: theme.colors.glassFill }]}>
-                              <View style={[styles.intensityDot, { backgroundColor: getIntensityColor(pain.intensity) }]} />
-                              <Text style={[styles.zoneStateText, { color: theme.colors.textSecondary }]}>
-                                {pain.intensity}/10 · {pain.type}
-                              </Text>
+                          {zonePains.length > 0 ? (
+                            <View style={styles.zoneBadges}>
+                              {zonePains.map(pain => (
+                                <View key={painKey(pain)} style={[styles.zoneStateBadge, { backgroundColor: theme.colors.glassFill }]}>
+                                  <View style={[styles.intensityDot, { backgroundColor: getIntensityColor(pain.intensity) }]} />
+                                  <Text style={[styles.zoneStateText, { color: theme.colors.textSecondary }]}>
+                                    {pain.side && pain.side !== "Aucun" ? `${pain.side[0]} · ` : ""}{pain.intensity}/10 · {pain.type}
+                                  </Text>
+                                </View>
+                              ))}
                             </View>
                           ) : (
                             <Feather name="plus-circle" size={20} color={theme.colors.textMuted} />
@@ -351,7 +358,7 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
                       haptic="selection"
                       containerStyle={styles.sideCell}
                       style={[styles.sideChip, isActive && { backgroundColor: theme.colors.sprintyBlue }]}
-                      onPress={() => setActiveSide(sideItem.id as any)}
+                      onPress={() => selectedZone && loadPair(selectedZone, sideItem.id as PainSide)}
                       accessibilityRole="radio"
                       accessibilityState={{ selected: isActive }}
                     >
@@ -397,7 +404,7 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
                 textStyle={{ color: theme.colors.error }}
                 style={styles.removeBtn}
                 onPress={() => {
-                  removePain(selectedZone!.id);
+                  removePain(activeKey);
                   setSelectedZone(null);
                 }}
               />
@@ -441,6 +448,7 @@ const styles = StyleSheet.create({
   zonesContainer: { borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 16 },
   zoneRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 48, paddingVertical: 12 },
   zoneName: { fontSize: 15, fontWeight: '500' },
+  zoneBadges: { alignItems: 'flex-end', gap: 4 },
   zoneStateBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
   intensityDot: { width: 8, height: 8, borderRadius: 4 },
   zoneStateText: { fontSize: 12, fontWeight: '600' },

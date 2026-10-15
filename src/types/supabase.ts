@@ -126,13 +126,12 @@ export type Database = {
       check_ins: {
         Row: {
           athlete_id: string
-          bedtime: string
+          bedtime: string | null
           created_at: string | null
           date: string
           fatigue_level: number | null
           health_score: number | null
           id: string
-          menstruation: boolean | null
           mental_score: number | null
           motivation_level: number | null
           pains: Json | null
@@ -141,17 +140,16 @@ export type Database = {
           sleep_quality: number | null
           sleep_score: number | null
           stress_level: number | null
-          wakeup_time: string
+          wakeup_time: string | null
         }
         Insert: {
           athlete_id: string
-          bedtime: string
+          bedtime?: string | null
           created_at?: string | null
           date?: string
           fatigue_level?: number | null
           health_score?: number | null
           id?: string
-          menstruation?: boolean | null
           mental_score?: number | null
           motivation_level?: number | null
           pains?: Json | null
@@ -160,17 +158,16 @@ export type Database = {
           sleep_quality?: number | null
           sleep_score?: number | null
           stress_level?: number | null
-          wakeup_time: string
+          wakeup_time?: string | null
         }
         Update: {
           athlete_id?: string
-          bedtime?: string
+          bedtime?: string | null
           created_at?: string | null
           date?: string
           fatigue_level?: number | null
           health_score?: number | null
           id?: string
-          menstruation?: boolean | null
           mental_score?: number | null
           motivation_level?: number | null
           pains?: Json | null
@@ -179,7 +176,7 @@ export type Database = {
           sleep_quality?: number | null
           sleep_score?: number | null
           stress_level?: number | null
-          wakeup_time?: string
+          wakeup_time?: string | null
         }
         Relationships: [
           {

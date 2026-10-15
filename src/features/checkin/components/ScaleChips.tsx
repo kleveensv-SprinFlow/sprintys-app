@@ -13,7 +13,7 @@ export interface ScaleOption {
 }
 
 interface ScaleChipsProps {
-  value: number;
+  value: number | null;
   onChange: (value: number) => void;
   options: ScaleOption[];
 }

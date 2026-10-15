@@ -49,8 +49,10 @@ export const CheckInSummaryModal = ({ visible, onClose, onEdit }: Props) => {
 
   const overallColor = getScoreColor(todayHealthScore || 0);
 
-  const ScoreGauge = ({ label, score, icon }: { label: string, score: number, icon: keyof typeof Feather.glyphMap }) => {
-    const color = getScoreColor(score);
+  const ScoreGauge = ({ label, score: rawScore, icon }: { label: string, score: number | null | undefined, icon: keyof typeof Feather.glyphMap }) => {
+    const answered = rawScore != null;
+    const score = rawScore ?? 0;
+    const color = answered ? getScoreColor(score) : theme.colors.textMuted;
     const clamped = Math.max(0, Math.min(100, score));
     return (
       <View style={[glassCard, styles.gaugeCard]}>
@@ -60,8 +62,8 @@ export const CheckInSummaryModal = ({ visible, onClose, onEdit }: Props) => {
           </View>
           <Text style={[styles.gaugeLabel, { color: theme.colors.textSecondary }]}>{label}</Text>
           <Text style={[styles.gaugeScore, { color }]}>
-            {Math.round(score)}
-            <Text style={[styles.gaugeScoreMax, { color: theme.colors.textMuted }]}> / 100</Text>
+            {answered ? Math.round(score) : 'Non renseigné'}
+            {answered &&<Text style={[styles.gaugeScoreMax, { color: theme.colors.textMuted }]}> / 100</Text>}
           </Text>
         </View>
         <View style={[styles.progressBarBg, { backgroundColor: theme.colors.glassFill }]}>
@@ -118,9 +120,9 @@ export const CheckInSummaryModal = ({ visible, onClose, onEdit }: Props) => {
 
             <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>Détail</Text>
             <View style={styles.gaugesContainer}>
-              <ScoreGauge label="Sommeil" score={todayCheckIn.sleep_score || 0} icon="moon" />
-              <ScoreGauge label="Physique" score={todayCheckIn.physical_score || 0} icon="activity" />
-              <ScoreGauge label="Mental" score={todayCheckIn.mental_score || 0} icon="smile" />
+              <ScoreGauge label="Sommeil" score={todayCheckIn.sleep_score} icon="moon" />
+              <ScoreGauge label="Physique" score={todayCheckIn.physical_score} icon="activity" />
+              <ScoreGauge label="Mental" score={todayCheckIn.mental_score} icon="smile" />
             </View>
 
             <PressableScale

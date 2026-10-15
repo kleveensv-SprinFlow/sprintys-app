@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useTheme } from '../../../core/theme';
 import { useCheckInStore } from '../../../store/checkInStore';
@@ -36,24 +36,28 @@ const MOTIVATION_OPTIONS: ScaleOption[] = [
 
 export const MentalStep = ({ onNext, onBack }: MentalStepProps) => {
   const theme = useTheme();
-  const { currentCheckIn, updateMental } = useCheckInStore();
+  const { currentCheckIn, updateMental, history } = useCheckInStore();
 
-  const [energy, setEnergy] = useState(3);
-  const [stress, setStress] = useState(2); // 1 = serein, 5 = très stressé
-  const [motivation, setMotivation] = useState(3);
+  // Valeurs déjà saisies (édition du jour) sinon dernière réponse connue, sinon rien : jamais de valeur inventée.
+  const answered = currentCheckIn?.fatigue_level != null && currentCheckIn?.stress_level != null && currentCheckIn?.motivation_level != null;
+  const suggestion = history.find((h) => h.fatigue_level != null && h.stress_level != null && h.motivation_level != null);
+  const source = answered ? currentCheckIn : suggestion;
+  const isPrefilled = !answered && !!suggestion;
 
-  useEffect(() => {
-    if (currentCheckIn) {
-      setEnergy(6 - (currentCheckIn.fatigue_level || 3));
-      setStress(currentCheckIn.stress_level || 2);
-      setMotivation(currentCheckIn.motivation_level || 3);
-    }
-  }, [currentCheckIn]);
+  const [energy, setEnergy] = useState<number | null>(source?.fatigue_level != null ? 6 - source.fatigue_level : null);
+  const [stress, setStress] = useState<number | null>(source?.stress_level ?? null); // 1 = serein, 5 = très stressé
+  const [motivation, setMotivation] = useState<number | null>(source?.motivation_level ?? null);
+  const [touched, setTouched] = useState(false);
+
+  const complete = energy != null && stress != null && motivation != null;
+  const change = (setter: (v: number) => void) => (v: number) => {
+    setTouched(true);
+    setter(v);
+  };
 
   const handleNext = () => {
-    const fatigue_level = 6 - energy;
-    const stress_level = stress;
-    updateMental(stress_level, fatigue_level, motivation);
+    if (energy == null || stress == null || motivation == null) return;
+    updateMental(stress, 6 - energy, motivation);
     onNext();
   };
 
@@ -61,32 +65,40 @@ export const MentalStep = ({ onNext, onBack }: MentalStepProps) => {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <Text style={[styles.title, { color: theme.colors.text }]}>Mental & énergie</Text>
-        <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Comment te sens-tu ce matin ?</Text>
+        <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+          {isPrefilled && !touched ? 'Comme ta dernière réponse. Ajuste si ce n’est plus ça.' : 'Comment te sens-tu ce matin ?'}
+        </Text>
 
         <ScaleCard
           title="Niveau d’énergie"
           icon="zap"
           value={energy}
-          onChange={setEnergy}
+          onChange={change(setEnergy)}
           options={ENERGY_OPTIONS}
         />
         <ScaleCard
           title="Charge mentale / stress"
           icon="wind"
           value={stress}
-          onChange={setStress}
+          onChange={change(setStress)}
           options={STRESS_OPTIONS}
         />
         <ScaleCard
           title="Motivation"
           icon="target"
           value={motivation}
-          onChange={setMotivation}
+          onChange={change(setMotivation)}
           options={MOTIVATION_OPTIONS}
         />
       </ScrollView>
 
-      <StepFooter title="Suivant" onPress={handleNext} onBack={onBack} />
+      <StepFooter
+        title={isPrefilled && !touched ? 'C’est bien ça' : 'Suivant'}
+        onPress={handleNext}
+        onBack={onBack}
+        disabled={!complete}
+        onSkip={onNext}
+      />
     </View>
   );
 };

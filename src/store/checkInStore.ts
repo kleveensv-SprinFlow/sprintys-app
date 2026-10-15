@@ -1,8 +1,7 @@
 import { create } from 'zustand';
-import { checkInService, CheckInData, PainInfo } from '../services/checkInService';
+import { checkInService, CheckInData, CheckInDraft, PainInfo } from '../services/checkInService';
+import { painKey } from '../features/checkin/painTaxonomy';
 import { useSprintyStore } from './sprintyStore';
-import { useAuthStore } from './authStore';
-import {} from 'react-native';
 import { appAlert } from '../shared/feedback/appAlert';
 
 const localDay = () => {
@@ -22,10 +21,9 @@ interface CheckInState {
   editTodayCheckIn: (athleteId: string) => void;
   updateSleep: (bedtime: string, wakeup_time: string, sleep_hours: number, sleep_quality: number) => void;
   updateMental: (stress: number, fatigue: number, motivation: number) => void;
-  setMenstruation: (isMenstruating: boolean) => void;
-  setWeight: (weight: number) => void;
   addPain: (pain: PainInfo) => void;
-  removePain: (muscle_id: string) => void;
+  /** `key` = painKey(pain) : zone + côté. */
+  removePain: (key: string) => void;
   submitCheckIn: () => Promise<boolean>;
   loadHistory: (athleteId: string) => Promise<void>;
   cancelCheckIn: () => void;
@@ -38,19 +36,12 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
   isLoading: false,
 
   startCheckIn: (athleteId) => {
-    const today = localDay();
+    // Aucune valeur par défaut : un pilier non renseigné reste vide (null à l'enregistrement),
+    // jamais une réponse inventée.
     set({
       currentCheckIn: {
         athlete_id: athleteId,
-        date: today,
-        bedtime: '23:00',
-        wakeup_time: '07:00',
-        sleep_hours: 8,
-        sleep_quality: 3,
-        // Neutral starting point on the 1-5 scales: validating without touching must not read as "exhausted"
-        stress_level: 2,
-        fatigue_level: 3,
-        motivation_level: 3,
+        date: localDay(),
         pains: [],
       }
     });
@@ -97,17 +88,11 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
     });
   },
 
-  setWeight: (weight) => set((state) => { if (!state.currentCheckIn) return state; return { currentCheckIn: { ...state.currentCheckIn, weight } }; }),
-  setMenstruation: (isMenstruating) => set((state) => {
-    if (!state.currentCheckIn) return state;
-    return { currentCheckIn: { ...state.currentCheckIn, menstruation: isMenstruating } };
-  }),
-
   addPain: (pain) => {
     set((state) => {
       if (!state.currentCheckIn) return state;
       const currentPains = state.currentCheckIn.pains || [];
-      const newPains = currentPains.filter(p => p.muscle_id !== pain.muscle_id);
+      const newPains = currentPains.filter(p => painKey(p) !== painKey(pain));
       newPains.push(pain);
       
       return {
@@ -119,11 +104,11 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
     });
   },
 
-  removePain: (muscle_id) => {
+  removePain: (key) => {
     set((state) => {
       if (!state.currentCheckIn) return state;
       const currentPains = state.currentCheckIn.pains || [];
-      const newPains = currentPains.filter(p => p.muscle_id !== muscle_id);
+      const newPains = currentPains.filter(p => painKey(p) !== key);
       
       return {
         currentCheckIn: {
@@ -140,19 +125,14 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
 
     set({ isLoading: true });
     try {
-      // On s'assure que toutes les données obligatoires sont présentes (avec fallback)
-      const baseData = {
+      // Piliers non renseignés = null : aucune valeur par défaut. Seules les douleurs ont une liste vide.
+      const baseData: CheckInDraft = {
         ...state.currentCheckIn,
-        bedtime: state.currentCheckIn.bedtime || '23:00',
-        wakeup_time: state.currentCheckIn.wakeup_time || '07:00',
-        sleep_hours: state.currentCheckIn.sleep_hours ?? 8,
-        sleep_quality: state.currentCheckIn.sleep_quality || 3,
-        stress_level: state.currentCheckIn.stress_level || 2,
-        fatigue_level: state.currentCheckIn.fatigue_level || 3,
-        motivation_level: state.currentCheckIn.motivation_level || 3,
+        athlete_id: state.currentCheckIn.athlete_id,
+        date: state.currentCheckIn.date || localDay(),
         pains: state.currentCheckIn.pains || [],
-      } as Omit<CheckInData, 'health_score'|'sleep_score'|'physical_score'|'mental_score'>;
-      
+      };
+
       // Calcule tous les scores
       const scores = checkInService.calculateScores(baseData, state.history);
       
@@ -166,13 +146,8 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
 
       const savedData = await checkInService.upsertCheckIn(fullData);
 
-      if (fullData.weight !== undefined && fullData.weight !== null) {
-        const authStore = useAuthStore.getState();
-        await authStore.updateProfile({ weight: fullData.weight, startWeight: fullData.weight });
-        await authStore.reloadProfile();
-      }
-      
-      const newHistory = [...state.history.filter(h => h.date !== savedData.date), savedData];
+      const newHistory = [...state.history.filter(h => h.date !== savedData.date), savedData]
+        .sort((a, b) => (a.date < b.date ? 1 : -1)); // plus récent d'abord, comme fetchRecentCheckIns
       
       set({ 
         currentCheckIn: null, 
