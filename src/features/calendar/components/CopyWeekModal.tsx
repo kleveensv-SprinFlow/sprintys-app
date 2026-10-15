@@ -5,7 +5,7 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../../core/theme';
 import { PressableScale } from '../../../shared/components/PressableScale';
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
-import { appAlert, toast } from '../../../shared/feedback/appAlert';
+import { appAlert, confirmAsync, toast } from '../../../shared/feedback/appAlert';
 import { workoutService } from '../../../services/workoutService';
 
 interface Props {
@@ -49,6 +49,17 @@ export const CopyWeekModal: React.FC<Props> = ({ visible, onClose, coachId, day,
     target.setDate(target.getDate() + 7 * weeksAhead);
     setBusy(weeksAhead);
     try {
+      // A week that already has sessions would get them twice: ask first
+      const existing = await workoutService.fetchWeekRows(coachId, target);
+      if (existing.length > 0) {
+        const n = new Set(existing.map((r: any) => r.group_assignment_id || r.id)).size;
+        const go = await confirmAsync({
+          title: 'Semaine déjà remplie',
+          message: `La semaine du ${fmt(target)} contient déjà ${n} séance${n > 1 ? 's' : ''}. Les séances copiées s’ajouteront à celles-ci.`,
+          confirmText: 'Copier quand même',
+        });
+        if (!go) return;
+      }
       const { sessions } = await workoutService.copyWeek(coachId, monday, target);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       toast('success', `${sessions} séance${sessions > 1 ? 's' : ''} copiée${sessions > 1 ? 's' : ''} sur la semaine du ${fmt(target)}`);

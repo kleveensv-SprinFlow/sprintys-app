@@ -1,12 +1,13 @@
-/** 7.73 s, 1'05.20 */
+/** 7,73 s, 1'05,20 (rounded to the hundredth first, so 59.996 reads 1'00,00 and not 60,00 s) */
 export function formatSeconds(s: number): string {
   if (!Number.isFinite(s)) return '–';
-  if (s >= 60) {
-    const m = Math.floor(s / 60);
-    const rest = s - m * 60;
-    return `${m}'${rest.toFixed(2).padStart(5, '0')}`;
+  const cs = Math.round(s * 100);
+  if (cs >= 6000) {
+    const m = Math.floor(cs / 6000);
+    const rest = (cs % 6000) / 100;
+    return `${m}'${rest.toFixed(2).replace('.', ',').padStart(5, '0')}`;
   }
-  return `${s.toFixed(2).replace('.', ',')} s`;
+  return `${(cs / 100).toFixed(2).replace('.', ',')} s`;
 }
 
 export function formatKg(n: number): string {

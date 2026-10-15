@@ -22,6 +22,7 @@ import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 import { appAlert, confirmAsync, toast } from '../../../shared/feedback/appAlert';
 import { IconButton } from '../../../shared/components/IconButton';
 import { PressableScale } from '../../../shared/components/PressableScale';
+import { formatSeconds, formatValue } from '../../performance/format';
 
 interface WorkoutDetailModalProps {
   visible: boolean;
@@ -252,11 +253,9 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
   React.useEffect(() => {
     if (!canEdit || !visible || !workout?.id || !resultsOwnerId || !draftReady.current || isValidated) return;
     const key = `session-draft:${resultsOwnerId}:${workout.id}`;
-    const t = setTimeout(() => {
-      const empty = !Object.keys(setData).length && !athleteNotes && rpe == null && !durationMin;
-      (empty ? AsyncStorage.removeItem(key) : AsyncStorage.setItem(key, JSON.stringify({ setData, notes: athleteNotes, rpe, durationMin }))).catch(() => undefined);
-    }, 500);
-    return () => clearTimeout(t);
+    const empty = !Object.keys(setData).length && !athleteNotes && rpe == null && !durationMin;
+    // Written right away: a delayed write would be lost when the sheet closes or the app goes to the background
+    (empty ? AsyncStorage.removeItem(key) : AsyncStorage.setItem(key, JSON.stringify({ setData, notes: athleteNotes, rpe, durationMin }))).catch(() => undefined);
   }, [setData, athleteNotes, rpe, durationMin, isValidated, visible, workout?.id]);
 
   // Coach: who has validated a group session
@@ -465,14 +464,18 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
           .eq('workout_id', workout.id)
           .eq('is_pr', true)
           .order('set_order');
-        const seen = new Set<string>();
+        // Best value per label: the fastest time of a distance, the heaviest load of an exercise
+        const best = new Map<string, { run: boolean; v: number }>();
         for (const r of prs || []) {
-          const isRun = (r as any).actual_time_ms != null && (r as any).actual_distance_m;
-          const label = isRun ? `${Number((r as any).actual_distance_m)} m` : String((r as any).actual_extra?.exercise ?? (r as any).planned_extra?.exercise_name ?? 'Exercice');
-          if (seen.has(label)) continue;
-          seen.add(label);
-          recordLines.push(isRun ? `${label} : ${((r as any).actual_time_ms / 1000).toFixed(2).replace('.', ',')} s` : `${label} : ${(r as any).actual_weight_kg ?? (r as any).actual_extra?.weight} kg`);
+          const x: any = r;
+          const isRun = x.actual_time_ms != null && x.actual_distance_m;
+          const label = isRun ? `${Number(x.actual_distance_m)} m` : String(x.actual_extra?.exercise ?? x.planned_extra?.exercise_name ?? 'Exercice');
+          const v = isRun ? x.actual_time_ms / 1000 : Number(x.actual_weight_kg ?? x.actual_extra?.weight);
+          if (!Number.isFinite(v)) continue;
+          const cur = best.get(label);
+          if (!cur || (isRun ? v < cur.v : v > cur.v)) best.set(label, { run: !!isRun, v });
         }
+        recordLines = [...best.entries()].map(([label, b]) => `${label} : ${formatValue(b.v, b.run ? 's' : 'kg')}`);
       } catch { /* the celebration is a bonus */ }
       loadExistingData();
 
@@ -577,7 +580,11 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
     // Planned rest after this set starts the timer (nothing after the last set of the session)
     const planned = allSets[activeKeypad.flattenedIndex];
     const restSeconds = Number(planned?.set?.restSeconds ?? 0);
-    if (value && restSeconds > 0 && activeKeypad.flattenedIndex < allSets.length - 1) {
+    const upcoming = allSets[activeKeypad.flattenedIndex + 1];
+    // Going from one exercise of a superset to its partner is done without resting
+    const sameSuperset = !!upcoming && upcoming.exercise !== planned?.exercise
+      && !!(planned?.exercise as any)?.superset && (planned?.exercise as any).superset === (upcoming.exercise as any)?.superset;
+    if (value && restSeconds > 0 && !sameSuperset && activeKeypad.flattenedIndex < allSets.length - 1) {
       setRestEnd(Date.now() + restSeconds * 1000);
     }
     const key = `${activeKeypad.exerciseId}_${activeKeypad.setIndex}`;
@@ -976,7 +983,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                         }
                         if (set.distance) setDetails.push(`${set.distance}m`);
                         if ((set as any).intensity) setDetails.push(`${(set as any).intensity}%`);
-                        if ((set as any).target_time_s) setDetails.push(`objectif ${String(Number((set as any).target_time_s).toFixed(2)).replace('.', ',')} s`);
+                        if ((set as any).target_time_s) setDetails.push(`objectif ${formatSeconds(Number((set as any).target_time_s))}`);
                         if (set.duration) setDetails.push(set.duration);
                         if (set.weight !== undefined && set.weight !== null) {
                           const wType = (set as any).weight_type || (set as any).weightType;

@@ -245,12 +245,13 @@ export default function CoachDayScreen() {
 
   const handlePickTemplate = useCallback(async (tpl: any) => {
     const team = teams[0];
-    const approved = teamMembers.filter((m: any) => m.status === 'approved');
     if (!user?.id || !team) {
       appAlert('Aucune équipe', 'Crée ou rejoins une équipe pour planifier cette séance.');
       return;
     }
     try {
+      // Read the team's current approved members instead of trusting whatever the store holds
+      const approved = await workoutService.fetchApprovedMembers(team.id);
       const n = await workoutService.createFromTemplate(user.id, team.id, approved, tpl, parsedDate);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       toast('success', `« ${tpl.name} » planifiée pour ${n} athlète${n > 1 ? 's' : ''}.`);
@@ -265,7 +266,7 @@ export default function CoachDayScreen() {
           : 'Impossible de planifier cette séance type.';
       appAlert('Séance type', msg);
     }
-  }, [teams, teamMembers, user?.id, parsedDate, fetchDayWorkouts]);
+  }, [teams, user?.id, parsedDate, fetchDayWorkouts]);
 
   const renderCreationGrid = () => (
     <>

@@ -192,7 +192,8 @@ export const useCoachStore = create<CoachState>((set, get) => ({
   fetchTeams: async () => {
     set({ isLoading: true, error: null });
     const user = useAuthStore.getState().user;
-    if (!user) return set({ isLoading: false, hasFetchedTeams: true });
+    // Session still restoring: not "fetched" yet, the caller retries once the user is known
+    if (!user) return set({ isLoading: false });
 
     try {
       const { data, error } = await supabase

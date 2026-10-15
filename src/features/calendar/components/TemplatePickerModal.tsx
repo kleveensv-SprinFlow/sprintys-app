@@ -99,7 +99,7 @@ export const TemplatePickerModal: React.FC<Props> = ({ visible, onClose, coachId
               compact
               icon="star"
               title="Aucune séance type"
-              message="Ouvre une séance planifiée puis touche « Séance type » pour la garder et la reprogrammer en un geste."
+              message="Ouvre une séance planifiée puis touche « Type » pour la garder et la reprogrammer en un geste."
             />
           </View>
         ) : (

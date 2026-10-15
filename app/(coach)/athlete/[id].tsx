@@ -18,6 +18,7 @@ import { ListRow } from '../../../src/shared/components/ListRow';
 import { useFrostedHeader } from '../../../src/shared/hooks/useFrostedHeader';
 import { useRefresh } from '../../../src/shared/hooks/useRefresh';
 import { useAuthStore } from '../../../src/store/authStore';
+import { supabase } from '../../../src/services/supabase';
 
 type FeatherName = keyof typeof Feather.glyphMap;
 
@@ -43,10 +44,18 @@ export default function AthleteDetailScreen() {
     let alive = true;
     (async () => {
       try {
-        await fetchTeams();
-        for (const t of useCoachStore.getState().teams) {
-          await fetchTeamMembers(t.id);
-          await fetchSubgroups(t.id);
+        // Find the team of this athlete among the coach's teams, then load only that one (several teams would overwrite each other)
+        const { data } = await supabase
+          .from('team_members')
+          .select('team_id, teams!inner(coach_id)')
+          .eq('user_id', id)
+          .eq('teams.coach_id', coachId)
+          .limit(1);
+        const teamId = (data as any[] | null)?.[0]?.team_id as string | undefined;
+        if (teamId) {
+          await fetchTeams();
+          await fetchTeamMembers(teamId);
+          await fetchSubgroups(teamId);
         }
       } catch {
         /* falls through to the not-found state */
@@ -57,7 +66,7 @@ export default function AthleteDetailScreen() {
     return () => {
       alive = false;
     };
-  }, [id, coachId, !!athleteMember]);
+  }, [id, coachId]);
 
   const [latestCheckIn, setLatestCheckIn] = useState<CheckInData | null>(null);
   const [isLoading, setIsLoading] = useState(true);

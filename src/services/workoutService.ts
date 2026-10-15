@@ -175,6 +175,8 @@ export const workoutService = {
         const prev = existing.measures || {};
         const measures: any = { ...(payload.measures || {}) };
         if (prev.athlete_feedback != null) measures.athlete_feedback = prev.athlete_feedback;
+        if (prev.rpe != null) measures.rpe = prev.rpe;
+        if (prev.duration_min != null) measures.duration_min = prev.duration_min;
         // Comment written before athlete_feedback existed lived in athlete_notes (as text)
         if (prev.athlete_feedback == null && typeof prev.athlete_notes === 'string' && prev.athlete_notes) measures.athlete_feedback = prev.athlete_notes;
         if (typeof prev.athlete_notes === 'string' && measures.athlete_notes === undefined) measures.athlete_notes = prev.athlete_notes;
@@ -243,7 +245,18 @@ export const workoutService = {
    * Keep a planned session as a reusable template (any type). What belongs to the athletes (comment, felt effort,
    * validation) and to this particular day (group, master flag) is not kept.
    */
-  saveSessionAsTemplate: async (coachId: string, name: string, workout: any) => {
+  saveSessionAsTemplate: async (coachId: string, name: string, picked: any) => {
+    // A group session is saved from the coach's master copy (the complete plan), not from one athlete's filtered row
+    let workout = picked;
+    if (picked.group_assignment_id && !picked.measures?.is_master) {
+      try {
+        const rows = await workoutService.fetchWorkoutsByGroupAssignment(picked.group_assignment_id);
+        const master = rows.find((r: any) => r.measures?.is_master);
+        if (master) workout = { ...master, type_seance: picked.type_seance || master.type_seance };
+      } catch {
+        /* falls back to the row the coach opened */
+      }
+    }
     const measures: any = { ...(workout.measures || {}) };
     for (const k of ['is_master', 'athlete_feedback', 'rpe', 'duration_min', 'has_time']) delete measures[k];
     if (typeof measures.athlete_notes === 'string') delete measures.athlete_notes;
@@ -353,7 +366,16 @@ export const workoutService = {
    * comment), each group keeps being one group, and the original week is left as it is.
    */
   copyWeek: async (coachId: string, fromMonday: Date, toMonday: Date): Promise<{ sessions: number; rows: number }> => {
-    const rows = await workoutService.fetchWeekRows(coachId, fromMonday);
+    const fetched = await workoutService.fetchWeekRows(coachId, fromMonday);
+    // Only athletes still approved in their team receive a copy (people who left or were removed are skipped)
+    const teamIds = [...new Set(fetched.map((w: any) => w.team_id).filter(Boolean))] as string[];
+    const approved = new Set<string>();
+    for (const t of teamIds) {
+      for (const m of await workoutService.fetchApprovedMembers(t)) approved.add(`${t}:${m.user_id}`);
+    }
+    const rows = fetched.filter(
+      (w: any) => w.measures?.is_master || w.athlete_id === coachId || !w.team_id || approved.has(`${w.team_id}:${w.athlete_id}`),
+    );
     if (rows.length === 0) return { sessions: 0, rows: 0 };
     const days = Math.round((toMonday.getTime() - fromMonday.getTime()) / 86400000);
     const groupIds = new Map<string, string>();
@@ -371,11 +393,22 @@ export const workoutService = {
         group_assignment_id: groupIds.get(key),
       };
     });
-    for (let i = 0; i < copies.length; i += 50) {
-      const { error } = await supabase.from('workouts').insert(copies.slice(i, i + 50));
-      if (error) throw error;
-    }
+    // One insert: either the whole week is copied or nothing is
+    const { error } = await supabase.from('workouts').insert(copies);
+    if (error) throw error;
     return { sessions: groupIds.size, rows: copies.length };
+  },
+
+  /** Athletes currently approved in a team (id + subgroup). */
+  fetchApprovedMembers: async (teamId: string): Promise<{ user_id: string; subgroup_id: string | null }[]> => {
+    const { data, error } = await supabase
+      .from('team_members')
+      .select('user_id, subgroup_id, status')
+      .eq('team_id', teamId);
+    if (error) throw error;
+    return (data || [])
+      .filter((m: any) => (m.status || 'approved') === 'approved')
+      .map((m: any) => ({ user_id: m.user_id, subgroup_id: m.subgroup_id ?? null }));
   },
 
   deleteWorkoutTemplate: async (templateId: string) => {

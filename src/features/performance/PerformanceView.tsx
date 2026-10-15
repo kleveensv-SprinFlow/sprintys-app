@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../core/theme';
@@ -35,16 +35,24 @@ export const PerformanceView: React.FC<Props> = ({ athleteId, mode = 'full', aud
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
+  // Only the latest request may write the state (switching athlete or refreshing quickly)
+  const seq = useRef(0);
   const load = useCallback(async () => {
+    const mine = ++seq.current;
     setLoading(true);
     setError(false);
     try {
-      setData(await performanceService.fetch(athleteId, 8));
+      const res = await performanceService.fetch(athleteId, 8);
+      if (mine === seq.current) setData(res);
     } catch {
-      setError(true);
+      if (mine === seq.current) setError(true);
     } finally {
-      setLoading(false);
+      if (mine === seq.current) setLoading(false);
     }
+  }, [athleteId]);
+
+  useEffect(() => {
+    setData(null);
   }, [athleteId]);
 
   useEffect(() => {

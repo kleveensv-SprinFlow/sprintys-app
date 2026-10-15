@@ -87,8 +87,8 @@ export default function CoachDashboardScreen() {
 
   // Teams were only loaded by other tabs before: the home stayed empty on cold start
   useEffect(() => {
-    if (!hasFetchedTeams) fetchTeams();
-  }, [hasFetchedTeams]);
+    if (!hasFetchedTeams && user?.id) fetchTeams();
+  }, [hasFetchedTeams, user?.id]);
 
   useFocusEffect(
     useCallback(() => {
