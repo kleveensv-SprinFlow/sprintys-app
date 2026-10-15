@@ -11,7 +11,7 @@ import type { MessagePart, ProposedSession, UiBlock } from './types';
 
 const COLORS = ['#0069E8', '#F59E0B', '#10B981', '#8B5CF6', '#EF4444'];
 
-const esc = (s: unknown) =>
+export const esc = (s: unknown) =>
   String(s ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -95,7 +95,7 @@ const longDate = (iso: string) => {
 };
 const fmt = (v: number) => (Math.abs(v) >= 100 ? Math.round(v).toString() : (Math.round(v * 10) / 10).toString().replace('.', ','));
 
-function chartSvg(c: Extract<UiBlock, { type: 'chart' }>): string {
+export function chartSvg(c: Extract<UiBlock, { type: 'chart' }>): string {
   const W = 640;
   const H = 240;
   const P = { t: 16, r: 16, b: 28, l: 44 };
@@ -191,11 +191,8 @@ function blockHtml(b: UiBlock): string {
   }
 }
 
-export function buildPdfHtml(parts: MessagePart[], title: string, subtitle?: string): string {
-  const today = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-  const body = parts.map((p) => (p.kind === 'text' ? markdownToHtml(p.text) : blockHtml(p.block))).join('\n');
-  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"/><title>${esc(title)}</title><style>
-  @page { margin: 18mm 14mm; }
+/** Shared look of every exported document */
+export const PDF_STYLES = `  @page { margin: 18mm 14mm; }
   html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   body { font-family: -apple-system, 'Helvetica Neue', Roboto, Arial, sans-serif; color: #0F172A; font-size: 12.5px; line-height: 1.5; }
   header { border-bottom: 3px solid #0069E8; padding-bottom: 8px; margin-bottom: 14px; }
@@ -215,6 +212,13 @@ export function buildPdfHtml(parts: MessagePart[], title: string, subtitle?: str
   blockquote { border-left: 3px solid #0069E8; margin: 8px 0; padding: 4px 10px; color: #334155; }
   .warn { background: #FEF3C7; padding: 8px 10px; border-radius: 8px; }
   footer { margin-top: 22px; padding-top: 8px; border-top: 1px solid #E2E8F0; color: #64748B; font-size: 10.5px; }
+`;
+
+export function buildPdfHtml(parts: MessagePart[], title: string, subtitle?: string): string {
+  const today = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const body = parts.map((p) => (p.kind === 'text' ? markdownToHtml(p.text) : blockHtml(p.block))).join('\n');
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"/><title>${esc(title)}</title><style>
+${PDF_STYLES}
   </style></head><body>
   <header><div class="brand">SPRINTYS</div><h1>${esc(title)}</h1><div class="muted">${subtitle ? `${esc(subtitle)} · ` : ''}${esc(today)}</div></header>
   ${body}
@@ -224,7 +228,11 @@ export function buildPdfHtml(parts: MessagePart[], title: string, subtitle?: str
 
 /** Builds the PDF and opens the share sheet (print dialog on the web). */
 export async function exportPartsToPdf(parts: MessagePart[], title: string, subtitle?: string) {
-  const html = buildPdfHtml(parts, title, subtitle);
+  await sharePdfFromHtml(buildPdfHtml(parts, title, subtitle), title);
+}
+
+/** Prints an HTML document to a PDF with a readable file name and opens the share sheet (print dialog on the web). */
+export async function sharePdfFromHtml(html: string, title: string) {
   if (Platform.OS === 'web') {
     await Print.printAsync({ html });
     return;

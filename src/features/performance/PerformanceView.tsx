@@ -11,6 +11,9 @@ import { WeightAreaChart } from '../body/components/WeightChart';
 import { performanceService, AthletePerformance, PerfSeries } from '../../services/performanceService';
 import { formatValue, shortDate, loadZone } from './format';
 import { MaxesBlock } from './MaxesBlock';
+import { useAuthStore } from '../../store/authStore';
+import { exportAthleteReport } from './reportPdf';
+import { toast } from '../../shared/feedback/appAlert';
 
 interface Props {
   athleteId: string;
@@ -22,6 +25,8 @@ interface Props {
   /** Opens the weekly report (Sprinty) for this athlete */
   onWeeklyReport?: () => void;
   refreshKey?: number;
+  /** Name on the exported report (the coach's athlete; the athlete's own name is read from the account) */
+  athleteName?: string;
 }
 
 const MONTHS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
@@ -30,8 +35,10 @@ const weekLabel = (iso: string) => {
   return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
 };
 
-export const PerformanceView: React.FC<Props> = ({ athleteId, mode = 'full', audience = 'athlete', onSeeAll, onWeeklyReport, refreshKey = 0 }) => {
+export const PerformanceView: React.FC<Props> = ({ athleteId, mode = 'full', audience = 'athlete', onSeeAll, onWeeklyReport, refreshKey = 0, athleteName }) => {
   const theme = useTheme();
+  const me = useAuthStore((st) => st.user);
+  const [exporting, setExporting] = useState(false);
   const [data, setData] = useState<AthletePerformance | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -216,6 +223,33 @@ export const PerformanceView: React.FC<Props> = ({ athleteId, mode = 'full', aud
     </View>
   );
 
+  const doExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const name = athleteName || me?.name || [me?.firstName, me?.lastName].filter(Boolean).join(' ') || 'Athlète';
+      await exportAthleteReport({ athleteId, athleteName: name, audience });
+    } catch {
+      toast('error', 'Impossible de créer le bilan. Vérifie ta connexion et réessaie.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const exportBlock = mode === 'full' && (
+    <PressableScale
+      haptic="light"
+      onPress={doExport}
+      disabled={exporting}
+      accessibilityRole="button"
+      accessibilityLabel="Exporter le bilan en PDF"
+      style={[glassCard, styles.seeAll, exporting && { opacity: 0.6 }]}
+    >
+      <Text style={[styles.seeAllText, { color: blue }]}>{exporting ? 'Création du bilan…' : 'Exporter le bilan (PDF)'}</Text>
+      <Feather name="share" size={16} color={blue} />
+    </PressableScale>
+  );
+
   return (
     <View>
       {prBanner}
@@ -242,6 +276,7 @@ export const PerformanceView: React.FC<Props> = ({ athleteId, mode = 'full', aud
           <MaxesBlock athleteId={athleteId} audience={audience} />
           {seriesBlock}
           {loadBlock}
+          {exportBlock}
         </>
       )}
     </View>

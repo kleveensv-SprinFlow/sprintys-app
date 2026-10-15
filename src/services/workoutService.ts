@@ -3,6 +3,7 @@ import { sessionForAthlete } from './sessionForAthlete';
 import { sessionKindOf } from '../features/workout/sessionKind';
 import { Database } from '../types/supabase';
 import { BuilderExercise } from '../store/workoutBuilderStore';
+import { ProgressionOptions, planWeeks, progressBlocks, progressExercises } from '../features/workout/progression';
 
 export interface WorkoutAssignment {
   nom_seance?: string;
@@ -816,6 +817,41 @@ export const workoutService = {
    * @param count - Number of occurrences
    * @returns Number of copies created
    */
+  /**
+   * Plans the following weeks of a strength session (the whole group when it has one), loads progressing every week.
+   * The original week is left as it is. Returns the number of weeks created.
+   */
+  programWithProgression: async (workout: any, o: ProgressionOptions): Promise<number> => {
+    const weeks = Math.max(2, Math.min(12, Math.floor(o.weeks)));
+    const plans = planWeeks({ ...o, weeks }).slice(1);
+    const source = workout.group_assignment_id
+      ? await keepCurrentMembers(await workoutService.fetchWorkoutsByGroupAssignment(workout.group_assignment_id), workout.coach_id)
+      : [workout];
+    const copies: any[] = [];
+    for (const plan of plans) {
+      const at = new Date(workout.date_prevue);
+      at.setDate(at.getDate() + 7 * plan.week);
+      const groupId = generateUUID();
+      for (const w of source) {
+        const { id, created_at, updated_at, athlete_efforts, done_count, athlete_count, ...rest } = w;
+        copies.push({
+          ...rest,
+          blocks: progressBlocks(rest.blocks, plan, o),
+          exercises: progressExercises(rest.exercises, plan, o),
+          measures: copyMeasures(rest.measures),
+          date_prevue: at.toISOString(),
+          status: 'pending',
+          group_assignment_id: workout.group_assignment_id ? groupId : null,
+        });
+      }
+    }
+    for (let i = 0; i < copies.length; i += 50) {
+      const { error } = await supabase.from('workouts').insert(copies.slice(i, i + 50));
+      if (error) throw error;
+    }
+    return plans.length;
+  },
+
   repeatWorkout: async (workout: any, mode: 'daily' | 'weekly' | 'monthly' | 'yearly', requestedCount: number): Promise<number> => {
     const count = Math.max(1, Math.min(365, Math.floor(Number(requestedCount) || 1)));
     const workoutDate = new Date(workout.date_prevue);

@@ -18,6 +18,7 @@ import { supabase } from '../../../services/supabase';
 import { AthleteValueKeypadModal } from './AthleteValueKeypadModal';
 import { CopyWorkoutModal } from './CopyWorkoutModal';
 import { RepeatWorkoutModal } from './RepeatWorkoutModal';
+import { ProgramModal } from './ProgramModal';
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 import { appAlert, confirmAsync, toast } from '../../../shared/feedback/appAlert';
 import { IconButton } from '../../../shared/components/IconButton';
@@ -140,6 +141,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
   // Copy/Repeat modal state (coach only)
   const [showCopyModal, setShowCopyModal] = React.useState(false);
   const [showRepeatModal, setShowRepeatModal] = React.useState(false);
+  const [showProgramModal, setShowProgramModal] = React.useState(false);
   const [showTemplateName, setShowTemplateName] = React.useState(false);
   const [templateName, setTemplateName] = React.useState('');
   const [savingTemplate, setSavingTemplate] = React.useState(false);
@@ -820,6 +822,19 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                   <Feather name="repeat" size={15} color={theme.colors.sprintyBlue} />
                   <Text style={styles.actionBtnText}>Répéter</Text>
                 </PressableScale>
+
+                {kind === 'strength' && (
+                  <PressableScale
+                    containerStyle={styles.actionBtnContainer}
+                    style={styles.actionBtn}
+                    onPress={() => setShowProgramModal(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Programmer plusieurs semaines avec progression"
+                  >
+                    <Feather name="trending-up" size={15} color={theme.colors.sprintyBlue} />
+                    <Text style={styles.actionBtnText}>Cycle</Text>
+                  </PressableScale>
+                )}
 
                 <PressableScale
                   containerStyle={styles.actionBtnContainer}
@@ -1523,6 +1538,16 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                 onUpdated?.();
               }}
             />
+            <ProgramModal
+              visible={showProgramModal}
+              onClose={() => setShowProgramModal(false)}
+              workout={workout}
+              onDone={() => {
+                setShowProgramModal(false);
+                onClose();
+                onUpdated?.();
+              }}
+            />
             <RepeatWorkoutModal
               visible={showRepeatModal}
               onClose={() => setShowRepeatModal(false)}
@@ -1649,17 +1674,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   actionBtn: {
-    minHeight: 44,
-    flexDirection: 'row',
+    minHeight: 54,
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 4,
     borderRadius: 14,
     borderCurve: 'continuous',
     backgroundColor: theme.colors.glassFill,
   },
   actionBtnText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: theme.colors.text,
   },
