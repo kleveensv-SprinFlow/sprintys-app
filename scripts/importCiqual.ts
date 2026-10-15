@@ -1,13 +1,12 @@
 import fs from 'fs';
 import path from 'path';
-import xlsx from 'xlsx';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || ''; 
+const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
 if (!supabaseUrl || !supabaseKey) {
   console.error('❌ Missing Supabase URL or Key in .env');
@@ -46,45 +45,95 @@ function deriveSynonymes(nom: string): string | null {
   return syns.length > 0 ? syns.join(', ') : null;
 }
 
+/** Lecture CSV (séparateur , ou ;) sans bibliothèque Excel. */
+function parseCsv(text: string): Record<string, string>[] {
+  const src = text.replace(/^\uFEFF/, '');
+  const firstLine = src.split(/\r?\n/, 1)[0] ?? '';
+  const sep = firstLine.split(';').length > firstLine.split(',').length ? ';' : ',';
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (src[i + 1] === '"') {
+          cell += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cell += c;
+      }
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === sep) {
+      row.push(cell);
+      cell = '';
+    } else if (c === '\n') {
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = '';
+    } else if (c !== '\r') {
+      cell += c;
+    }
+  }
+  if (cell.length > 0 || row.length > 0) {
+    row.push(cell);
+    rows.push(row);
+  }
+
+  const headers = rows.shift();
+  if (!headers) return [];
+  return rows
+    .filter((r) => r.some((value) => value.trim().length > 0))
+    .map((r) => {
+      const obj: Record<string, string> = {};
+      headers.forEach((header, index) => {
+        obj[header] = r[index] ?? '';
+      });
+      return obj;
+    });
+}
+
 async function run() {
-  const excelFilePath = path.join(process.cwd(), 'ciqual.xlsx');
-  
-  if (!fs.existsSync(excelFilePath)) {
-    console.error(`❌ Fichier introuvable : ${excelFilePath}`);
+  const csvFilePath = path.join(process.cwd(), 'ciqual.csv');
+
+  if (!fs.existsSync(csvFilePath)) {
+    console.error(`❌ Fichier introuvable : ${csvFilePath}`);
+    console.error('Enregistre le tableau CIQUAL en CSV (ciqual.csv) à la racine du projet.');
     process.exit(1);
   }
 
-  console.log('🚀 Lecture du fichier CIQUAL (Excel)... cela peut prendre quelques secondes.');
-  
-  const workbook = xlsx.readFile(excelFilePath);
-  const sheetName = workbook.SheetNames[0]; // On prend le premier onglet
-  const worksheet = workbook.Sheets[sheetName];
-  
-  const records = xlsx.utils.sheet_to_json(worksheet);
+  console.log('🚀 Lecture du fichier CIQUAL (CSV)...');
+
+  const records = parseCsv(fs.readFileSync(csvFilePath, 'utf8'));
 
   console.log(`✅ ${records.length} lignes trouvées. Préparation de l'import...`);
 
   const batchSize = 100;
   for (let i = 0; i < records.length; i += batchSize) {
     const batch = records.slice(i, i + batchSize);
-    
-    const payload = batch.map((r: any) => {
-      // Normaliser les clés (retirer les \r\n et espaces multiples)
-      const normRow: any = {};
+
+    const payload = batch.map((r) => {
+      const normRow: Record<string, string> = {};
       for (const k of Object.keys(r)) {
         const cleanKey = k.replace(/[\r\n]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
         normRow[cleanKey] = r[k];
       }
 
-      // Fonction utilitaire pour trouver une valeur selon un mot-clé dans la colonne
       const findVal = (keywords: string[]) => {
-        const key = Object.keys(normRow).find(k => keywords.every(kw => k.includes(kw.toLowerCase())));
+        const key = Object.keys(normRow).find((candidate) => keywords.every((kw) => candidate.includes(kw.toLowerCase())));
         return key ? normRow[key] : null;
       };
 
       const nom = findVal(['alim_nom_fr']) || findVal(['nom français']) || '';
       const code = findVal(['alim_code']) || findVal(['code']) || '';
-      
+
       return {
         code_ciqual: String(code),
         nom: nom,

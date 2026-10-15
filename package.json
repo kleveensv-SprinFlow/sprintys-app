@@ -57,7 +57,6 @@
     "react-native-uuid": "^2.0.4",
     "react-native-web": "^0.21.0",
     "three": "^0.186.1",
-    "xlsx": "^0.18.5",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
