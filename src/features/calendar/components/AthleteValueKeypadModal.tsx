@@ -16,6 +16,7 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../../core/theme';
 import { PressableScale } from '../../../shared/components/PressableScale';
 import { IconButton } from '../../../shared/components/IconButton';
+import { chronoToSeconds, isPlausibleChrono } from '../../workout/chrono';
 
 export interface AthleteValueKeypadModalProps {
   visible: boolean;
@@ -38,7 +39,7 @@ export interface AthleteValueKeypadModalProps {
  */
 export function formatSmartValue(
   raw: string,
-  mode: 'sprint' | 'endurance' | 'weight',
+  mode: 'sprint' | 'sprintPlain' | 'endurance' | 'weight',
   distance?: number
 ): string {
   if (!raw || raw.trim() === '') return '';
@@ -47,6 +48,17 @@ export function formatSmartValue(
   if (!digits) return '';
 
   if (mode === 'sprint') {
+    // Middle sprints (300 to 799 m): typed digits that would give an impossible time as seconds ("152" on a 400)
+    // are minutes and seconds ("1:52")
+    if (distance && distance >= 300) {
+      const asSeconds = formatSmartValue(raw, 'sprintPlain', distance);
+      const sec = chronoToSeconds(asSeconds);
+      if (sec != null && !isPlausibleChrono(sec, distance)) return formatSmartValue(raw, 'endurance', distance);
+      return asSeconds;
+    }
+    return formatSmartValue(raw, 'sprintPlain', distance);
+  }
+  if (mode === 'sprintPlain') {
     // Sprint (< 800m):
     // 1-2 digits: e.g. "1" -> "1", "10" -> "10"
     // 3 digits: e.g. "985" -> for <=100m or first digit >= 6: "9.85", else "10.8"

@@ -27,6 +27,9 @@ import { resultsOutbox, isNetworkError, useOutboxStore } from '../../../services
 import { maxesService, exerciseKey, loadFromPercent, formatLoad, AthleteMax } from '../../../services/maxesService';
 import { MaxEditSheet } from '../../performance/MaxEditSheet';
 import { syncSessionReminders } from '../../../services/notifications';
+import { previousResultsService, courseKey, EMPTY_PREV, PrevResults } from '../../../services/previousResultsService';
+import { CoachReplyBox, CoachFeedback } from './CoachReplyBox';
+import { chronoToSeconds, isPlausibleChrono } from '../../workout/chrono';
 
 interface WorkoutDetailModalProps {
   visible: boolean;
@@ -111,6 +114,14 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
   const [isValidated, setIsValidated] = React.useState(false);
   const [justSaved, setJustSaved] = React.useState(false);
   // Results typed offline and not sent yet
+  // The coach's answer under this session (written by the coach looking at one athlete, read by the athlete)
+  const [coachReply, setCoachReply] = React.useState<CoachFeedback | null>(null);
+  React.useEffect(() => {
+    const fb = workout?.measures?.coach_feedback;
+    setCoachReply(fb && typeof fb.text === 'string' && fb.text ? { text: fb.text, at: fb.at } : null);
+  }, [workout?.id, visible]);
+  // What the athlete did last time on these exercises / distances (shown under each set)
+  const [prev, setPrev] = React.useState<PrevResults>(EMPTY_PREV);
   // Reference maxima (1RM) of the athlete: turn a prescribed "% 1RM" into kilos
   const [maxes, setMaxes] = React.useState<Record<string, AthleteMax>>({});
   const [maxEdit, setMaxEdit] = React.useState<{ key: string; label: string } | null>(null);
@@ -170,6 +181,19 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
     if (visible && workout && (!isCoach || isReadOnly) && resultsOwnerId) {
       loadExistingData();
     }
+  }, [visible, workout?.id, resultsOwnerId]);
+
+  React.useEffect(() => {
+    setPrev(EMPTY_PREV);
+    if (!visible || !workout?.id || !resultsOwnerId || (isCoach && !isReadOnly)) return;
+    let alive = true;
+    previousResultsService
+      .fetch(resultsOwnerId, workout.id)
+      .then((r) => alive && setPrev(r))
+      .catch(() => undefined); // the hint is a bonus
+    return () => {
+      alive = false;
+    };
   }, [visible, workout?.id, resultsOwnerId]);
 
   const hasPercentSets = React.useMemo(
@@ -426,6 +450,29 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
     if (minutes != null && (!Number.isFinite(minutes) || minutes < 1 || minutes > 600)) {
       appAlert('Durée', 'Indique une durée en minutes entre 1 et 600, ou laisse le champ vide.');
       return;
+    }
+    // A time no runner can have run (typed with a missing digit) is confirmed before it ends up in the records
+    if (sc === 'course') {
+      const odd: string[] = [];
+      for (const b of workout.blocks || [{ id: 'main', exercises: workout.exercises || [] }]) {
+        for (const ex of b.exercises || []) {
+          (ex.sets || []).forEach((st: any, i: number) => {
+            const v = setData[`${ex.id}_${i}`]?.chrono;
+            const sec = v ? chronoToSeconds(v) : null;
+            if (v && st?.distance && !isPlausibleChrono(sec, st.distance)) odd.push(`série ${i + 1} : ${v} sur ${st.distance} m`);
+          });
+        }
+      }
+      if (odd.length > 0) {
+        const ok = await confirmAsync({
+          title: 'Chrono inhabituel',
+          message: `${odd.slice(0, 3).join(', ')}${odd.length > 3 ? '…' : ''}. Vérifie que tu as bien saisi le temps (minutes, secondes et centièmes). Valider quand même ?`,
+          confirmText: 'Valider quand même',
+          cancelText: 'Corriger',
+          icon: 'clock',
+        });
+        if (!ok) return;
+      }
     }
     setIsSubmitting(true);
     try {
@@ -1099,9 +1146,24 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                               </View>
 
                               {/* Objective */}
-                              <Text style={styles.athleteObjective} numberOfLines={2}>
-                                {setDetails.join(' · ')}
-                              </Text>
+                              <View style={{ flex: 1 }}>
+                                <Text style={[styles.athleteObjective, { flex: 0 }]} numberOfLines={2}>
+                                  {setDetails.join(' · ')}
+                                </Text>
+                                {(() => {
+                                  let hint: string | null = null;
+                                  if (sessionCategory === 'muscu') {
+                                    const p = prev.muscu[exerciseKey(exercise as any)];
+                                    const ps = p ? p.sets[setIndex] ?? p.sets[p.sets.length - 1] : null;
+                                    if (ps) hint = `Dernière fois : ${formatLoad(ps.kg)}${ps.reps ? ` × ${ps.reps}` : ''}${ps.ok ? '' : ' ✗'}`;
+                                  } else if (sessionCategory === 'course') {
+                                    const k = courseKey((set as any).distance, workout?.type_seance);
+                                    const p = k ? prev.course[k] : null;
+                                    if (p) hint = `Dernier ${formatSeconds(p.last_ms / 1000)}${p.best_ms < p.last_ms ? ` · record ${formatSeconds(p.best_ms / 1000)}` : ''}`;
+                                  }
+                                  return hint ? <Text style={styles.prevHint} numberOfLines={1}>{hint}</Text> : null;
+                                })()}
+                              </View>
 
                               {sessionCategory === 'muscu' && (
                                 <PressableScale
@@ -1196,10 +1258,32 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
         )}
 
         {/* ========== COACH LOOKING AT ONE ATHLETE: read-only comment ========== */}
-        {isReadOnly && !!athleteNotes.trim() && (
+        {isReadOnly && (!!athleteNotes.trim() || isValidated) && (
           <View style={styles.athleteBottom}>
-            <Text style={styles.sectionLabel}>Commentaire de l’athlète</Text>
-            <Text style={styles.technicalNoteContent}>{athleteNotes.trim()}</Text>
+            {!!athleteNotes.trim() && (
+              <>
+                <Text style={styles.sectionLabel}>Commentaire de l’athlète</Text>
+                <Text style={styles.technicalNoteContent}>{athleteNotes.trim()}</Text>
+              </>
+            )}
+            {user?.role === 'coach' && isValidated && !!workout?.id && (
+              <CoachReplyBox
+                workoutId={workout.id}
+                value={coachReply}
+                editable
+                onSaved={(fb) => {
+                  workout.measures = { ...(workout.measures || {}), coach_feedback: fb };
+                  setCoachReply(fb);
+                }}
+              />
+            )}
+          </View>
+        )}
+
+        {/* ========== ATHLETE: the coach's answer ========== */}
+        {canEdit && !!coachReply?.text && !!workout?.id && (
+          <View style={styles.athleteBottom}>
+            <CoachReplyBox workoutId={workout.id} value={coachReply} editable={false} onSaved={() => undefined} />
           </View>
         )}
 
@@ -1909,6 +1993,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: theme.colors.text,
   },
+  prevHint: { fontSize: 11, fontWeight: '600', color: theme.colors.textMuted, marginTop: 2 },
   maxChip: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -96,7 +96,7 @@ const groupCoachWorkouts = (data: any[]): any[] => {
 
 const copyMeasures = (m: any) => {
   if (!m || typeof m !== 'object') return m ?? null;
-  const { athlete_feedback, rpe, duration_min, ...rest } = m;
+  const { athlete_feedback, rpe, duration_min, coach_feedback, ...rest } = m;
   if (typeof rest.athlete_notes === 'string') delete rest.athlete_notes;
   return rest;
 };
@@ -248,6 +248,7 @@ export const workoutService = {
         const prev = existing.measures || {};
         const measures: any = { ...(payload.measures || {}) };
         if (prev.athlete_feedback != null) measures.athlete_feedback = prev.athlete_feedback;
+        if (prev.coach_feedback != null) measures.coach_feedback = prev.coach_feedback;
         if (prev.rpe != null) measures.rpe = prev.rpe;
         if (prev.duration_min != null) measures.duration_min = prev.duration_min;
         // Comment written before athlete_feedback existed lived in athlete_notes (as text)
@@ -331,7 +332,7 @@ export const workoutService = {
       }
     }
     const measures: any = { ...(workout.measures || {}) };
-    for (const k of ['is_master', 'athlete_feedback', 'rpe', 'duration_min', 'has_time']) delete measures[k];
+    for (const k of ['is_master', 'athlete_feedback', 'coach_feedback', 'rpe', 'duration_min', 'has_time']) delete measures[k];
     if (typeof measures.athlete_notes === 'string') delete measures.athlete_notes;
     measures.kind = sessionKindOf(workout);
     if (workout.measures?.has_time && workout.date_prevue) {
