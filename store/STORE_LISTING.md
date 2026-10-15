@@ -185,7 +185,7 @@ Sprintys is a training app for track & field athletes and their coaches.
 ## 8. Checklist avant publication
 
 **À faire par toi** (impossible depuis cet environnement) :
-- [x] Mentions légales remplies : nom, e-mail, SIREN et adresse sont dans `src/legal/publisher.ts` et sur les pages publiques. Le statut affiché reste « Entrepreneur individuel ». Dis-le si le statut exact doit plutôt être « micro-entreprise ».
+- [x] Mentions légales remplies : nom, e-mail, SIREN et adresse sont dans `src/legal/publisher.ts` et sur les pages publiques. Statut confirmé : Entrepreneur individuel.
 - [x] Pages publiques en ligne (vérifié le 15 octobre 2026) : confidentialité, conditions, suppression de compte et accueil répondent.
 - [ ] Créer et vérifier l'adresse de support définitive. Si elle change, mettre à jour `contactEmail` et `privacyEmail` dans `publisher.ts`.
 - [ ] Changer le mot de passe du compte dont les identifiants figuraient dans `scripts/create-coach.js` et `scripts/test-subgroup.js` (scripts supprimés du dépôt, mais encore présents dans l'historique git).

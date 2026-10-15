@@ -7,7 +7,7 @@
 export const PUBLISHER = {
   /** Nom de l'éditeur. */
   companyName: 'Kleveens Verviers (nom commercial : Sprintys)',
-  /** Statut affiché. Ne pas le changer sans confirmation : ce n'est pas encore « micro-entreprise ». */
+  /** Statut confirmé : entrepreneur individuel, pas micro-entreprise. */
   legalForm: 'Entrepreneur individuel',
   /** SIREN / RCS. */
   registration: 'RCS Marseille 983 727 777 (SIREN 983 727 777)',
