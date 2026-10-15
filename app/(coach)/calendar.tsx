@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { MonthlyCalendar, MonthWorkout } from '../../src/shared/components/MonthlyCalendar';
 import { workoutService } from '../../src/services/workoutService';
 import { periodService } from '../../src/services/periodService';
@@ -42,15 +42,20 @@ export default function CoachCalendarScreen() {
   const [periodToEdit, setPeriodToEdit] = useState<TrainingPeriod | null>(null);
 
   // === Fetch month overview (workouts & periods) ===
+  // Latest request wins (group or month switched while a load was still running)
+  const monthSeq = useRef(0);
   const loadMonthData = useCallback(async (year: number, month: number) => {
     if (!user?.id) return;
+    const mine = ++monthSeq.current;
     try {
       const [workoutsData, periodsData] = await Promise.all([
         workoutService.fetchWorkoutsForMonth(user.id, year, month, 'coach', scopeTeamId),
         periodService.fetchPeriodsForMonth(user.id, year, month, 'coach'),
       ]);
+      if (mine !== monthSeq.current) return;
       setMonthWorkouts(workoutsData || []);
-      setPeriods(periodsData || []);
+      // With several groups, a phase of the whole of another group is not shown here (phases of a subgroup or an athlete stay)
+      setPeriods((periodsData || []).filter((pd: TrainingPeriod) => !scopeTeamId || !pd.team_id || pd.team_id === scopeTeamId));
     } catch (error) {
       console.error('Error loading calendar month data:', error);
     }

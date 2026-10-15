@@ -4,6 +4,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { useAuthStore } from '../../store/authStore';
 import { resultsOutbox } from '../../services/resultsOutbox';
 import { toast } from '../feedback/appAlert';
+import { syncSessionReminders } from '../../services/notifications';
 
 /** Sends the results typed offline when the connection or the app comes back. Renders nothing. */
 export function OutboxSync() {
@@ -16,6 +17,7 @@ export function OutboxSync() {
       try {
         const r = await resultsOutbox.flush(userId);
         if (!alive) return;
+        if (r.sent > 0) syncSessionReminders(userId);
         if (r.sent > 0) toast('success', r.sent === 1 ? 'Ta séance enregistrée hors ligne a été envoyée.' : `${r.sent} séances enregistrées hors ligne ont été envoyées.`);
         if (r.dropped > 0) toast('warning', 'Une séance n’a pas pu être envoyée : elle a peut-être été supprimée par ton coach.');
       } catch {

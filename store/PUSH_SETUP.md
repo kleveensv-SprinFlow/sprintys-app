@@ -35,6 +35,9 @@
 - Tu relances les builds **TestFlight** et **Play** (le module de notifications y entre grâce à `PUSH_ENABLED`).
 - Test : installer le build, activer les notifications, puis depuis le compte coach planifier une séance : l'athlète reçoit « Nouvelle séance » dans la minute.
 
+## Note technique
+La fonction `push` est déjà déployée **sans vérification de jeton** (elle n'envoie que ce que la base a mis en file, et la tâche planifiée l'appelle sans identité). Si on la redéploie : option `verify_jwt=false` (CLI : `supabase functions deploy push --no-verify-jwt`), sinon chaque appel de la tâche reçoit 401 et rien ne part.
+
 ## À savoir
 - Plusieurs séances planifiées d'un coup (semaine copiée) = **une seule** notification « Planning mis à jour ».
 - Un coach est prévenu au plus **une fois par jour et par athlète** pour un check-in inquiétant (forme ≤ 40 ou douleur).

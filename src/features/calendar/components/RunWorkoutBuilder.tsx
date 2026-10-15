@@ -179,8 +179,8 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
 
   // Approved athletes
   const approvedMembers = useMemo(() => {
-    return teamMembers.filter((m) => m.status === 'approved');
-  }, [teamMembers]);
+    return teamMembers.filter((m) => m.status === 'approved' && (!currentTeam || m.team_id === currentTeam.id));
+  }, [teamMembers, currentTeam?.id]);
 
   // Load memory
   const loadRunMemory = async () => {

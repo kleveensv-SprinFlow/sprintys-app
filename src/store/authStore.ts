@@ -10,7 +10,7 @@ import { useSprintyChatStore } from './sprintyChatStore';
 import { useConsentStore } from './consentStore';
 import { useOnboardingStore } from './onboardingStore';
 import type { ConsentType } from '../legal/consents';
-import { unregisterPushToken } from '../services/notifications';
+import { cancelSessionReminders, unregisterPushToken } from '../services/notifications';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -613,6 +613,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // This phone stops receiving this account's notifications (best effort, before the session ends)
     const leaving = get().user?.id;
     if (leaving) await unregisterPushToken(leaving).catch(() => undefined);
+    // The next person on this phone must not get this account's session reminders
+    await cancelSessionReminders().catch(() => undefined);
     try {
       await supabase.auth.signOut();
     } catch (err) {

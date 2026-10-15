@@ -39,6 +39,7 @@ interface CoachState {
   /** The group the coach is working on (a coach may run several); members and subgroups in the store belong to `loadedTeamId` */
   selectedTeamId: string | null;
   loadedTeamId: string | null;
+  loadedSubgroupsTeamId: string | null;
 
   fetchTeams: () => Promise<void>;
   selectTeam: (teamId: string) => void;
@@ -200,6 +201,7 @@ export const useCoachStore = create<CoachState>((set, get) => ({
   error: null,
   selectedTeamId: null,
   loadedTeamId: null,
+  loadedSubgroupsTeamId: null,
 
   selectTeam: (teamId: string) => {
     set({ selectedTeamId: teamId });
@@ -209,8 +211,11 @@ export const useCoachStore = create<CoachState>((set, get) => ({
   },
 
   ensureTeamLoaded: async (teamId: string) => {
-    if (get().loadedTeamId === teamId) return;
-    await Promise.all([get().fetchTeamMembers(teamId), get().fetchSubgroups(teamId)]);
+    // Members and subgroups are tracked apart: another screen may have loaded only one of them
+    await Promise.all([
+      get().loadedTeamId === teamId ? Promise.resolve() : get().fetchTeamMembers(teamId),
+      get().loadedSubgroupsTeamId === teamId ? Promise.resolve() : get().fetchSubgroups(teamId),
+    ]);
   },
 
   fetchTeams: async () => {
@@ -288,6 +293,7 @@ export const useCoachStore = create<CoachState>((set, get) => ({
         teams: state.teams.filter(t => t.id !== teamId),
         selectedTeamId: state.selectedTeamId === teamId ? (state.teams.find((t) => t.id !== teamId)?.id ?? null) : state.selectedTeamId,
         loadedTeamId: state.loadedTeamId === teamId ? null : state.loadedTeamId,
+        loadedSubgroupsTeamId: state.loadedSubgroupsTeamId === teamId ? null : state.loadedSubgroupsTeamId,
         subgroups: state.subgroups.filter(sg => sg.team_id !== teamId),
         teamMembers: state.teamMembers.filter(m => m.team_id !== teamId),
         pendingMembers: state.pendingMembers.filter(m => m.team_id !== teamId)
@@ -305,7 +311,7 @@ export const useCoachStore = create<CoachState>((set, get) => ({
         .select('*')
         .eq('team_id', teamId);
       if (error) throw error;
-      if (mine === subgroupsSeq) set({ subgroups: data as Subgroup[] });
+      if (mine === subgroupsSeq) set({ subgroups: data as Subgroup[], loadedSubgroupsTeamId: teamId });
     } catch (err: any) {
       set({ error: err.message });
     }

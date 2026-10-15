@@ -37,6 +37,12 @@ serve(async (req) => {
       return data ?? [];
     };
 
+    const rpc = async (fn: string, args: Record<string, unknown>) => {
+      const { data, error } = await db.rpc(fn, args);
+      if (error) console.error(`export ${fn}`, error.message);
+      return data ?? [];
+    };
+
     const [profile] = await rows('profiles', 'id');
     const exportData = {
       export_date: new Date().toISOString(),
@@ -59,6 +65,8 @@ serve(async (req) => {
       messages_sent: await rows('messages', 'sender_id'),
       blocked_users: await rows('user_blocks', 'blocker_id'),
       reports_sent: await rows('user_reports', 'reporter_id'),
+      strength_maxes: await rpc('get_athlete_maxes', { p_athlete: id }),
+      notification_devices: await rpc('my_push_devices', {}),
     };
 
     return json(exportData, 200, { 'Content-Disposition': 'attachment; filename="sprintys_export.json"' });

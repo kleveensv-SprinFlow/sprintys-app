@@ -3,7 +3,7 @@ import { AppState, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
-import { configureNotifications, notificationStatus, registerPushToken, routeOfNotification, syncSessionReminders } from '../../services/notifications';
+import { cancelSessionReminders, configureNotifications, notificationStatus, registerPushToken, routeOfNotification, syncSessionReminders } from '../../services/notifications';
 
 configureNotifications();
 
@@ -32,7 +32,11 @@ export function NotificationsSync() {
   useEffect(() => {
     if (Platform.OS === 'web' || !userId) return;
     const run = async () => {
-      if ((await notificationStatus(userId)) !== 'on') return;
+      if ((await notificationStatus(userId)) !== 'on') {
+        // Reminders left by another account on this phone must not keep firing
+        await cancelSessionReminders();
+        return;
+      }
       registerPushToken(userId);
       if (role === 'athlete') syncSessionReminders(userId);
     };

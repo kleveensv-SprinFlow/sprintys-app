@@ -81,8 +81,9 @@ export async function enableNotifications(uid: string, role: 'athlete' | 'coach'
   }
   if (!granted) return 'denied';
   await AsyncStorage.setItem(prefKey(uid), 'on').catch(() => undefined);
-  await registerPushToken(uid);
+  // Reminders first (they work offline); the push token can take its time and is not awaited
   if (role === 'athlete') await syncSessionReminders(uid);
+  registerPushToken(uid).catch(() => undefined);
   return 'on';
 }
 
@@ -90,7 +91,7 @@ export async function disableNotifications(uid: string) {
   if (!NATIVE) return;
   await AsyncStorage.setItem(prefKey(uid), 'off').catch(() => undefined);
   await cancelSessionReminders();
-  await unregisterPushToken();
+  await unregisterPushToken(uid);
 }
 
 /** Device token for server pushes (FCM on Android, APNs on iOS). Silently does nothing while push is not configured. */
@@ -107,22 +108,23 @@ export async function registerPushToken(uid: string) {
   }
 }
 
-export async function unregisterPushToken(uid?: string) {
+/** Forgets this phone's token on the server. Uses the stored token only (asking the system for one can hang offline). */
+export async function unregisterPushToken(uid: string) {
   if (!NATIVE) return;
   try {
-    let token: string | null = null;
-    if (uid) token = await AsyncStorage.getItem(`push-token:${uid}`);
-    if (!token) {
-      const t = await Notifications.getDevicePushTokenAsync();
-      token = typeof t.data === 'string' ? t.data : null;
-    }
-    if (token) await supabase.rpc('unregister_push_token', { p_token: token });
+    const token = await AsyncStorage.getItem(`push-token:${uid}`);
+    if (!token) return;
+    await Promise.race([
+      supabase.rpc('unregister_push_token', { p_token: token }),
+      new Promise((resolve) => setTimeout(resolve, 3000)),
+    ]);
+    await AsyncStorage.removeItem(`push-token:${uid}`).catch(() => undefined);
   } catch {
     /* nothing registered */
   }
 }
 
-async function cancelSessionReminders() {
+export async function cancelSessionReminders() {
   try {
     const all = await Notifications.getAllScheduledNotificationsAsync();
     await Promise.all(all.filter((n) => n.identifier.startsWith(REMINDER_PREFIX)).map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)));

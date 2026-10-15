@@ -129,8 +129,8 @@ export const StairsWorkoutBuilder: React.FC<StairsWorkoutBuilderProps> = ({
 
   // Approved team members
   const approvedMembers = useMemo(
-    () => teamMembers.filter((m) => m.status === 'approved'),
-    [teamMembers]
+    () => teamMembers.filter((m) => m.status === 'approved' && (!currentTeam || m.team_id === currentTeam.id)),
+    [teamMembers, currentTeam?.id]
   );
 
   // Load persistence and library

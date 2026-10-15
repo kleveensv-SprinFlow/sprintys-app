@@ -213,7 +213,7 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
     }
 
     return null;
-  }, [startDateStr, endDateStr, targetType, selectedSubgroupId, selectedAthleteId, existingPeriods, periodToEdit, teams, teamMembers]);
+  }, [startDateStr, endDateStr, targetType, selectedSubgroupId, selectedAthleteId, existingPeriods, periodToEdit, teams, teamMembers, currentTeam?.id]);
 
   // Une erreur de formulaire disparaît dès que l'utilisateur modifie les champs concernés
   useEffect(() => {
@@ -268,7 +268,8 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
           color,
           start_date: startDateStr,
           end_date: endDateStr,
-          team_id: targetType === 'team' ? activeTeamId : null,
+          // Editing keeps the phase in its own group, whichever group is selected now
+          team_id: targetType === 'team' ? (periodToEdit.team_id ?? activeTeamId) : null,
           subgroup_id: targetType === 'subgroup' ? selectedSubgroupId : null,
           athlete_id: targetType === 'athlete' ? selectedAthleteId : null,
         });
@@ -321,8 +322,8 @@ export const PeriodModal: React.FC<PeriodModalProps> = ({
   };
 
   const approvedMembers = useMemo(
-    () => teamMembers.filter((m) => m.status === 'approved'),
-    [teamMembers]
+    () => teamMembers.filter((m) => m.status === 'approved' && (!currentTeam || m.team_id === currentTeam.id)),
+    [teamMembers, currentTeam?.id]
   );
 
   const busy = isSubmitting || isDeleting;

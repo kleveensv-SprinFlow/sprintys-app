@@ -50,15 +50,18 @@ export default function CoachWeekScreen() {
   const [mover, setMover] = useState<{ workout: any; mode: 'copy' | 'move' } | null>(null);
   const [showCopyWeek, setShowCopyWeek] = useState(false);
 
+  const seq = React.useRef(0);
   const load = useCallback(async () => {
     if (!user?.id) return;
+    const mine = ++seq.current;
     setError(false);
     try {
-      setByDay(await workoutService.fetchWeekByDay(user.id, monday, scopeTeamId));
+      const res = await workoutService.fetchWeekByDay(user.id, monday, scopeTeamId);
+      if (mine === seq.current) setByDay(res);
     } catch {
-      setError(true);
+      if (mine === seq.current) setError(true);
     } finally {
-      setLoading(false);
+      if (mine === seq.current) setLoading(false);
     }
   }, [user?.id, monday.getTime(), scopeTeamId]);
 

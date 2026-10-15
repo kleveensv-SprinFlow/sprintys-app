@@ -73,8 +73,8 @@ export const CompetitionBuilder: React.FC<CompetitionBuilderProps> = ({
   const [targetError, setTargetError] = useState<string | null>(null);
 
   const approvedMembers = useMemo(() => {
-    return teamMembers.filter((m) => m.status === 'approved');
-  }, [teamMembers]);
+    return teamMembers.filter((m) => m.status === 'approved' && (!currentTeam || m.team_id === currentTeam.id));
+  }, [teamMembers, currentTeam?.id]);
 
   const getMemberName = (m: any) => {
     const prof = (Array.isArray(m.profile) ? m.profile[0] : m.profile) as any;

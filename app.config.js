@@ -11,7 +11,8 @@ module.exports = ({ config }) => {
   const push = process.env.PUSH_ENABLED === '1';
   if (!push) return config;
 
-  const hasGoogleServices = fs.existsSync('./google-services.json');
+  // An empty file (secret not filled in) counts as missing
+  const hasGoogleServices = fs.existsSync('./google-services.json') && fs.statSync('./google-services.json').size > 0;
   if (!hasGoogleServices) {
     // eslint-disable-next-line no-console
     console.warn('PUSH_ENABLED=1 but google-services.json is missing: Android keeps working without server push.');

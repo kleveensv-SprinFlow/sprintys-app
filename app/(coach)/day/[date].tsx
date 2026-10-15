@@ -111,12 +111,15 @@ export default function CoachDayScreen() {
     router.replace(`/(coach)/day/${yyyy}-${mm}-${dd}`);
   }, [parsedDate, router]);
 
+  const daySeq = React.useRef(0);
   const fetchDayWorkouts = useCallback(async () => {
     if (!user?.id) return;
+    const mine = ++daySeq.current;
     setIsLoading(true);
     try {
       // 1. Fetch workouts for the date (already intelligently merged per group_assignment_id)
       const data = await workoutService.fetchWorkoutsForDate(user.id, parsedDate, 'coach', scopeTeamId ?? undefined);
+      if (mine !== daySeq.current) return;
       setWorkouts(data || []);
       setLoadError(false);
 
@@ -125,7 +128,9 @@ export default function CoachDayScreen() {
       const month = parsedDate.getMonth();
       const periods = await periodService.fetchPeriodsForMonth(user.id, year, month, 'coach');
       const dateIso = `${year}-${String(month + 1).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`;
-      const foundPeriod = (periods || []).find((p: TrainingPeriod) => dateIso >= p.start_date && dateIso <= p.end_date);
+      const foundPeriod = (periods || []).find(
+        (p: TrainingPeriod) => dateIso >= p.start_date && dateIso <= p.end_date && (!scopeTeamId || !p.team_id || p.team_id === scopeTeamId),
+      );
       setActivePeriod(foundPeriod || null);
     } catch (error) {
       console.error('Error fetching day workouts:', error);

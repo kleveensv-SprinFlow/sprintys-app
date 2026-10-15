@@ -26,6 +26,7 @@ import { formatSeconds, formatValue } from '../../performance/format';
 import { resultsOutbox, isNetworkError, useOutboxStore } from '../../../services/resultsOutbox';
 import { maxesService, exerciseKey, loadFromPercent, formatLoad, AthleteMax } from '../../../services/maxesService';
 import { MaxEditSheet } from '../../performance/MaxEditSheet';
+import { syncSessionReminders } from '../../../services/notifications';
 
 interface WorkoutDetailModalProps {
   visible: boolean;
@@ -189,12 +190,13 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
     }
     if (wasAwaiting.current) {
       wasAwaiting.current = false;
-      if (visible && workout?.id) {
+      if (visible && workout?.id && useOutboxStore.getState().sentIds.includes(workout.id)) {
         workout.status = 'completed';
         setIsValidated(true);
         loadExistingData();
         onUpdated?.();
       }
+      // Dropped by the server (session deleted…): the draft stays, nothing is shown as validated
     }
   }, [awaitingSend]);
 
@@ -494,13 +496,16 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
       } catch (netErr: any) {
         if (!isNetworkError(netErr) || !resultsOwnerId) throw netErr;
         // No connection: keep the results on the phone, they are sent as soon as the network is back
-        await resultsOutbox.enqueue(resultsOwnerId, { workoutId: workout.id, efforts, measures: updatedMeasures });
+        const kept = await resultsOutbox.enqueue(resultsOwnerId, { workoutId: workout.id, efforts, measures: updatedMeasures });
+        if (!kept) throw netErr;
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => undefined);
         toast('info', 'Pas de connexion : tes résultats sont gardés sur ton téléphone et partiront dès que le réseau revient.', 'Enregistré hors ligne');
         return;
       }
       // Sent now: an older copy waiting in the outbox must not overwrite it later
       if (resultsOwnerId) resultsOutbox.drop(resultsOwnerId, workout.id);
+      // Today's reminder is no longer needed once the session is validated
+      if (resultsOwnerId && !isCoach) syncSessionReminders(resultsOwnerId);
       
       // Update local workout properties so UI updates immediately
       workout.status = 'completed';
