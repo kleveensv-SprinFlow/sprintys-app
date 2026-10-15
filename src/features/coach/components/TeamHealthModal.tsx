@@ -11,6 +11,7 @@ import { PressableScale } from '../../../shared/components/PressableScale';
 import { SegmentedControl } from '../../../shared/components/SegmentedControl';
 import { Skeleton, SkeletonCard } from '../../../shared/components/Skeleton';
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
+import { painLabel } from '../../checkin/painTaxonomy';
 
 interface Props {
   visible: boolean;
@@ -267,7 +268,7 @@ export const TeamHealthModal = ({ visible, onClose }: Props) => {
                 <View style={styles.painInline}>
                   <Feather name="alert-circle" size={12} color={TONES.bad.text} />
                   <Text style={styles.painInlineText} numberOfLines={1}>
-                    {painsList.map((p: any) => `${p.muscle_name || p.muscle_id} (${p.intensity}/10)`).join(', ')}
+                    {painsList.map((p: any) => `${painLabel(p)} (${p.intensity}/10)`).join(', ')}
                   </Text>
                 </View>
               )}
@@ -312,7 +313,7 @@ export const TeamHealthModal = ({ visible, onClose }: Props) => {
                           {painsList.length} douleur{painsList.length > 1 ? 's' : ''} signalée{painsList.length > 1 ? 's' : ''}
                         </Text>
                         <Text style={styles.painsBannerText}>
-                          {painsList.map((p: any) => p.muscle_name || p.muscle_id || p).join(', ')}
+                          {painsList.map((p: any) => (typeof p === "string" ? p : painLabel(p))).join(', ')}
                         </Text>
                       </View>
                     </View>

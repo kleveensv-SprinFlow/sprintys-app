@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./node_modules/**)",
+      "Read(./dist/**)",
+      "Read(./.expo/**)",
+      "Read(./android/**)",
+      "Read(./package-lock.json)",
+      "Read(./ciqual.xlsx)",
+      "Read(./store/screenshots/**)",
+      "Read(./src/assets/animations/**)",
+      "Read(./supabase/.temp/**)",
+      "Read(./.env)",
+      "Read(./*.keystore)"
+    ]
+  }
+}

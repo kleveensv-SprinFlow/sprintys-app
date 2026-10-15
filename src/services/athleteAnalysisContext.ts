@@ -12,6 +12,7 @@
  */
 import { supabase } from './supabase';
 import { formatActivity } from '../features/nutrition/calorieTarget';
+import { painLabel } from '../features/checkin/painTaxonomy';
 
 export type AnalysisDomain = 'training' | 'nutrition' | 'wellness' | 'body';
 
@@ -501,7 +502,7 @@ function buildWellnessSection(checkins: any[]) {
   checkins.forEach(c => {
     const age = daysAgo(toLocalDay(c.date));
     (c.pains || []).forEach((p: any) => {
-      const z = typeof p === 'string' ? p : (p.muscle_name || p.muscle_id || 'zone');
+      const z = typeof p === "string" ? p : painLabel({ ...p, muscle_id: p.muscle_id || "zone" });
       allZoneCounts.set(z, (allZoneCounts.get(z) || 0) + 1);
       const intensity = num(p.intensity) ?? 2;
       const isInjuryType = p.type && (p.type.toLowerCase().includes('articulaire') || p.type.toLowerCase().includes('tendin') || p.type.toLowerCase().includes('déchirure'));

@@ -29,22 +29,31 @@ const SLEEP_OPTIONS: (ScaleOption & { longLabel: string })[] = [
 
 export const SleepStep = ({ onNext }: SleepStepProps) => {
   const theme = useTheme();
-  const { currentCheckIn, updateSleep } = useCheckInStore();
+  const { currentCheckIn, updateSleep, history } = useCheckInStore();
   const { user, updateSleepGoal } = useAuthStore();
 
   const sleepGoal = user?.sleepGoal || 8;
 
   // Nettoyer les heures au format standard HH:mm (suppression d'éventuelles secondes :00)
-  const sanitizeTime = (t?: string) => {
-    if (!t) return '23:00';
+  const sanitizeTime = (t?: string | null) => {
+    if (!t) return null;
     const parts = t.split(':');
     return `${parts[0].padStart(2, '0')}:${(parts[1] || '00').padStart(2, '0')}`;
   };
 
-  const [bedtime, setBedtime] = useState(sanitizeTime(currentCheckIn?.bedtime || '23:00'));
-  const [wakeup, setWakeup] = useState(sanitizeTime(currentCheckIn?.wakeup_time || '07:00'));
-  const [sleepQuality, setSleepQuality] = useState(currentCheckIn?.sleep_quality || 3);
-  const [duration, setDuration] = useState({ hours: 8, minutes: 0, decimal: 8 });
+  // Valeurs déjà saisies (édition du jour) sinon dernière réponse connue, sinon rien : jamais de valeur inventée.
+  const hasAll = (c?: { bedtime?: string | null; wakeup_time?: string | null; sleep_quality?: number | null } | null) =>
+    !!c && c.bedtime != null && c.wakeup_time != null && c.sleep_quality != null;
+  const answered = hasAll(currentCheckIn);
+  const suggestion = history.find((h) => hasAll(h));
+  const source = answered ? currentCheckIn : suggestion;
+  const isPrefilled = !answered && !!suggestion;
+
+  const [bedtime, setBedtime] = useState<string | null>(sanitizeTime(source?.bedtime));
+  const [wakeup, setWakeup] = useState<string | null>(sanitizeTime(source?.wakeup_time));
+  const [sleepQuality, setSleepQuality] = useState<number | null>(source?.sleep_quality ?? null);
+  const [touched, setTouched] = useState(false);
+  const [duration, setDuration] = useState<{ hours: number; minutes: number; decimal: number } | null>(null);
 
   const [showPicker, setShowPicker] = useState<'bedtime' | 'wakeup' | null>(null);
 
@@ -55,7 +64,11 @@ export const SleepStep = ({ onNext }: SleepStepProps) => {
     calculateDuration(bedtime, wakeup);
   }, [bedtime, wakeup]);
 
-  const calculateDuration = (start: string, end: string) => {
+  const calculateDuration = (start: string | null, end: string | null) => {
+    if (!start || !end) {
+      setDuration(null);
+      return;
+    }
     try {
       const [startH, startM] = start.split(':').map(Number);
       const [endH, endM] = end.split(':').map(Number);
@@ -74,7 +87,10 @@ export const SleepStep = ({ onNext }: SleepStepProps) => {
     } catch (e) {}
   };
 
+  const complete = !!bedtime && !!wakeup && !!duration && sleepQuality != null;
+
   const handleNext = () => {
+    if (!bedtime || !wakeup || !duration || sleepQuality == null) return;
     updateSleep(bedtime, wakeup, duration.decimal, sleepQuality);
     onNext();
   };
@@ -89,12 +105,21 @@ export const SleepStep = ({ onNext }: SleepStepProps) => {
       const minutes = selectedDate.getMinutes().toString().padStart(2, '0');
       const timeString = `${hours}:${minutes}`;
 
+      setTouched(true);
       if (showPicker === 'bedtime') {
         setBedtime(timeString);
       } else if (showPicker === 'wakeup') {
         setWakeup(timeString);
       }
     }
+  };
+
+  // iOS : « Terminer » sans avoir fait défiler la roue valide l'heure affichée par la roue.
+  const confirmPicker = () => {
+    if (showPicker === 'bedtime' && !bedtime) setBedtime('23:00');
+    if (showPicker === 'wakeup' && !wakeup) setWakeup('07:00');
+    setTouched(true);
+    setShowPicker(null);
   };
 
   const parseTimeStringToDate = (timeString: string) => {
@@ -105,6 +130,7 @@ export const SleepStep = ({ onNext }: SleepStepProps) => {
   };
 
   const getDurationColor = () => {
+    if (!duration) return theme.colors.textMuted;
     const diff = duration.decimal - sleepGoal;
     if (diff >= -0.5) return theme.colors.success;
     if (diff >= -2.0) return theme.colors.warning;
@@ -133,13 +159,13 @@ export const SleepStep = ({ onNext }: SleepStepProps) => {
         style={[glassCard, styles.timeCard]}
         onPress={() => setShowPicker(kind)}
         accessibilityRole="button"
-        accessibilityLabel={isBed ? `Heure de coucher, ${bedtime}` : `Heure de réveil, ${wakeup}`}
+        accessibilityLabel={isBed ? `Heure de coucher, ${bedtime ?? 'à renseigner'}` : `Heure de réveil, ${wakeup ?? 'à renseigner'}`}
       >
         <View style={[styles.timeIcon, { backgroundColor: isBed ? 'rgba(0, 105, 232, 0.1)' : 'rgba(245, 158, 11, 0.12)' }]}>
           <Feather name={isBed ? 'moon' : 'sun'} size={18} color={isBed ? theme.colors.sprintyBlue : theme.colors.warning} />
         </View>
         <Text style={[styles.label, { color: theme.colors.textSecondary }]}>{isBed ? 'Coucher' : 'Réveil'}</Text>
-        <Text style={[styles.timeText, { color: theme.colors.text }]}>{isBed ? bedtime : wakeup}</Text>
+        <Text style={[styles.timeText, { color: theme.colors.text }]}>{(isBed ? bedtime : wakeup) ?? '--:--'}</Text>
       </PressableScale>
     );
   };
@@ -160,7 +186,7 @@ export const SleepStep = ({ onNext }: SleepStepProps) => {
         <View style={[glassCard, styles.resultCard]}>
           <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Durée du sommeil</Text>
           <Text style={[styles.resultValue, { color: durationColor }]}>
-            {duration.hours}h {duration.minutes > 0 ? `${duration.minutes}m` : ''}
+            {duration ? `${duration.hours}h ${duration.minutes > 0 ? `${duration.minutes}m` : ''}` : '—'}
           </Text>
           <PressableScale
             haptic="selection"
@@ -180,13 +206,21 @@ export const SleepStep = ({ onNext }: SleepStepProps) => {
           title="Qualité du sommeil"
           icon="moon"
           value={sleepQuality}
-          onChange={setSleepQuality}
+          onChange={(v) => {
+            setTouched(true);
+            setSleepQuality(v);
+          }}
           options={SLEEP_OPTIONS}
           valueLabel={activeQualityLabel}
         />
       </ScrollView>
 
-      <StepFooter title="Suivant" onPress={handleNext} />
+      <StepFooter
+        title={isPrefilled && !touched ? 'C’est bien ça' : 'Suivant'}
+        onPress={handleNext}
+        disabled={!complete}
+        onSkip={onNext}
+      />
 
       {/* Goal Update Sheet */}
       <BottomSheet
@@ -224,20 +258,20 @@ export const SleepStep = ({ onNext }: SleepStepProps) => {
           title={showPicker === 'wakeup' ? 'Heure de réveil' : 'Heure de coucher'}
         >
           <DateTimePicker
-            value={parseTimeStringToDate(showPicker === 'bedtime' ? bedtime : wakeup)}
+            value={parseTimeStringToDate((showPicker === 'bedtime' ? bedtime : wakeup) ?? (showPicker === 'bedtime' ? '23:00' : '07:00'))}
             mode="time"
             is24Hour={true}
             display="spinner"
             onChange={handleTimeChange}
             textColor={theme.colors.text}
           />
-          <Button title="Terminer" onPress={() => setShowPicker(null)} />
+          <Button title="Terminer" onPress={confirmPicker} />
         </BottomSheet>
       )}
 
       {Platform.OS === 'android' && showPicker && (
         <DateTimePicker
-          value={parseTimeStringToDate(showPicker === 'bedtime' ? bedtime : wakeup)}
+          value={parseTimeStringToDate((showPicker === 'bedtime' ? bedtime : wakeup) ?? (showPicker === 'bedtime' ? '23:00' : '07:00'))}
           mode="time"
           is24Hour={true}
           display="default"

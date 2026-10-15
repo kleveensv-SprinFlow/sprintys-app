@@ -123,7 +123,8 @@ export default function AthleteDetailScreen() {
 
   const name = profile.full_name || 'Athlète';
 
-  const renderScoreBar = (label: string, score: number | undefined, icon: FeatherName, color: string) => {
+  const renderScoreBar = (label: string, score: number | null | undefined, icon: FeatherName, color: string) => {
+    const answered = score != null;
     const validScore = score || 0;
     return (
       <View style={styles.scoreRow}>
@@ -134,7 +135,7 @@ export default function AthleteDetailScreen() {
         <View style={styles.scoreBarBg}>
           <View style={[styles.scoreBarFill, { width: `${validScore}%`, backgroundColor: color }]} />
         </View>
-        <Text style={[styles.scoreValue, { color }]}>{Math.round(validScore)}/100</Text>
+        <Text style={[styles.scoreValue, { color: answered ? color : theme.colors.textMuted }]}>{answered ? `${Math.round(validScore)}/100` : "Non renseigné"}</Text>
       </View>
     );
   };
