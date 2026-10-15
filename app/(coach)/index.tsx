@@ -1,4 +1,5 @@
 import { TeamAlertsCard } from '../../src/features/coach/components/TeamAlertsCard';
+import { TeamWeeklySummaryCard } from '../../src/features/coach/components/TeamWeeklySummaryCard';
 import { Appear } from '../../src/shared/components/Appear';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
@@ -224,6 +225,7 @@ export default function CoachDashboardScreen() {
 
         <Appear index={3}>
         <TeamAlertsCard teamId={team?.id} refreshKey={alertsKey} />
+        {team && <TeamWeeklySummaryCard teamId={team.id} teamName={team.name} />}
         <Text style={styles.sectionTitle}>SÉANCES DU JOUR</Text>
         {team && todayWorkouts === null ? (
           <View style={[glassCard, styles.card]}>
