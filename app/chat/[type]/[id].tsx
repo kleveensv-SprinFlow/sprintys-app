@@ -5,7 +5,7 @@ import * as Clipboard from 'expo-clipboard';
 import { TouchableOpacity } from '../../../src/shared/components/Tappable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { theme } from '../../../src/core/theme';
 import { glassSurface } from '../../../src/core/glass';
 import { useAuthStore } from '../../../src/store/authStore';
@@ -18,6 +18,7 @@ import { PressableScale } from '../../../src/shared/components/PressableScale';
 import { formatDayLabel, isSameDay } from '../../../src/shared/utils/chatTime';
 import { moderationService, REPORT_REASONS, ReportReason } from '../../../src/services/moderationService';
 import { useSprintyStore } from '../../../src/store/sprintyStore';
+import { BottomSheet } from '../../../src/shared/components/BottomSheet';
 
 import { appAlert, toast } from '../../../src/shared/feedback/appAlert';
 
@@ -48,6 +49,15 @@ export default function ChatScreen() {
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const [blocked, setBlocked] = useState<Set<string>>(new Set());
   const showFeedback = useSprintyStore((s) => s.showFeedback);
+
+  // Réactions, citations et annonce épinglée (Tâche T3)
+  const [reactions, setReactions] = useState<Record<string, { reaction: string; count: number; userReacted: boolean }[]>>({});
+  const [pinnedMessage, setPinnedMessage] = useState<ChatItem | null>(null);
+  const [pinnedExpanded, setPinnedExpanded] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<{ id: string; sender_name: string; content: string } | null>(null);
+  const [selectedMessage, setSelectedMessage] = useState<ChatItem | null>(null);
+  const [showExtraEmojis, setShowExtraEmojis] = useState(false);
+  const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     moderationService.blockedIds().then(setBlocked);
@@ -93,6 +103,79 @@ export default function ChatScreen() {
     }
   };
 
+  const loadReactions = async (msgIds: string[]) => {
+    const valid = msgIds.filter((mid) => mid && !mid.startsWith('tmp-'));
+    if (!valid.length) return;
+    const res = await chatService.getMessageReactions(valid, user?.id);
+    setReactions((prev) => ({ ...prev, ...res }));
+  };
+
+  const handleToggleReaction = async (messageId: string, emoji: string) => {
+    if (!user || messageId.startsWith('tmp-')) return;
+
+    // Mise à jour optimiste immédiate
+    setReactions((prev) => {
+      const list = prev[messageId] ? [...prev[messageId]] : [];
+      const existingIndex = list.findIndex((r) => r.reaction === emoji);
+      const hadReaction = existingIndex !== -1 && list[existingIndex].userReacted;
+
+      // Un seul vote à la fois : on retire un autre vote précédent éventuel
+      const otherIndex = list.findIndex((r) => r.userReacted && r.reaction !== emoji);
+      if (otherIndex !== -1) {
+        const other = { ...list[otherIndex] };
+        other.count = Math.max(0, other.count - 1);
+        other.userReacted = false;
+        if (other.count === 0) {
+          list.splice(otherIndex, 1);
+        } else {
+          list[otherIndex] = other;
+        }
+      }
+
+      if (hadReaction) {
+        const item = { ...list[existingIndex] };
+        item.count = Math.max(0, item.count - 1);
+        item.userReacted = false;
+        if (item.count === 0) {
+          list.splice(existingIndex, 1);
+        } else {
+          list[existingIndex] = item;
+        }
+      } else {
+        if (existingIndex !== -1) {
+          list[existingIndex] = { ...list[existingIndex], count: list[existingIndex].count + 1, userReacted: true };
+        } else {
+          list.push({ reaction: emoji, count: 1, userReacted: true });
+        }
+      }
+      return { ...prev, [messageId]: list };
+    });
+
+    try {
+      await chatService.toggleReaction(messageId, user.id, emoji);
+    } catch (err) {
+      console.error('Erreur toggle reaction:', err);
+      loadReactions([messageId]);
+    }
+  };
+
+  const handlePin = async (messageId: string | null) => {
+    if (!conversation) return;
+    try {
+      await chatService.pinMessage(conversation.id, messageId);
+      if (!messageId) {
+        setPinnedMessage(null);
+        toast('info', 'Annonce retirée.');
+      } else {
+        const found = messages.find((m) => m.id === messageId);
+        if (found) setPinnedMessage(found);
+        toast('success', 'Message épinglé comme annonce.');
+      }
+    } catch {
+      toast('error', 'Impossible de modifier l’annonce épinglée.');
+    }
+  };
+
   const initChat = async (isCancelled: () => boolean) => {
     if (!user) return;
     const convo =
@@ -105,6 +188,14 @@ export default function ChatScreen() {
     await chatService.ensureParticipant(convo.id, user.id);
     fetchMessages(convo.id);
     if (type !== 'team') loadProfiles([id as string]); // photo de l'interlocuteur dans l'en-tête
+
+    // Récupérer l'annonce épinglée au démarrage
+    chatService.getPinnedMessage(convo.id).then((pinData) => {
+      if (!isCancelled() && pinData?.message) {
+        setPinnedMessage(pinData.message as ChatItem);
+        if (pinData.message.sender_id) loadProfiles([pinData.message.sender_id]);
+      }
+    });
 
     channelRef.current = supabase
       .channel(`chat_${convo.id}`)
@@ -130,6 +221,32 @@ export default function ChatScreen() {
           }
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'message_likes' },
+        () => {
+          setMessages((currentMsgs) => {
+            loadReactions(currentMsgs.map((m) => m.id));
+            return currentMsgs;
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'conversations', filter: `id=eq.${convo.id}` },
+        async (payload: any) => {
+          const pinId = payload.new?.pinned_message_id;
+          if (!pinId) {
+            setPinnedMessage(null);
+          } else {
+            const pinData = await chatService.getPinnedMessage(convo.id);
+            if (pinData?.message) {
+              setPinnedMessage(pinData.message as ChatItem);
+              if (pinData.message.sender_id) loadProfiles([pinData.message.sender_id]);
+            }
+          }
+        }
+      )
       .subscribe();
   };
 
@@ -141,6 +258,7 @@ export default function ChatScreen() {
       chatService.markAsRead(convoId, user.id, msgs[0].id);
     }
     loadProfiles([...new Set(msgs.map((m) => m.sender_id).filter(Boolean))]);
+    loadReactions(msgs.map((m) => m.id));
   };
 
   /** Remonte dans l'historique : la page de messages plus anciens. */
@@ -154,15 +272,16 @@ export default function ChatScreen() {
       setMessages((prev) => [...prev, ...older.filter((o) => !prev.some((m) => m.id === o.id))]);
       setHasMore(older.length >= MESSAGES_PAGE);
       loadProfiles([...new Set(older.map((m) => m.sender_id).filter(Boolean))]);
+      loadReactions(older.map((m) => m.id));
     } finally {
       setLoadingOlder(false);
     }
   };
 
-  const deliver = async (tempId: string, text: string) => {
+  const deliver = async (tempId: string, text: string, meta: any = null) => {
     if (!conversation || !user) return;
     try {
-      const saved = (await chatService.sendMessage(conversation.id, user.id, text)) as ChatItem;
+      const saved = (await chatService.sendMessage(conversation.id, user.id, text, 'text', meta)) as ChatItem;
       setMessages((prev) => {
         // Realtime may already have delivered it
         if (prev.some((m) => m.id === saved.id)) return prev.filter((m) => m.id !== tempId);
@@ -176,18 +295,20 @@ export default function ChatScreen() {
   const handleSend = () => {
     const text = inputText.trim();
     if (!text || !conversation || !user) return;
+    const meta = replyingTo ? { reply_to: replyingTo } : null;
     setInputText('');
+    setReplyingTo(null);
     const tempId = `tmp-${Date.now()}`;
     setMessages((prev) => [
-      { id: tempId, sender_id: user.id, content: text, created_at: new Date().toISOString(), pending: true },
+      { id: tempId, sender_id: user.id, content: text, created_at: new Date().toISOString(), pending: true, metadata: meta },
       ...prev,
     ]);
-    deliver(tempId, text);
+    deliver(tempId, text, meta);
   };
 
   const retry = (item: ChatItem) => {
     setMessages((prev) => prev.map((m) => (m.id === item.id ? { ...m, pending: true, failed: false } : m)));
-    deliver(item.id, item.content);
+    deliver(item.id, item.content, item.metadata);
   };
 
   const pollValid = pollOptions.map((o) => o.trim()).filter(Boolean);
@@ -252,31 +373,15 @@ export default function ChatScreen() {
     }
   };
 
-  /** Long press on a message: copy for everyone, report / block for other people's. */
+  const nameOf = (senderId: string) => {
+    const p = profiles[senderId];
+    return p?.full_name || [p?.first_name, p?.last_name].filter(Boolean).join(' ') || '…';
+  };
+
+  /** Ouvre la feuille d'actions et de réactions au toucher long sur un message */
   const messageActions = (item: ChatItem) => {
-    const name = nameOf(item.sender_id);
-    const copy =
-      item.type === 'poll'
-        ? null
-        : {
-            text: 'Copier le texte',
-            onPress: () => {
-              Clipboard.setStringAsync(item.content).then(() => toast('success', 'Texte copié.')).catch(() => undefined);
-            },
-          };
-    if (item.sender_id === user?.id) {
-      if (copy) appAlert('Mon message', undefined, [copy, { text: 'Annuler', style: 'cancel' }]);
-      return;
-    }
-    appAlert(name, undefined, [
-      ...(copy ? [copy] : []),
-      {
-        text: 'Signaler le message',
-        onPress: () => chooseReason((r) => sendReport({ reportedUserId: item.sender_id, messageId: item.id, excerpt: item.content }, r)),
-      },
-      { text: `Bloquer ${name}`, style: 'destructive', onPress: () => blockUser(item.sender_id, name) },
-      { text: 'Annuler', style: 'cancel' },
-    ]);
+    setSelectedMessage(item);
+    setShowExtraEmojis(false);
   };
 
   /** Header menu: report the conversation; in a direct chat, block / unblock the other person. */
@@ -294,11 +399,6 @@ export default function ChatScreen() {
     ]);
   };
 
-  const nameOf = (senderId: string) => {
-    const p = profiles[senderId];
-    return p?.full_name || [p?.first_name, p?.last_name].filter(Boolean).join(' ') || '…';
-  };
-
   const renderMessage = ({ item, index }: { item: ChatItem; index: number }) => {
     const isMe = item.sender_id === user?.id;
     // The list is inverted: the older neighbour is the next item
@@ -307,6 +407,7 @@ export default function ChatScreen() {
     const firstOfGroup = newDay || older.sender_id !== item.sender_id;
     const senderName = nameOf(item.sender_id);
     const time = new Date(item.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const msgReactions = reactions[item.id] || [];
 
     return (
       <View>
@@ -341,6 +442,21 @@ export default function ChatScreen() {
                 item.failed && styles.messageBubbleFailed,
               ]}
             >
+              {/* Bloc de citation si le message est une réponse */}
+              {item.metadata?.reply_to && (
+                <View style={[styles.quoteBox, isMe ? styles.quoteBoxMe : styles.quoteBoxOther]}>
+                  <View style={[styles.quoteBar, isMe ? styles.quoteBarMe : styles.quoteBarOther]} />
+                  <View style={{ flex: 1, paddingVertical: 1 }}>
+                    <Text style={[styles.quoteSender, isMe ? styles.quoteSenderMe : styles.quoteSenderOther]} numberOfLines={1}>
+                      {item.metadata.reply_to.sender_name}
+                    </Text>
+                    <Text style={[styles.quoteContent, isMe ? styles.quoteContentMe : styles.quoteContentOther]} numberOfLines={2}>
+                      {item.metadata.reply_to.content}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
               {item.type === 'poll' ? (
                 <PollMessage
                   messageId={item.id}
@@ -354,6 +470,24 @@ export default function ChatScreen() {
                 <Text style={[styles.messageText, isMe ? styles.messageTextMe : styles.messageTextOther]}>{item.content}</Text>
               )}
             </TouchableOpacity>
+
+            {/* Badges de réactions sous la bulle */}
+            {msgReactions.length > 0 && (
+              <View style={[styles.reactionRow, isMe ? styles.reactionRowMe : styles.reactionRowOther]}>
+                {msgReactions.map((r) => (
+                  <TouchableOpacity
+                    key={r.reaction}
+                    onPress={() => handleToggleReaction(item.id, r.reaction)}
+                    style={[styles.reactionBadge, r.userReacted && styles.reactionBadgeActive]}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.reactionEmoji}>{r.reaction}</Text>
+                    <Text style={[styles.reactionCount, r.userReacted && styles.reactionCountActive]}>{r.count}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
             <Text style={[styles.meta, isMe && { textAlign: 'right' }, item.failed && { color: theme.colors.error }]}>
               {item.failed ? 'Non envoyé · toucher pour réessayer' : item.pending ? 'Envoi…' : time}
             </Text>
@@ -393,6 +527,38 @@ export default function ChatScreen() {
             <Feather name="more-horizontal" size={20} color={theme.colors.text} />
           </PressableScale>
         </View>
+
+        {/* Annonce épinglée par le coach */}
+        {pinnedMessage && (
+          <View style={styles.pinnedBanner}>
+            <View style={styles.pinnedIconWrap}>
+              <Ionicons name="pin" size={14} color={BLUE} />
+            </View>
+            <TouchableOpacity
+              style={{ flex: 1 }}
+              onPress={() => setPinnedExpanded((v) => !v)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.pinnedTitleRow}>
+                <Text style={styles.pinnedTitle}>Annonce de {nameOf(pinnedMessage.sender_id)}</Text>
+                <Feather name={pinnedExpanded ? 'chevron-up' : 'chevron-down'} size={14} color={theme.colors.textMuted} />
+              </View>
+              <Text style={styles.pinnedText} numberOfLines={pinnedExpanded ? undefined : 1}>
+                {pinnedMessage.type === 'poll' ? pinnedMessage.metadata?.question || 'Sondage' : pinnedMessage.content}
+              </Text>
+            </TouchableOpacity>
+            {user?.role === 'coach' && type === 'team' && (
+              <TouchableOpacity
+                onPress={() => handlePin(null)}
+                style={styles.pinnedUnpinBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Désépingler l'annonce"
+              >
+                <Feather name="x" size={14} color={theme.colors.textMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         {/* Messages or Empty State */}
         {visibleMessages.length === 0 ? (
@@ -495,33 +661,197 @@ export default function ChatScreen() {
             </PressableScale>
           </View>
         ) : (
-          <View style={[styles.inputContainer, { paddingBottom: bottomOffset }]}>
-            {user?.role === 'coach' && (
-              <TouchableOpacity style={styles.attachBtn} onPress={() => setIsCreatingPoll(true)} activeOpacity={0.7}>
-                <Feather name="bar-chart-2" size={19} color={BLUE} />
-              </TouchableOpacity>
+          <View style={[styles.bottomBarContainer, { paddingBottom: bottomOffset }]}>
+            {/* Aperçu de la citation / réponse en cours */}
+            {replyingTo && (
+              <View style={styles.replyBar}>
+                <View style={styles.replyBarIndicator} />
+                <View style={{ flex: 1, paddingVertical: 2 }}>
+                  <Text style={styles.replyBarTitle}>
+                    Répondre à <Text style={{ fontWeight: '700' }}>{replyingTo.sender_name}</Text>
+                  </Text>
+                  <Text style={styles.replyBarText} numberOfLines={1}>
+                    {replyingTo.content}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => setReplyingTo(null)} style={styles.replyBarClose} accessibilityLabel="Annuler la réponse">
+                  <Feather name="x" size={16} color={theme.colors.textMuted} />
+                </TouchableOpacity>
+              </View>
             )}
-            <View style={[styles.inputCapsule, glassSurface]}>
-              <TextInput
-                style={styles.input}
-                placeholder="Message"
-                placeholderTextColor={theme.colors.textMuted}
-                value={inputText}
-                onChangeText={setInputText}
-                multiline
-                maxLength={2000}
-              />
-              <PressableScale
-                style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]}
-                onPress={handleSend}
-                disabled={!inputText.trim()}
-                haptic="light"
-              >
-                <Feather name="arrow-up" size={18} color="#FFFFFF" />
-              </PressableScale>
+
+            <View style={styles.inputContainer}>
+              {user?.role === 'coach' && (
+                <TouchableOpacity style={styles.attachBtn} onPress={() => setIsCreatingPoll(true)} activeOpacity={0.7}>
+                  <Feather name="bar-chart-2" size={19} color={BLUE} />
+                </TouchableOpacity>
+              )}
+              <View style={[styles.inputCapsule, glassSurface]}>
+                <TextInput
+                  ref={inputRef}
+                  style={styles.input}
+                  placeholder="Message"
+                  placeholderTextColor={theme.colors.textMuted}
+                  value={inputText}
+                  onChangeText={setInputText}
+                  multiline
+                  maxLength={2000}
+                />
+                <PressableScale
+                  style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]}
+                  onPress={handleSend}
+                  disabled={!inputText.trim()}
+                  haptic="light"
+                >
+                  <Feather name="arrow-up" size={18} color="#FFFFFF" />
+                </PressableScale>
+              </View>
             </View>
           </View>
         )}
+
+        {/* Feuille d'actions et de réactions au toucher long */}
+        <BottomSheet
+          visible={!!selectedMessage}
+          onClose={() => {
+            setSelectedMessage(null);
+            setShowExtraEmojis(false);
+          }}
+          title={selectedMessage ? (selectedMessage.sender_id === user?.id ? 'Mon message' : `Message de ${nameOf(selectedMessage.sender_id)}`) : undefined}
+        >
+          {selectedMessage && (
+            <View style={styles.sheetContent}>
+              {/* Barre de réactions rapides : ❤️, 👍, 🔥, 💪 + bouton personnalisable (+) */}
+              <View style={styles.sheetReactionsBar}>
+                {['❤️', '👍', '🔥', '💪'].map((emoji) => (
+                  <TouchableOpacity
+                    key={emoji}
+                    style={styles.sheetReactionBtn}
+                    onPress={() => {
+                      handleToggleReaction(selectedMessage.id, emoji);
+                      setSelectedMessage(null);
+                      setShowExtraEmojis(false);
+                    }}
+                  >
+                    <Text style={styles.sheetReactionEmoji}>{emoji}</Text>
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity
+                  style={styles.sheetReactionBtn}
+                  onPress={() => setShowExtraEmojis((v) => !v)}
+                  accessibilityLabel="Plus d'emojis"
+                >
+                  <Feather name={showExtraEmojis ? 'minus' : 'plus'} size={20} color={theme.colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Ligne d'emojis personnalisés déroulable */}
+              {showExtraEmojis && (
+                <View style={styles.sheetExtraEmojisRow}>
+                  {['👏', '🎯', '⚡', '🥇', '🤩', '🙌', '🚀', '👀'].map((emoji) => (
+                    <TouchableOpacity
+                      key={emoji}
+                      style={styles.sheetReactionBtn}
+                      onPress={() => {
+                        handleToggleReaction(selectedMessage.id, emoji);
+                        setSelectedMessage(null);
+                        setShowExtraEmojis(false);
+                      }}
+                    >
+                      <Text style={styles.sheetReactionEmoji}>{emoji}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {/* Actions disponibles sur le message */}
+              <View style={styles.sheetActionsList}>
+                <TouchableOpacity
+                  style={styles.sheetActionItem}
+                  onPress={() => {
+                    const replyMeta = {
+                      id: selectedMessage.id,
+                      sender_name: nameOf(selectedMessage.sender_id),
+                      content: selectedMessage.type === 'poll' ? selectedMessage.metadata?.question || 'Sondage' : selectedMessage.content,
+                    };
+                    setReplyingTo(replyMeta);
+                    setSelectedMessage(null);
+                    setShowExtraEmojis(false);
+                    setTimeout(() => inputRef.current?.focus(), 150);
+                  }}
+                >
+                  <Feather name="corner-up-left" size={18} color={BLUE} />
+                  <Text style={styles.sheetActionText}>Répondre en citant</Text>
+                </TouchableOpacity>
+
+                {selectedMessage.type !== 'poll' && (
+                  <TouchableOpacity
+                    style={styles.sheetActionItem}
+                    onPress={() => {
+                      Clipboard.setStringAsync(selectedMessage.content);
+                      toast('success', 'Texte copié.');
+                      setSelectedMessage(null);
+                      setShowExtraEmojis(false);
+                    }}
+                  >
+                    <Feather name="copy" size={18} color={theme.colors.text} />
+                    <Text style={styles.sheetActionText}>Copier le texte</Text>
+                  </TouchableOpacity>
+                )}
+
+                {user?.role === 'coach' && type === 'team' && (
+                  <TouchableOpacity
+                    style={styles.sheetActionItem}
+                    onPress={() => {
+                      const msgId = selectedMessage.id;
+                      setSelectedMessage(null);
+                      setShowExtraEmojis(false);
+                      handlePin(pinnedMessage?.id === msgId ? null : msgId);
+                    }}
+                  >
+                    <Ionicons name="pin" size={18} color={BLUE} />
+                    <Text style={styles.sheetActionText}>
+                      {pinnedMessage?.id === selectedMessage.id ? 'Désépingler l’annonce' : 'Épingler comme annonce'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {selectedMessage.sender_id !== user?.id && (
+                  <>
+                    <TouchableOpacity
+                      style={styles.sheetActionItem}
+                      onPress={() => {
+                        const msg = selectedMessage;
+                        setSelectedMessage(null);
+                        setShowExtraEmojis(false);
+                        chooseReason((r) => sendReport({ reportedUserId: msg.sender_id, messageId: msg.id, excerpt: msg.content }, r));
+                      }}
+                    >
+                      <Feather name="flag" size={18} color={theme.colors.text} />
+                      <Text style={styles.sheetActionText}>Signaler le message</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.sheetActionItem}
+                      onPress={() => {
+                        const senderId = selectedMessage.sender_id;
+                        const senderName = nameOf(senderId);
+                        setSelectedMessage(null);
+                        setShowExtraEmojis(false);
+                        blockUser(senderId, senderName);
+                      }}
+                    >
+                      <Feather name="slash" size={18} color={theme.colors.error} />
+                      <Text style={[styles.sheetActionText, { color: theme.colors.error }]}>
+                        Bloquer {nameOf(selectedMessage.sender_id)}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            </View>
+          )}
+        </BottomSheet>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -825,5 +1155,231 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 15,
+  },
+
+  // Citations / Réponses
+  quoteBox: {
+    flexDirection: 'row',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginBottom: 6,
+    overflow: 'hidden',
+  },
+  quoteBoxMe: {
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+  },
+  quoteBoxOther: {
+    backgroundColor: theme.colors.surfaceLight,
+  },
+  quoteBar: {
+    width: 3,
+    borderRadius: 1.5,
+    marginRight: 8,
+  },
+  quoteBarMe: {
+    backgroundColor: '#FFFFFF',
+  },
+  quoteBarOther: {
+    backgroundColor: BLUE,
+  },
+  quoteSender: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 1,
+  },
+  quoteSenderMe: {
+    color: '#FFFFFF',
+  },
+  quoteSenderOther: {
+    color: BLUE,
+  },
+  quoteContent: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  quoteContentMe: {
+    color: 'rgba(255, 255, 255, 0.85)',
+  },
+  quoteContentOther: {
+    color: theme.colors.textSecondary,
+  },
+
+  // Badges de réactions sous la bulle
+  reactionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 4,
+  },
+  reactionRowMe: {
+    justifyContent: 'flex-end',
+  },
+  reactionRowOther: {
+    justifyContent: 'flex-start',
+  },
+  reactionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  reactionBadgeActive: {
+    backgroundColor: BLUE_TINT,
+    borderColor: BLUE,
+  },
+  reactionEmoji: {
+    fontSize: 12,
+  },
+  reactionCount: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+  },
+  reactionCountActive: {
+    color: BLUE,
+    fontWeight: '700',
+  },
+
+  // Annonce épinglée
+  pinnedBanner: {
+    backgroundColor: theme.colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.hairline,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  pinnedIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: BLUE_TINT,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pinnedTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  pinnedTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: BLUE,
+  },
+  pinnedText: {
+    fontSize: 13,
+    color: theme.colors.text,
+    lineHeight: 18,
+  },
+  pinnedUnpinBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.glassFill,
+  },
+
+  // Conteneur de saisie avec aperçu de citation
+  bottomBarContainer: {
+    backgroundColor: 'transparent',
+  },
+  replyBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.hairline,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.hairline,
+    gap: 8,
+  },
+  replyBarIndicator: {
+    width: 3,
+    height: '80%',
+    backgroundColor: BLUE,
+    borderRadius: 1.5,
+  },
+  replyBarTitle: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+  },
+  replyBarText: {
+    fontSize: 13,
+    color: theme.colors.text,
+    marginTop: 1,
+  },
+  replyBarClose: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.glassFill,
+  },
+
+  // Feuille d'actions et de réactions
+  sheetContent: {
+    paddingBottom: 16,
+  },
+  sheetReactionsBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    backgroundColor: theme.colors.surfaceLight,
+    borderRadius: 16,
+    marginBottom: 12,
+  },
+  sheetExtraEmojisRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    backgroundColor: theme.colors.surfaceLight,
+    borderRadius: 16,
+    marginBottom: 12,
+    gap: 8,
+  },
+  sheetReactionBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetReactionEmoji: {
+    fontSize: 22,
+  },
+  sheetActionsList: {
+    gap: 4,
+  },
+  sheetActionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  sheetActionText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.colors.text,
   },
 });

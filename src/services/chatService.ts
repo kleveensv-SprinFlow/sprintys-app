@@ -212,5 +212,108 @@ export const chatService = {
       .update({ last_read_message_id: messageId })
       .eq('conversation_id', conversationId)
       .eq('user_id', userId);
+  },
+
+  /** Charge les réactions regroupées par message et compte les votes. */
+  async getMessageReactions(messageIds: string[], currentUserId?: string): Promise<Record<string, { reaction: string; count: number; userReacted: boolean }[]>> {
+    if (!messageIds.length) return {};
+    const { data, error } = await supabase
+      .from('message_likes')
+      .select('message_id, user_id, reaction')
+      .in('message_id', messageIds);
+
+    if (error || !data) return {};
+
+    const result: Record<string, { reaction: string; count: number; userReacted: boolean }[]> = {};
+    for (const row of data as any[]) {
+      const msgId = row.message_id;
+      const emoji = row.reaction || '❤️';
+      if (!result[msgId]) result[msgId] = [];
+      let entry = result[msgId].find((r) => r.reaction === emoji);
+      if (!entry) {
+        entry = { reaction: emoji, count: 0, userReacted: false };
+        result[msgId].push(entry);
+      }
+      entry.count += 1;
+      if (currentUserId && row.user_id === currentUserId) {
+        entry.userReacted = true;
+      }
+    }
+    return result;
+  },
+
+  /** Ajoute, met à jour ou retire la réaction d'un utilisateur sur un message. */
+  async toggleReaction(messageId: string, userId: string, reaction: string): Promise<{ added: boolean; reaction: string }> {
+    const { data: existing } = await supabase
+      .from('message_likes')
+      .select('reaction')
+      .eq('message_id', messageId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (existing) {
+      if ((existing as any).reaction === reaction) {
+        await supabase
+          .from('message_likes')
+          .delete()
+          .eq('message_id', messageId)
+          .eq('user_id', userId);
+        return { added: false, reaction };
+      } else {
+        await supabase
+          .from('message_likes')
+          .update({ reaction })
+          .eq('message_id', messageId)
+          .eq('user_id', userId);
+        return { added: true, reaction };
+      }
+    } else {
+      await supabase
+        .from('message_likes')
+        .insert({ message_id: messageId, user_id: userId, reaction });
+      return { added: true, reaction };
+    }
+  },
+
+  /** Épingle ou désépingle un message en tant qu'annonce (coach). */
+  async pinMessage(conversationId: string, messageId: string | null) {
+    const { data, error } = await supabase.rpc('pin_conversation_message', {
+      p_conversation_id: conversationId,
+      p_message_id: messageId,
+    });
+    if (error) {
+      const { error: updateErr } = await supabase
+        .from('conversations')
+        .update({
+          pinned_message_id: messageId,
+          pinned_at: messageId ? new Date().toISOString() : null,
+        })
+        .eq('id', conversationId);
+      if (updateErr) throw updateErr;
+    }
+    return data;
+  },
+
+  /** Récupère le message épinglé d'une conversation. */
+  async getPinnedMessage(conversationId: string): Promise<{ message: Message | null; pinned_at: string | null; pinned_by: string | null } | null> {
+    const { data: conv, error: convErr } = await supabase
+      .from('conversations')
+      .select('pinned_message_id, pinned_at, pinned_by')
+      .eq('id', conversationId)
+      .maybeSingle();
+
+    if (convErr || !conv || !(conv as any).pinned_message_id) return null;
+
+    const { data: msg } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('id', (conv as any).pinned_message_id)
+      .maybeSingle();
+
+    return {
+      message: msg || null,
+      pinned_at: (conv as any).pinned_at || null,
+      pinned_by: (conv as any).pinned_by || null,
+    };
   }
 };
