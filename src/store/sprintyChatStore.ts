@@ -5,12 +5,14 @@ import uuid from 'react-native-uuid';
 import type { MessagePart } from '../features/sprinty/types';
 
 export interface ChatMessage {
+  id?: string;
   role: string;
   content: string;
   /** Message envoyé automatiquement par l'app (ex : demande d'analyse) — affiché de façon discrète. */
   auto?: boolean;
   /** Sprinty 2: text and visual blocks in order. `content` keeps a plain-text version (memory, copy). */
   parts?: MessagePart[];
+  feedback?: 1 | -1 | null;
 }
 
 /** Contexte d'une conversation « verrouillée » sur un athlète (mode analyse coach). */
@@ -55,6 +57,7 @@ interface SprintyChatState {
   getCurrentMessages: () => ChatMessage[];
   /** Updates a visual block of a stored message (e.g. "added to the calendar"). */
   patchPart: (conversationId: string, messageIndex: number, partIndex: number, patch: Record<string, unknown>) => void;
+  setMessageFeedback: (conversationId: string, messageIndex: number, feedback: 1 | -1 | null) => void;
   getCurrentConversation: () => Conversation | null;
 }
 
@@ -151,6 +154,8 @@ export const useSprintyChatStore = create<SprintyChatState>()(
         const { currentConversationId, conversations } = get();
         if (!currentConversationId) return;
 
+        const msgWithId: ChatMessage = message.id ? message : { ...message, id: String(uuid.v4()) };
+
         const updatedConversations = conversations.map(conv => {
           if (conv.id === currentConversationId) {
             
@@ -163,7 +168,7 @@ export const useSprintyChatStore = create<SprintyChatState>()(
             return {
               ...conv,
               title: newTitle,
-              messages: [...conv.messages, message],
+              messages: [...conv.messages, msgWithId],
               updatedAt: Date.now(),
             };
           }
@@ -221,6 +226,19 @@ export const useSprintyChatStore = create<SprintyChatState>()(
                 j === partIndex && p.kind === 'ui' ? { ...p, block: { ...p.block, ...patch } as any } : p
               );
               return { ...m, parts };
+            });
+            return { ...c, messages };
+          }),
+        }));
+      },
+
+      setMessageFeedback: (conversationId, messageIndex, feedback) => {
+        set((state) => ({
+          conversations: state.conversations.map((c) => {
+            if (c.id !== conversationId) return c;
+            const messages = c.messages.map((m, i) => {
+              if (i !== messageIndex) return m;
+              return { ...m, feedback };
             });
             return { ...c, messages };
           }),

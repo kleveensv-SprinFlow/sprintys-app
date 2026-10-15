@@ -177,6 +177,20 @@ export function toolsFor(ctx: Ctx) {
       },
       ['questions']
     ),
+    fn(
+      'suggest_followups',
+      "Propose 2 ou 3 questions ou actions courtes pour relancer la discussion sous ta réponse.",
+      {
+        items: {
+          type: 'array',
+          items: { type: 'string' },
+          minItems: 2,
+          maxItems: 3,
+          description: '2 ou 3 suggestions courtes (max 8 mots chacune).',
+        },
+      },
+      ['items']
+    ),
   ];
 
   if (coach) {
@@ -1093,6 +1107,17 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
       if (a.intro) ctx.emit({ t: `${clipText(String(a.intro), 300)}\n` });
       ctx.emit({ ui: { type: 'choices', questions } });
       return { content: { affiche: true }, terminal: true, closing: false };
+    }
+
+    case 'suggest_followups': {
+      const items = (Array.isArray(a.items) ? a.items : [])
+        .slice(0, 3)
+        .map((s: any) => clipText(String(s ?? ''), 80))
+        .filter(Boolean);
+      if (items.length) {
+        ctx.emit({ ui: { type: 'suggestions', items } });
+      }
+      return { content: { affiche: true } };
     }
 
     case 'propose_sessions': {

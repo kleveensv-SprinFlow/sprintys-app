@@ -20,6 +20,7 @@ import SprintyHistoryModal from '../../components/SprintyHistoryModal';
 import { useKeyboardOffset } from '../../shared/hooks/useKeyboardOffset';
 import { GlowBackground } from '../../shared/components/GlowBackground';
 import { PressableScale } from '../../shared/components/PressableScale';
+import { BottomSheet } from '../../shared/components/BottomSheet';
 import { appAlert } from '../../shared/feedback/appAlert';
 import { ALL_DOMAINS, DOMAIN_LABELS, AnalysisDomain } from '../../services/athleteAnalysisContext';
 import { streamSprinty } from './agentClient';
@@ -252,6 +253,12 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
 
   const stop = () => abortRef.current?.abort();
 
+  const [actionSheet, setActionSheet] = useState<{
+    visible: boolean;
+    msg: ChatMessage | null;
+    isLastAssistant: boolean;
+  }>({ visible: false, msg: null, isLastAssistant: false });
+
   const regenerate = () => {
     if (isTyping) return;
     store().removeLastAssistantMessage();
@@ -259,13 +266,37 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
   };
 
   const openActions = (msg: ChatMessage, isLastAssistant: boolean) => {
-    const text = (msg.parts ? msg.parts.filter((p) => p.kind === 'text').map((p: any) => p.text).join('\n') : msg.content).trim();
-    appAlert('Message', undefined, [
-      ...(text ? [{ text: 'Copier', onPress: () => Clipboard.setStringAsync(text) }] : []),
-      ...(msg.role === 'assistant' && msg.parts?.length ? [{ text: 'Exporter en PDF', onPress: () => exportPdf(msg) }] : []),
-      ...(isLastAssistant && !isTyping ? [{ text: 'Réessayer', onPress: regenerate }] : []),
-      { text: 'Annuler', style: 'cancel' as const },
-    ]);
+    setActionSheet({ visible: true, msg, isLastAssistant });
+  };
+
+  const handleFeedback = async (messageIndex: number, msg: ChatMessage, rating: 1 | -1) => {
+    if (!conversation) return;
+    const current = msg.feedback;
+    const nextRating = current === rating ? null : rating;
+    haptic('light');
+    store().setMessageFeedback(conversation.id, messageIndex, nextRating);
+
+    try {
+      const user = useAuthStore.getState().user;
+      if (!user) return;
+      const msgId = msg.id || `msg-${conversation.id}-${messageIndex}`;
+      if (nextRating === null) {
+        await supabase.from('ai_feedback').delete().eq('user_id', user.id).eq('message_id', msgId);
+      } else {
+        await supabase.from('ai_feedback').upsert(
+          {
+            user_id: user.id,
+            message_id: msgId,
+            conversation_id: conversation.id,
+            rating: nextRating,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id,message_id' }
+        );
+      }
+    } catch {
+      // Ignoré si réseau déconnecté
+    }
   };
 
   const exportPdf = async (msg: ChatMessage) => {
@@ -483,12 +514,42 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
                       onAskChange={askChange}
                       onPatch={(partIndex, patch) => conversation && store().patchPart(conversation.id, index, partIndex, patch)}
                     />
-                    {rich && (
-                      <PressableScale haptic="selection" onPress={() => exportPdf(msg)} style={styles.pdfBtn} accessibilityLabel="Exporter en PDF">
-                        <Feather name="download" size={14} color={BLUE} />
-                        <Text style={styles.pdfText}>Exporter en PDF</Text>
-                      </PressableScale>
-                    )}
+                    <View style={styles.assistantFooter}>
+                      {rich ? (
+                        <PressableScale haptic="selection" onPress={() => exportPdf(msg)} style={styles.pdfBtn} accessibilityLabel="Exporter en PDF">
+                          <Feather name="download" size={14} color={BLUE} />
+                          <Text style={styles.pdfText}>Exporter en PDF</Text>
+                        </PressableScale>
+                      ) : <View style={{ flex: 1 }} />}
+                      <View style={styles.feedbackRow}>
+                        <PressableScale
+                          haptic="light"
+                          onPress={() => handleFeedback(index, msg, 1)}
+                          style={[styles.feedbackBtn, msg.feedback === 1 && styles.feedbackBtnActiveUp]}
+                          accessibilityRole="button"
+                          accessibilityLabel="Réponse utile"
+                        >
+                          <Feather
+                            name="thumbs-up"
+                            size={13}
+                            color={msg.feedback === 1 ? BLUE : theme.colors.textSecondary}
+                          />
+                        </PressableScale>
+                        <PressableScale
+                          haptic="light"
+                          onPress={() => handleFeedback(index, msg, -1)}
+                          style={[styles.feedbackBtn, msg.feedback === -1 && styles.feedbackBtnActiveDown]}
+                          accessibilityRole="button"
+                          accessibilityLabel="Réponse pas utile"
+                        >
+                          <Feather
+                            name="thumbs-down"
+                            size={13}
+                            color={msg.feedback === -1 ? theme.colors.error : theme.colors.textSecondary}
+                          />
+                        </PressableScale>
+                      </View>
+                    </View>
                   </Pressable>
                 </View>
               );
@@ -567,6 +628,75 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
       </SafeAreaView>
 
       <SprintyHistoryModal visible={historyVisible} onClose={() => setHistoryVisible(false)} />
+
+      <BottomSheet
+        visible={actionSheet.visible}
+        onClose={() => setActionSheet((s) => ({ ...s, visible: false }))}
+        title="Actions sur le message"
+      >
+        <View style={styles.actionSheetContent}>
+          {(() => {
+            const text = actionSheet.msg
+              ? (actionSheet.msg.parts
+                  ? actionSheet.msg.parts.filter((p) => p.kind === 'text').map((p: any) => p.text).join('\n')
+                  : actionSheet.msg.content
+                ).trim()
+              : '';
+            return text ? (
+              <PressableScale
+                style={styles.actionItem}
+                onPress={async () => {
+                  await Clipboard.setStringAsync(text);
+                  setActionSheet((s) => ({ ...s, visible: false }));
+                  toast('success', 'Copié dans le presse-papier');
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Copier le texte"
+              >
+                <View style={styles.actionIconWrap}>
+                  <Feather name="copy" size={18} color={BLUE} />
+                </View>
+                <Text style={styles.actionItemText}>Copier le texte</Text>
+              </PressableScale>
+            ) : null;
+          })()}
+
+          {actionSheet.msg?.role === 'assistant' && actionSheet.msg.parts?.length ? (
+            <PressableScale
+              style={styles.actionItem}
+              onPress={() => {
+                const targetMsg = actionSheet.msg;
+                setActionSheet((s) => ({ ...s, visible: false }));
+                if (targetMsg) exportPdf(targetMsg);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Exporter en PDF"
+            >
+              <View style={styles.actionIconWrap}>
+                <Feather name="file-text" size={18} color={BLUE} />
+              </View>
+              <Text style={styles.actionItemText}>Exporter en PDF</Text>
+            </PressableScale>
+          ) : null}
+
+          {actionSheet.isLastAssistant && !isTyping ? (
+            <PressableScale
+              style={styles.actionItem}
+              onPress={() => {
+                setActionSheet((s) => ({ ...s, visible: false }));
+                regenerate();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Réessayer la réponse"
+            >
+              <View style={styles.actionIconWrap}>
+                <Feather name="rotate-cw" size={18} color={BLUE} />
+              </View>
+              <Text style={styles.actionItemText}>Réessayer la réponse</Text>
+            </PressableScale>
+          ) : null}
+        </View>
+      </BottomSheet>
     </View>
   );
 }
@@ -683,4 +813,61 @@ const styles = StyleSheet.create({
   sendBtnDisabled: { backgroundColor: theme.colors.textMuted, opacity: 0.5 },
   stopBtn: { backgroundColor: theme.colors.text },
   stopSquare: { width: 12, height: 12, borderRadius: 3, backgroundColor: '#FFFFFF' },
+
+  assistantFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 6,
+    paddingTop: 4,
+    gap: 8,
+  },
+  feedbackRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginLeft: 'auto',
+  },
+  feedbackBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.04)',
+  },
+  feedbackBtnActiveUp: {
+    backgroundColor: 'rgba(0, 105, 232, 0.14)',
+  },
+  feedbackBtnActiveDown: {
+    backgroundColor: 'rgba(239, 68, 68, 0.14)',
+  },
+
+  actionSheetContent: {
+    paddingVertical: 12,
+    gap: 10,
+  },
+  actionItem: {
+    ...glassSurface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    minHeight: 48,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.75)',
+  },
+  actionIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 105, 232, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionItemText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
 });

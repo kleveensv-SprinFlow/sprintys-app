@@ -65,6 +65,10 @@ export type UiBlock =
       type: 'competitions';
       query: string;
       items: { id: string; title: string; date: string | null; location: string; snippet: string; url: string | null }[];
+    }
+  | {
+      type: 'suggestions';
+      items: string[];
     };
 
 export type MessagePart = { kind: 'text'; text: string } | { kind: 'ui'; block: UiBlock };
@@ -92,6 +96,8 @@ export function summarizeBlock(b: UiBlock): string {
       return `[Philosophie proposée${b.applied ? ' — enregistrée' : ''}]`;
     case 'competitions':
       return `[Compétitions trouvées : ${b.items.map((i) => i.title).join(' ; ')}]`;
+    case 'suggestions':
+      return `[Suggestions proposées : ${b.items.join(' ; ')}]`;
   }
 }
 

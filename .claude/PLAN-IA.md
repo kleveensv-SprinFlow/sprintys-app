@@ -57,6 +57,7 @@ Plus tard (à décider) : photos dans le chat, « vu par » sur les annonces.
 
 ## État
 - Phase A faite (2026-10-15) : messages chargés par pages de 50, sondage vérifié (question, 2 options distinctes, choix multiple), copie du texte (tous messages), photos de profil dans bulles et en-tête.
+- Phase C (C1, C2, C3) faite (2026-10-15) : suggestions de relance interactives (outil suggest_followups), avis 👍/👎 (table ai_feedback avec RLS), feuille d'actions BottomSheet (copier, PDF, réessayer).
 
 ## Questions (réponses ci-dessus)
 1. Animation de Sprinty : garder les animations Lottie actuelles (à revoir à l'écran) ou un avatar animé refait à

@@ -13,6 +13,7 @@ import {
   PlanProposalBlock,
   SessionsProposalBlock,
 } from './blocks/ProposalBlocks';
+import { SuggestionsBlock } from './blocks/SuggestionsBlock';
 
 const LEGACY_BLOCKS = /```(workout_proposal|analysis_dashboard|metric_picker|competition_results|save_philosophy)[\s\S]*?(```|$)/gi;
 const LEGACY_DASHBOARD = /```analysis_dashboard([\s\S]*?)```/i;
@@ -72,6 +73,8 @@ export function SprintyBlock({
       return <PhilosophyBlock data={block} {...actions} />;
     case 'competitions':
       return <CompetitionsBlock data={block} />;
+    case 'suggestions':
+      return <SuggestionsBlock items={block.items} disabled={!interactive} onSelect={onAnswer} />;
     default:
       return null;
   }
