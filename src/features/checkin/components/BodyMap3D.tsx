@@ -70,10 +70,17 @@ interface BodyMap3DProps {
   /** Le rendu 3D est indisponible sur cet appareil : le parent bascule sur la liste. */
   onUnavailable?: () => void;
   disabled?: boolean;
+  /**
+   * `full` : un doigt tourne, deux doigts zooment (écran dédié).
+   * `tapOnly` : seulement toucher + boutons de vue, pour une carte posée dans une page qui défile.
+   */
+  gestures?: 'full' | 'tapOnly';
+  /** Hauteur fixe (page qui défile) ; sinon la carte prend la place disponible. */
+  height?: number;
 }
 
 export const BodyMap3D = forwardRef<BodyMap3DHandle, BodyMap3DProps>(
-  ({ pains, selected, onSelectZone, onUnavailable, disabled }, ref) => {
+  ({ pains, selected, onSelectZone, onUnavailable, disabled, gestures = 'full', height }, ref) => {
     const theme = useTheme();
     const [ready, setReady] = useState(false);
     const [view, setView] = useState<ViewName | null>('face');
@@ -95,8 +102,8 @@ export const BodyMap3D = forwardRef<BodyMap3DHandle, BodyMap3DProps>(
     const tween = useRef<{ from: Orbit; to: Orbit; t0: number; dur: number } | null>(null);
     const dirty = useRef(true);
     const raf = useRef<number | null>(null);
-    const props = useRef({ pains, selected, onSelectZone, disabled });
-    props.current = { pains, selected, onSelectZone, disabled };
+    const props = useRef({ pains, selected, onSelectZone, disabled, gestures });
+    props.current = { pains, selected, onSelectZone, disabled, gestures };
 
     const syncUi = useCallback(() => {
       const t = three.current;
@@ -200,8 +207,9 @@ export const BodyMap3D = forwardRef<BodyMap3DHandle, BodyMap3DProps>(
     const pan = useRef(
       PanResponder.create({
         onStartShouldSetPanResponder: () => !props.current.disabled,
-        onMoveShouldSetPanResponder: () => !props.current.disabled,
-        onPanResponderTerminationRequest: () => false,
+        onMoveShouldSetPanResponder: () => !props.current.disabled && props.current.gestures === 'full',
+        // En mode « toucher seulement », la page qui défile peut reprendre le geste
+        onPanResponderTerminationRequest: () => props.current.gestures === 'tapOnly',
         onPanResponderGrant: (e) => {
           tween.current = null;
           const n = e.nativeEvent;
@@ -213,6 +221,10 @@ export const BodyMap3D = forwardRef<BodyMap3DHandle, BodyMap3DProps>(
           const st = g.current;
           const o = orbit.current;
           const touches = e.nativeEvent.touches;
+          if (props.current.gestures === 'tapOnly') {
+            if (Math.hypot(e.nativeEvent.pageX - st.x0, e.nativeEvent.pageY - st.y0) > 8) st.moved = true;
+            return;
+          }
           if (touches.length >= 2) {
             const [a, b] = touches;
             const d = Math.hypot(a.pageX - b.pageX, a.pageY - b.pageY);
@@ -384,7 +396,7 @@ export const BodyMap3D = forwardRef<BodyMap3DHandle, BodyMap3DProps>(
     const sideRight = front ? 'GAUCHE' : 'DROITE';
 
     return (
-      <View style={[styles.stage, { borderColor: theme.colors.hairline }]}>
+      <View style={[styles.stage, { borderColor: theme.colors.hairline }, height ? { flex: 0, height, minHeight: height } : null]}>
         <View style={StyleSheet.absoluteFill} onLayout={onLayout} {...pan.panHandlers}>
           <GLView style={StyleSheet.absoluteFill} onContextCreate={onContextCreate} msaaSamples={4} />
         </View>

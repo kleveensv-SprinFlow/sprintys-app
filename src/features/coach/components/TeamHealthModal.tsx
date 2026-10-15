@@ -12,6 +12,7 @@ import { SegmentedControl } from '../../../shared/components/SegmentedControl';
 import { Skeleton, SkeletonCard } from '../../../shared/components/Skeleton';
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 import { painLabel } from '../../checkin/painTaxonomy';
+import { TeamPainZones } from './TeamPainZones';
 
 interface Props {
   visible: boolean;
@@ -39,6 +40,19 @@ export const TeamHealthModal = ({ visible, onClose }: Props) => {
   const { teamMembers, teamCheckIns, subgroups, isLoading } = useCoachStore();
   const [expandedAthleteId, setExpandedAthleteId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<Filter>('all');
+  const painMembers = useMemo(
+    () =>
+      teamMembers.map((m) => ({
+        id: m.user_id,
+        name: m.profile?.first_name || m.profile?.full_name?.split(' ')[0] || 'Athlète',
+      })),
+    [teamMembers]
+  );
+  const today = useMemo(() => {
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }, [visible]);
 
   const calculateScore = (ci: Database['public']['Tables']['check_ins']['Row'] | null | undefined) => {
     if (!ci) return null;
@@ -524,6 +538,8 @@ export const TeamHealthModal = ({ visible, onClose }: Props) => {
                 </View>
               </View>
             )}
+
+            {!showSkeleton && <TeamPainZones members={painMembers} today={today} active={visible} />}
 
             {/* Filtres */}
             {!showSkeleton && teamMembers.length > 0 && (

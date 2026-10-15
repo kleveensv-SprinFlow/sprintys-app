@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 
 export interface TeamAlertReason {
-  code: 'low_form' | 'pain' | 'no_checkin' | 'missed' | 'load';
+  code: 'low_form' | 'pain' | 'pain_persistent' | 'no_checkin' | 'missed' | 'load';
   severity: 'high' | 'medium';
   label: string;
   detail: string;

@@ -6,6 +6,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { theme } from '../../../src/core/theme';
 import { Feather } from '@expo/vector-icons';
 import { checkInService, CheckInData } from '../../../src/services/checkInService';
+import { CoachPainSummary } from '../../../src/features/checkin/components/CoachPainSummary';
+import { zoneById, zoneLabel } from '../../../src/features/checkin/bodyZones';
+import { intensityColor, painLabel } from '../../../src/features/checkin/painTaxonomy';
 import { useCoachStore } from '../../../src/store/coach/coachStore';
 import { glassCard } from '../../../src/core/glass';
 import { GlassSheen } from '../../../src/shared/components/GlassSheen';
@@ -69,6 +72,7 @@ export default function AthleteDetailScreen() {
   }, [id, coachId]);
 
   const [latestCheckIn, setLatestCheckIn] = useState<CheckInData | null>(null);
+  const [checkInHistory, setCheckInHistory] = useState<CheckInData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const [refreshKey, setRefreshKey] = useState(0);
@@ -85,8 +89,10 @@ export default function AthleteDetailScreen() {
   const loadCheckIn = async (athleteId: string) => {
     setIsLoading(true);
     try {
-      const history = await checkInService.fetchRecentCheckIns(athleteId, 3);
+      // 14 jours : le dernier bilan + l'historique des douleurs
+      const history = await checkInService.fetchRecentCheckIns(athleteId, 14);
       setLatestCheckIn(history.length > 0 ? history[0] : null);
+      setCheckInHistory(history);
     } catch (e) {
       console.error(e);
     } finally {
@@ -289,8 +295,8 @@ export default function AthleteDetailScreen() {
                 {latestCheckIn.pains.map((pain, idx) => (
                   <View key={idx} style={styles.painItem}>
                     <View style={styles.painItemHeader}>
-                      <View style={[styles.dot, { backgroundColor: getScoreColor(100 - (pain.intensity * 10)) }]} />
-                      <Text style={styles.painName}>{pain.muscle_name} {pain.side ? `(${pain.side})` : ''}</Text>
+                      <View style={[styles.dot, { backgroundColor: intensityColor(pain.intensity).css }]} />
+                      <Text style={styles.painName}>{zoneById(pain.muscle_id) ? zoneLabel(pain.muscle_id, pain.side) : painLabel(pain)}</Text>
                       <Text style={styles.painIntensity}>{pain.intensity}/10</Text>
                     </View>
                     <Text style={styles.painType}>{pain.type}</Text>
@@ -300,6 +306,14 @@ export default function AthleteDetailScreen() {
               </View>
             )}
           </View>
+        )}
+
+        {/* DOULEURS SUR 14 JOURS */}
+        {!isLoading && (
+          <>
+            <Text style={styles.sectionTitle}>Douleurs · 14 derniers jours</Text>
+            <CoachPainSummary history={checkInHistory} today={localToday()} athleteName={name} />
+          </>
         )}
 
         {/* PERFORMANCE */}

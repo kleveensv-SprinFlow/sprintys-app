@@ -49,6 +49,13 @@ Relire `CheckInSummaryModal` et le point d'entrée ; rappel du check-in (infra p
    Maquette silhouette : https://claude.ai/artifact/ThLHX1BwyKPJDYqhxZyuM8 (2D face/dos, côté déduit du toucher ; nouvelles zones `tibias`, `dorsaux`). 3D écartée pour l'instant (poids, perf Android, ciblage plus lent, licence des modèles).
    Ancienne formulation :  (Phase 3 : réutiliser l'infra push `20261023100000_push_notifications.sql`, seuil = règle d'alerte commune `isCriticalPain`, déclenchée à l'enregistrement du check-in, respectant le consentement `health_data`).
 
+## État Phase 3 (2026-10-15)
+- Fiche athlète (coach) : section « Douleurs · 14 derniers jours » (`CoachPainSummary`) : corps 3D en mode toucher seul (la page défile), couleur = intensité max, liste triée (persistantes d'abord), commentaire au toucher.
+- Forme de l'équipe : carte « Zones qui reviennent · 7 jours » (`TeamPainZones`), nombre d'athlètes par zone, persistances.
+- Alertes : `get_team_alerts` précise le côté et ajoute « Douleur qui dure » (même zone + côté, 3 j sur 7 ; grave si ≥ 7/10). Migration `20261025110000_alerts_persistent_pain.sql` appliquée, fonction exécutée sans erreur avec un vrai coach.
+- Sprinty : le contexte IA liste les douleurs qui durent.
+- Non fait : carte 3D de chaleur pour toute l'équipe (liste seulement), test sur téléphone.
+
 ## État Phase 2 (2026-10-15)
 - Carte du corps **3D** intégrée à l'étape douleurs (`BodyMap3D`), vue liste conservée en secours (bascule + repli auto si la 3D échoue).
 - Modèle Z-Anatomy regroupé en 26 zones G/D ; aponévroses de l'oblique et du grand dorsal découpées pour que abdominaux et lombaires soient touchables.

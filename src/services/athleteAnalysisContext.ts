@@ -13,6 +13,7 @@
 import { supabase } from './supabase';
 import { formatActivity } from '../features/nutrition/calorieTarget';
 import { painLabel } from '../features/checkin/painTaxonomy';
+import { summarizePains } from '../features/checkin/painHistory';
 
 export type AnalysisDomain = 'training' | 'nutrition' | 'wellness' | 'body';
 
@@ -517,6 +518,10 @@ function buildWellnessSection(checkins: any[]) {
   });
 
   const chronicZones = Array.from(allZoneCounts.entries()).filter(([_, count]) => count >= 3).map(([z, c]) => `${z} (${c}x dans l'historique)`);
+  // Même règle que l'alerte coach « Douleur qui dure » : même zone et même côté, 3 jours ou plus sur 7
+  const persistentPains = summarizePains(checkins, todayStr(), 7)
+    .filter(t => t.persistent)
+    .map(t => `${t.label} (${t.daysLast7} j sur 7, max ${t.maxIntensity}/10, dernier ${t.lastIntensity}/10 le ${t.lastDate})`);
 
   const summary = [
     `- Check-ins remplis : ${checkins.length} au total · ${last30.length}/${FOCUS_DAYS} sur les ${FOCUS_DAYS} derniers jours · dernier : ${toLocalDay(checkins[0]?.date) || 'aucun'}`,
@@ -525,6 +530,9 @@ function buildWellnessSection(checkins: any[]) {
     activeSignificantPains.length > 0
       ? `🚨 DOULEURS ACTIVES RÉCENTES (< 7j, à surveiller) : ${activeSignificantPains.join(' ; ')}`
       : '✅ AUCUNE douleur aiguë active sur les 7 derniers jours.',
+    persistentPains.length > 0
+      ? `⚠️ DOULEURS QUI DURENT (même zone 3+ jours sur 7, le coach a une alerte) : ${persistentPains.join(' ; ')}`
+      : '',
     chronicZones.length > 0
       ? `⚠️ ZONES CHRONIQUES OU RÉCURRENTES (3+ fois) : ${chronicZones.join(', ')}`
       : '✅ Aucune zone chronique récurrente.',
