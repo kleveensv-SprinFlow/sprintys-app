@@ -45,7 +45,9 @@ Relire `CheckInSummaryModal` et le point d'entrée ; rappel du check-in (infra p
 ## Décisions de l'utilisateur (2026-10-15)
 1. Sommeil/mental : **préremplir avec la dernière réponse + confirmation explicite** (« C'est bien ça »). Un pilier passé reste vide. ✔ implémenté en Phase 1.
 2. Silhouette : on teste ; **les muscles doivent être identifiables facilement, de face et de dos** (donc un dessin plus anatomique que de simples capsules : muscles nommés/contours lisibles, étiquettes au toucher). À valider sur maquette avant code.
-3. **Notification push au coach pour une douleur forte** (Phase 3 : réutiliser l'infra push `20261023100000_push_notifications.sql`, seuil = règle d'alerte commune `isCriticalPain`, déclenchée à l'enregistrement du check-in, respectant le consentement `health_data`).
+3. **Notification push au coach pour une douleur forte** — constat 2026-10-15 : le trigger `push_on_checkin` existe déjà en base et notifie le coach pour **toute** douleur (même 2/10) ou forme ≤ 40 ; à resserrer sur `isCriticalPain`. Note : les migrations du 14 au 24 oct. ont été appliquées à la main (absentes de `supabase_migrations.schema_migrations`), seules celles de Phase 1 sont tracées.
+   Maquette silhouette : https://claude.ai/artifact/ThLHX1BwyKPJDYqhxZyuM8 (2D face/dos, côté déduit du toucher ; nouvelles zones `tibias`, `dorsaux`). 3D écartée pour l'instant (poids, perf Android, ciblage plus lent, licence des modèles).
+   Ancienne formulation :  (Phase 3 : réutiliser l'infra push `20261023100000_push_notifications.sql`, seuil = règle d'alerte commune `isCriticalPain`, déclenchée à l'enregistrement du check-in, respectant le consentement `health_data`).
 
 ## État
 - **Phase 1 : faite en local** (voir commit). 1.1 taxonomie, 1.2 zone+côté, 1.3 confirmation/piliers nuls, 1.4 cycle + code mort supprimés, 1.5 tests (jest-expo, 12 tests). La règle SQL `get_team_alerts` était déjà alignée (≥7 ou ≥5 aigu) : pas de changement SQL d'alerte à ce stade.
