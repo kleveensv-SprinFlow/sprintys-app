@@ -1,17 +1,17 @@
 /**
  * Publisher details shown in the legal texts (mentions légales, privacy policy, terms).
  *
- * Empty fields are not shown. Add the SIRET and the address once the micro-enterprise is registered.
+ * Empty fields are not shown. The registration and the address below are the real ones.
  * Keep docs/*.html in sync (same values) — they are the public versions of these texts.
  */
 export const PUBLISHER = {
-  /** Nom de l'éditeur (personne physique tant que la micro-entreprise n'est pas immatriculée). */
+  /** Nom de l'éditeur. */
   companyName: 'Kleveens Verviers (nom commercial : Sprintys)',
-  /** Statut. À remplacer par « Entrepreneur individuel (micro-entreprise) » à l'immatriculation. */
+  /** Statut affiché. Ne pas le changer sans confirmation : ce n'est pas encore « micro-entreprise ». */
   legalForm: 'Entrepreneur individuel',
-  /** SIRET, à ajouter dès réception (laisser vide sinon : la ligne n'est pas affichée). */
+  /** SIREN / RCS. */
   registration: 'RCS Marseille 983 727 777 (SIREN 983 727 777)',
-  /** Adresse, à ajouter avec le SIRET (laisser vide sinon : la ligne n'est pas affichée). */
+  /** Adresse. */
   address: '1022 Route de Cassis, 13830 Roquefort-la-Bédoule, France',
   /** Directeur ou directrice de la publication. */
   publicationDirector: 'Kleveens Verviers',

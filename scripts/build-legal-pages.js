@@ -49,13 +49,16 @@ const nav = (current) =>
     .map(([href, label]) => `<a href="${href}"${href === current ? ' aria-current="page"' : ''}>${label}</a>`)
     .join('');
 
-const page = (file, title, body) => `<!doctype html>
+const page = (file, title, body, meta = {}) => {
+  const documentTitle = meta.documentTitle || `${title} · Sprintys`;
+  const description = meta.description || `${title} de l'application Sprintys.`;
+  return `<!doctype html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(title)} · Sprintys</title>
-<meta name="description" content="${esc(title)} de l'application Sprintys.">
+<title>${esc(documentTitle)}</title>
+<meta name="description" content="${esc(description)}">
 <style>
   :root { --bg:#EDF1F7; --card:rgba(255,255,255,.82); --text:#0F172A; --muted:#64748B; --blue:#0069E8; --line:rgba(15,23,42,.08); }
   * { box-sizing: border-box; }
@@ -88,6 +91,7 @@ const page = (file, title, body) => `<!doctype html>
 </body>
 </html>
 `;
+};
 
 const highlight = (s) => esc(s).replace(/(À COMPLÉTER[^,.]*)/g, '<span class="todo">$1</span>');
 
@@ -156,7 +160,11 @@ fs.writeFileSync(
 <p><a href="suppression-compte.html">Supprimer ton compte</a></p>
 <p><a href="support.html">Assistance</a></p>
 <h2>Contact</h2>
-<p><a href="mailto:${esc(PUBLISHER.contactEmail)}">${esc(PUBLISHER.contactEmail)}</a></p>`
+<p><a href="mailto:${esc(PUBLISHER.contactEmail)}">${esc(PUBLISHER.contactEmail)}</a></p>`,
+    {
+      documentTitle: 'Sprintys',
+      description: 'Application d’entraînement en athlétisme pour les athlètes et leurs coachs.',
+    }
   )
 );
 

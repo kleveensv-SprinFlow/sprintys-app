@@ -1,56 +1,40 @@
-# SprintFlow V2 - Élite Athletic Platform
+# Sprintys
 
-SprintFlow est une application de gestion de la performance pour les athlètes de haut niveau et leurs coachs. L'architecture est conçue pour la fluidité, la précision des données et une expérience utilisateur "Élite".
+Application pour les athlètes et leurs coachs : séances, forme du jour, nutrition, discussions d’équipe et assistant Sprinty.
 
-## 🚀 Fonctionnalités Clés
+L’application s’appelle **Sprintys**. L’écran est en thème clair. Le dossier technique s’appelle encore `sprintflow-v2` : c’est normal, ce n’est pas le nom affiché.
 
-- **Système Intelligent (Sprinty)** : Moteur d'insights contextuels croisant les données d'entraînement, le poids de corps et les conditions météo.
-- **Espace Coach** : Supervision en temps réel des athlètes, constructeur de séances dynamique (Lactique, Musculation, Aérobie) et historique détaillé.
-- **Espace Athlète** : Exécution de séances avec feedback haptique, suivi des métriques corporelles et coaching météo prédictif.
-- **Moteur Météo** : Recommandations d'équipement basées sur la thermorégulation et les conditions réelles via Open-Meteo.
-- **Design Élite** : Interface full Dark Mode, Glassmorphism et micro-interactions à 60 FPS.
+## Lancer
 
-## 🏗️ Architecture Technique
+1. `npm install`
+2. Créer un fichier `.env` à la racine, sans le partager ni le publier :
 
-- **Framework** : Expo (React Native) avec Expo Router.
-- **State Management** : Zustand (Architecture modulaire sans dépendances circulaires).
-- **Backend** : Supabase (Auth, DB, JSONB pour la flexibilité des séances).
-- **UI** : Vanilla CSS/StyleSheet avec Design System centralisé (`src/core/theme.ts`).
-- **Feedback** : Expo-Haptics pour une immersion tactile totale.
+```
+EXPO_PUBLIC_SUPABASE_URL=votre_url
+EXPO_PUBLIC_SUPABASE_ANON_KEY=votre_clef
+```
 
-## 🛠️ Installation et Lancement
+3. `npm start`
 
-1. **Clonage du repository**
-   ```bash
-   git clone <repo-url>
-   cd sprintflow-v2
-   ```
+## Vérifier
 
-2. **Installation des dépendances**
-   ```bash
-   npm install
-   ```
+- `npm test`
+- `npm run typecheck`
 
-3. **Configuration Supabase**
-   Créez un fichier `.env` à la racine avec :
-   ```
-   EXPO_PUBLIC_SUPABASE_URL=votre_url
-   EXPO_PUBLIC_SUPABASE_ANON_KEY=votre_clef
-   ```
+## Textes officiels
 
-4. **Lancement de l'application**
-   ```bash
-   npx expo start
-   ```
+Les textes de l’application (conditions, confidentialité, mentions) sont dans `src/legal/`. Le nom, l’adresse, le SIREN et l’e-mail de contact viennent uniquement de `src/legal/publisher.ts`.
 
-## 📂 Structure du Projet
+Les pages du site public se régénèrent avec :
 
-- `app/` : Routing et Layouts (Zéro logique métier).
-- `src/core/` : Configuration système (Supabase, Thème).
-- `src/features/` : Modules fonctionnels (Coach, Workout, Body, Sprinty).
-- `src/services/` : Logique d'API et moteurs de calcul (Insight Engine, Weather).
-- `src/store/` : Orchestration de l'état (Zustand).
-- `src/shared/` : Composants réutilisables et utilitaires d'animation.
+```
+node scripts/build-legal-pages.js
+```
 
----
-*SprintFlow - Excellence in Motion.*
+Ne pas modifier les fichiers `docs/*.html` à la main.
+
+Contact : sprinty.flow@gmail.com
+
+## Stores
+
+Les textes à coller dans l’App Store et sur Google Play, et l’état des captures, sont dans `store/STORE_LISTING.md`.

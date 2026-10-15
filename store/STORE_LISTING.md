@@ -55,6 +55,8 @@ ABONNEMENT FACULTATIF (Plus)
 • Gratuit : recherche d'aliments et scan de code-barres sans limite, plus chaque semaine un essai de l'analyse de repas par IA (photo ou phrase), de Sprinty et d'un plan de 2 semaines.
 • Plus : analyse de repas par photo et en une phrase sans limite, plus de messages à Sprinty, objectif calorique qui s'adapte à ta courbe de poids, bilan de la semaine en PDF, plans d'entraînement jusqu'à 12 semaines, recherche de compétitions et export PDF.
 • 7 jours d'essai gratuit. Abonnement à renouvellement automatique, résiliable à tout moment dans les réglages de ton compte Apple ou Google Play. Rien n'est supprimé si tu arrêtes.
+
+Sprinty est une intelligence artificielle, pas un avis médical. En cas de douleur ou de doute, consulte un professionnel de santé.
 ```
 
 ### Mots-clés (App Store, 100 caractères max, séparés par des virgules)
@@ -73,7 +75,7 @@ Bienvenue sur Sprintys : séances, forme du jour, nutrition, discussions d'équi
 
 ## 3. Classification
 
-- **Âge minimum dans l'app : 15 ans.** C'est vérifié à l'inscription et côté serveur une fois la migration appliquée.
+- **Âge minimum dans l'app : 15 ans.** C'est vérifié à l'inscription et côté serveur.
 - **Apple (questionnaire d'âge) :**
   - contenu généré par les utilisateurs : **oui** (messagerie d'équipe), avec signalement et blocage ;
   - informations médicales / de santé : **oui, sans diagnostic** ;
@@ -136,27 +138,20 @@ Bienvenue sur Sprintys : séances, forme du jour, nutrition, discussions d'équi
 
 ---
 
-## 6. Captures d'écran à produire
+## 6. Captures d'écran
 
-**Formats :**
-- iPhone 6,9" (1320 × 2868) : obligatoire ;
-- iPhone 6,5" : facultatif ;
-- Android : au moins 2 captures en 1080 × 1920 ou plus ;
-- Google Play : visuel de présentation (feature graphic) en 1024 × 500.
+Les fichiers sont déjà dans `store/screenshots/`. Tailles vérifiées le 15 octobre 2026 :
 
-**Contenu :** 6 à 8 captures, sur des comptes de démonstration avec des données réalistes. Ne jamais utiliser de vraies données d'athlètes.
-1. Accueil athlète : « Bonjour [Prénom] », forme du jour et séance du jour.
-2. Détail d'une séance de sprint (blocs et répétitions).
-3. Check-in : étape énergie / sommeil.
-4. Nutrition : piste énergétique et repas du jour.
-5. Écran Poids : courbe pleine largeur.
-6. Sprinty : une conversation de conseil de récupération.
-7. Coach : forme de l'équipe et séances du jour.
-8. Coach : constructeur de séance.
+| Dossier | Taille | Statut |
+|---|---|---|
+| `ios-6.9/` (6 images) | 1290 × 2796 | Accepté par Apple pour l'iPhone 6,9 pouces |
+| `android/` (6 images) | 1080 × 1920 | Bon pour Google Play |
+| `google-play/banniere-1024x500.png` | 1024 × 500 | Bon |
+| `google-play/icone-512.png` | 512 × 512 | Bon |
 
-Légendes courtes, sur le fond bleu de la marque, par exemple :
-- « Ta forme du jour, en un coup d'œil » ;
-- « Des séances précises, bloc par bloc ».
+Les 6 écrans : accueil, Sprinty, nutrition, séances, poids, équipe du coach. Ne pas y mettre de vraies données d'athlètes.
+
+Longueurs des textes ci-dessus, vérifiées : description courte 75 caractères sur 80, texte promotionnel 141 sur 170, mots-clés 93 sur 100.
 
 ---
 
@@ -190,8 +185,8 @@ Sprintys is a training app for track & field athletes and their coaches.
 ## 8. Checklist avant publication
 
 **À faire par toi** (impossible depuis cet environnement) :
-- [x] Mentions légales remplies (nom, e-mail). **À compléter dès la micro-entreprise créée** : SIRET et adresse dans `src/legal/publisher.ts` (`registration`, `address`, `legalForm`), puis `node scripts/build-legal-pages.js`.
-- [ ] Activer GitHub Pages (gratuit, le dépôt est public) : Settings → Pages → Source « Deploy from a branch » → branche `master`, dossier `/docs` → Save. Après 1 à 2 minutes, les 4 URL ci-dessus doivent répondre (Supabase ne peut pas servir ces pages : il force du texte brut).
+- [x] Mentions légales remplies : nom, e-mail, SIREN et adresse sont dans `src/legal/publisher.ts` et sur les pages publiques. Le statut affiché reste « Entrepreneur individuel ». Dis-le si le statut exact doit plutôt être « micro-entreprise ».
+- [x] Pages publiques en ligne (vérifié le 15 octobre 2026) : confidentialité, conditions, suppression de compte et accueil répondent.
 - [ ] Créer et vérifier l'adresse de support définitive. Si elle change, mettre à jour `contactEmail` et `privacyEmail` dans `publisher.ts`.
 - [ ] Changer le mot de passe du compte dont les identifiants figuraient dans `scripts/create-coach.js` et `scripts/test-subgroup.js` (scripts supprimés du dépôt, mais encore présents dans l'historique git).
 - [x] (fait le 14/10) Approuver puis appliquer la migration `supabase/migrations/20261014090000_legal_consents_blocks.sql`. Elle ajoute :
@@ -205,7 +200,7 @@ Sprintys is a training app for track & field athletes and their coaches.
 - [ ] Supabase → Authentication → URL Configuration : vérifier que `sprintflowv2://auth/callback` est dans les Redirect URLs (connexion Google et lien « mot de passe oublié »).
 - [ ] Mettre en place les abonnements en suivant `store/MONETIZATION_SETUP.md` (produits, RevenueCat, clés dans les secrets GitHub, accord « Applications payantes »).
 - [x] (fait) Créer les deux comptes de démonstration (section 7).
-- [ ] Produire les captures (section 6).
+- [x] Captures prêtes (section 6).
 - [ ] Tester sur TestFlight :
   - connexion Apple ;
   - inscription complète et code e-mail ;
