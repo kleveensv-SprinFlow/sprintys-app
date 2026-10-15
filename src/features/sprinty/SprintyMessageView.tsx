@@ -1,6 +1,10 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { RichChatMessage } from '../../components/RichChatMessage';
+
+/** Parfois le modèle écrit l'appel d'un outil comme du texte : on le retire de l'affichage. */
+const TOOL_TEXT = /(suggest_followups|ask_choices|show_stats|show_chart|show_table|propose_[a-z_]+|list_athletes|get_[a-z_]+|weekly_summary|team_readiness|draft_announcement)s*([sS]*?)s*/g;
+export const cleanText = (t: string) => t.replace(TOOL_TEXT, '').trim();
 import { AIAnalysisDashboardCard } from '../../components/AIAnalysisDashboardCard';
 import type { MessagePart, UiBlock } from './types';
 import { ChartBlock } from './blocks/ChartBlock';
@@ -105,7 +109,7 @@ export function SprintyMessageView({ parts, content, interactive, onAnswer, onAs
     <View style={styles.stack}>
       {parts.map((p, i) =>
         p.kind === 'text' ? (
-          p.text.trim() ? <RichChatMessage key={i} content={p.text.trim()} /> : null
+          cleanText(p.text) ? <RichChatMessage key={i} content={cleanText(p.text)} /> : null
         ) : (
           <SprintyBlock
             key={i}
