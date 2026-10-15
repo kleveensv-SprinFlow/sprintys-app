@@ -50,7 +50,13 @@ jobs:
       - name: Set build number
         run: node scripts/set-build-number.js $((100 + ${{ github.run_number }}))
 
+      - name: Write google-services.json (server push notifications)
+        if: ${{ vars.PUSH_ENABLED == '1' }}
+        run: echo "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" | base64 -d > google-services.json
+
       - name: Expo Prebuild (Generate Android Folder)
+        env:
+          PUSH_ENABLED: ${{ vars.PUSH_ENABLED }}
         run: npx expo prebuild -p android --no-install
 
       - name: Configure Release Keystore & Signing

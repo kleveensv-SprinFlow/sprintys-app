@@ -10,6 +10,7 @@ import { theme } from '../../src/core/theme';
 import { glassCard } from '../../src/core/glass';
 import { useAuthStore } from '../../src/store/authStore';
 import { useCoachStore, useCurrentTeam } from '../../src/store/coach/coachStore';
+import { NotificationInvite } from '../../src/features/notifications/NotificationInvite';
 import { TeamSwitcher } from '../../src/features/coach/components/TeamSwitcher';
 import { workoutService } from '../../src/services/workoutService';
 import { WeatherCard } from '../../src/shared/components/WeatherCard';
@@ -152,6 +153,7 @@ export default function CoachDashboardScreen() {
         </Appear>
 
         <Appear index={1}>
+        {!loadingTeams && !!team && <NotificationInvite role="coach" />}
         {loadingTeams ? (
           <View style={[glassCard, styles.card]}>
             <Skeleton width="40%" height={12} />

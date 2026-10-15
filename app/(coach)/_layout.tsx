@@ -22,6 +22,7 @@ export default function CoachTabsLayout() {
       <Tabs.Screen name="profile" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="athlete" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="day" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="week" options={{ href: null, tabBarStyle: { display: 'none' } }} />
     </Tabs>
   );
 }

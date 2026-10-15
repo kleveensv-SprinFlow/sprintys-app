@@ -23,6 +23,8 @@ interface CopyWorkoutModalProps {
   onClose: () => void;
   workout: any;
   onCopied: () => void;
+  /** 'move' changes the day of the session instead of planning a copy */
+  mode?: 'copy' | 'move';
 }
 
 export const CopyWorkoutModal: React.FC<CopyWorkoutModalProps> = ({
@@ -30,6 +32,7 @@ export const CopyWorkoutModal: React.FC<CopyWorkoutModalProps> = ({
   onClose,
   workout,
   onCopied,
+  mode = 'copy',
 }) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -78,13 +81,18 @@ export const CopyWorkoutModal: React.FC<CopyWorkoutModalProps> = ({
     setIsSubmitting(true);
     
     try {
-      await workoutService.duplicateWorkout(workout, selectedDate);
-      showFeedback('success', 'Séance copiée avec succès');
+      if (mode === 'move') {
+        await workoutService.moveWorkout(workout, selectedDate);
+        showFeedback('success', 'Séance déplacée');
+      } else {
+        await workoutService.duplicateWorkout(workout, selectedDate);
+        showFeedback('success', 'Séance copiée avec succès');
+      }
       onCopied();
       onClose();
     } catch (error) {
       console.error('Error duplicating workout:', error);
-      showFeedback('error', 'Erreur lors de la copie de la séance');
+      showFeedback('error', mode === 'move' ? 'Impossible de déplacer la séance' : 'Erreur lors de la copie de la séance');
     } finally {
       setIsSubmitting(false);
     }
@@ -251,12 +259,12 @@ export const CopyWorkoutModal: React.FC<CopyWorkoutModalProps> = ({
       <View style={styles.container}>
         <View style={styles.header}>
           <IconButton icon="x" onPress={onClose} accessibilityLabel="Fermer" />
-          <Text style={styles.headerTitle}>Copier la séance</Text>
+          <Text style={styles.headerTitle}>{mode === 'move' ? 'Déplacer la séance' : 'Copier la séance'}</Text>
           <View style={styles.rightPlaceholder} />
         </View>
 
         <View style={styles.content}>
-          <Text style={styles.subtitle}>Choisis le jour où planifier une copie de cette séance.</Text>
+          <Text style={styles.subtitle}>{mode === 'move' ? 'Choisis le nouveau jour de cette séance. L’heure ne change pas.' : 'Choisis le jour où planifier une copie de cette séance.'}</Text>
 
           <View style={styles.calendarCard}>
             <View style={styles.monthSelector}>
@@ -327,7 +335,7 @@ export const CopyWorkoutModal: React.FC<CopyWorkoutModalProps> = ({
 
         <View style={styles.footer}>
           <Button
-            title="Copier"
+            title={mode === 'move' ? 'Déplacer' : 'Copier'}
             onPress={handleCopy}
             loading={isSubmitting}
             disabled={!selectedDate}

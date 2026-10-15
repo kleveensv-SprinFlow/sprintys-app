@@ -1,5 +1,5 @@
 import { goBack } from '../../core/navigation';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Constants from 'expo-constants';
 import { View, Text, StyleSheet, Image, Linking, Animated, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -31,6 +31,7 @@ import { getActivePlan, removePlan } from '../sprinty/proposalWriter';
 import { useEntitlementStore } from '../../store/entitlementStore';
 import { openManageSubscriptions, restorePurchases } from '../../services/purchases';
 import { planLabel } from '../billing/plans';
+import { NotifStatus, disableNotifications, enableNotifications, notificationStatus } from '../../services/notifications';
 
 const APP_VERSION = Constants.expoConfig?.version ?? '';
 
@@ -84,6 +85,34 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
   const aiConsent = useConsentStore((s) => !!s.active?.has('ai_processing'));
   const painConsent = useConsentStore((s) => !!s.active?.has('health_data'));
   const inTeam = useConsentStore((s) => s.inTeam);
+
+  const [notif, setNotif] = useState<NotifStatus>('unavailable');
+  useEffect(() => {
+    if (user?.id) notificationStatus(user.id).then(setNotif);
+  }, [user?.id]);
+  const toggleNotifications = async () => {
+    if (!user?.id) return;
+    if (notif === 'on') {
+      const ok = await confirmAsync({
+        title: 'Désactiver les notifications ?',
+        message: isAthlete ? 'Tu ne recevras plus de rappel avant tes séances.' : 'Tu ne recevras plus les alertes de tes athlètes.',
+        confirmText: 'Désactiver',
+        destructive: true,
+        icon: 'bell-off',
+      });
+      if (!ok) return;
+      await disableNotifications(user.id);
+      setNotif('off');
+      return;
+    }
+    const next = await enableNotifications(user.id, isAthlete ? 'athlete' : 'coach');
+    setNotif(next);
+    if (next === 'on') toast('success', isAthlete ? 'Tu seras prévenu avant tes séances.' : 'Notifications activées.');
+    else if (next === 'denied') {
+      toast('info', 'Autorise les notifications pour Sprintys dans les réglages de ton téléphone.');
+      Linking.openSettings().catch(() => undefined);
+    }
+  };
 
   const [editVisible, setEditVisible] = useState(false);
   const [faqVisible, setFaqVisible] = useState(false);
@@ -398,6 +427,23 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
               <GlassSheen radius={22} />
               <ListRow icon="flag" title={sprintyPlan.title} subtitle="Proposé par Sprinty (IA)" onPress={() => router.push('/chat/sprinty')} />
               <ListRow icon="x-circle" title="Retirer le plan" subtitle="Supprime les séances à venir" destructive chevron={false} onPress={removeSprintyPlan} last />
+            </View>
+          </>
+        )}
+
+        {notif !== 'unavailable' && (
+          <>
+            <Text style={styles.section}>NOTIFICATIONS</Text>
+            <View style={[glassCard, styles.card]}>
+              <GlassSheen radius={22} />
+              <ListRow
+                icon="bell"
+                title={isAthlete ? 'Rappels de séance' : 'Notifications'}
+                subtitle={isAthlete ? 'Un rappel avant chaque séance prévue' : 'Alertes de tes athlètes et de ton équipe'}
+                value={notif === 'on' ? 'Activées' : notif === 'denied' ? 'Bloquées' : 'Désactivées'}
+                onPress={toggleNotifications}
+                last
+              />
             </View>
           </>
         )}

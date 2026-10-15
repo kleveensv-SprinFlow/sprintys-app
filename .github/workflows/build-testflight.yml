@@ -43,6 +43,8 @@ jobs:
         run: node scripts/set-build-number.js $((100 + ${{ github.run_number }}))
 
       - name: Expo Prebuild (Generate iOS Native Folder)
+        env:
+          PUSH_ENABLED: ${{ vars.PUSH_ENABLED }}
         run: npx expo prebuild -p ios --no-install
 
       - name: Install CocoaPods

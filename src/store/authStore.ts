@@ -10,6 +10,7 @@ import { useSprintyChatStore } from './sprintyChatStore';
 import { useConsentStore } from './consentStore';
 import { useOnboardingStore } from './onboardingStore';
 import type { ConsentType } from '../legal/consents';
+import { unregisterPushToken } from '../services/notifications';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -609,6 +610,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    // This phone stops receiving this account's notifications (best effort, before the session ends)
+    const leaving = get().user?.id;
+    if (leaving) await unregisterPushToken(leaving).catch(() => undefined);
     try {
       await supabase.auth.signOut();
     } catch (err) {

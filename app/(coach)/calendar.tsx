@@ -126,6 +126,16 @@ export default function CoachCalendarScreen() {
           <TeamSwitcher />
           <PressableScale
             haptic="light"
+            onPress={() => router.push('/(coach)/week')}
+            accessibilityRole="button"
+            accessibilityLabel="Vue semaine"
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: theme.colors.glassFill }}
+          >
+            <Feather name="list" size={13} color={theme.colors.sprintyBlue} />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.sprintyBlue }}>Semaine</Text>
+          </PressableScale>
+          <PressableScale
+            haptic="light"
             onPress={() => setIsCopyWeekVisible(true)}
             accessibilityRole="button"
             accessibilityLabel="Copier la semaine"

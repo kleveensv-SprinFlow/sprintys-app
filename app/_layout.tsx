@@ -12,6 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { AppErrorScreen } from '../src/shared/components/AppErrorScreen';
 import { OfflineBanner } from '../src/shared/components/OfflineBanner';
 import { OutboxSync } from '../src/shared/components/OutboxSync';
+import { NotificationsSync } from '../src/shared/components/NotificationsSync';
 import { AIConsentSheet } from '../src/features/legal/AIConsentSheet';
 import { TourOverlay } from '../src/features/onboarding/TourOverlay';
 import { useOnboardingStore } from '../src/store/onboardingStore';
@@ -132,6 +133,7 @@ export default function RootLayout() {
       </Stack>
       <OfflineBanner />
       <OutboxSync />
+      <NotificationsSync />
       <TourOverlay />
       <PaywallSheet />
       <AIConsentSheet />

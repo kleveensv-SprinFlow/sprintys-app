@@ -21,6 +21,79 @@ function generateUUID() {
 }
 
 /** A copy of a session is a fresh plan: what the athlete wrote on the original (comment) does not follow it. */
+
+/** Keeps the coach's master copy and the rows of athletes still approved in their team (people who left get no copy). */
+const keepCurrentMembers = async (rows: any[], coachId: string): Promise<any[]> => {
+  const teamIds = [...new Set(rows.map((w: any) => w.team_id).filter(Boolean))] as string[];
+  if (teamIds.length === 0) return rows;
+  const { data, error } = await supabase.from('team_members').select('team_id, user_id, status').in('team_id', teamIds);
+  if (error) throw error;
+  const approved = new Set((data || []).filter((m: any) => (m.status || 'approved') === 'approved').map((m: any) => `${m.team_id}:${m.user_id}`));
+  return rows.filter((w: any) => w.measures?.is_master || w.athlete_id === coachId || !w.team_id || approved.has(`${w.team_id}:${w.athlete_id}`));
+};
+
+/** One entry per group of sessions (the coach's master copy standing for the whole session, progress counted over the athletes). */
+const groupCoachWorkouts = (data: any[]): any[] => {
+  const groupedMap = new Map<string, any>();
+  const progress = new Map<string, { done: number; total: number }>();
+  for (const w of (data || [])) {
+    const key = w.group_assignment_id || w.id;
+    if (!w.measures?.is_master) {
+      const p = progress.get(key) || { done: 0, total: 0 };
+      p.total += 1;
+      if (w.status === 'completed') p.done += 1;
+      progress.set(key, p);
+    }
+    if (!groupedMap.has(key)) {
+      groupedMap.set(key, {
+        ...w,
+        blocks: Array.isArray(w.blocks) ? [...w.blocks] : [],
+        exercises: Array.isArray(w.exercises) ? [...w.exercises] : [],
+      });
+    } else {
+      let existing = groupedMap.get(key);
+      if (existing.measures?.is_master) continue; // the master copy already holds the whole session
+      if (w.measures?.is_master && !existing.measures?.is_master) {
+        // The coach's master copy holds the full session (athlete rows only hold their own part)
+        existing = {
+          ...w,
+          blocks: Array.isArray(w.blocks) ? [...w.blocks] : [],
+          exercises: Array.isArray(w.exercises) ? [...w.exercises] : [],
+        };
+        groupedMap.set(key, existing);
+        continue;
+      }
+      const existingBlockKeys = new Set(
+        (existing.blocks || []).map((b: any) => b.id || b.name)
+      );
+      for (const blk of (w.blocks || [])) {
+        const blkKey = blk.id || blk.name;
+        if (!existingBlockKeys.has(blkKey)) {
+          existingBlockKeys.add(blkKey);
+          existing.blocks.push(blk);
+        }
+      }
+
+      const existingExKeys = new Set(
+        (existing.exercises || []).map((e: any) => e.id || e.name)
+      );
+      for (const ex of (w.exercises || [])) {
+        const exKey = ex.id || ex.name;
+        if (!existingExKeys.has(exKey)) {
+          existingExKeys.add(exKey);
+          existing.exercises.push(ex);
+        }
+      }
+    }
+  }
+  return Array.from(groupedMap.entries()).map(([key, w]) => {
+    const p = progress.get(key);
+    if (!p) return w;
+    // The coach card stands for the whole group: validated only once every athlete has validated
+    return { ...w, status: p.total > 0 && p.done === p.total ? 'completed' : 'pending', done_count: p.done, athlete_count: p.total };
+  });
+};
+
 const copyMeasures = (m: any) => {
   if (!m || typeof m !== 'object') return m ?? null;
   const { athlete_feedback, rpe, duration_min, ...rest } = m;
@@ -363,6 +436,20 @@ export const workoutService = {
     return data || [];
   },
 
+
+  /** The coach's week as one entry per group of sessions, keyed by local day (YYYY-MM-DD). */
+  fetchWeekByDay: async (coachId: string, monday: Date, teamId?: string | null): Promise<Record<string, any[]>> => {
+    const rows = await workoutService.fetchWeekRows(coachId, monday, teamId);
+    const out: Record<string, any[]> = {};
+    for (const g of groupCoachWorkouts(rows)) {
+      const d = new Date(g.date_prevue);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      (out[key] = out[key] || []).push(g);
+    }
+    for (const k of Object.keys(out)) out[k].sort((a, b) => String(a.date_prevue).localeCompare(String(b.date_prevue)));
+    return out;
+  },
+
   /**
    * Copy a whole week onto another one. Every session is copied as a fresh plan (nothing validated, no athlete
    * comment), each group keeps being one group, and the original week is left as it is.
@@ -370,14 +457,7 @@ export const workoutService = {
   copyWeek: async (coachId: string, fromMonday: Date, toMonday: Date, teamId?: string | null): Promise<{ sessions: number; rows: number }> => {
     const fetched = await workoutService.fetchWeekRows(coachId, fromMonday, teamId);
     // Only athletes still approved in their team receive a copy (people who left or were removed are skipped)
-    const teamIds = [...new Set(fetched.map((w: any) => w.team_id).filter(Boolean))] as string[];
-    const approved = new Set<string>();
-    for (const t of teamIds) {
-      for (const m of await workoutService.fetchApprovedMembers(t)) approved.add(`${t}:${m.user_id}`);
-    }
-    const rows = fetched.filter(
-      (w: any) => w.measures?.is_master || w.athlete_id === coachId || !w.team_id || approved.has(`${w.team_id}:${w.athlete_id}`),
-    );
+    const rows = await keepCurrentMembers(fetched, coachId);
     if (rows.length === 0) return { sessions: 0, rows: 0 };
     const days = Math.round((toMonday.getTime() - fromMonday.getTime()) / 86400000);
     const groupIds = new Map<string, string>();
@@ -532,64 +612,7 @@ export const workoutService = {
     if (error) throw error;
 
     if (role === 'coach') {
-      const groupedMap = new Map<string, any>();
-      const progress = new Map<string, { done: number; total: number }>();
-      for (const w of (data || [])) {
-        const key = w.group_assignment_id || w.id;
-        if (!w.measures?.is_master) {
-          const p = progress.get(key) || { done: 0, total: 0 };
-          p.total += 1;
-          if (w.status === 'completed') p.done += 1;
-          progress.set(key, p);
-        }
-        if (!groupedMap.has(key)) {
-          groupedMap.set(key, {
-            ...w,
-            blocks: Array.isArray(w.blocks) ? [...w.blocks] : [],
-            exercises: Array.isArray(w.exercises) ? [...w.exercises] : [],
-          });
-        } else {
-          let existing = groupedMap.get(key);
-          if (existing.measures?.is_master) continue; // the master copy already holds the whole session
-          if (w.measures?.is_master && !existing.measures?.is_master) {
-            // The coach's master copy holds the full session (athlete rows only hold their own part)
-            existing = {
-              ...w,
-              blocks: Array.isArray(w.blocks) ? [...w.blocks] : [],
-              exercises: Array.isArray(w.exercises) ? [...w.exercises] : [],
-            };
-            groupedMap.set(key, existing);
-            continue;
-          }
-          const existingBlockKeys = new Set(
-            (existing.blocks || []).map((b: any) => b.id || b.name)
-          );
-          for (const blk of (w.blocks || [])) {
-            const blkKey = blk.id || blk.name;
-            if (!existingBlockKeys.has(blkKey)) {
-              existingBlockKeys.add(blkKey);
-              existing.blocks.push(blk);
-            }
-          }
-
-          const existingExKeys = new Set(
-            (existing.exercises || []).map((e: any) => e.id || e.name)
-          );
-          for (const ex of (w.exercises || [])) {
-            const exKey = ex.id || ex.name;
-            if (!existingExKeys.has(exKey)) {
-              existingExKeys.add(exKey);
-              existing.exercises.push(ex);
-            }
-          }
-        }
-      }
-      return Array.from(groupedMap.entries()).map(([key, w]) => {
-        const p = progress.get(key);
-        if (!p) return w;
-        // The coach card stands for the whole group: validated only once every athlete has validated
-        return { ...w, status: p.total > 0 && p.done === p.total ? 'completed' : 'pending', done_count: p.done, athlete_count: p.total };
-      });
+      return groupCoachWorkouts(data || []);
     }
 
     return (data || []).filter((w: any) => !w.measures?.is_master);
@@ -720,6 +743,20 @@ export const workoutService = {
   },
 
   /**
+   * Move a session (the whole group when it has one) to another day, keeping its time. Results already typed stay
+   * attached to the session; only the planned day changes.
+   */
+  moveWorkout: async (workout: any, targetDate: Date): Promise<void> => {
+    const original = new Date(workout.date_prevue);
+    const target = new Date(targetDate);
+    target.setHours(original.getHours(), original.getMinutes(), original.getSeconds(), 0);
+    const iso = target.toISOString();
+    const q = supabase.from('workouts').update({ date_prevue: iso });
+    const { error } = workout.group_assignment_id ? await q.eq('group_assignment_id', workout.group_assignment_id) : await q.eq('id', workout.id);
+    if (error) throw error;
+  },
+
+  /**
    * Duplicate a workout to a specific target date.
    * Creates independent copies (not linked to original).
    * If the workout has a group_assignment_id, all athlete copies are duplicated too.
@@ -732,7 +769,10 @@ export const workoutService = {
 
     if (workout.group_assignment_id) {
       // Fetch all workouts belonging to this group assignment
-      const allGroupWorkouts = await workoutService.fetchWorkoutsByGroupAssignment(workout.group_assignment_id);
+      const allGroupWorkouts = await keepCurrentMembers(
+        await workoutService.fetchWorkoutsByGroupAssignment(workout.group_assignment_id),
+        workout.coach_id,
+      );
       
       // Generate a new group_assignment_id for the copies
       const newGroupId = generateUUID();
