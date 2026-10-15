@@ -74,6 +74,7 @@ jobs:
         working-directory: android
         env:
           NDK_CCACHE: ccache
+          SENTRY_DISABLE_AUTO_UPLOAD: 'true'
         run: ./gradlew assembleRelease --build-cache
 
       - name: Upload APK Artifact
