@@ -1,5 +1,10 @@
 name: Build Play Store AAB
 
+# Lecture du code et dépôt du fichier construit seulement. Pas de modification du projet.
+permissions:
+  contents: read
+  actions: write
+
 on:
   workflow_dispatch:
     inputs:
