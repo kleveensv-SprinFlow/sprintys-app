@@ -3,7 +3,7 @@ import { AppState, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
-import { cancelSessionReminders, configureNotifications, notificationStatus, registerPushToken, routeOfNotification, syncSessionReminders } from '../../services/notifications';
+import { cancelCheckInReminders, cancelSessionReminders, configureNotifications, notificationStatus, registerPushToken, routeOfNotification, syncCheckInReminders, syncSessionReminders } from '../../services/notifications';
 
 configureNotifications();
 
@@ -35,10 +35,14 @@ export function NotificationsSync() {
       if ((await notificationStatus(userId)) !== 'on') {
         // Reminders left by another account on this phone must not keep firing
         await cancelSessionReminders();
+        await cancelCheckInReminders();
         return;
       }
       registerPushToken(userId);
-      if (role === 'athlete') syncSessionReminders(userId);
+      if (role === 'athlete') {
+        syncSessionReminders(userId);
+        syncCheckInReminders(userId);
+      }
     };
     run();
     const app = AppState.addEventListener('change', (st) => {

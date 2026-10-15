@@ -31,7 +31,7 @@ import { getActivePlan, removePlan } from '../sprinty/proposalWriter';
 import { useEntitlementStore } from '../../store/entitlementStore';
 import { openManageSubscriptions, restorePurchases } from '../../services/purchases';
 import { planLabel } from '../billing/plans';
-import { NotifStatus, disableNotifications, enableNotifications, notificationStatus } from '../../services/notifications';
+import { CHECKIN_TIME_OPTIONS, DEFAULT_CHECKIN_TIME, NotifStatus, disableNotifications, enableNotifications, getCheckInReminder, notificationStatus, setCheckInReminder } from '../../services/notifications';
 
 const APP_VERSION = Constants.expoConfig?.version ?? '';
 
@@ -90,6 +90,19 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
   useEffect(() => {
     if (user?.id) notificationStatus(user.id).then(setNotif);
   }, [user?.id]);
+  const [checkinTime, setCheckinTime] = useState<string | null>(DEFAULT_CHECKIN_TIME);
+  const [checkinSheet, setCheckinSheet] = useState(false);
+  useEffect(() => {
+    if (user?.id && isAthlete) getCheckInReminder(user.id).then(setCheckinTime);
+  }, [user?.id, isAthlete]);
+  const pickCheckinTime = async (t: string | null) => {
+    if (!user?.id) return;
+    setCheckinTime(t);
+    setCheckinSheet(false);
+    await setCheckInReminder(user.id, t);
+    toast('success', t ? `Rappel du check-in à ${t.replace(':', ' h ')}.` : 'Rappel du check-in désactivé.');
+  };
+
   const toggleNotifications = async () => {
     if (!user?.id) return;
     if (notif === 'on') {
@@ -107,7 +120,7 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
     }
     const next = await enableNotifications(user.id, isAthlete ? 'athlete' : 'coach');
     setNotif(next);
-    if (next === 'on') toast('success', isAthlete ? 'Tu seras prévenu avant tes séances.' : 'Notifications activées.');
+    if (next === 'on') toast('success', isAthlete ? 'Tu seras prévenu avant tes séances et pour ton check-in.' : 'Notifications activées.');
     else if (next === 'denied') {
       toast('info', 'Autorise les notifications pour Sprintys dans les réglages de ton téléphone.');
       Linking.openSettings().catch(() => undefined);
@@ -438,12 +451,22 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
               <GlassSheen radius={22} />
               <ListRow
                 icon="bell"
-                title={isAthlete ? 'Rappels de séance' : 'Notifications'}
-                subtitle={isAthlete ? 'Un rappel avant chaque séance prévue' : 'Alertes de tes athlètes et de ton équipe'}
+                title={isAthlete ? 'Rappels' : 'Notifications'}
+                subtitle={isAthlete ? 'Séances prévues et check-in du jour' : 'Alertes de tes athlètes et de ton équipe'}
                 value={notif === 'on' ? 'Activées' : notif === 'denied' ? 'Bloquées' : 'Désactivées'}
                 onPress={toggleNotifications}
-                last
+                last={!(isAthlete && notif === 'on')}
               />
+              {isAthlete && notif === 'on' && (
+                <ListRow
+                  icon="sunrise"
+                  title="Rappel du check-in"
+                  subtitle="Chaque jour, s’il n’est pas encore fait"
+                  value={checkinTime ? checkinTime.replace(':', ' h ') : 'Désactivé'}
+                  onPress={() => setCheckinSheet(true)}
+                  last
+                />
+              )}
             </View>
           </>
         )}
@@ -511,6 +534,28 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
 
         <Text style={styles.version}>Sprintys · version {APP_VERSION}</Text>
       </Animated.ScrollView>
+
+      {/* Heure du rappel de check-in */}
+      <BottomSheet
+        visible={checkinSheet}
+        onClose={() => setCheckinSheet(false)}
+        title="Rappel du check-in"
+        subtitle="Un rappel par jour, seulement si ton check-in n’est pas encore fait."
+      >
+        <View style={{ marginTop: 8 }}>
+          {CHECKIN_TIME_OPTIONS.map((t) => (
+            <ListRow
+              key={t}
+              icon="clock"
+              title={t.replace(':', ' h ')}
+              chevron={false}
+              value={checkinTime === t ? 'Choisi' : undefined}
+              onPress={() => pickCheckinTime(t)}
+            />
+          ))}
+          <ListRow icon="bell-off" title="Pas de rappel" chevron={false} value={checkinTime === null ? 'Choisi' : undefined} onPress={() => pickCheckinTime(null)} last />
+        </View>
+      </BottomSheet>
 
       {/* Photo source */}
       <BottomSheet visible={photoSheet} onClose={() => setPhotoSheet(false)} title="Photo de profil">

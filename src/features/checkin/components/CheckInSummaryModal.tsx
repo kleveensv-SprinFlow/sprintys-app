@@ -8,14 +8,21 @@ import { useCheckInStore } from '../../../store/checkInStore';
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 import { IconButton } from '../../../shared/components/IconButton';
 import { PressableScale } from '../../../shared/components/PressableScale';
+import { Tone, checkInStreak, dayAdvice, missingPillars, streakLabel } from '../checkinInsights';
+import { intensityColor, painKey } from '../painTaxonomy';
+import { zoneById, zoneLabel } from '../bodyZones';
 
 interface Props {
   visible: boolean;
   onClose: () => void;
   onEdit: () => void;
+  /** Ouvert juste après l'enregistrement : on le dit et on félicite. */
+  justDone?: boolean;
 }
 
-export const CheckInSummaryModal = ({ visible, onClose, onEdit }: Props) => {
+const TONE_ICON: Record<Tone, keyof typeof Feather.glyphMap> = { good: 'sun', mid: 'cloud', low: 'battery', alert: 'alert-triangle' };
+
+export const CheckInSummaryModal = ({ visible, onClose, onEdit, justDone }: Props) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { history, todayHealthScore } = useCheckInStore();
@@ -40,6 +47,12 @@ export const CheckInSummaryModal = ({ visible, onClose, onEdit }: Props) => {
   const todayCheckIn = history.find(c => c.date === today);
 
   if (!todayCheckIn) return null;
+
+  const pains = todayCheckIn.pains || [];
+  const advice = dayAdvice(todayHealthScore, pains);
+  const streak = checkInStreak(history.map((c) => c.date), today);
+  const missing = missingPillars(todayCheckIn);
+  const toneColor = { good: theme.colors.success, mid: theme.colors.warning, low: theme.colors.error, alert: theme.colors.error }[advice.tone];
 
   const getScoreColor = (score: number) => {
     if (score >= 70) return theme.colors.success;
@@ -90,7 +103,7 @@ export const CheckInSummaryModal = ({ visible, onClose, onEdit }: Props) => {
           <View style={styles.handle} />
           <View style={styles.header}>
             <IconButton icon="x" onPress={onClose} accessibilityLabel="Fermer" />
-            <Text style={[styles.title, { color: theme.colors.text }]}>Bilan du jour</Text>
+            <Text style={[styles.title, { color: theme.colors.text }]}>{justDone ? 'Check-in enregistré' : 'Bilan du jour'}</Text>
             <View style={styles.headerSpacer} />
           </View>
 
@@ -110,13 +123,39 @@ export const CheckInSummaryModal = ({ visible, onClose, onEdit }: Props) => {
                   <Feather name="check" size={16} color="#FFFFFF" />
                 </Animated.View>
               </View>
-              <Text style={[styles.overallTitle, { color: theme.colors.text }]}>Forme globale</Text>
-              <Text style={[styles.overallDesc, { color: theme.colors.textSecondary }]}>
-                {todayHealthScore! >= 70 ? 'Excellente disposition pour t’entraîner fort aujourd’hui.' :
-                 todayHealthScore! >= 40 ? 'Forme moyenne, adapte l’intensité si besoin.' :
-                 'Fatigue prononcée, privilégie la récupération ou le repos.'}
-              </Text>
+              <Text style={[styles.overallTitle, { color: theme.colors.text }]}>Forme du jour</Text>
+              <View style={[styles.streakChip, { backgroundColor: theme.colors.sprintyMuted }]}>
+                <Feather name="zap" size={13} color={theme.colors.sprintyBlue} />
+                <Text style={[styles.streakText, { color: theme.colors.sprintyBlue }]}>{streakLabel(streak)}</Text>
+              </View>
             </View>
+
+            <View style={[glassCard, styles.adviceCard]}>
+              <View style={[styles.adviceIcon, { backgroundColor: theme.colors.glassFill }]}>
+                <Feather name={TONE_ICON[advice.tone]} size={18} color={toneColor} />
+              </View>
+              <View style={styles.adviceBody}>
+                <Text style={[styles.adviceTitle, { color: theme.colors.text }]}>{advice.title}</Text>
+                <Text style={[styles.adviceText, { color: theme.colors.textSecondary }]}>{advice.text}</Text>
+                {!!missing && <Text style={[styles.adviceNote, { color: theme.colors.textMuted }]}>{missing}</Text>}
+              </View>
+            </View>
+
+            {pains.length > 0 && (
+              <View style={styles.painsBlock}>
+                <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>Douleurs signalées</Text>
+                <View style={styles.painsWrap}>
+                  {pains.map((p) => (
+                    <View key={painKey(p)} style={[styles.painChip, { backgroundColor: theme.colors.surface, borderColor: theme.colors.hairline }]}>
+                      <View style={[styles.painDot, { backgroundColor: intensityColor(p.intensity).css }]} />
+                      <Text style={[styles.painText, { color: theme.colors.text }]}>
+                        {zoneById(p.muscle_id) ? zoneLabel(p.muscle_id, p.side) : p.muscle_name} · {p.intensity}/10
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
 
             <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>Détail</Text>
             <View style={styles.gaugesContainer}>
@@ -222,12 +261,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
     marginBottom: 6,
   },
-  overallDesc: {
-    fontSize: 15,
-    textAlign: 'center',
-    paddingHorizontal: 12,
-    lineHeight: 21,
-  },
   sectionLabel: {
     fontSize: 12,
     fontWeight: '700',
@@ -299,4 +332,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
   },
+  streakChip: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  streakText: { fontSize: 13, fontWeight: '700' },
+  adviceCard: { flexDirection: 'row', gap: 12, padding: 16, marginBottom: 20 },
+  adviceIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  adviceBody: { flex: 1, gap: 4 },
+  adviceTitle: { fontSize: 16, fontWeight: '800', letterSpacing: -0.2 },
+  adviceText: { fontSize: 14, lineHeight: 20 },
+  adviceNote: { fontSize: 12, lineHeight: 17, marginTop: 2 },
+  painsBlock: { marginBottom: 20 },
+  painsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  painChip: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, minHeight: 34, borderRadius: 12, borderWidth: 1 },
+  painDot: { width: 8, height: 8, borderRadius: 4 },
+  painText: { fontSize: 13, fontWeight: '600' },
 });

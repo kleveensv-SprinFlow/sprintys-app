@@ -12,11 +12,13 @@ import { IconButton } from '../../../shared/components/IconButton';
 interface CheckInModalProps {
   visible: boolean;
   onClose: () => void;
+  /** Check-in enregistré : le parent ouvre le bilan du jour. */
+  onDone?: () => void;
 }
 
 const TOTAL_STEPS = 3;
 
-export const CheckInModal = ({ visible, onClose }: CheckInModalProps) => {
+export const CheckInModal = ({ visible, onClose, onDone }: CheckInModalProps) => {
   const theme = useTheme();
   const [step, setStep] = useState(1);
   const { submitCheckIn, cancelCheckIn } = useCheckInStore();
@@ -57,6 +59,7 @@ export const CheckInModal = ({ visible, onClose }: CheckInModalProps) => {
     if (success) {
       setStep(1);
       onClose();
+      onDone?.();
     }
   };
 

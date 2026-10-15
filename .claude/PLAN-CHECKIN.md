@@ -49,6 +49,12 @@ Relire `CheckInSummaryModal` et le point d'entrée ; rappel du check-in (infra p
    Maquette silhouette : https://claude.ai/artifact/ThLHX1BwyKPJDYqhxZyuM8 (2D face/dos, côté déduit du toucher ; nouvelles zones `tibias`, `dorsaux`). 3D écartée pour l'instant (poids, perf Android, ciblage plus lent, licence des modèles).
    Ancienne formulation :  (Phase 3 : réutiliser l'infra push `20261023100000_push_notifications.sql`, seuil = règle d'alerte commune `isCriticalPain`, déclenchée à l'enregistrement du check-in, respectant le consentement `health_data`).
 
+## État Phase 4 (2026-10-15)
+- Fin de check-in : le bilan s'ouvre tout seul (« Check-in enregistré ») avec forme du jour, série de jours d'affilée, conseil prudent (douleur forte prioritaire, renvoi vers un professionnel si ça dure), douleurs du jour, piliers non renseignés signalés. Toast supprimé.
+- Rappel quotidien : notification locale à l'heure choisie (08:30 par défaut), sautée si le check-in est fait ; réglage dans Compte › Notifications › Rappel du check-in ; toucher le rappel ouvre directement le check-in (`/(athlete)?checkin=1`).
+- Mentions légales : section « Contenus de tiers » (Z-Anatomy / BodyParts3D, CC BY-SA), pages `docs/` régénérées.
+- Non testé sur téléphone (notifications locales, ouverture depuis le rappel, enchaînement des deux fenêtres sur iOS).
+
 ## État Phase 3 (2026-10-15)
 - Fiche athlète (coach) : section « Douleurs · 14 derniers jours » (`CoachPainSummary`) : corps 3D en mode toucher seul (la page défile), couleur = intensité max, liste triée (persistantes d'abord), commentaire au toucher.
 - Forme de l'équipe : carte « Zones qui reviennent · 7 jours » (`TeamPainZones`), nombre d'athlètes par zone, persistances.

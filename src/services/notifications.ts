@@ -14,6 +14,11 @@ const NATIVE = Platform.OS === 'ios' || Platform.OS === 'android';
 const prefKey = (uid: string) => `notif-pref:${uid}`; // 'on' | 'off'; absent = never asked
 const promptKey = (uid: string) => `notif-prompt-dismissed:${uid}`;
 const REMINDER_PREFIX = 'session-';
+const CHECKIN_PREFIX = 'checkin-';
+const checkInPrefKey = (uid: string) => `checkin-reminder:${uid}`; // 'HH:MM' | 'off' ; absent = heure par défaut
+export const DEFAULT_CHECKIN_TIME = '08:30';
+export const CHECKIN_TIME_OPTIONS = ['07:00', '07:30', '08:00', '08:30', '09:00', '10:00', '12:00', '19:00'];
+const CHECKIN_DAYS = 7;
 const REMINDER_DAYS = 14;
 /** Reminder time for a session without a precise hour, and lead time when there is one */
 const DEFAULT_HOUR = 8;
@@ -34,6 +39,7 @@ export function configureNotifications() {
   if (Platform.OS === 'android') {
     Notifications.setNotificationChannelAsync('sessions', { name: 'Séances', importance: Notifications.AndroidImportance.DEFAULT }).catch(() => undefined);
     Notifications.setNotificationChannelAsync('messages', { name: 'Messages et alertes', importance: Notifications.AndroidImportance.HIGH }).catch(() => undefined);
+    Notifications.setNotificationChannelAsync('checkin', { name: 'Check-in du jour', importance: Notifications.AndroidImportance.DEFAULT }).catch(() => undefined);
   }
 }
 
@@ -82,7 +88,10 @@ export async function enableNotifications(uid: string, role: 'athlete' | 'coach'
   if (!granted) return 'denied';
   await AsyncStorage.setItem(prefKey(uid), 'on').catch(() => undefined);
   // Reminders first (they work offline); the push token can take its time and is not awaited
-  if (role === 'athlete') await syncSessionReminders(uid);
+  if (role === 'athlete') {
+    await syncSessionReminders(uid);
+    await syncCheckInReminders(uid);
+  }
   registerPushToken(uid).catch(() => undefined);
   return 'on';
 }
@@ -91,6 +100,7 @@ export async function disableNotifications(uid: string) {
   if (!NATIVE) return;
   await AsyncStorage.setItem(prefKey(uid), 'off').catch(() => undefined);
   await cancelSessionReminders();
+  await cancelCheckInReminders();
   await unregisterPushToken(uid);
 }
 
@@ -192,6 +202,83 @@ export async function syncSessionReminders(uid: string) {
     }
   } catch {
     /* reminders are a convenience: never block the app */
+  }
+}
+
+// --- Rappel quotidien du check-in ------------------------------------------------------------------------
+
+/** Heure du rappel ('HH:MM'), ou null s'il est désactivé. */
+export async function getCheckInReminder(uid: string): Promise<string | null> {
+  const v = await AsyncStorage.getItem(checkInPrefKey(uid)).catch(() => null);
+  if (v === 'off') return null;
+  return v && /^\d{2}:\d{2}$/.test(v) ? v : DEFAULT_CHECKIN_TIME;
+}
+
+export async function setCheckInReminder(uid: string, time: string | null) {
+  await AsyncStorage.setItem(checkInPrefKey(uid), time ?? 'off').catch(() => undefined);
+  await syncCheckInReminders(uid);
+}
+
+export async function cancelCheckInReminders() {
+  try {
+    const all = await Notifications.getAllScheduledNotificationsAsync();
+    await Promise.all(all.filter((n) => n.identifier.startsWith(CHECKIN_PREFIX)).map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)));
+  } catch {
+    /* nothing scheduled */
+  }
+}
+
+const localDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/** Prochains rappels : un par jour à l'heure choisie, sans celui d'aujourd'hui s'il est passé ou si le check-in est fait. */
+export function checkInReminderDates(time: string, doneToday: boolean, now = new Date(), days = CHECKIN_DAYS): Date[] {
+  const [h, m] = time.split(':').map(Number);
+  const out: Date[] = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() + i);
+    d.setHours(h, m, 0, 0);
+    if (i === 0 && (doneToday || d.getTime() <= now.getTime() + 30000)) continue;
+    out.push(d);
+  }
+  return out;
+}
+
+/**
+ * Replanifie les rappels de check-in des 7 prochains jours. Idempotent : appelé au lancement, au retour au premier
+ * plan, après un check-in (`doneToday` = true) et quand l'heure change.
+ */
+export async function syncCheckInReminders(uid: string, doneToday?: boolean) {
+  if (!NATIVE) return;
+  try {
+    const time = await getCheckInReminder(uid);
+    if ((await notificationStatus(uid)) !== 'on' || !time) {
+      await cancelCheckInReminders();
+      return;
+    }
+    let done = doneToday;
+    if (done === undefined) {
+      const { count } = await supabase
+        .from('check_ins')
+        .select('id', { count: 'exact', head: true })
+        .eq('athlete_id', uid)
+        .eq('date', localDay(new Date()));
+      done = (count ?? 0) > 0;
+    }
+    await cancelCheckInReminders();
+    for (const when of checkInReminderDates(time, done)) {
+      await Notifications.scheduleNotificationAsync({
+        identifier: `${CHECKIN_PREFIX}${localDay(when)}`,
+        content: {
+          title: 'Ton check-in du jour',
+          body: 'Comment tu te sens ce matin ? Ça prend moins d’une minute.',
+          data: { route: '/(athlete)?checkin=1' },
+        },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: when, channelId: 'checkin' },
+      });
+    }
+  } catch {
+    /* les rappels sont un confort : ne jamais bloquer l'app */
   }
 }
 

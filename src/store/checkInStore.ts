@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { checkInService, CheckInData, CheckInDraft, PainInfo } from '../services/checkInService';
 import { painKey } from '../features/checkin/painTaxonomy';
-import { useSprintyStore } from './sprintyStore';
+import { syncCheckInReminders } from '../services/notifications';
 import { appAlert } from '../shared/feedback/appAlert';
 
 const localDay = () => {
@@ -15,7 +15,9 @@ interface CheckInState {
   history: CheckInData[];
   todayHealthScore: number | null;
   isLoading: boolean;
-  
+  /** Historique chargé au moins une fois (pour savoir si le check-in du jour est fait). */
+  historyLoaded: boolean;
+
   // Actions
   startCheckIn: (athleteId: string) => void;
   editTodayCheckIn: (athleteId: string) => void;
@@ -34,6 +36,7 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
   history: [],
   todayHealthScore: null,
   isLoading: false,
+  historyLoaded: false,
 
   startCheckIn: (athleteId) => {
     // Aucune valeur par défaut : un pilier non renseigné reste vide (null à l'enregistrement),
@@ -156,7 +159,8 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
         isLoading: false 
       });
       
-      useSprintyStore.getState().showFeedback('success', 'Ton check-in du jour est enregistré.', 3000, 'Check-in terminé');
+      // Le bilan s'ouvre juste après (CheckInSummaryModal) : pas de toast en plus. Le rappel du jour n'a plus lieu d'être.
+      syncCheckInReminders(baseData.athlete_id, true);
       return true;
     } catch (error) {
       console.error(error);
@@ -169,18 +173,20 @@ export const useCheckInStore = create<CheckInState>((set, get) => ({
   loadHistory: async (athleteId) => {
     set({ isLoading: true });
     try {
-      const history = await checkInService.fetchRecentCheckIns(athleteId, 6);
+      // 30 jours : lissage du score (3 derniers) + série de check-ins affichée dans le bilan
+      const history = await checkInService.fetchRecentCheckIns(athleteId, 30);
       const today = localDay();
       const todayCheckIn = history.find(h => h.date === today);
       
       set({ 
         history, 
         todayHealthScore: todayCheckIn ? todayCheckIn.health_score : null,
-        isLoading: false 
+        isLoading: false,
+        historyLoaded: true,
       });
     } catch (error) {
       console.error(error);
-      set({ isLoading: false });
+      set({ isLoading: false, historyLoaded: true });
     }
   },
   

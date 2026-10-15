@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import Svg, { Circle } from 'react-native-svg';
 import { useTheme } from '../../../core/theme';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -108,7 +108,30 @@ export const AthleteGauges = ({ refreshKey = 0 }: { refreshKey?: number }) => {
   const [summaryVisible, setSummaryVisible] = useState(false);
   
   const { user } = useAuthStore();
-  const { startCheckIn, editTodayCheckIn, loadHistory, todayHealthScore } = useCheckInStore();
+  const { startCheckIn, editTodayCheckIn, loadHistory, todayHealthScore, historyLoaded } = useCheckInStore();
+  const [justDone, setJustDone] = useState(false);
+
+  // Ouvert depuis le rappel du check-in (`/(athlete)?checkin=1`) : on lance directement le check-in, ou le bilan s'il est fait
+  const params = useLocalSearchParams<{ checkin?: string }>();
+  const autoOpened = useRef(false);
+  useEffect(() => {
+    if (params.checkin !== '1' || autoOpened.current || !historyLoaded || !user?.id) return;
+    autoOpened.current = true;
+    router.setParams({ checkin: undefined });
+    if (todayHealthScore !== null) {
+      setJustDone(false);
+      setSummaryVisible(true);
+    } else {
+      startCheckIn(user.id);
+      setModalVisible(true);
+    }
+  }, [params.checkin, historyLoaded, todayHealthScore, user?.id]);
+
+  // Après l'enregistrement : le bilan s'ouvre une fois la fenêtre du check-in refermée (iOS refuse deux fenêtres à la fois)
+  const onCheckInDone = () => {
+    setJustDone(true);
+    setTimeout(() => setSummaryVisible(true), 450);
+  };
   const { mealLogs } = useNutritionStore();
   const [nextCompetition, setNextCompetition] = useState<any | null>(null);
 
@@ -291,8 +314,8 @@ export const AthleteGauges = ({ refreshKey = 0 }: { refreshKey?: number }) => {
         </PressableScale>
       </View>
 
-      <CheckInModal visible={modalVisible} onClose={() => setModalVisible(false)} />
-      <CheckInSummaryModal visible={summaryVisible} onClose={() => setSummaryVisible(false)} onEdit={handleEditCheckIn} />
+      <CheckInModal visible={modalVisible} onClose={() => setModalVisible(false)} onDone={onCheckInDone} />
+      <CheckInSummaryModal visible={summaryVisible} justDone={justDone} onClose={() => { setSummaryVisible(false); setJustDone(false); }} onEdit={handleEditCheckIn} />
     </View>
   );
 };

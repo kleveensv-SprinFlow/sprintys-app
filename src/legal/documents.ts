@@ -225,7 +225,15 @@ export const LEGAL_NOTICE: LegalDocument = {
     },
     {
       title: 'Propriété intellectuelle',
-      paragraphs: ['La marque Sprintys, le logo et l’application sont protégés. Toute reproduction sans autorisation est interdite.'],
+      paragraphs: [
+        'La marque Sprintys, le logo et l’application sont protégés. Toute reproduction sans autorisation est interdite, sauf pour les contenus de tiers ci-dessous, qui restent sous leur propre licence.',
+      ],
+    },
+    {
+      title: 'Contenus de tiers',
+      paragraphs: [
+        'Le corps 3D du check-in est adapté de Z-Anatomy, The libre 3D atlas of anatomy (licence CC BY-SA 4.0), lui-même issu de BodyParts3D, © The Database Center for Life Science (licence CC BY-SA 2.1 Japon). Ce modèle adapté est diffusé sous la même licence CC BY-SA 4.0 : https://creativecommons.org/licenses/by-sa/4.0/deed.fr',
+      ],
     },
   ],
 };
