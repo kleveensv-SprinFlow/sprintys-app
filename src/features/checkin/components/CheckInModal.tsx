@@ -8,6 +8,7 @@ import { PainStep } from './PainStep';
 import { useCheckInStore } from '../../../store/checkInStore';
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 import { IconButton } from '../../../shared/components/IconButton';
+import { lastCompleteCheckIn, sameAsLabel } from '../checkinInsights';
 
 interface CheckInModalProps {
   visible: boolean;
@@ -21,7 +22,30 @@ const TOTAL_STEPS = 3;
 export const CheckInModal = ({ visible, onClose, onDone }: CheckInModalProps) => {
   const theme = useTheme();
   const [step, setStep] = useState(1);
-  const { submitCheckIn, cancelCheckIn } = useCheckInStore();
+  const { submitCheckIn, cancelCheckIn, history, currentCheckIn, updateSleep, updateMental } = useCheckInStore();
+
+  // « Comme hier » : seulement pour un nouveau check-in (pas une modification) et une réponse récente complète
+  const isFresh = !!currentCheckIn && currentCheckIn.sleep_quality == null && currentCheckIn.stress_level == null;
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const last = isFresh ? lastCompleteCheckIn(history, today) : null;
+  const quick = last
+    ? {
+        title: last.pains?.length ? 'Comme hier pour le sommeil et le mental' : 'Comme hier, et rien à signaler',
+        detail: sameAsLabel(last),
+        onPress: async () => {
+          updateSleep(last.bedtime!, last.wakeup_time!, last.sleep_hours!, last.sleep_quality!);
+          updateMental(last.stress_level!, last.fatigue_level!, last.motivation_level!);
+          // Hier avec des douleurs : on va les revoir (elles ont pu changer) ; sinon c'est fini
+          if (last.pains?.length) {
+            setDirection(1);
+            setStep(3);
+          } else {
+            await handleSubmit();
+          }
+        },
+      }
+    : null;
 
   // Progress bar (width, JS driver) + step transition (opacity / translateX, native driver)
   const progress = useRef(new Animated.Value(1 / TOTAL_STEPS)).current;
@@ -105,7 +129,7 @@ export const CheckInModal = ({ visible, onClose, onDone }: CheckInModalProps) =>
         </View>
 
         <Animated.View style={[styles.content, contentStyle]}>
-          {step === 1 && <SleepStep onNext={handleNext} onClose={handleClose} />}
+          {step === 1 && <SleepStep onNext={handleNext} onClose={handleClose} quick={quick} />}
           {step === 2 && <MentalStep onNext={handleNext} onBack={handleBack} />}
           {step === 3 && <PainStep onBack={handleBack} onSubmit={handleSubmit} />}
         </Animated.View>

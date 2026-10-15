@@ -15,6 +15,8 @@ import { StepFooter } from './StepFooter';
 
 interface SleepStepProps {
   onNext: () => void;
+  /** Raccourci « Comme hier » : reprend la dernière réponse en un toucher. */
+  quick?: { title: string; detail: string; onPress: () => void } | null;
   /** Kept for API compatibility: closing is handled by the CheckInModal header. */
   onClose: () => void;
 }
@@ -27,7 +29,7 @@ const SLEEP_OPTIONS: (ScaleOption & { longLabel: string })[] = [
   { value: 5, icon: 'star', label: 'Au top', longLabel: 'Au top de ma forme' },
 ];
 
-export const SleepStep = ({ onNext }: SleepStepProps) => {
+export const SleepStep = ({ onNext, quick }: SleepStepProps) => {
   const theme = useTheme();
   const { currentCheckIn, updateSleep, history } = useCheckInStore();
   const { user, updateSleepGoal } = useAuthStore();
@@ -173,6 +175,26 @@ export const SleepStep = ({ onNext }: SleepStepProps) => {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {quick && !touched && (
+          <PressableScale
+            haptic="medium"
+            onPress={quick.onPress}
+            style={[glassCard, styles.quickCard, { borderColor: theme.colors.sprintyBlue }]}
+            accessibilityRole="button"
+            accessibilityLabel={`${quick.title}. ${quick.detail}`}
+          >
+            <View style={[styles.quickIcon, { backgroundColor: theme.colors.sprintyBlue }]}>
+              <Feather name="repeat" size={16} color="#FFFFFF" />
+            </View>
+            <View style={styles.quickBody}>
+              <Text style={[styles.quickTitle, { color: theme.colors.text }]}>{quick.title}</Text>
+              <Text style={[styles.quickDetail, { color: theme.colors.textSecondary }]} numberOfLines={2}>
+                {quick.detail}
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />
+          </PressableScale>
+        )}
         <Text style={[styles.title, { color: theme.colors.text }]}>Sommeil</Text>
         <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
           Combien de temps as-tu dormi ?
@@ -283,6 +305,11 @@ export const SleepStep = ({ onNext }: SleepStepProps) => {
 };
 
 const styles = StyleSheet.create({
+  quickCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, marginBottom: 18, borderWidth: 1.5 },
+  quickIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  quickBody: { flex: 1, gap: 2 },
+  quickTitle: { fontSize: 15, fontWeight: '800' },
+  quickDetail: { fontSize: 13, lineHeight: 18 },
   container: { flex: 1 },
   content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 16 },
   title: { fontSize: 26, fontWeight: '800', letterSpacing: -0.6, marginBottom: 4 },

@@ -5,8 +5,10 @@ import { useAuthStore } from '../../store/authStore';
 import { resultsOutbox } from '../../services/resultsOutbox';
 import { toast } from '../feedback/appAlert';
 import { syncSessionReminders } from '../../services/notifications';
+import { checkInOutbox } from '../../services/checkInOutbox';
+import { useCheckInStore } from '../../store/checkInStore';
 
-/** Sends the results typed offline when the connection or the app comes back. Renders nothing. */
+/** Sends the results and check-ins saved offline when the connection or the app comes back. Renders nothing. */
 export function OutboxSync() {
   const userId = useAuthStore((s) => s.user?.id);
 
@@ -20,6 +22,12 @@ export function OutboxSync() {
         if (r.sent > 0) syncSessionReminders(userId);
         if (r.sent > 0) toast('success', r.sent === 1 ? 'Ta séance enregistrée hors ligne a été envoyée.' : `${r.sent} séances enregistrées hors ligne ont été envoyées.`);
         if (r.dropped > 0) toast('warning', 'Une séance n’a pas pu être envoyée : elle a peut-être été supprimée par ton coach.');
+        // Check-ins validés hors ligne
+        const c = await checkInOutbox.flush(userId);
+        if (!alive) return;
+        if (c.sent > 0 || c.dropped > 0) useCheckInStore.getState().loadHistory(userId);
+        if (c.sent > 0) toast('success', c.sent === 1 ? 'Ton check-in enregistré hors ligne a été envoyé.' : `${c.sent} check-ins enregistrés hors ligne ont été envoyés.`);
+        if (c.dropped > 0) toast('warning', 'Un check-in enregistré hors ligne n’a pas pu être envoyé.');
       } catch {
         /* will retry at the next trigger */
       }

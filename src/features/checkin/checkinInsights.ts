@@ -50,6 +50,39 @@ export const dayAdvice = (score: number | null, pains: PainInfo[]): DayAdvice =>
   return { tone: 'low', title: 'Forme basse', text: 'Privilégie une séance légère ou la récupération, et parles-en à ton coach.' };
 };
 
+const SLEEP_WORDS = ['', 'agitée', 'hachée', 'correcte', 'bonne', 'au top'];
+
+/**
+ * Dernier check-in complet (sommeil + mental) de moins de `maxAgeDays` jours, hors aujourd'hui : base du raccourci
+ * « Comme hier ». Au-delà, on ne propose rien (les réponses ne veulent plus rien dire).
+ */
+export const lastCompleteCheckIn = (history: CheckInData[], today: string, maxAgeDays = 3): CheckInData | null => {
+  const oldest = shift(today, -maxAgeDays);
+  return (
+    [...history]
+      .sort((a, b) => (a.date < b.date ? 1 : -1))
+      .find(
+        (c) =>
+          c.date < today &&
+          c.date >= oldest &&
+          !!c.bedtime &&
+          !!c.wakeup_time &&
+          c.sleep_hours != null &&
+          c.sleep_quality != null &&
+          c.stress_level != null &&
+          c.fatigue_level != null &&
+          c.motivation_level != null
+      ) ?? null
+  );
+};
+
+/** Texte du raccourci : « 23:00 → 07:00 · nuit bonne · sans douleur ». */
+export const sameAsLabel = (c: CheckInData) => {
+  const hm = (t?: string | null) => (t ? t.slice(0, 5) : '--:--');
+  const pains = c.pains?.length ? `${c.pains.length} douleur${c.pains.length > 1 ? 's' : ''} à revoir` : 'sans douleur';
+  return `${hm(c.bedtime)} → ${hm(c.wakeup_time)} · nuit ${SLEEP_WORDS[c.sleep_quality ?? 0] || 'notée'} · ${pains}`;
+};
+
 /** Piliers passés : le score repose sur le reste, on le dit. */
 export const missingPillars = (ci: Pick<CheckInData, 'sleep_score' | 'mental_score'>): string | null => {
   const missing = [ci.sleep_score == null ? 'sommeil' : null, ci.mental_score == null ? 'mental' : null].filter(Boolean);

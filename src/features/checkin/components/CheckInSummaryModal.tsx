@@ -11,6 +11,8 @@ import { PressableScale } from '../../../shared/components/PressableScale';
 import { Tone, checkInStreak, dayAdvice, missingPillars, streakLabel } from '../checkinInsights';
 import { intensityColor, painKey } from '../painTaxonomy';
 import { zoneById, zoneLabel } from '../bodyZones';
+import { CheckInTrend } from './CheckInTrend';
+import { useAuthStore } from '../../../store/authStore';
 
 interface Props {
   visible: boolean;
@@ -25,7 +27,8 @@ const TONE_ICON: Record<Tone, keyof typeof Feather.glyphMap> = { good: 'sun', mi
 export const CheckInSummaryModal = ({ visible, onClose, onEdit, justDone }: Props) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { history, todayHealthScore } = useCheckInStore();
+  const { history, todayHealthScore, pendingSyncDates } = useCheckInStore();
+  const sleepGoal = useAuthStore((s) => s.user?.sleepGoal) || 8;
 
   // Success badge (native spring) + gauges fill (JS driver, animates widths)
   const pop = useRef(new Animated.Value(0)).current;
@@ -138,6 +141,14 @@ export const CheckInSummaryModal = ({ visible, onClose, onEdit, justDone }: Prop
                 <Text style={[styles.adviceTitle, { color: theme.colors.text }]}>{advice.title}</Text>
                 <Text style={[styles.adviceText, { color: theme.colors.textSecondary }]}>{advice.text}</Text>
                 {!!missing && <Text style={[styles.adviceNote, { color: theme.colors.textMuted }]}>{missing}</Text>}
+                {pendingSyncDates.includes(today) && (
+                  <View style={styles.offlineRow}>
+                    <Feather name="wifi-off" size={13} color={theme.colors.warning} />
+                    <Text style={[styles.adviceNote, styles.offlineText, { color: theme.colors.textSecondary }]}>
+                      Gardé sur ton téléphone : il partira dès que tu retrouves du réseau.
+                    </Text>
+                  </View>
+                )}
               </View>
             </View>
 
@@ -163,6 +174,8 @@ export const CheckInSummaryModal = ({ visible, onClose, onEdit, justDone }: Prop
               <ScoreGauge label="Physique" score={todayCheckIn.physical_score} icon="activity" />
               <ScoreGauge label="Mental" score={todayCheckIn.mental_score} icon="smile" />
             </View>
+
+            <CheckInTrend history={history} today={today} sleepGoal={sleepGoal} />
 
             <PressableScale
               haptic="medium"
@@ -340,6 +353,8 @@ const styles = StyleSheet.create({
   adviceTitle: { fontSize: 16, fontWeight: '800', letterSpacing: -0.2 },
   adviceText: { fontSize: 14, lineHeight: 20 },
   adviceNote: { fontSize: 12, lineHeight: 17, marginTop: 2 },
+  offlineRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  offlineText: { flex: 1, marginTop: 0 },
   painsBlock: { marginBottom: 20 },
   painsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   painChip: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, minHeight: 34, borderRadius: 12, borderWidth: 1 },
