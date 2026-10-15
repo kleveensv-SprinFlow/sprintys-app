@@ -1,0 +1,15 @@
+body.glb — modèle 3D du check-in Sprintys (étape « Corps & douleurs »)
+
+Ce fichier est une adaptation de :
+  Z-Anatomy - The libre 3D atlas of anatomy - CC BY-SA 4.0
+  https://github.com/Z-Anatomy/Models-of-human-anatomy
+lui-même dérivé de :
+  BodyParts3D - The Database Center for Life Science - CC BY-SA 2.1 Japan
+
+Modifications : sélection des muscles superficiels et de quelques os, regroupement par zone et par côté,
+découpe des aponévroses de l'oblique externe et du grand dorsal, réduction du nombre de faces,
+quantification. Script : tools/3d/build_body.py.
+
+Licence de ce fichier (body.glb uniquement) : Creative Commons Attribution - Partage dans les mêmes
+conditions 4.0 International (CC BY-SA 4.0) — https://creativecommons.org/licenses/by-sa/4.0/deed.fr
+Le reste de l'application n'est pas concerné par cette licence.

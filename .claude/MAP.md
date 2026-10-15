@@ -17,7 +17,7 @@ Lis ce fichier AVANT de chercher. Mets-le à jour si tu ajoutes/déplaces un mod
 - **nutrition** : components (FoodSearchModal 1450, MealSection, MacroLanes, AdaptiveTargetCard…), data/foodCatalogData (1400, données), types
 - **sprinty** (coach IA) : SprintyChatScreen 683, proposalWriter, agentClient, pdf, blocks/ (Chart, Data, Proposal)
 - **performance** : PerformanceView, MaxesBlock, MaxEditSheet, reportPdf · **workout** : progression, chrono, sessionKind
-- **checkin** : CheckInModal + steps (Sleep, Pain, Mental) · **coach** : TeamHealthModal 950, TeamAlertsCard, TeamSwitcher, BroadcastModal
+- **checkin** : CheckInModal + steps (Sleep, Mental, Pain) ; `BodyMap3D` (corps 3D expo-gl + three, modèle `assets/models/body.glb`, régénération : `tools/3d/`) ; `bodyZones.ts` (catalogue des zones, partagé 3D/liste) ; `painTaxonomy.ts` (types, seuil d'alerte, couleurs) · **coach** : TeamHealthModal 950, TeamAlertsCard, TeamSwitcher, BroadcastModal
 - **auth** : RegisterMultiStep + steps/ · **billing** : PaywallSheet, plans · **account** : AccountScreen 622 · **onboarding** : TourOverlay + tourContent · **notifications**, **chat** (PollMessage), **body**, **athlete** (header, jauges, carrousel)
 - `src/shared/components` : Button, Input, BottomSheet, Header, EmptyState, Skeleton, PressableScale, MonthlyCalendar 790, OfflineBanner… (réutiliser avant de créer)
 - `src/legal/` : age, consents, documents (233), publisher

@@ -49,6 +49,15 @@ Relire `CheckInSummaryModal` et le point d'entrée ; rappel du check-in (infra p
    Maquette silhouette : https://claude.ai/artifact/ThLHX1BwyKPJDYqhxZyuM8 (2D face/dos, côté déduit du toucher ; nouvelles zones `tibias`, `dorsaux`). 3D écartée pour l'instant (poids, perf Android, ciblage plus lent, licence des modèles).
    Ancienne formulation :  (Phase 3 : réutiliser l'infra push `20261023100000_push_notifications.sql`, seuil = règle d'alerte commune `isCriticalPain`, déclenchée à l'enregistrement du check-in, respectant le consentement `health_data`).
 
+## État Phase 2 (2026-10-15)
+- Carte du corps **3D** intégrée à l'étape douleurs (`BodyMap3D`), vue liste conservée en secours (bascule + repli auto si la 3D échoue).
+- Modèle Z-Anatomy regroupé en 26 zones G/D ; aponévroses de l'oblique et du grand dorsal découpées pour que abdominaux et lombaires soient touchables.
+- Toucher tolérant (recherche en anneaux 14/26/40 pt), zoom automatique sur la zone touchée, pincer/glisser à deux doigts, bouton Recentrer.
+- Feuille : intensité 1–10 d'abord, type facultatif (« Non précisé »), précision ouverte d'office dès 5/10.
+- Notification coach resserrée sur la douleur forte (migration `20261025100000_push_strong_pain_only.sql`, appliquée).
+- **Non testé sur téléphone** : nécessite un nouveau build natif (expo-gl). À valider : fluidité Android d'entrée de gamme, chargement du .glb, toucher des petites zones.
+- Reste : crédit CC BY-SA à ajouter aux mentions légales (juriste-conformite), côté coach (Phase 3).
+
 ## État
 - **Phase 1 : faite en local** (voir commit). 1.1 taxonomie, 1.2 zone+côté, 1.3 confirmation/piliers nuls, 1.4 cycle + code mort supprimés, 1.5 tests (jest-expo, 12 tests). La règle SQL `get_team_alerts` était déjà alignée (≥7 ou ≥5 aigu) : pas de changement SQL d'alerte à ce stade.
 - À déployer côté Supabase : migration `20261025090000_checkin_optional_pillars_no_cycle.sql` (à appliquer AVANT de publier l'app, sinon l'enregistrement d'un pilier vide échoue).

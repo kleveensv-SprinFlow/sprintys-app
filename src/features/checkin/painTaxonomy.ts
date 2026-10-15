@@ -7,6 +7,9 @@
 export const PAIN_TYPES = ['Courbature', 'Contracture', 'Élongation', 'Déchirure', 'Articulaire', 'Autre'] as const;
 export type PainType = (typeof PAIN_TYPES)[number];
 
+/** Type enregistré quand l'athlète ne précise pas (le type est facultatif). */
+export const PAIN_TYPE_UNSPECIFIED = 'Non précisé';
+
 export const PAIN_SIDES = ['Gauche', 'Droit', 'Bilatéral'] as const;
 export type PainSide = (typeof PAIN_SIDES)[number];
 
@@ -26,6 +29,13 @@ export const isAcutePain = (p: PainLike) => ACUTE_PAIN_TYPES.includes(p.type);
 /** Douleur qui doit alerter le coach et plafonner le score de forme. */
 export const isCriticalPain = (p: PainLike) =>
   p.intensity >= ALERT_INTENSITY || (p.intensity >= ACUTE_ALERT_INTENSITY && isAcutePain(p));
+
+/** Couleur d'intensité, commune à la carte 3D, aux puces et à la fiche coach. Le rouge commence au seuil d'alerte. */
+export const intensityColor = (n: number): { hex: number; css: string } => {
+  if (n >= ALERT_INTENSITY) return { hex: 0xef4444, css: '#EF4444' };
+  if (n >= 4) return { hex: 0xf97316, css: '#F97316' };
+  return { hex: 0xf59e0b, css: '#F59E0B' };
+};
 
 /**
  * Identifiant d'une douleur : zone + côté, pour pouvoir noter genou gauche ET genou droit.
