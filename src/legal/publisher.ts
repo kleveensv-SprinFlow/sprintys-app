@@ -6,13 +6,13 @@
  */
 export const PUBLISHER = {
   /** Nom de l'éditeur (personne physique tant que la micro-entreprise n'est pas immatriculée). */
-  companyName: 'Kleveens Verviers',
+  companyName: 'Kleveens Verviers (nom commercial : Sprintys)',
   /** Statut. À remplacer par « Entrepreneur individuel (micro-entreprise) » à l'immatriculation. */
-  legalForm: 'éditeur à titre personnel',
+  legalForm: 'Entrepreneur individuel',
   /** SIRET, à ajouter dès réception (laisser vide sinon : la ligne n'est pas affichée). */
-  registration: '',
+  registration: 'RCS Marseille 983 727 777 (SIREN 983 727 777)',
   /** Adresse, à ajouter avec le SIRET (laisser vide sinon : la ligne n'est pas affichée). */
-  address: '',
+  address: '1022 Route de Cassis, 13830 Roquefort-la-Bédoule, France',
   /** Directeur ou directrice de la publication. */
   publicationDirector: 'Kleveens Verviers',
   /** Adresse de contact et d'exercice des droits RGPD. */
