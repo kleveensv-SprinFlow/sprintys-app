@@ -132,6 +132,7 @@ export interface CalorieInput {
   sessionsPerWeek: number;
   goal: CalorieGoal;
   weeklyKg: number;
+  isMinor?: boolean;
 }
 
 export interface CalorieResult {
@@ -143,13 +144,31 @@ export interface CalorieResult {
   delta: number;
   note: string;
   heightAssumed: boolean;
+  isMinorProtected?: boolean;
 }
 
 export function computeCalorieTarget(input: CalorieInput): CalorieResult {
+  // Sécurité mineurs (Règle N1) : âge < 18 ou âge invalide/non renseigné (0)
+  const isMinor = input.isMinor || input.age < 18 || !input.age || input.age < 14;
+
+  if (isMinor) {
+    return {
+      bmr: 0,
+      bmrMethod: 'mifflin',
+      exercisePerDay: 0,
+      tdee: 0,
+      target: 0,
+      delta: 0,
+      note: 'Pour accompagner la croissance et l’entraînement des athlètes de moins de 18 ans, aucun objectif de perte de poids ni calcul automatique de calories n’est appliqué. Rapproche-toi d’un professionnel de santé diplômé pour définir des repères adaptés.',
+      heightAssumed: false,
+      isMinorProtected: true,
+    };
+  }
+
   const weight = input.weightKg;
   const heightAssumed = !(input.heightCm && input.heightCm >= 120 && input.heightCm <= 230);
   const height = heightAssumed ? 175 : (input.heightCm as number);
-  const age = input.age >= 14 && input.age <= 80 ? input.age : 25;
+  const age = input.age;
   const female = isFemale(input.sex);
   const bodyFat = input.bodyFatPct;
   const katchOk = typeof bodyFat === 'number' && bodyFat >= 8 && bodyFat <= 45;
@@ -223,5 +242,6 @@ export function computeCalorieTarget(input: CalorieInput): CalorieResult {
     delta: Math.round(Math.round(target) - Math.round(tdee)),
     note,
     heightAssumed,
+    isMinorProtected: false,
   };
 }

@@ -53,12 +53,24 @@ export function adaptTarget(input: {
   weights: WeightPoint[];
   now?: Date;
   floor?: number;
+  isMinor?: boolean;
 }): AdaptResult {
   const now = (input.now ?? new Date()).getTime();
   const kind = classifyObjective(input.objective || '');
   const pace = Math.abs(Number(input.weeklyKg) || 0);
   const expected = kind === 'cut' ? -pace : kind === 'bulk' ? pace : 0;
   const floor = input.floor ?? 1200;
+
+  // Sécurité mineurs (Règle N1) : pas d'adaptation baissière pour les mineurs
+  if (input.isMinor) {
+    return {
+      status: 'insufficient',
+      observed: null,
+      expected: 0,
+      deltaKcal: 0,
+      newTarget: input.currentTarget,
+    };
+  }
 
   const recent = input.weights
     .filter((w) => Number.isFinite(w.weight) && now - new Date(w.date).getTime() <= 21 * DAY)

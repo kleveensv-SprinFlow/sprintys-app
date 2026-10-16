@@ -13,6 +13,7 @@ import { bodyService } from '../../../services/bodyService';
 import { useAuthStore } from '../../../store/authStore';
 import { useEntitlementStore } from '../../../store/entitlementStore';
 import { adaptTarget, MIN_WEIGHINS } from '../adaptTarget';
+import { ageOn } from '../../../legal/age';
 
 const BLUE = theme.colors.sprintyBlue;
 const WEEK = 7 * 86400000;
@@ -66,12 +67,18 @@ export const AdaptiveTargetCard: React.FC = () => {
     );
   }
 
+  const athleteAge = ageOn(user.dateOfBirth);
+  const isMinor = athleteAge < 18 || !user.dateOfBirth;
+
+  if (isMinor) return null;
+
   const r = adaptTarget({
     objective: user.objective,
     currentTarget: goal,
     weeklyKg: user.weeklyWeightGoal,
     weights,
     floor: user.gender === 'femme' || user.gender === 'female' ? 1200 : 1500,
+    isMinor,
   });
   if (r.status !== 'adjust' || r.observed == null) return null;
 

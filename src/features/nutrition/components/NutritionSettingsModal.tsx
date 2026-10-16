@@ -26,6 +26,7 @@ import {
 } from '../calorieTarget';
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 import { appAlert } from '../../../shared/feedback/appAlert';
+import { ageOn } from '../../../legal/age';
 
 interface Props {
   visible: boolean;
@@ -100,19 +101,31 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
     if (!user || hydrated.current) return;
     hydrated.current = true;
 
+    const athleteAge = ageOn(user.dateOfBirth);
+    const isMinor = athleteAge < 18 || !user.dateOfBirth;
+
     const activity = parseActivity(user.activityLevel);
-    setObjective(user.objective || 'Stabiliser');
+    // Règle N1 : si mineur, interdiction de l'objectif Perte de gras -> converti en Stabiliser
+    let initialObjective = user.objective || 'Stabiliser';
+    if (isMinor && classifyObjective(initialObjective) === 'cut') {
+      initialObjective = 'Stabiliser';
+    }
+    setObjective(initialObjective);
     setStartWeight(user.startWeight ? user.startWeight.toString() : '');
     setTargetWeight(user.targetWeight ? user.targetWeight.toString() : '');
     setNeat(activity.neat);
     setSessions(activity.sessions);
-    setAge(activity.age ?? ageFromDob(user.dateOfBirth) ?? 25);
+    setAge(athleteAge > 0 ? athleteAge : 18);
     setWeeklyGoal(
-      user.weeklyWeightGoal !== undefined && user.weeklyWeightGoal !== null && user.weeklyWeightGoal !== 0
+      user.weeklyWeightGoal !== undefined && user.weeklyWeightGoal !== null && user.weeklyWeightGoal !== 0 && !isMinor
         ? String(Math.abs(user.weeklyWeightGoal))
-        : '0.5'
+        : '0'
     );
-    setKcalGoal(user.manualKcalGoal ? user.manualKcalGoal.toString() : '2000');
+    // Plancher de sécurité : 1200 / 1500 pour adulte
+    const adultFloor = user.gender === 'femme' || user.gender === 'female' ? 1200 : 1500;
+    const existingKcal = user.manualKcalGoal ? user.manualKcalGoal : 2000;
+    const safeKcal = (!isMinor && existingKcal < adultFloor) ? adultFloor : existingKcal;
+    setKcalGoal(String(safeKcal));
     if (user.mealDistribution) setDistribution(user.mealDistribution);
 
     let cancelled = false;
@@ -139,11 +152,16 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
     (distribution.diner || 0) +
     (distribution.collation || 0);
 
+  const athleteAge = ageOn(user?.dateOfBirth);
+  const isMinor = athleteAge < 18 || !user?.dateOfBirth;
+
   const goalKind = classifyObjective(objective);
-  const showPace = goalKind === 'cut' || goalKind === 'bulk';
+  const showPace = !isMinor && (goalKind === 'cut' || goalKind === 'bulk');
   const parsedWeekly = showPace ? parseFloat(weeklyGoal) : 0;
   const isWeeklyValid = !showPace || (!isNaN(parsedWeekly) && parsedWeekly > 0 && parsedWeekly <= 1);
-  const isKcalValid = !isNaN(parseInt(kcalGoal, 10)) && parseInt(kcalGoal, 10) >= 800;
+  const adultFloor = user?.gender === 'femme' || user?.gender === 'female' ? 1200 : 1500;
+  const parsedKcal = parseInt(kcalGoal, 10);
+  const isKcalValid = !isNaN(parsedKcal) && (isMinor ? parsedKcal >= 800 : parsedKcal >= adultFloor);
   const isFormValid = totalDist === 100 && isWeeklyValid && isKcalValid;
   const totalKcal = parseInt(kcalGoal, 10) || 0;
 
@@ -154,17 +172,22 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
     return computeCalorieTarget({
       weightKg,
       heightCm: user?.height || null,
-      age,
+      age: athleteAge > 0 ? athleteAge : age,
       sex: user?.gender,
       bodyFatPct,
       neat,
       sessionsPerWeek: sessions,
-      goal: goalKind,
+      goal: isMinor ? 'maintain' : goalKind,
       weeklyKg: parsedWeekly,
+      isMinor,
     });
-  }, [weightKg, user?.height, user?.gender, age, bodyFatPct, neat, sessions, goalKind, parsedWeekly]);
+  }, [weightKg, user?.height, user?.gender, athleteAge, age, bodyFatPct, neat, sessions, isMinor, goalKind, parsedWeekly]);
 
   const handleRecalculateKcal = () => {
+    if (isMinor) {
+      appAlert('Athlètes mineurs', 'Pour accompagner la croissance des athlètes de moins de 18 ans, aucun calcul automatique de calories n’est imposé. Rapproche-toi d’un professionnel de santé pour un suivi adapté.');
+      return;
+    }
     if (!preview) {
       appAlert('Poids', 'Indique ton poids actuel pour calculer.');
       return;
@@ -173,7 +196,9 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
   };
 
   const nudgeAge = (delta: number) => {
-    setAge((current) => Math.max(14, Math.min(80, current + delta)));
+    // Si la DOB est renseignée, l'âge ne doit pas être altéré
+    if (user?.dateOfBirth) return;
+    setAge((current) => Math.max(18, Math.min(80, current + delta)));
   };
 
   const nudgeSessions = (delta: number) => {
@@ -196,17 +221,26 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
       appAlert('Rythme', 'Le rythme reste entre 0,25 et 1 kg par semaine.');
       return;
     }
+    if (!isKcalValid) {
+      if (isMinor) {
+        appAlert('Calories', 'Indique un objectif calorique valide (au moins 800 kcal).');
+      } else {
+        appAlert('Calories', `Pour protéger ta santé, l'objectif ne peut pas être inférieur à ${adultFloor} kcal.`);
+      }
+      return;
+    }
 
     setIsSaving(true);
     try {
       if (!user) throw new Error('missing user');
       const start = parseFloat(startWeight.replace(',', '.'));
       const target = parseFloat(targetWeight.replace(',', '.'));
+      const effectiveObjective = isMinor && goalKind === 'cut' ? 'Stabiliser' : objective;
       const { error } = await supabase
         .from('profiles')
         .update({
-          objective,
-          activity_level: encodeActivity(neat, sessions, age),
+          objective: effectiveObjective,
+          activity_level: encodeActivity(neat, sessions, athleteAge > 0 ? athleteAge : age),
           start_weight: Number.isFinite(start) ? start : null,
           target_weight: Number.isFinite(target) ? target : null,
           weekly_weight_goal: showPace ? parsedWeekly : 0,
@@ -262,8 +296,16 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
           {activeTab === 0 ? (
             <>
               <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>DIRECTION</Text>
+              {isMinor && (
+                <View style={[styles.minorBanner, { backgroundColor: theme.colors.glassFill, borderColor: theme.colors.glassBorder }]}>
+                  <Feather name="shield" size={16} color={theme.colors.sprintyBlue} />
+                  <Text style={[styles.minorBannerText, { color: theme.colors.textSecondary }]}>
+                    Profil athlète mineur : les objectifs de perte de poids sont désactivés pour préserver ta santé et ta croissance.
+                  </Text>
+                </View>
+              )}
               <View style={styles.loadGrid}>
-                {OBJECTIVES.map((obj) => {
+                {OBJECTIVES.filter((obj) => !(isMinor && obj.id === 'Perte de poids')).map((obj) => {
                   const on = matchesObjective(objective, obj.id);
                   return (
                     <TouchableOpacity
@@ -303,12 +345,18 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
                   />
                   <Text style={[styles.kcalUnit, { color: theme.colors.textSecondary }]}>kcal</Text>
                 </View>
-                <TouchableOpacity onPress={handleRecalculateKcal} style={styles.estimateHit}>
-                  <Text style={[styles.estimateText, { color: theme.colors.sprintyBlue }]}>
-                    {preview ? `Calculer mes calories · ${preview.target.toLocaleString('fr-FR')}` : 'Calculer mes calories'}
+                {!isMinor && (
+                  <TouchableOpacity onPress={handleRecalculateKcal} style={styles.estimateHit}>
+                    <Text style={[styles.estimateText, { color: theme.colors.sprintyBlue }]}>
+                      {preview ? `Calculer mes calories · ${preview.target.toLocaleString('fr-FR')}` : 'Calculer mes calories'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                {isMinor ? (
+                  <Text style={[styles.breakdown, { color: theme.colors.textSecondary }]}>
+                    Pour les athlètes de moins de 18 ans, aucun calcul automatique de calories n’est imposé. Définis tes repères avec un professionnel de santé diplômé.
                   </Text>
-                </TouchableOpacity>
-                {preview ? (
+                ) : preview ? (
                   <Text style={[styles.breakdown, { color: theme.colors.textSecondary }]}>
                     {preview.note}
                     {` Entretien ${preview.tdee.toLocaleString('fr-FR')} kcal`}
@@ -330,13 +378,21 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
 
               <Text style={[styles.kicker, { color: theme.colors.textMuted, marginTop: 22 }]}>ÂGE</Text>
               <View style={[styles.sessionBox, { backgroundColor: theme.colors.surface, marginTop: 0 }]}>
-                <TouchableOpacity onPress={() => nudgeAge(-1)} style={[styles.step, { backgroundColor: theme.colors.glassFill }]}>
-                  <Feather name="minus" size={16} color={theme.colors.text} />
-                </TouchableOpacity>
-                <Text style={[styles.sessionValue, { color: theme.colors.text }]}>{age} ans</Text>
-                <TouchableOpacity onPress={() => nudgeAge(1)} style={[styles.step, { backgroundColor: theme.colors.glassFill }]}>
-                  <Feather name="plus" size={16} color={theme.colors.text} />
-                </TouchableOpacity>
+                {user?.dateOfBirth ? (
+                  <Text style={[styles.sessionValue, { color: theme.colors.text, paddingVertical: 8 }]}>
+                    {athleteAge > 0 ? `${athleteAge} ans (date de naissance du profil)` : 'Date de naissance non renseignée'}
+                  </Text>
+                ) : (
+                  <>
+                    <TouchableOpacity onPress={() => nudgeAge(-1)} style={[styles.step, { backgroundColor: theme.colors.glassFill }]}>
+                      <Feather name="minus" size={16} color={theme.colors.text} />
+                    </TouchableOpacity>
+                    <Text style={[styles.sessionValue, { color: theme.colors.text }]}>{age} ans</Text>
+                    <TouchableOpacity onPress={() => nudgeAge(1)} style={[styles.step, { backgroundColor: theme.colors.glassFill }]}>
+                      <Feather name="plus" size={16} color={theme.colors.text} />
+                    </TouchableOpacity>
+                  </>
+                )}
               </View>
 
               {showPace && (
@@ -626,4 +682,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   sessionValue: { fontSize: 28, fontWeight: '800', minWidth: 36, textAlign: 'center' },
+  minorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  minorBannerText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
+  },
 });
