@@ -12,37 +12,56 @@ import { MealIcon } from './MealIcon';
 import { MEALS, MEAL_ACCENT, macroGoals } from '../nutritionTheme';
 import { ageOn, isMinorAthlete } from '../../../legal/age';
 import { getCarbAdvice, CarbAdviceSession } from '../carbAdvice';
-import { useWorkoutStore } from '../../../store/workoutStore';
+import { workoutService } from '../../../services/workoutService';
 
 interface NutritionSummaryProps {
   athleteProfile?: any;
+  athleteId?: string;
   workouts?: CarbAdviceSession[];
 }
 
 /** "Énergie du jour": calories on the track, macros in their lanes (adulte).
  *  Pour les mineurs : vue calme sans calories, sans macros et sans jauge.
- *  N3 : Phrase féculents selon la séance du jour (séance prévue vs repos). */
-export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ athleteProfile, workouts }) => {
+ *  N3 : Phrase féculents selon la séance du jour (séance prévue vs repos).
+ *  Charge la séance réelle de la date via workoutService.fetchWorkoutsForDate. */
+export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ athleteProfile, athleteId, workouts }) => {
   const theme = useTheme();
   const mealLogs = useNutritionStore((state) => state.mealLogs);
   const currentDate = useNutritionStore((state) => state.currentDate);
-  const upcomingWorkouts = useWorkoutStore((state) => state.upcomingWorkouts);
   const user = useAuthStore((state) => state.user);
 
   const activeProfile = athleteProfile || user;
   const isMinor = isMinorAthlete(activeProfile);
+  const targetUserId = athleteProfile?.id || athleteId || user?.id;
 
-  // Déterminer les séances de la journée pour la phrase féculents
-  const selectedDateStr = currentDate || new Date().toISOString().slice(0, 10);
-  const dayWorkouts = workouts !== undefined
-    ? workouts
-    : upcomingWorkouts.filter((w: any) => {
-        if (!w?.date_prevue) return false;
-        const wDate = typeof w.date_prevue === 'string'
-          ? w.date_prevue.slice(0, 10)
-          : new Date(w.date_prevue).toISOString().slice(0, 10);
-        return wDate === selectedDateStr;
+  const [dayWorkouts, setDayWorkouts] = React.useState<CarbAdviceSession[] | null>(workouts ?? null);
+
+  React.useEffect(() => {
+    if (workouts !== undefined) {
+      setDayWorkouts(workouts);
+      return;
+    }
+    if (!targetUserId) {
+      setDayWorkouts(null);
+      return;
+    }
+
+    let isMounted = true;
+    const targetDate = currentDate ? new Date(`${currentDate}T12:00:00`) : new Date();
+
+    workoutService
+      .fetchWorkoutsForDate(targetUserId, targetDate, 'athlete')
+      .then((data) => {
+        if (isMounted) setDayWorkouts(data || []);
+      })
+      .catch(() => {
+        if (isMounted) setDayWorkouts([]);
       });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [targetUserId, currentDate, workouts]);
 
   const carbAdviceText = getCarbAdvice(dayWorkouts);
 
