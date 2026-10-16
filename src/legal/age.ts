@@ -12,6 +12,14 @@ export function ageOn(dob: Date | string | null | undefined, today = new Date())
 
 export const MIN_AGE = 15;
 
+/** Returns true if the profile belongs to a minor (< 18 years) or if the date of birth is missing/invalid. */
+export function isMinorAthlete(profile?: any, today = new Date()): boolean {
+  const dob = profile?.dateOfBirth || profile?.date_of_birth;
+  if (!dob) return true;
+  return ageOn(dob, today) < 18;
+}
+
 /** Local calendar date as YYYY-MM-DD (no UTC shift). */
 export const toISODate = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+

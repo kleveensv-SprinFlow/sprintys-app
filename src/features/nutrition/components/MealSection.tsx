@@ -14,7 +14,7 @@ import { MealIcon } from './MealIcon';
 import { MEALS, MEAL_ACCENT, MEAL_ACCENT_TINT } from '../nutritionTheme';
 
 import { tourRef } from '../../onboarding/tourRegistry';
-import { ageOn } from '../../../legal/age';
+import { ageOn, isMinorAthlete } from '../../../legal/age';
 interface MealSectionProps {
   readonly?: boolean;
   athleteId?: string;
@@ -59,8 +59,7 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
   }, [currentDate, yesterdayDate, athleteId, user?.id]);
 
   const activeProfile = athleteProfile || user;
-  const athleteAge = ageOn(activeProfile?.dateOfBirth || activeProfile?.date_of_birth);
-  const isMinor = athleteAge < 18 || !(activeProfile?.dateOfBirth || activeProfile?.date_of_birth);
+  const isMinor = isMinorAthlete(activeProfile);
 
   const mealDistribution = activeProfile?.mealDistribution || activeProfile?.meal_distribution || {
     petit_dejeuner: 25, dejeuner: 35, diner: 30, collation: 10
@@ -103,14 +102,22 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
 
               <View style={styles.mealInfo}>
                 <Text style={[styles.mealTitle, { color: theme.colors.text }]}>{meal.label}</Text>
-                <Text style={[styles.kcalText, { color: theme.colors.text }]}>
-                  {Math.round(consumedKcal).toLocaleString('fr-FR')} kcal
-                  {targetKcal ? (
-                    <Text style={{ color: theme.colors.textSecondary, fontWeight: '500' }}>
-                      {` / ${targetKcal.toLocaleString('fr-FR')} kcal`}
-                    </Text>
-                  ) : null}
-                </Text>
+                {isMinor ? (
+                  <Text style={[styles.minorMealState, { color: theme.colors.textSecondary }]}>
+                    {logs.length > 0
+                      ? `${logs.length} aliment${logs.length > 1 ? 's' : ''}`
+                      : 'Non renseigné'}
+                  </Text>
+                ) : (
+                  <Text style={[styles.kcalText, { color: theme.colors.text }]}>
+                    {Math.round(consumedKcal).toLocaleString('fr-FR')} kcal
+                    {targetKcal ? (
+                      <Text style={{ color: theme.colors.textSecondary, fontWeight: '500' }}>
+                        {` / ${targetKcal.toLocaleString('fr-FR')} kcal`}
+                      </Text>
+                    ) : null}
+                  </Text>
+                )}
               </View>
 
               {!readonly && (
@@ -126,10 +133,12 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
               )}
             </View>
 
-            {/* Share of this meal in the day's target */}
-            <View style={[styles.progressTrack, { backgroundColor: theme.colors.glassFill }]}>
-              <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-            </View>
+            {/* Share of this meal in the day's target (adultes uniquement) */}
+            {!isMinor && (
+              <View style={[styles.progressTrack, { backgroundColor: theme.colors.glassFill }]}>
+                <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+              </View>
+            )}
 
             {/* Empty meal: offer yesterday's one tap repeat */}
             {logs.length === 0 && !readonly && (yesterday?.count ?? 0) > 0 && (
@@ -143,7 +152,9 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
               >
                 <Feather name="rotate-ccw" size={12} color={MEAL_ACCENT} />
                 <Text style={styles.repeatLinkText}>
-                  Reprendre hier · {Math.round(yesterday?.kcal ?? 0)} kcal
+                  {isMinor
+                    ? 'Reprendre hier'
+                    : `Reprendre hier · ${Math.round(yesterday?.kcal ?? 0)} kcal`}
                 </Text>
               </PressableScale>
             )}
@@ -189,6 +200,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 2,
     fontVariant: ['tabular-nums'],
+  },
+  minorMealState: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginTop: 2,
   },
   addPill: {
     flexDirection: 'row',

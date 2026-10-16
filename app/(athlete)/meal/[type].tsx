@@ -22,6 +22,7 @@ import { EmptyState } from '../../../src/shared/components/EmptyState';
 import { Header } from '../../../src/shared/components/Header';
 import { PressableScale } from '../../../src/shared/components/PressableScale';
 import { useFrostedHeader } from '../../../src/shared/hooks/useFrostedHeader';
+import { ageOn, isMinorAthlete } from '../../../src/legal/age';
 
 import { FeedbackHost } from '../../../src/shared/feedback/FeedbackHost';
 import { appAlert } from '../../../src/shared/feedback/appAlert';
@@ -130,13 +131,16 @@ export default function MealDetailScreen() {
   const consumedLip = logs.reduce((sum, log) => sum + Number(log.lipides), 0);
 
   const activeProfile = athleteProfile || user;
+  const isMinor = isMinorAthlete(activeProfile);
+
   const mealDistribution = activeProfile?.mealDistribution || activeProfile?.meal_distribution || {
     petit_dejeuner: 25, dejeuner: 35, diner: 30, collation: 10
   };
-  const kcalGoal = activeProfile?.manualKcalGoal || activeProfile?.manual_kcal_goal || 2000;
-  const targetKcal = Math.round((kcalGoal * mealDistribution[type]) / 100);
+  const rawKcal = activeProfile?.manualKcalGoal || activeProfile?.manual_kcal_goal;
+  const kcalGoal = isMinor ? null : (rawKcal || 2000);
+  const targetKcal = kcalGoal ? Math.round((kcalGoal * mealDistribution[type]) / 100) : 0;
 
-  // Objectifs macros proportionnels au repas
+  // Objectifs macros proportionnels au repas (adulte)
   const targetPro = Math.round((targetKcal * 0.3) / 4);
   const targetGlu = Math.round((targetKcal * 0.4) / 4);
   const targetLip = Math.round((targetKcal * 0.3) / 9);
@@ -215,34 +219,51 @@ export default function MealDetailScreen() {
 
       <Animated.ScrollView {...scrollProps} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
-        {/* Meal summary: icon, total vs target, macro lanes */}
+        {/* Meal summary: icon, total vs target, macro lanes (adulte) ou vue calme (mineur) */}
         <View style={[glassCard, styles.summaryCard]}>
           <GlassSheen radius={22} />
           <View style={styles.summaryTop}>
             <MealIcon type={type} size={28} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.summaryKcal, { color: theme.colors.text }]}>
-                {Math.round(consumedKcal).toLocaleString('fr-FR')}
-                <Text style={[styles.summaryKcalUnit, { color: theme.colors.textSecondary }]}> kcal</Text>
-              </Text>
-              <Text style={[styles.summaryTarget, { color: theme.colors.textSecondary }]}>
-                sur {targetKcal.toLocaleString('fr-FR')} kcal prévues pour ce repas
-              </Text>
-            </View>
+            {isMinor ? (
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.summaryMinorTitle, { color: theme.colors.text }]}>
+                  {label}
+                </Text>
+                <Text style={[styles.summaryTarget, { color: theme.colors.textSecondary }]}>
+                  {logs.length === 0
+                    ? 'Aucun aliment enregistré'
+                    : `${logs.length} aliment${logs.length > 1 ? 's enregistrés' : ' enregistré'}`}
+                </Text>
+              </View>
+            ) : (
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.summaryKcal, { color: theme.colors.text }]}>
+                  {Math.round(consumedKcal).toLocaleString('fr-FR')}
+                  <Text style={[styles.summaryKcalUnit, { color: theme.colors.textSecondary }]}> kcal</Text>
+                </Text>
+                <Text style={[styles.summaryTarget, { color: theme.colors.textSecondary }]}>
+                  sur {targetKcal.toLocaleString('fr-FR')} kcal prévues pour ce repas
+                </Text>
+              </View>
+            )}
           </View>
-          <View style={[styles.summaryTrack, { backgroundColor: theme.colors.glassFill }]}>
-            <View
-              style={[
-                styles.summaryFill,
-                { width: `${Math.min(100, targetKcal > 0 ? (consumedKcal / targetKcal) * 100 : 0)}%` },
-              ]}
-            />
-          </View>
-          <MacroLanes
-            compact
-            values={{ proteines: consumedPro, glucides: consumedGlu, lipides: consumedLip }}
-            goals={{ proteines: targetPro, glucides: targetGlu, lipides: targetLip }}
-          />
+          {!isMinor && (
+            <>
+              <View style={[styles.summaryTrack, { backgroundColor: theme.colors.glassFill }]}>
+                <View
+                  style={[
+                    styles.summaryFill,
+                    { width: `${Math.min(100, targetKcal > 0 ? (consumedKcal / targetKcal) * 100 : 0)}%` },
+                  ]}
+                />
+              </View>
+              <MacroLanes
+                compact
+                values={{ proteines: consumedPro, glucides: consumedGlu, lipides: consumedLip }}
+                goals={{ proteines: targetPro, glucides: targetGlu, lipides: targetLip }}
+              />
+            </>
+          )}
         </View>
 
         {/* LISTE DES ALIMENTS DU REPAS */}
@@ -280,9 +301,11 @@ export default function MealDetailScreen() {
                   </View>
 
                   <View style={styles.foodRightCol}>
-                    <Text style={[styles.foodCalories, { color: theme.colors.text }]}>
-                      {Math.round(log.calories)} kcal
-                    </Text>
+                    {!isMinor && (
+                      <Text style={[styles.foodCalories, { color: theme.colors.text }]}>
+                        {Math.round(log.calories)} kcal
+                      </Text>
+                    )}
                     {!readonly && (
                       <TouchableOpacity 
                         onPress={(e) => {
@@ -320,7 +343,9 @@ export default function MealDetailScreen() {
               >
                 <Feather name="rotate-ccw" size={16} color={MEAL_ACCENT} style={{ marginRight: 8 }} />
                 <Text style={[styles.repeatYesterdayBigText, { color: MEAL_ACCENT }]}>
-                  Reprendre le {label.toLowerCase()} d'hier · {yesterdayKcal} kcal
+                  {isMinor
+                    ? `Reprendre le ${label.toLowerCase()} d'hier`
+                    : `Reprendre le ${label.toLowerCase()} d'hier · ${yesterdayKcal} kcal`}
                 </Text>
               </TouchableOpacity>
             )}
@@ -484,6 +509,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
+  },
+  summaryMinorTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.4,
   },
   summaryKcal: {
     fontSize: 30,
