@@ -8,6 +8,7 @@ import { GlassSheen } from '../../../shared/components/GlassSheen';
 import { EnergyTrack } from './EnergyTrack';
 import { MacroLanes } from './MacroLanes';
 import { macroGoals } from '../nutritionTheme';
+import { ageOn } from '../../../legal/age';
 
 interface NutritionSummaryProps {
   athleteProfile?: any;
@@ -20,7 +21,12 @@ export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ athleteProfi
   const user = useAuthStore((state) => state.user);
 
   const activeProfile = athleteProfile || user;
-  const kcalGoal = activeProfile?.manualKcalGoal || activeProfile?.manual_kcal_goal || 2000;
+  const athleteAge = ageOn(activeProfile?.dateOfBirth || activeProfile?.date_of_birth);
+  const isMinor = athleteAge < 18 || !(activeProfile?.dateOfBirth || activeProfile?.date_of_birth);
+
+  // Pour les mineurs : aucune cible chiffrée automatique ni résiduelle
+  const rawKcal = activeProfile?.manualKcalGoal || activeProfile?.manual_kcal_goal;
+  const kcalGoal = isMinor ? null : (rawKcal || 2000);
 
   const sum = (key: 'calories' | 'proteines' | 'glucides' | 'lipides') =>
     mealLogs.reduce((total, log) => total + Number(log[key] || 0), 0);
@@ -31,16 +37,18 @@ export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ athleteProfi
       <View style={styles.titleRow}>
         <Text style={[styles.title, { color: theme.colors.text }]}>Énergie du jour</Text>
         <Text style={[styles.goal, { color: theme.colors.textSecondary }]}>
-          Objectif {kcalGoal.toLocaleString('fr-FR')} kcal
+          {isMinor
+            ? 'Repères individualisés (sans chiffre imposé)'
+            : `Objectif ${kcalGoal.toLocaleString('fr-FR')} kcal`}
         </Text>
       </View>
 
-      <EnergyTrack consumed={sum('calories')} goal={kcalGoal} />
+      <EnergyTrack consumed={sum('calories')} goal={kcalGoal || 0} />
 
       <View style={styles.lanes}>
         <MacroLanes
           values={{ proteines: sum('proteines'), glucides: sum('glucides'), lipides: sum('lipides') }}
-          goals={macroGoals(kcalGoal)}
+          goals={isMinor ? undefined : macroGoals(kcalGoal)}
         />
       </View>
     </View>

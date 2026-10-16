@@ -25,7 +25,7 @@ describe('secureAuthStorage', () => {
 
   it('recopie une ancienne session dans le coffre puis l’efface', async () => {
     secureStore.isAvailableAsync.mockResolvedValue(true);
-    secureStore.getItemAsync.mockImplementation(async (key) => (key.endsWith('.n') ? null : null));
+    secureStore.getItemAsync.mockImplementation(async (key: string) => (key.endsWith('.n') ? null : null));
     asyncStorage.getItem.mockResolvedValue('session-ancienne');
 
     await expect(secureAuthStorage.getItem('sb-auth-token')).resolves.toBe('session-ancienne');

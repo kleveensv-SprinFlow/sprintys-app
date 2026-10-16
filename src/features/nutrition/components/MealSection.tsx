@@ -14,6 +14,7 @@ import { MealIcon } from './MealIcon';
 import { MEALS, MEAL_ACCENT, MEAL_ACCENT_TINT } from '../nutritionTheme';
 
 import { tourRef } from '../../onboarding/tourRegistry';
+import { ageOn } from '../../../legal/age';
 interface MealSectionProps {
   readonly?: boolean;
   athleteId?: string;
@@ -58,10 +59,14 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
   }, [currentDate, yesterdayDate, athleteId, user?.id]);
 
   const activeProfile = athleteProfile || user;
+  const athleteAge = ageOn(activeProfile?.dateOfBirth || activeProfile?.date_of_birth);
+  const isMinor = athleteAge < 18 || !(activeProfile?.dateOfBirth || activeProfile?.date_of_birth);
+
   const mealDistribution = activeProfile?.mealDistribution || activeProfile?.meal_distribution || {
     petit_dejeuner: 25, dejeuner: 35, diner: 30, collation: 10
   };
-  const kcalGoal = activeProfile?.manualKcalGoal || activeProfile?.manual_kcal_goal || 2000;
+  const rawKcal = activeProfile?.manualKcalGoal || activeProfile?.manual_kcal_goal;
+  const kcalGoal = isMinor ? null : (rawKcal || 2000);
 
   const handleAddFood = (type: MealType) => {
     openSearchModal(type);
@@ -82,8 +87,8 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
       {MEALS.map((meal) => {
         const logs = mealLogs.filter((log) => log.meal_type === meal.type);
         const consumedKcal = logs.reduce((sum, log) => sum + Number(log.calories), 0);
-        const targetKcal = Math.round((kcalGoal * mealDistribution[meal.type]) / 100);
-        const progress = Math.min(1, targetKcal > 0 ? consumedKcal / targetKcal : 0);
+        const targetKcal = kcalGoal ? Math.round((kcalGoal * mealDistribution[meal.type]) / 100) : null;
+        const progress = Math.min(1, targetKcal && targetKcal > 0 ? consumedKcal / targetKcal : 0);
         const yesterday = yesterdayMeals[meal.type];
 
         return (
@@ -99,10 +104,12 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
               <View style={styles.mealInfo}>
                 <Text style={[styles.mealTitle, { color: theme.colors.text }]}>{meal.label}</Text>
                 <Text style={[styles.kcalText, { color: theme.colors.text }]}>
-                  {Math.round(consumedKcal).toLocaleString('fr-FR')}
-                  <Text style={{ color: theme.colors.textSecondary, fontWeight: '500' }}>
-                    {' '}/ {targetKcal.toLocaleString('fr-FR')} kcal
-                  </Text>
+                  {Math.round(consumedKcal).toLocaleString('fr-FR')} kcal
+                  {targetKcal ? (
+                    <Text style={{ color: theme.colors.textSecondary, fontWeight: '500' }}>
+                      {` / ${targetKcal.toLocaleString('fr-FR')} kcal`}
+                    </Text>
+                  ) : null}
                 </Text>
               </View>
 
