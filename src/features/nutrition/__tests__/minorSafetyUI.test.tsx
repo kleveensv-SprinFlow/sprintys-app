@@ -324,31 +324,50 @@ describe('Preuve de rendu UI (N2) : Masquage réel mineur vs adulte via react-te
   });
 
   describe('Messages de confirmation d’ajout et recherche réelle (FoodSearchModal)', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      act(() => {
+        jest.runOnlyPendingTimers();
+      });
+      jest.useRealTimers();
+    });
+
     it('pour un MINEUR : monte FoodSearchModal, masque les kcal sur les aliments récents et affiche le toast réel « Pomme ajouté ! » sans kcal', async () => {
       mockCurrentAuthUser = minorAthlete;
       mockNutritionStoreState.isSearchModalOpen = true;
 
       let comp: any;
-      await act(async () => {
-        comp = renderer.create(<FoodSearchModal />);
-      });
+      try {
+        await act(async () => {
+          comp = renderer.create(<FoodSearchModal />);
+        });
 
-      const initialText = extractAllStrings(comp.toJSON()).join(' ');
-      // Dans la liste des récents, aucun chiffre calorique pour le mineur
-      expect(initialText).toContain('Pomme');
-      expect(initialText).not.toMatch(/kcal/i);
-      expect(initialText).not.toMatch(/protéines|glucides|lipides/i);
+        const initialText = extractAllStrings(comp.toJSON()).join(' ');
+        // Dans la liste des récents, aucun chiffre calorique pour le mineur
+        expect(initialText).toContain('Pomme');
+        expect(initialText).not.toMatch(/kcal/i);
+        expect(initialText).not.toMatch(/protéines|glucides|lipides/i);
 
-      // Simule l'appui sur le bouton d'ajout rapide du premier aliment récent
-      const plusButton = comp.root.findByProps({ hitSlop: 10 });
-      await act(async () => {
-        await plusButton.props.onPress();
-      });
+        // Simule l'appui sur le bouton d'ajout rapide du premier aliment récent
+        const plusButton = comp.root.findByProps({ hitSlop: 10 });
+        await act(async () => {
+          await plusButton.props.onPress();
+        });
 
-      const postAddText = extractAllStrings(comp.toJSON()).join(' ');
-      // Le toast réel affiché sur l'écran ne doit contenir aucune kcal
-      expect(postAddText).toContain('Pomme ajouté !');
-      expect(postAddText).not.toMatch(/kcal/i);
+        const postAddText = extractAllStrings(comp.toJSON()).join(' ');
+        // Le toast réel affiché sur l'écran ne doit contenir aucune kcal
+        expect(postAddText).toContain('Pomme ajouté !');
+        expect(postAddText).not.toMatch(/kcal/i);
+      } finally {
+        if (comp) {
+          act(() => {
+            comp.unmount();
+          });
+        }
+      }
     });
 
     it('pour un ADULTE : monte FoodSearchModal et affiche le toast réel « Pomme ajouté (52 kcal) »', async () => {
@@ -356,19 +375,27 @@ describe('Preuve de rendu UI (N2) : Masquage réel mineur vs adulte via react-te
       mockNutritionStoreState.isSearchModalOpen = true;
 
       let comp: any;
-      await act(async () => {
-        comp = renderer.create(<FoodSearchModal />);
-      });
+      try {
+        await act(async () => {
+          comp = renderer.create(<FoodSearchModal />);
+        });
 
-      const plusButton = comp.root.findByProps({ hitSlop: 10 });
-      await act(async () => {
-        await plusButton.props.onPress();
-      });
+        const plusButton = comp.root.findByProps({ hitSlop: 10 });
+        await act(async () => {
+          await plusButton.props.onPress();
+        });
 
-      const postAddText = extractAllStrings(comp.toJSON()).join(' ');
-      // Le toast réel affiché sur l'écran pour l'adulte mentionne bien les kcal
-      expect(postAddText).toContain('Pomme ajouté (52 kcal)');
-      expect(postAddText).toMatch(/52\s*kcal/i);
+        const postAddText = extractAllStrings(comp.toJSON()).join(' ');
+        // Le toast réel affiché sur l'écran pour l'adulte mentionne bien les kcal
+        expect(postAddText).toContain('Pomme ajouté (52 kcal)');
+        expect(postAddText).toMatch(/52\s*kcal/i);
+      } finally {
+        if (comp) {
+          act(() => {
+            comp.unmount();
+          });
+        }
+      }
     });
   });
 });
