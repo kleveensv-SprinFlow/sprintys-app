@@ -26,12 +26,77 @@ jest.mock('../../../shared/components/PressableScale', () => {
   const React = require('react');
   const { View } = require('react-native');
   return {
-    PressableScale: ({ children, ...props }: any) => React.createElement(View, props, children),
+    PressableScale: ({ children, testID, ...props }: any) =>
+      React.createElement(View, { ...props, testID: testID || 'pressable-scale' }, children),
   };
 });
 
 jest.mock('../../../shared/components/GlassSheen', () => ({
   GlassSheen: () => null,
+}));
+
+jest.mock('../../../shared/components/GlowBackground', () => ({
+  GlowBackground: () => null,
+}));
+
+jest.mock('../../../shared/components/SegmentedControl', () => ({
+  SegmentedControl: () => null,
+}));
+
+jest.mock('../components/MealIcon', () => ({
+  MealIcon: () => null,
+}));
+
+jest.mock('expo-linear-gradient', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    LinearGradient: ({ children, ...props }: any) => React.createElement(View, props, children),
+  };
+});
+
+jest.mock('expo-camera', () => ({
+  CameraView: 'CameraView',
+  useCameraPermissions: () => [{ granted: true }, jest.fn()],
+}));
+
+jest.mock('expo-image-picker', () => ({
+  launchImageLibraryAsync: jest.fn(),
+  requestMediaLibraryPermissionsAsync: jest.fn(),
+}));
+
+jest.mock('../../../store/consentStore', () => ({
+  useConsentStore: () => ({ hasConsented: true }),
+}));
+
+jest.mock('../../../store/entitlementStore', () => ({
+  useEntitlementStore: () => ({ isPro: false }),
+  billingOn: () => false,
+  remainingToday: () => 10,
+}));
+
+jest.mock('../../../services/openFoodFactsService', () => ({
+  openFoodFactsService: {
+    search: jest.fn().mockResolvedValue([]),
+    fetchByBarcode: jest.fn(),
+  },
+}));
+
+jest.mock('../../../services/nutritionService', () => ({
+  nutritionService: {
+    searchHybrid: jest.fn().mockResolvedValue({ off: [], ciqual: [] }),
+  },
+}));
+
+jest.mock('../../../services/aiNutritionService', () => ({
+  aiNutritionService: {
+    analyzeMealText: jest.fn(),
+  },
+  AIQuotaError: class extends Error {},
+}));
+
+jest.mock('../../../shared/hooks/useDebounce', () => ({
+  useDebounce: (val: any) => val,
 }));
 
 jest.mock('../components/EnergyTrack', () => ({
@@ -55,15 +120,29 @@ const mockMealLogs = [
   { id: '2', meal_type: 'dejeuner', custom_food_name: 'Riz et poulet', calories: 450, proteines: 35, glucides: 50, lipides: 8, quantity_g: 300 },
 ];
 
+let mockNutritionStoreState: any = {
+  mealLogs: mockMealLogs,
+  currentDate: '2026-10-16',
+  openSearchModal: jest.fn(),
+  closeSearchModal: jest.fn(),
+  isSearchModalOpen: true,
+  activeSearchMealType: 'dejeuner',
+  copyMealFromDate: jest.fn(),
+  fetchHistory: jest.fn(),
+  recentFoods: [
+    { id: 'r1', food_name: 'Pomme', last_calories: 52, last_proteines: 0.3, last_glucides: 14, last_lipides: 0.2, count: 5 }
+  ],
+  frequentFoods: [],
+  savedMeals: [],
+  quickAddFood: jest.fn().mockResolvedValue(true),
+  logSavedMeal: jest.fn().mockResolvedValue(true),
+  deleteSavedMeal: jest.fn(),
+  addMealLog: jest.fn().mockResolvedValue(true),
+};
+
 jest.mock('../../../store/nutrition/nutritionStore', () => ({
   useNutritionStore: (selector: any) => {
-    const state = {
-      mealLogs: mockMealLogs,
-      currentDate: '2026-10-16',
-      openSearchModal: jest.fn(),
-      copyMealFromDate: jest.fn(),
-    };
-    return typeof selector === 'function' ? selector(state) : state;
+    return typeof selector === 'function' ? selector(mockNutritionStoreState) : mockNutritionStoreState;
   },
   getLocalDateString: () => '2026-10-15',
 }));
@@ -98,6 +177,7 @@ jest.mock('../../../services/supabase', () => ({
 import { NutritionSummary } from '../components/NutritionSummary';
 import { MealSection } from '../components/MealSection';
 import { FoodDetailSheet } from '../components/FoodDetailSheet';
+import { FoodSearchModal } from '../components/FoodSearchModal';
 import { isMinorAthlete } from '../../../legal/age';
 
 /** Helper pour extraire récursivement tous les textes d'un rendu react-test-renderer */
@@ -243,31 +323,53 @@ describe('Preuve de rendu UI (N2) : Masquage réel mineur vs adulte via react-te
     });
   });
 
-  describe('Messages de confirmation d’ajout (FoodSearchModal)', () => {
-    it('pour un MINEUR : ne contient aucune mention de kcal', () => {
-      const isMinor = isMinorAthlete(minorAthlete);
-      const displayName = 'Pomme';
-      const payloadKcal = 52;
+  describe('Messages de confirmation d’ajout et recherche réelle (FoodSearchModal)', () => {
+    it('pour un MINEUR : monte FoodSearchModal, masque les kcal sur les aliments récents et affiche le toast réel « Pomme ajouté ! » sans kcal', async () => {
+      mockCurrentAuthUser = minorAthlete;
+      mockNutritionStoreState.isSearchModalOpen = true;
 
-      const toastMessage = isMinor
-        ? `${displayName} ajouté !`
-        : `${displayName} ajouté (${payloadKcal} kcal)`;
+      let comp: any;
+      await act(async () => {
+        comp = renderer.create(<FoodSearchModal />);
+      });
 
-      expect(toastMessage).toBe('Pomme ajouté !');
-      expect(toastMessage).not.toMatch(/kcal/i);
+      const initialText = extractAllStrings(comp.toJSON()).join(' ');
+      // Dans la liste des récents, aucun chiffre calorique pour le mineur
+      expect(initialText).toContain('Pomme');
+      expect(initialText).not.toMatch(/kcal/i);
+      expect(initialText).not.toMatch(/protéines|glucides|lipides/i);
+
+      // Simule l'appui sur le bouton d'ajout rapide du premier aliment récent
+      const plusButton = comp.root.findByProps({ hitSlop: 10 });
+      await act(async () => {
+        await plusButton.props.onPress();
+      });
+
+      const postAddText = extractAllStrings(comp.toJSON()).join(' ');
+      // Le toast réel affiché sur l'écran ne doit contenir aucune kcal
+      expect(postAddText).toContain('Pomme ajouté !');
+      expect(postAddText).not.toMatch(/kcal/i);
     });
 
-    it('pour un ADULTE : inclut les kcal ajoutées', () => {
-      const isMinor = isMinorAthlete(adultAthlete);
-      const displayName = 'Pomme';
-      const payloadKcal = 52;
+    it('pour un ADULTE : monte FoodSearchModal et affiche le toast réel « Pomme ajouté (52 kcal) »', async () => {
+      mockCurrentAuthUser = adultAthlete;
+      mockNutritionStoreState.isSearchModalOpen = true;
 
-      const toastMessage = isMinor
-        ? `${displayName} ajouté !`
-        : `${displayName} ajouté (${payloadKcal} kcal)`;
+      let comp: any;
+      await act(async () => {
+        comp = renderer.create(<FoodSearchModal />);
+      });
 
-      expect(toastMessage).toBe('Pomme ajouté (52 kcal)');
-      expect(toastMessage).toMatch(/kcal/i);
+      const plusButton = comp.root.findByProps({ hitSlop: 10 });
+      await act(async () => {
+        await plusButton.props.onPress();
+      });
+
+      const postAddText = extractAllStrings(comp.toJSON()).join(' ');
+      // Le toast réel affiché sur l'écran pour l'adulte mentionne bien les kcal
+      expect(postAddText).toContain('Pomme ajouté (52 kcal)');
+      expect(postAddText).toMatch(/52\s*kcal/i);
     });
   });
 });
+
