@@ -158,6 +158,16 @@ jest.mock('../../../store/authStore', () => ({
   },
 }));
 
+let mockWorkoutStoreState: any = {
+  upcomingWorkouts: [],
+};
+
+jest.mock('../../../store/workoutStore', () => ({
+  useWorkoutStore: (selector: any) => {
+    return typeof selector === 'function' ? selector(mockWorkoutStoreState) : mockWorkoutStoreState;
+  },
+}));
+
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn() }),
 }));
@@ -235,6 +245,60 @@ describe('Preuve de rendu UI (N2) : Masquage réel mineur vs adulte via react-te
       expect(fullText).toContain('Énergie du jour');
       expect(fullText).toMatch(/2[\s\u202f]?200\s*kcal/i);
       expect(fullText).toMatch(/kcal/i);
+    });
+
+    it('N3 pour un MINEUR avec séance prévue : affiche « Séance aujourd’hui. Les féculents ont plus de place. » sans aucun kcal ni macro', () => {
+      let comp: any;
+      const workouts = [{ id: 'w1', date_prevue: '2026-10-16', type_seance: 'Sprint' }];
+      act(() => {
+        comp = renderer.create(<NutritionSummary athleteProfile={minorAthlete} workouts={workouts} />);
+      });
+      const texts = extractAllStrings(comp.toJSON());
+      const fullText = texts.join(' ');
+
+      expect(fullText).toContain("Séance aujourd'hui. Les féculents ont plus de place.");
+      expect(fullText).not.toMatch(/kcal/i);
+      expect(fullText).not.toMatch(/protéines|glucides|lipides/i);
+      expect(fullText).not.toMatch(/moins|réduire|diminuer/i);
+    });
+
+    it('N3 pour un MINEUR au repos : affiche « Pas de séance aujourd’hui. » sans aucun kcal ni macro', () => {
+      let comp: any;
+      const workouts = [{ id: 'w2', date_prevue: '2026-10-16', type_seance: 'Repos' }];
+      act(() => {
+        comp = renderer.create(<NutritionSummary athleteProfile={minorAthlete} workouts={workouts} />);
+      });
+      const texts = extractAllStrings(comp.toJSON());
+      const fullText = texts.join(' ');
+
+      expect(fullText).toContain("Pas de séance aujourd'hui.");
+      expect(fullText).not.toMatch(/kcal/i);
+      expect(fullText).not.toMatch(/protéines|glucides|lipides/i);
+    });
+
+    it('N3 pour un ADULTE avec séance prévue : affiche la phrase féculents et conserve les kcal', () => {
+      let comp: any;
+      const workouts = [{ id: 'w1', date_prevue: '2026-10-16', type_seance: 'Course' }];
+      act(() => {
+        comp = renderer.create(<NutritionSummary athleteProfile={adultAthlete} workouts={workouts} />);
+      });
+      const texts = extractAllStrings(comp.toJSON());
+      const fullText = texts.join(' ');
+
+      expect(fullText).toContain("Séance aujourd'hui. Les féculents ont plus de place.");
+      expect(fullText).toMatch(/2[\s\u202f]?200\s*kcal/i);
+    });
+
+    it('N3 pour un ADULTE au repos : affiche la phrase de repos et conserve les kcal', () => {
+      let comp: any;
+      act(() => {
+        comp = renderer.create(<NutritionSummary athleteProfile={adultAthlete} workouts={[]} />);
+      });
+      const texts = extractAllStrings(comp.toJSON());
+      const fullText = texts.join(' ');
+
+      expect(fullText).toContain("Pas de séance aujourd'hui.");
+      expect(fullText).toMatch(/2[\s\u202f]?200\s*kcal/i);
     });
   });
 

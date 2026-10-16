@@ -11,20 +11,40 @@ import { MacroLanes } from './MacroLanes';
 import { MealIcon } from './MealIcon';
 import { MEALS, MEAL_ACCENT, macroGoals } from '../nutritionTheme';
 import { ageOn, isMinorAthlete } from '../../../legal/age';
+import { getCarbAdvice, CarbAdviceSession } from '../carbAdvice';
+import { useWorkoutStore } from '../../../store/workoutStore';
 
 interface NutritionSummaryProps {
   athleteProfile?: any;
+  workouts?: CarbAdviceSession[];
 }
 
 /** "Énergie du jour": calories on the track, macros in their lanes (adulte).
- *  Pour les mineurs : vue calme sans calories, sans macros et sans jauge. */
-export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ athleteProfile }) => {
+ *  Pour les mineurs : vue calme sans calories, sans macros et sans jauge.
+ *  N3 : Phrase féculents selon la séance du jour (séance prévue vs repos). */
+export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ athleteProfile, workouts }) => {
   const theme = useTheme();
   const mealLogs = useNutritionStore((state) => state.mealLogs);
+  const currentDate = useNutritionStore((state) => state.currentDate);
+  const upcomingWorkouts = useWorkoutStore((state) => state.upcomingWorkouts);
   const user = useAuthStore((state) => state.user);
 
   const activeProfile = athleteProfile || user;
   const isMinor = isMinorAthlete(activeProfile);
+
+  // Déterminer les séances de la journée pour la phrase féculents
+  const selectedDateStr = currentDate || new Date().toISOString().slice(0, 10);
+  const dayWorkouts = workouts !== undefined
+    ? workouts
+    : upcomingWorkouts.filter((w: any) => {
+        if (!w?.date_prevue) return false;
+        const wDate = typeof w.date_prevue === 'string'
+          ? w.date_prevue.slice(0, 10)
+          : new Date(w.date_prevue).toISOString().slice(0, 10);
+        return wDate === selectedDateStr;
+      });
+
+  const carbAdviceText = getCarbAdvice(dayWorkouts);
 
   // Pour les mineurs : aucune cible chiffrée automatique ni résiduelle
   const rawKcal = activeProfile?.manualKcalGoal || activeProfile?.manual_kcal_goal;
@@ -51,10 +71,8 @@ export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ athleteProfi
 
       {isMinor ? (
         <View style={styles.minorContainer}>
-          <Text style={[styles.minorHelper, { color: theme.colors.textSecondary }]}>
-            {mealLogs.length === 0
-              ? 'Enregistre tes repas au fil de la journée pour garder une trace.'
-              : 'Suivi régulier de tes repas et collations de la journée.'}
+          <Text style={[styles.carbAdvice, { color: theme.colors.textSecondary }]}>
+            {carbAdviceText}
           </Text>
           <View style={styles.minorGrid}>
             {MEALS.map((meal) => {
@@ -93,6 +111,9 @@ export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ athleteProfi
         </View>
       ) : (
         <>
+          <Text style={[styles.carbAdvice, { color: theme.colors.textSecondary }]}>
+            {carbAdviceText}
+          </Text>
           <EnergyTrack consumed={sum('calories')} goal={kcalGoal || 0} />
           <View style={styles.lanes}>
             <MacroLanes
@@ -131,6 +152,12 @@ const styles = StyleSheet.create({
   },
   lanes: {
     marginTop: 18,
+  },
+  carbAdvice: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginBottom: 12,
+    lineHeight: 18,
   },
   minorContainer: {
     marginTop: 4,
