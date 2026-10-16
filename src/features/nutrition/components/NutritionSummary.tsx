@@ -47,7 +47,7 @@ export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ athleteProfi
     }
 
     let isMounted = true;
-    const targetDate = currentDate ? new Date(`${currentDate}T12:00:00`) : new Date();
+    const targetDate = currentDate ? new Date(currentDate) : new Date();
 
     workoutService
       .fetchWorkoutsForDate(targetUserId, targetDate, 'athlete')
