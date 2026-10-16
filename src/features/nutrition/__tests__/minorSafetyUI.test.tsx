@@ -46,6 +46,10 @@ jest.mock('@expo/vector-icons', () => ({
   Feather: 'Feather',
 }));
 
+jest.mock('../../../shared/feedback/FeedbackHost', () => ({
+  FeedbackHost: () => null,
+}));
+
 const mockMealLogs = [
   { id: '1', meal_type: 'petit_dejeuner', custom_food_name: 'Banane', calories: 105, proteines: 1.3, glucides: 27, lipides: 0.3, quantity_g: 120 },
   { id: '2', meal_type: 'dejeuner', custom_food_name: 'Riz et poulet', calories: 450, proteines: 35, glucides: 50, lipides: 8, quantity_g: 300 },
@@ -64,10 +68,12 @@ jest.mock('../../../store/nutrition/nutritionStore', () => ({
   getLocalDateString: () => '2026-10-15',
 }));
 
+let mockCurrentAuthUser: any = { id: 'u1', dateOfBirth: '2000-01-01' };
+
 jest.mock('../../../store/authStore', () => ({
   useAuthStore: (selector: any) => {
     const state = {
-      user: { id: 'u1', dateOfBirth: '2000-01-01' },
+      user: mockCurrentAuthUser,
     };
     return typeof selector === 'function' ? selector(state) : state;
   },
@@ -91,6 +97,8 @@ jest.mock('../../../services/supabase', () => ({
 
 import { NutritionSummary } from '../components/NutritionSummary';
 import { MealSection } from '../components/MealSection';
+import { FoodDetailSheet } from '../components/FoodDetailSheet';
+import { isMinorAthlete } from '../../../legal/age';
 
 /** Helper pour extraire récursivement tous les textes d'un rendu react-test-renderer */
 function extractAllStrings(node: any): string[] {
@@ -176,6 +184,90 @@ describe('Preuve de rendu UI (N2) : Masquage réel mineur vs adulte via react-te
 
       // Les kcal sont bien présentes pour chaque repas
       expect(fullText).toMatch(/kcal/i);
+    });
+  });
+
+  describe('Fiche détaillée d’un aliment (FoodDetailSheet)', () => {
+    const mockProduct = {
+      nom: 'Pomme',
+      display_name: 'Pomme',
+      energie_kcal: 52,
+      proteines: 0.3,
+      glucides: 14,
+      lipides: 0.2,
+    };
+
+    it('pour un MINEUR : masque totalement les kcal et les macro lanes', () => {
+      mockCurrentAuthUser = minorAthlete;
+      let comp: any;
+      act(() => {
+        comp = renderer.create(
+          <FoodDetailSheet
+            product={mockProduct}
+            visible={true}
+            onClose={jest.fn()}
+            onAdd={jest.fn()}
+          />
+        );
+      });
+      const texts = extractAllStrings(comp.toJSON());
+      const fullText = texts.join(' ');
+
+      // Pas de calories ni de macros
+      expect(fullText).not.toMatch(/kcal/i);
+      expect(fullText).not.toMatch(/protéines|glucides|lipides/i);
+
+      // Le nom de l'aliment et le sélecteur de portion restent accessibles
+      expect(fullText).toContain('Pomme');
+      expect(fullText).toContain('Ajouter');
+    });
+
+    it('pour un ADULTE : affiche les calories en direct et les voies de macros', () => {
+      mockCurrentAuthUser = adultAthlete;
+      let comp: any;
+      act(() => {
+        comp = renderer.create(
+          <FoodDetailSheet
+            product={mockProduct}
+            visible={true}
+            onClose={jest.fn()}
+            onAdd={jest.fn()}
+          />
+        );
+      });
+      const texts = extractAllStrings(comp.toJSON());
+      const fullText = texts.join(' ');
+
+      // Les calories sont visibles en direct pour l'adulte (78 kcal pour la portion par défaut de 150g)
+      expect(fullText).toMatch(/(?:52|78)\s*kcal/i);
+    });
+  });
+
+  describe('Messages de confirmation d’ajout (FoodSearchModal)', () => {
+    it('pour un MINEUR : ne contient aucune mention de kcal', () => {
+      const isMinor = isMinorAthlete(minorAthlete);
+      const displayName = 'Pomme';
+      const payloadKcal = 52;
+
+      const toastMessage = isMinor
+        ? `${displayName} ajouté !`
+        : `${displayName} ajouté (${payloadKcal} kcal)`;
+
+      expect(toastMessage).toBe('Pomme ajouté !');
+      expect(toastMessage).not.toMatch(/kcal/i);
+    });
+
+    it('pour un ADULTE : inclut les kcal ajoutées', () => {
+      const isMinor = isMinorAthlete(adultAthlete);
+      const displayName = 'Pomme';
+      const payloadKcal = 52;
+
+      const toastMessage = isMinor
+        ? `${displayName} ajouté !`
+        : `${displayName} ajouté (${payloadKcal} kcal)`;
+
+      expect(toastMessage).toBe('Pomme ajouté (52 kcal)');
+      expect(toastMessage).toMatch(/kcal/i);
     });
   });
 });

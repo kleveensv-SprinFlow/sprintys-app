@@ -408,7 +408,11 @@ export const FoodSearchModal: React.FC = () => {
     setIsLoading(false);
     setSelectedProduct(null);
     setSessionAddedCount((prev) => prev + 1);
-    setNotificationMessage(`${displayName} ajouté (${payload.calories} kcal)`);
+    setNotificationMessage(
+      isMinor
+        ? `${displayName} ajouté !`
+        : `${displayName} ajouté (${payload.calories} kcal)`
+    );
     setTimeout(() => setNotificationMessage(null), 3000);
 
     if (!keepSearching) {
@@ -422,7 +426,11 @@ export const FoodSearchModal: React.FC = () => {
     if (ok) {
       const name = item.food_name || item.name || 'Aliment';
       setSessionAddedCount((prev) => prev + 1);
-      setNotificationMessage(`${name} ajouté (${Math.round(item.last_calories || 0)} kcal)`);
+      setNotificationMessage(
+        isMinor
+          ? `${name} ajouté !`
+          : `${name} ajouté (${Math.round(item.last_calories || 0)} kcal)`
+      );
       setTimeout(() => setNotificationMessage(null), 3000);
     }
   };

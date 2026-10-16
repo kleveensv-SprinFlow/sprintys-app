@@ -48,3 +48,5 @@ google-services.json
 
 # Claude Code (local)
 .claude/settings.local.json
+.mcp.json
+.agentsroom/
