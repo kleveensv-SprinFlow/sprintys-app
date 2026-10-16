@@ -258,15 +258,18 @@ describe('Preuve de rendu UI (N2) : Masquage réel mineur vs adulte via react-te
         comp = renderer.create(<NutritionSummary athleteProfile={minorAthlete} />);
       });
 
-      // Prouve l'appel réel pour cet athlète et pour la date exacte affichée (2026-10-16)
+      // Prouve l'appel réel pour cet athlète et pour la date locale exacte affichée (2026-10-16)
+      const expectedDate = new Date('2026-10-16T12:00:00');
       expect(workoutService.fetchWorkoutsForDate).toHaveBeenCalledWith(
         minorAthlete.id,
-        new Date('2026-10-16'),
+        expectedDate,
         'athlete'
       );
       const calledDate = (workoutService.fetchWorkoutsForDate as jest.Mock).mock.calls[0][1];
-      expect(calledDate).toEqual(new Date('2026-10-16'));
-      expect(calledDate.toISOString().slice(0, 10)).toBe('2026-10-16');
+      expect(calledDate).toEqual(expectedDate);
+      expect(calledDate.getFullYear()).toBe(2026);
+      expect(calledDate.getMonth()).toBe(9);
+      expect(calledDate.getDate()).toBe(16);
 
       const texts = extractAllStrings(comp.toJSON());
       const fullText = texts.join(' ');
@@ -287,14 +290,17 @@ describe('Preuve de rendu UI (N2) : Masquage réel mineur vs adulte via react-te
         comp = renderer.create(<NutritionSummary athleteProfile={minorAthlete} />);
       });
 
+      const expectedDate = new Date('2026-10-16T12:00:00');
       expect(workoutService.fetchWorkoutsForDate).toHaveBeenCalledWith(
         minorAthlete.id,
-        new Date('2026-10-16'),
+        expectedDate,
         'athlete'
       );
       const calledDate = (workoutService.fetchWorkoutsForDate as jest.Mock).mock.calls[0][1];
-      expect(calledDate).toEqual(new Date('2026-10-16'));
-      expect(calledDate.toISOString().slice(0, 10)).toBe('2026-10-16');
+      expect(calledDate).toEqual(expectedDate);
+      expect(calledDate.getFullYear()).toBe(2026);
+      expect(calledDate.getMonth()).toBe(9);
+      expect(calledDate.getDate()).toBe(16);
 
       const texts = extractAllStrings(comp.toJSON());
       const fullText = texts.join(' ');
@@ -314,14 +320,17 @@ describe('Preuve de rendu UI (N2) : Masquage réel mineur vs adulte via react-te
         comp = renderer.create(<NutritionSummary athleteProfile={adultAthlete} />);
       });
 
+      const expectedDate = new Date('2026-10-16T12:00:00');
       expect(workoutService.fetchWorkoutsForDate).toHaveBeenCalledWith(
         adultAthlete.id,
-        new Date('2026-10-16'),
+        expectedDate,
         'athlete'
       );
       const calledDate = (workoutService.fetchWorkoutsForDate as jest.Mock).mock.calls[0][1];
-      expect(calledDate).toEqual(new Date('2026-10-16'));
-      expect(calledDate.toISOString().slice(0, 10)).toBe('2026-10-16');
+      expect(calledDate).toEqual(expectedDate);
+      expect(calledDate.getFullYear()).toBe(2026);
+      expect(calledDate.getMonth()).toBe(9);
+      expect(calledDate.getDate()).toBe(16);
 
       const texts = extractAllStrings(comp.toJSON());
       const fullText = texts.join(' ');
@@ -338,14 +347,17 @@ describe('Preuve de rendu UI (N2) : Masquage réel mineur vs adulte via react-te
         comp = renderer.create(<NutritionSummary athleteProfile={adultAthlete} />);
       });
 
+      const expectedDate = new Date('2026-10-16T12:00:00');
       expect(workoutService.fetchWorkoutsForDate).toHaveBeenCalledWith(
         adultAthlete.id,
-        new Date('2026-10-16'),
+        expectedDate,
         'athlete'
       );
       const calledDate = (workoutService.fetchWorkoutsForDate as jest.Mock).mock.calls[0][1];
-      expect(calledDate).toEqual(new Date('2026-10-16'));
-      expect(calledDate.toISOString().slice(0, 10)).toBe('2026-10-16');
+      expect(calledDate).toEqual(expectedDate);
+      expect(calledDate.getFullYear()).toBe(2026);
+      expect(calledDate.getMonth()).toBe(9);
+      expect(calledDate.getDate()).toBe(16);
 
       const texts = extractAllStrings(comp.toJSON());
       const fullText = texts.join(' ');
