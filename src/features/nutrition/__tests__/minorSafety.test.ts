@@ -1,6 +1,7 @@
 import { computeCalorieTarget, classifyObjective } from '../calorieTarget';
 import { adaptTarget } from '../adaptTarget';
 import { ageOn, isMinorAthlete } from '../../../legal/age';
+import { formatRecentSubtitle } from '../data/portionDictionary';
 
 describe('N1 : Sécurité des mineurs sur la nutrition', () => {
   describe('Calcul de l’âge (ageOn)', () => {
@@ -203,6 +204,22 @@ describe('N2 : Cacher calories et macros pour les mineurs (Mode sans chiffres)',
       const adultGoal = isAdultMinor ? null : (adultProfile.manualKcalGoal || 2000);
       const adultTargetBreakfast = adultGoal ? Math.round((adultGoal * mealDistribution.petit_dejeuner) / 100) : 0;
       expect(adultTargetBreakfast).toBe(500);
+    });
+
+    it('masque les calories dans les sous-titres d’aliments récents pour les mineurs', () => {
+      const recentItem = {
+        last_input_qty: 2,
+        last_input_unit: 'piece' as const,
+        last_unit_label: 'oeuf',
+        last_calories: 140,
+        last_quantity_g: 100,
+      };
+
+      // Adulte : calories affichées
+      expect(formatRecentSubtitle(recentItem, false)).toBe('2 oeufs · 140 kcal');
+
+      // Mineur : calories masquées
+      expect(formatRecentSubtitle(recentItem, true)).toBe('2 oeufs');
     });
   });
 });

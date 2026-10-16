@@ -9,6 +9,8 @@ import { resolveFoodPortion, ResolvedPortion, InputUnit } from '../data/portionD
 import { MacroLanes } from './MacroLanes';
 import { MEAL_ACCENT, MEAL_ACCENT_TINT } from '../nutritionTheme';
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
+import { useAuthStore } from '../../../store/authStore';
+import { isMinorAthlete } from '../../../legal/age';
 
 export interface FoodAddPayload {
   totalGrams: number;
@@ -31,6 +33,8 @@ interface FoodDetailSheetProps {
 
 export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visible, onClose, onAdd }) => {
   const theme = useTheme();
+  const user = useAuthStore((state) => state.user);
+  const isMinor = isMinorAthlete(user);
   const [inputValue, setInputValue] = useState('100');
   const [unit, setUnit] = useState<InputUnit>('g');
   const [portionInfo, setPortionInfo] = useState<ResolvedPortion | null>(null);
@@ -286,17 +290,19 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
             )}
           </View>
 
-          {/* Live nutrition for the chosen quantity */}
-          <View style={[styles.liveCard, { backgroundColor: theme.colors.glassFill }]}>
-            <Text style={[styles.liveKcal, { color: theme.colors.text }]}>
-              {currentMacros.calories}
-              <Text style={[styles.liveKcalUnit, { color: theme.colors.textSecondary }]}> kcal</Text>
-            </Text>
-            <MacroLanes
-              compact
-              values={{ proteines: currentMacros.proteines, glucides: currentMacros.glucides, lipides: currentMacros.lipides }}
-            />
-          </View>
+          {/* Live nutrition for the chosen quantity (adulte uniquement) */}
+          {!isMinor && (
+            <View style={[styles.liveCard, { backgroundColor: theme.colors.glassFill }]}>
+              <Text style={[styles.liveKcal, { color: theme.colors.text }]}>
+                {currentMacros.calories}
+                <Text style={[styles.liveKcalUnit, { color: theme.colors.textSecondary }]}> kcal</Text>
+              </Text>
+              <MacroLanes
+                compact
+                values={{ proteines: currentMacros.proteines, glucides: currentMacros.glucides, lipides: currentMacros.lipides }}
+              />
+            </View>
+          )}
 
           {/* BOUTONS D'ACTION (CONTINUER OU VALIDER) */}
           <View style={styles.actionButtonGroup}>

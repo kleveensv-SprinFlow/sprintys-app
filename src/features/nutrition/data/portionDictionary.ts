@@ -227,21 +227,25 @@ export function quantityFromAiItem(
   return { weightG: item.qty, gramsPerUnit: 1, unitLabel: 'g' };
 }
 
-export function formatRecentSubtitle(item: {
-  last_input_qty?: number;
-  last_input_unit?: InputUnit;
-  last_unit_label?: string;
-  last_calories?: number;
-  last_quantity_g?: number;
-}): string {
+export function formatRecentSubtitle(
+  item: {
+    last_input_qty?: number;
+    last_input_unit?: InputUnit;
+    last_unit_label?: string;
+    last_calories?: number;
+    last_quantity_g?: number;
+  },
+  hideCalories = false,
+): string {
   const kcal = Math.round(item.last_calories || 0);
   const qty = Number(item.last_input_qty);
   const unit = item.last_input_unit || 'g';
+  const kcalSuffix = hideCalories ? '' : ` · ${kcal} kcal`;
   if (unit === 'piece' && qty) {
-    return `${qty} ${pluralizeLabel(item.last_unit_label || 'pièce', qty)} · ${kcal} kcal`;
+    return `${qty} ${pluralizeLabel(item.last_unit_label || 'pièce', qty)}${kcalSuffix}`;
   }
-  if (unit === 'ml' && qty) return `${qty} ml · ${kcal} kcal`;
-  if (unit === 'serving' && qty) return `${qty} portion${qty > 1 ? 's' : ''} · ${kcal} kcal`;
+  if (unit === 'ml' && qty) return `${qty} ml${kcalSuffix}`;
+  if (unit === 'serving' && qty) return `${qty} portion${qty > 1 ? 's' : ''}${kcalSuffix}`;
   const grams = Math.round(item.last_quantity_g || qty || 0);
-  return `${grams} g · ${kcal} kcal`;
+  return `${grams} g${kcalSuffix}`;
 }

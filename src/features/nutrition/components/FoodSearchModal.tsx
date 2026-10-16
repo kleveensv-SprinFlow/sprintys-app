@@ -26,8 +26,9 @@ import { mealLabel, MACROS, MacroKey, MEAL_ACCENT, MEAL_ACCENT_TINT } from '../n
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 import { appAlert } from '../../../shared/feedback/appAlert';
 import { AIQuotaError } from '../../../services/aiNutritionService';
-import { supabase } from '../../../services/supabase';
 import { useEntitlementStore, billingOn, remainingToday } from '../../../store/entitlementStore';
+import { useAuthStore } from '../../../store/authStore';
+import { isMinorAthlete } from '../../../legal/age';
 
 type TabType = 'recents' | 'frequents' | 'repas';
 
@@ -50,6 +51,8 @@ const MacroDots = ({ values }: { values: Record<MacroKey, number> }) => (
 
 export const FoodSearchModal: React.FC = () => {
   const theme = useTheme();
+  const user = useAuthStore((state) => state.user);
+  const isMinor = isMinorAthlete(user);
   const { 
     isSearchModalOpen, closeSearchModal, activeSearchMealType, 
     addMealLog, currentDate,
@@ -480,8 +483,16 @@ export const FoodSearchModal: React.FC = () => {
 
         <View style={styles.savedMealFooter}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.savedMealKcal, { color: theme.colors.text }]}>{totalKcal} kcal</Text>
-            <MacroDots values={{ proteines: totalPro, glucides: totalGlu, lipides: totalLip }} />
+            {isMinor ? (
+              <Text style={{ fontSize: 13, fontWeight: '600', color: theme.colors.textSecondary }}>
+                {item.items.length} aliment{item.items.length > 1 ? 's' : ''}
+              </Text>
+            ) : (
+              <>
+                <Text style={[styles.savedMealKcal, { color: theme.colors.text }]}>{totalKcal} kcal</Text>
+                <MacroDots values={{ proteines: totalPro, glucides: totalGlu, lipides: totalLip }} />
+              </>
+            )}
           </View>
 
           <PressableScale style={styles.savedMealAddBtn} onPress={() => handleLogSavedMeal(item)}>
@@ -554,8 +565,8 @@ export const FoodSearchModal: React.FC = () => {
     } else {
       name = item.food_name || item.name;
       detail = (item.last_calories != null || item.last_quantity_g != null)
-        ? formatRecentSubtitle(item)
-        : `Déjà ajouté · ${Math.round(item.macros_100g?.calories || 0)} kcal / 100 g`;
+        ? formatRecentSubtitle(item, isMinor)
+        : (isMinor ? 'Déjà ajouté' : `Déjà ajouté · ${Math.round(item.macros_100g?.calories || 0)} kcal / 100 g`);
     }
 
     return (
@@ -576,9 +587,9 @@ export const FoodSearchModal: React.FC = () => {
           <Text style={[styles.productBrand, { color: theme.colors.textSecondary }]} numberOfLines={1}>
             {detail}
           </Text>
-          {macros ? <MacroDots values={macros} /> : null}
+          {!isMinor && macros ? <MacroDots values={macros} /> : null}
         </View>
-        {kcalLabel ? (
+        {!isMinor && kcalLabel ? (
           <Text style={[styles.kcalLabel, { color: theme.colors.text }]}>{kcalLabel}</Text>
         ) : null}
         <PressableScale
@@ -729,15 +740,21 @@ export const FoodSearchModal: React.FC = () => {
                  return (
                    <View style={[styles.aiTotalCard, glassSurface]}>
                      <View style={styles.aiTotalTop}>
-                       <Text style={[styles.aiTotalKcal, { color: theme.colors.text }]}>
-                         {Math.round(tKcal)}
-                         <Text style={[styles.aiTotalUnit, { color: theme.colors.textSecondary }]}> kcal</Text>
-                       </Text>
+                       {isMinor ? (
+                         <Text style={[styles.aiTotalKcal, { color: theme.colors.text }]}>
+                           {aiParsedMeal.length} aliment{aiParsedMeal.length > 1 ? 's reconnus' : ' reconnu'}
+                         </Text>
+                       ) : (
+                         <Text style={[styles.aiTotalKcal, { color: theme.colors.text }]}>
+                           {Math.round(tKcal)}
+                           <Text style={[styles.aiTotalUnit, { color: theme.colors.textSecondary }]}> kcal</Text>
+                         </Text>
+                       )}
                        <Text style={[styles.aiTotalBadge, { color: allCiqual ? theme.colors.success : theme.colors.textSecondary }]}>
                          {allCiqual ? 'Vérifié CIQUAL' : 'Estimation'}
                        </Text>
                      </View>
-                     <MacroLanes compact values={{ proteines: tPro, glucides: tGlu, lipides: tLip }} />
+                     {!isMinor && <MacroLanes compact values={{ proteines: tPro, glucides: tGlu, lipides: tLip }} />}
                    </View>
                  );
                })()}
@@ -779,7 +796,7 @@ export const FoodSearchModal: React.FC = () => {
                                        setAiParsedMeal(newArr);
                                     }}
                                   />
-                                  <Text style={{ fontSize: 14, color: theme.colors.textSecondary }}>{unitSuffix}  •  {totalKcal} kcal</Text>
+                                  <Text style={{ fontSize: 14, color: theme.colors.textSecondary }}>{unitSuffix}{!isMinor ? `  •  ${totalKcal} kcal` : ''}</Text>
                                </View>
                             </View>
                             <TouchableOpacity onPress={() => removeItem(index)} style={{ padding: 8 }}>
