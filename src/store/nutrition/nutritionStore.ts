@@ -5,6 +5,9 @@ import { MealLog, MealType, MealDistribution } from '../../features/nutrition/ty
 import { per100FromPortion, scaleMicros } from '../../features/nutrition/micros';
 import { useAuthStore } from '../authStore';
 
+import { mealOutbox } from '../../services/mealOutbox';
+import { isNetworkError } from '../../services/resultsOutbox';
+import { toast } from '../../shared/feedback/appAlert';
 import { appAlert } from '../../shared/feedback/appAlert';
 
 export const getLocalDateString = (d: Date = new Date()): string => {
@@ -95,7 +98,11 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
 
       if (error) throw error;
 
-      set({ mealLogs: data as MealLog[], isLoading: false });
+      const targetId = athleteId || user.id;
+      const pending = targetId === user.id ? await mealOutbox.pendingFor(user.id, date) : [];
+      const known = new Set((data as MealLog[]).map((l) => l.id));
+      const extra = pending.filter((p) => !known.has(p.id)) as unknown as MealLog[];
+      set({ mealLogs: [...(data as MealLog[]), ...extra], isLoading: false });
     } catch (err: any) {
       set({ error: err.message, isLoading: false });
     }
@@ -186,9 +193,10 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
     }
 
     try {
+      const row = { ...log, id: mealOutbox.newId(), user_id: user.id };
       let { data, error } = await supabase
         .from('meal_logs')
-        .insert([{ ...log, user_id: user.id }])
+        .insert([row])
         .select()
         .single();
 
@@ -197,11 +205,20 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
         const { micros: _omit, ...withoutMicros } = log;
         ({ data, error } = await supabase
           .from('meal_logs')
-          .insert([{ ...withoutMicros, user_id: user.id }])
+          .insert([{ ...withoutMicros, id: row.id, user_id: user.id }])
           .select()
           .single());
       }
 
+      if (error && isNetworkError(error)) {
+        // Hors ligne : on garde le repas sur le téléphone, il partira tout seul au retour du réseau.
+        const kept = await mealOutbox.enqueue(user.id, row as any);
+        if (kept) {
+          set((state) => ({ mealLogs: [...state.mealLogs, row as unknown as MealLog], isLoading: false }));
+          toast('info', 'Pas de réseau : repas gardé sur ton téléphone, il sera envoyé au retour de la connexion.');
+          return;
+        }
+      }
       if (error) throw error;
 
       set((state) => ({
@@ -242,6 +259,9 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
 
   deleteMealLog: async (id: string) => {
     try {
+      // Repas encore en attente d'envoi : on le retire de la file avant tout.
+      const me = useAuthStore.getState().user;
+      if (me) await mealOutbox.remove(me.id, id);
       const { error } = await supabase.from('meal_logs').delete().eq('id', id);
       if (error) throw error;
       set((state) => ({
