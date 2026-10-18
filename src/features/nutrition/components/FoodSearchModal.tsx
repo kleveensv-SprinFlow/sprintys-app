@@ -29,7 +29,6 @@ import { AIQuotaError } from '../../../services/aiNutritionService';
 import { useEntitlementStore, billingOn, remainingToday } from '../../../store/entitlementStore';
 import { useAuthStore } from '../../../store/authStore';
 import { isMinorAthlete } from '../../../legal/age';
-import { microsPer100, scaleMicros } from '../micros';
 
 type TabType = 'recents' | 'frequents' | 'repas';
 
@@ -363,7 +362,6 @@ export const FoodSearchModal: React.FC = () => {
         proteines: Math.round(pro * multiplier),
         glucides: Math.round(glu * multiplier),
         lipides: Math.round(lip * multiplier),
-        micros: scaleMicros(microsPer100(item.matchedItem?.item), weightG),
         input_qty: item.qty,
         input_unit: item.unit,
         grams_per_unit: gramsPerUnit,
@@ -401,7 +399,6 @@ export const FoodSearchModal: React.FC = () => {
       proteines: payload.pro,
       glucides: payload.glu,
       lipides: payload.lip,
-      micros: scaleMicros(microsPer100(selectedProduct), payload.totalGrams),
       input_qty: payload.inputQty,
       input_unit: payload.inputUnit,
       grams_per_unit: payload.gramsPerUnit,

@@ -1,6 +1,5 @@
 import { isStateToken, matchScore, searchTokens } from '../../../services/foodSearchRank';
 import { FOOD_CATALOG, CatalogFiche } from './foodCatalogData';
-import { microsFromCatalog, type Micros } from '../micros';
 
 export type { CatalogFiche };
 
@@ -16,7 +15,6 @@ export interface CatalogHit {
   lipides: number;
   fibres: number;
   sodium: number;
-  micros_100g?: Micros;
 }
 
 /** Noms du quotidien. Les chiffres sont copiés de CIQUAL, pas calculés. */
@@ -62,6 +60,5 @@ function toHit(fiche: CatalogFiche): CatalogHit {
     lipides: fiche.lipides_100g,
     fibres: fiche.fibres_100g,
     sodium: 0,
-    micros_100g: microsFromCatalog(fiche.fibres_100g),
   };
 }

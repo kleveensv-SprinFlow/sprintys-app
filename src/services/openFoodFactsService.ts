@@ -1,5 +1,3 @@
-import { microsFromOff, type Micros } from '../features/nutrition/micros';
-
 export interface OFFProduct {
   id: string;
   name: string;
@@ -13,7 +11,6 @@ export interface OFFProduct {
   };
   serving_size?: string;
   serving_quantity?: number;
-  micros_100g?: Micros;
 }
 
 const formatProduct = (product: any): OFFProduct | null => {
@@ -44,7 +41,6 @@ const formatProduct = (product: any): OFFProduct | null => {
     },
     serving_size: product.serving_size,
     serving_quantity: product.serving_quantity ? parseFloat(product.serving_quantity) : undefined,
-    micros_100g: microsFromOff(nutriments),
   };
 };
 

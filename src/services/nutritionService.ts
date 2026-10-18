@@ -2,7 +2,6 @@ import { supabase } from './supabase';
 import { openFoodFactsService, OFFProduct } from './openFoodFactsService';
 import { matchScore, searchTokens, isStateToken, recallForms, tokenInName, normalizeSearchText, searchVariants, spokenFoodTitle, foodStateLabel } from './foodSearchRank';
 import { searchFoodCatalog } from '../features/nutrition/data/foodCatalog';
-import type { Micros } from '../features/nutrition/micros';
 
 export { normalizeSearchText };
 
@@ -19,9 +18,6 @@ export interface CiqualFood {
   lipides: number;
   fibres: number;
   sodium: number;
-  fer?: number;
-  calcium?: number;
-  micros_100g?: Micros;
 }
 
 export type HybridFoodResult = 
@@ -32,7 +28,7 @@ const escapeIlike = (str: string): string => {
   return str.replace(/[%_\\]/g, '\\$&');
 };
 
-const CIQUAL_COLUMNS = 'id, code_ciqual, nom, etat, synonymes, energie_kcal, proteines, glucides, lipides, fibres, sodium, fer, calcium, search_text';
+const CIQUAL_COLUMNS = 'id, code_ciqual, nom, etat, synonymes, energie_kcal, proteines, glucides, lipides, fibres, sodium, search_text';
 
 /** Formes du mot, avec l'accent et la faute, collées au début d'un mot du nom. */
 function boundaryFilters(token: string): string[] {
