@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import {} from 'react-native';
 import { supabase } from '../../services/supabase';
 import { MealLog, MealType, MealDistribution } from '../../features/nutrition/types';
+import { per100FromPortion, scaleMicros } from '../../features/nutrition/micros';
 import { useAuthStore } from '../authStore';
 
 import { appAlert } from '../../shared/feedback/appAlert';
@@ -119,7 +120,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
         .select(`
           id, name,
           saved_meal_items (
-            food_id, custom_food_name, quantity_g, calories, proteines, glucides, lipides
+            food_id, custom_food_name, quantity_g, calories, proteines, glucides, lipides, micros
           )
         `)
         .eq('user_id', athleteId || user.id)
@@ -146,6 +147,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
                 glucides: Math.round(log.glucides * multiplier),
                 lipides: Math.round(log.lipides * multiplier),
               },
+              micros_100g: per100FromPortion(log.micros, log.quantity_g || 100),
               last_input_qty: log.input_qty || (log.quantity_g ? Math.round(log.quantity_g) : 100),
               last_input_unit: log.input_unit || 'g',
               last_grams_per_unit: log.grams_per_unit,
@@ -184,11 +186,21 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
     }
 
     try {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('meal_logs')
         .insert([{ ...log, user_id: user.id }])
         .select()
         .single();
+
+      // Colonne `micros` pas encore migrée : on enregistre le repas sans les nutriments plutôt que d'échouer.
+      if (error && /micros/i.test(error.message || '') && log.micros) {
+        const { micros: _omit, ...withoutMicros } = log;
+        ({ data, error } = await supabase
+          .from('meal_logs')
+          .insert([{ ...withoutMicros, user_id: user.id }])
+          .select()
+          .single());
+      }
 
       if (error) throw error;
 
@@ -316,6 +328,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
         proteines: item.proteines,
         glucides: item.glucides,
         lipides: item.lipides,
+        micros: item.micros ?? undefined,
         input_qty: item.input_qty,
         input_unit: item.input_unit,
         grams_per_unit: item.grams_per_unit,
@@ -384,6 +397,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
         proteines: log.proteines,
         glucides: log.glucides,
         lipides: log.lipides,
+        micros: log.micros ?? undefined,
       }));
 
       const { error: itemsErr } = await supabase
@@ -442,6 +456,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
         proteines: item.proteines,
         glucides: item.glucides,
         lipides: item.lipides,
+        micros: item.micros ?? undefined,
       }));
 
       const { data, error } = await supabase
@@ -494,10 +509,11 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
       const glucides = Math.round(baseGlu * multiplier * 10) / 10;
       const lipides = Math.round(baseLip * multiplier * 10) / 10;
 
-      const log = {
+      const log: Record<string, any> = {
         user_id: targetUserId,
         meal_type: mealType,
         consumed_at: currentDate,
+        micros: scaleMicros(food.micros_100g, food.last_quantity_g || 100),
         food_id: food.id,
         custom_food_name: food.name || food.custom_food_name || 'Aliment',
         quantity_g: food.last_quantity_g || 100,

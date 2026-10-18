@@ -1,3 +1,5 @@
+import type { Micros } from '../micros';
+
 export type MealType = 'petit_dejeuner' | 'dejeuner' | 'diner' | 'collation';
 
 export type InputUnit = 'g' | 'ml' | 'piece' | 'serving';
@@ -19,6 +21,8 @@ export interface MealLog {
   input_unit?: InputUnit;
   grams_per_unit?: number;
   unit_label?: string;
+  /** Nutriments supplémentaires de la portion (clé absente = inconnu). */
+  micros?: Micros | null;
 }
 
 export interface MealDistribution {
