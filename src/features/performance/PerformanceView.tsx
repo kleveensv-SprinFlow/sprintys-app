@@ -13,7 +13,7 @@ import { formatValue, shortDate, loadZone } from './format';
 import { MaxesBlock } from './MaxesBlock';
 import { useAuthStore } from '../../store/authStore';
 import { exportAthleteReport } from './reportPdf';
-import { toast } from '../../shared/feedback/appAlert';
+import { toast, appAlert } from '../../shared/feedback/appAlert';
 
 interface Props {
   athleteId: string;
@@ -132,7 +132,7 @@ export const PerformanceView: React.FC<Props> = ({ athleteId, mode = 'full', aud
       {d.recent_prs.slice(0, mode === 'summary' ? 3 : 6).map((r) => (
         <View key={`${r.label}${r.date}`} style={styles.prRow}>
           <Text style={[styles.prLabel, { color: theme.colors.text }]} numberOfLines={1}>{r.label}</Text>
-          <Text style={[styles.prValue, { color: gold }]}>{formatValue(r.value, r.unit)}</Text>
+          <Text style={[styles.prValue, { color: gold }]}>{formatValue(r.value, r.unit, r.reps)}</Text>
           <Text style={[styles.prDate, { color: theme.colors.textMuted }]}>{shortDate(r.date)}</Text>
         </View>
       ))}
@@ -192,6 +192,42 @@ export const PerformanceView: React.FC<Props> = ({ athleteId, mode = 'full', aud
   );
 
   const records = d.records.slice(0, mode === 'summary' ? 4 : d.records.length);
+  const hiddenCount = d.hidden_count ?? 0;
+
+  const askHide = (r: (typeof records)[number]) => {
+    if (!r.effort_id) return;
+    appAlert(
+      'Résultat faux ?',
+      `${r.label} : ${formatValue(r.value, r.unit, r.reps)} le ${shortDate(r.date)}. Il ne comptera plus dans les records ni la progression, mais reste dans sa séance.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Masquer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await performanceService.hideEffort(r.effort_id!);
+              toast('success', 'Résultat masqué.');
+              load();
+            } catch {
+              toast('error', 'Impossible de masquer ce résultat. Vérifie ta connexion et réessaie.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const restoreHidden = async () => {
+    try {
+      const n = await performanceService.restoreHidden(athleteId);
+      toast('success', n > 1 ? `${n} résultats réaffichés.` : 'Résultat réaffiché.');
+      load();
+    } catch {
+      toast('error', 'Impossible de réafficher. Vérifie ta connexion et réessaie.');
+    }
+  };
+
   const recordsBlock = records.length > 0 && (
     <View style={[glassCard, styles.card]}>
       <GlassSheen radius={22} />
@@ -200,7 +236,16 @@ export const PerformanceView: React.FC<Props> = ({ athleteId, mode = 'full', aud
         <Text style={[styles.headerLabel, { color: blue }]}>Records</Text>
       </View>
       {records.map((r, i) => (
-        <View key={r.key} style={[styles.recordRow, i > 0 && { borderTopColor: theme.colors.hairline, borderTopWidth: StyleSheet.hairlineWidth }]}>
+        <PressableScale
+          key={r.key}
+          haptic="selection"
+          activeScale={0.98}
+          disabled={mode !== 'full' || !r.effort_id}
+          onPress={() => askHide(r)}
+          accessibilityRole="button"
+          accessibilityHint="Permet de masquer ce résultat s'il est faux"
+          style={[styles.recordRow, i > 0 && { borderTopColor: theme.colors.hairline, borderTopWidth: StyleSheet.hairlineWidth }]}
+        >
           <View style={{ flex: 1 }}>
             <Text style={[styles.recordLabel, { color: theme.colors.text }]} numberOfLines={1}>{r.label}</Text>
             <Text style={[styles.recordMeta, { color: theme.colors.textMuted }]}>
@@ -208,9 +253,21 @@ export const PerformanceView: React.FC<Props> = ({ athleteId, mode = 'full', aud
             </Text>
           </View>
           {(r.recent_pr || recentSet.has(r.label)) && <Feather name="award" size={15} color={gold} style={{ marginRight: 8 }} />}
-          <Text style={[styles.recordValue, { color: theme.colors.text }]}>{formatValue(r.value, r.unit)}</Text>
-        </View>
+          <Text style={[styles.recordValue, { color: theme.colors.text }]}>{formatValue(r.value, r.unit, r.reps)}</Text>
+        </PressableScale>
       ))}
+      {mode === 'full' && (
+        <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
+          Un résultat faux ? Touche-le pour le masquer.
+        </Text>
+      )}
+      {mode === 'full' && hiddenCount > 0 && (
+        <PressableScale haptic="light" onPress={restoreHidden} accessibilityRole="button" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Text style={[styles.hint, { color: blue, fontWeight: '700' }]}>
+            {`${hiddenCount} résultat${hiddenCount > 1 ? 's' : ''} masqué${hiddenCount > 1 ? 's' : ''} · Réafficher`}
+          </Text>
+        </PressableScale>
+      )}
     </View>
   );
 

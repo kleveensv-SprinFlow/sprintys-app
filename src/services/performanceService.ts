@@ -13,6 +13,10 @@ export interface PerfRecord {
   count: number;
   /** Beaten in the last 14 days (and not the very first result) */
   recent_pr: boolean;
+  /** Result behind the record (to hide it if it is wrong) */
+  effort_id?: string;
+  /** Strength: reps lifted at that weight */
+  reps?: number | null;
 }
 
 export interface PerfSeries {
@@ -36,7 +40,9 @@ export interface AthletePerformance {
   records: PerfRecord[];
   series: PerfSeries[];
   weekly: PerfWeek[];
-  recent_prs: { date: string; label: string; value: number; unit: 's' | 'kg' }[];
+  recent_prs: { date: string; label: string; value: number; unit: 's' | 'kg'; reps?: number | null }[];
+  /** Results hidden from the records (wrong entries), can be shown again */
+  hidden_count?: number;
   load: { acute: number; chronic: number; ratio: number | null };
   form: { last_date?: string; last_score?: number; avg7?: number; fatigue7?: number; checkins7?: number };
 }
@@ -50,5 +56,18 @@ export const performanceService = {
       throw error;
     }
     return (data as AthletePerformance) ?? null;
+  },
+
+  /** Hides a wrong result from records and progression (it stays in its session). */
+  async hideEffort(effortId: string): Promise<void> {
+    const { error } = await (supabase.rpc as any)('set_effort_hidden', { p_effort: effortId, p_hidden: true });
+    if (error) throw error;
+  },
+
+  /** Shows again every hidden result of this athlete. */
+  async restoreHidden(athleteId: string): Promise<number> {
+    const { data, error } = await (supabase.rpc as any)('restore_hidden_efforts', { p_athlete: athleteId });
+    if (error) throw error;
+    return Number(data) || 0;
   },
 };

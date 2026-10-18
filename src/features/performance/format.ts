@@ -14,8 +14,9 @@ export function formatKg(n: number): string {
   return `${Number.isInteger(n) ? n : n.toFixed(1).replace('.', ',')} kg`;
 }
 
-export function formatValue(value: number, unit: 's' | 'kg'): string {
-  return unit === 's' ? formatSeconds(value) : formatKg(value);
+export function formatValue(value: number, unit: 's' | 'kg', reps?: number | null): string {
+  if (unit === 's') return formatSeconds(value);
+  return reps && reps > 0 ? `${formatKg(value)} × ${reps}` : formatKg(value);
 }
 
 export function shortDate(iso: string): string {
