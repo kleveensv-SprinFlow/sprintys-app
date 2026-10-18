@@ -12,6 +12,8 @@ import { MealIcon } from './MealIcon';
 import { MEALS, MEAL_ACCENT, macroGoals } from '../nutritionTheme';
 import { ageOn, isMinorAthlete } from '../../../legal/age';
 import { getCarbAdvice, CarbAdviceSession } from '../carbAdvice';
+import { getSessionFuel } from '../sessionFuel';
+import { SessionFuelCard } from './SessionFuelCard';
 import { workoutService } from '../../../services/workoutService';
 
 interface NutritionSummaryProps {
@@ -64,6 +66,7 @@ export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ athleteProfi
   }, [targetUserId, currentDate, workouts]);
 
   const carbAdviceText = getCarbAdvice(dayWorkouts);
+  const fuel = getSessionFuel(dayWorkouts, isMinor);
 
   // Pour les mineurs : aucune cible chiffrée automatique ni résiduelle
   const rawKcal = activeProfile?.manualKcalGoal || activeProfile?.manual_kcal_goal;
@@ -73,6 +76,7 @@ export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ athleteProfi
     mealLogs.reduce((total, log) => total + Number(log[key] || 0), 0);
 
   return (
+    <>
     <View style={[glassCard, styles.card]}>
       <GlassSheen radius={22} />
       <View style={styles.titleRow}>
@@ -143,6 +147,8 @@ export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ athleteProfi
         </>
       )}
     </View>
+    {fuel ? <SessionFuelCard fuel={fuel} /> : null}
+    </>
   );
 };
 
