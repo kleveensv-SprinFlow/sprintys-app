@@ -31,6 +31,7 @@ import { confirmAsync, toast } from '../../shared/feedback/appAlert';
 import { SprintyMessageView } from './SprintyMessageView';
 import { ThinkingDots } from './ThinkingDots';
 import { partsToText, type MessagePart } from './types';
+import { CoachIntroCard } from './CoachIntroCard';
 
 const BLUE = theme.colors.sprintyBlue;
 const MAX_CHARS = 2000;
@@ -444,6 +445,7 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
                     </Text>
                   </PressableScale>
                 )}
+                {isCoach && <CoachIntroCard onStart={(prompt) => sendMessage(prompt)} />}
                 <View style={styles.starters}>
                   {starters.map((s) => (
                     <PressableScale

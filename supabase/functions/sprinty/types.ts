@@ -32,6 +32,10 @@ export interface Ctx {
   age: number | null;
   today: string;
   philosophy: string | null;
+  /** Coach only: what the coach validated about their coaching (memory). */
+  memory?: { category: string; content: string }[];
+  /** Coach only: null = presentation never offered */
+  introStatus?: 'done' | 'skipped' | null;
   limits: Limits;
   focusAthlete: { id: string; name: string } | null;
   /** Coach only, loaded on first use. */

@@ -62,6 +62,12 @@ export type UiBlock =
   | { type: 'announcement_draft'; target: ProposalTarget; text: string; applied?: boolean }
   | { type: 'philosophy'; summary: string; applied?: boolean }
   | {
+      type: 'memory_proposal';
+      items: { category: string; content: string; source: string }[];
+      applied?: boolean;
+      kept?: number;
+    }
+  | {
       type: 'competitions';
       query: string;
       items: { id: string; title: string; date: string | null; location: string; snippet: string; url: string | null }[];
@@ -94,6 +100,8 @@ export function summarizeBlock(b: UiBlock): string {
       return `[Brouillon d'annonce pour ${b.target.name}${b.applied ? ' — publié' : ''}]`;
     case 'philosophy':
       return `[Philosophie proposée${b.applied ? ' — enregistrée' : ''}]`;
+    case 'memory_proposal':
+      return `[Propose de retenir : ${b.items.map((i) => i.content).join(' ; ')}${b.applied ? ` — ${b.kept ?? 0} retenu(s)` : ' — en attente du coach'}]`;
     case 'competitions':
       return `[Compétitions trouvées : ${b.items.map((i) => i.title).join(' ; ')}]`;
     case 'suggestions':

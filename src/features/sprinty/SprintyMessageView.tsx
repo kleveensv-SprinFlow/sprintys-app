@@ -18,6 +18,7 @@ import {
   SessionsProposalBlock,
 } from './blocks/ProposalBlocks';
 import { SuggestionsBlock } from './blocks/SuggestionsBlock';
+import { MemoryProposalBlock } from './blocks/MemoryProposalBlock';
 
 const LEGACY_BLOCKS = /```(workout_proposal|analysis_dashboard|metric_picker|competition_results|save_philosophy)[\s\S]*?(```|$)/gi;
 const LEGACY_DASHBOARD = /```analysis_dashboard([\s\S]*?)```/i;
@@ -75,6 +76,8 @@ export function SprintyBlock({
       return <AnnouncementBlock data={block} {...actions} />;
     case 'philosophy':
       return <PhilosophyBlock data={block} {...actions} />;
+    case 'memory_proposal':
+      return <MemoryProposalBlock data={block} onPatch={actions.onPatch} />;
     case 'competitions':
       return <CompetitionsBlock data={block} />;
     case 'suggestions':

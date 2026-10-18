@@ -444,6 +444,22 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
           </>
         )}
 
+        {!isAthlete && (
+          <>
+            <Text style={styles.section}>SPRINTY</Text>
+            <View style={[glassCard, styles.card]}>
+              <GlassSheen radius={22} />
+              <ListRow
+                icon="user-check"
+                title="Ce que Sprinty sait de moi"
+                subtitle="Tes méthodes et objectifs, à voir et corriger"
+                onPress={() => router.push('/(coach)/sprinty-memory' as any)}
+                last
+              />
+            </View>
+          </>
+        )}
+
         {notif !== 'unavailable' && (
           <>
             <Text style={styles.section}>NOTIFICATIONS</Text>

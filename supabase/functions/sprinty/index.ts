@@ -76,7 +76,7 @@ serve(async (req) => {
     // Who is asking: always read from the database, never from the app
     const today = parisToday();
     const [{ data: profile }, planRes] = await Promise.all([
-      supabase.from('profiles').select('role, first_name, objective, gender').eq('id', user.id).maybeSingle(),
+      supabase.from('profiles').select('role, first_name, objective, gender, sprinty_intro_status').eq('id', user.id).maybeSingle(),
       supabase.rpc('get_my_plan_full'),
     ]);
     const role = profile?.role === 'coach' ? 'coach' : 'athlete';
@@ -126,6 +126,18 @@ serve(async (req) => {
       emit,
       debug: body?.debug === true && /@sprintys\.test$/.test(user.email ?? ''),
     };
+
+    if (role === 'coach') {
+      // Ce que le coach a validé : sa façon d'entraîner (jamais de donnée d'athlète)
+      const { data: mem } = await supabase
+        .from('coach_ai_memory')
+        .select('category, content')
+        .eq('coach_id', user.id)
+        .order('created_at', { ascending: true })
+        .limit(40);
+      ctx.memory = (mem ?? []).map((m: any) => ({ category: String(m.category), content: clip(String(m.content), 300) }));
+      ctx.introStatus = profile?.sprinty_intro_status === 'done' || profile?.sprinty_intro_status === 'skipped' ? profile.sprinty_intro_status : null;
+    }
 
     if (role === 'coach' && focusId) {
       const { data: fp } = await supabase.from('profiles').select('id, first_name, full_name').eq('id', focusId).maybeSingle();

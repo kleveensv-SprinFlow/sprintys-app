@@ -43,6 +43,41 @@ const SESSION_GUIDE = `Format des séances (outils propose_*) :
 - kind "competition" : title = nom de la compétition, location.
 Toujours une date YYYY-MM-DD et un titre court. notes : une ou deux phrases maximum (échauffement et objectif de la séance), pas en bloc.`;
 
+const MEMORY_LABELS: Record<string, string> = {
+  specialite: 'Spécialité',
+  athletes: 'Ses athlètes',
+  objectifs: 'Objectifs',
+  semaine: 'Semaine type',
+  methodes: 'Méthodes',
+  interdits: 'Ce qu’il ne fait pas',
+  autre: 'Autre',
+};
+
+/** Ce que le coach a validé sur sa façon d'entraîner, regroupé par thème. */
+export function coachMemoryBlock(ctx: Ctx): string {
+  const mem = ctx.memory ?? [];
+  if (!mem.length) {
+    return ctx.introStatus === 'skipped'
+      ? `Tu ne connais pas encore les méthodes de ce coach (il a remis la présentation à plus tard). Donne des conseils prudents et, quand c'est utile, demande-lui comment il fait d'habitude ; propose remember_facts quand il te l'explique.`
+      : `Tu ne connais pas encore les méthodes de ce coach. Au bon moment (après avoir répondu à sa question), propose-lui une fois de faire connaissance en 2 minutes, par exemple dans suggest_followups avec « Faisons connaissance ».`;
+  }
+  const groups = new Map<string, string[]>();
+  for (const m of mem) groups.set(m.category, [...(groups.get(m.category) ?? []), m.content]);
+  const lines = Object.keys(MEMORY_LABELS)
+    .filter((k) => groups.has(k))
+    .map((k) => `- ${MEMORY_LABELS[k]} : ${groups.get(k)!.join(' ; ')}`);
+  return `CE QUE TU SAIS DU COACH (validé par lui, à respecter) :
+${lines.join('\n')}
+Tes conseils, séances et plans suivent ces méthodes et son vocabulaire, comme s'il les avait écrits. Si tu t'en écartes, dis-le et explique pourquoi en une phrase. Quand il t'apprend quelque chose de nouveau et durable sur sa façon d'entraîner, propose remember_facts (jamais une info déjà connue).`;
+}
+
+const INTRO_GUIDE = `PRÉSENTATION (quand le coach écrit « Faisons connaissance » ou demande à mieux se présenter) :
+1. Une phrase d'accueil : tu veux connaître sa façon d'entraîner pour proposer des séances qu'il aurait pu écrire.
+2. Pose les questions avec ask_choices, en 2 ou 3 tours maximum (2 ou 3 questions par tour, réponses courtes à toucher, il peut toujours écrire) : spécialité et niveau de ses athlètes (âges) ; objectifs de la saison et compétitions clés ; semaine type (nombre de séances, jours) ; méthodes (volume ou intensité, côtes, muscu en % de 1RM ou au ressenti, plyométrie) ; ce qu'il ne fait jamais.
+3. Appelle get_coach_habits et cite 2 ou 3 habitudes observées dans ses séances, sans les juger.
+4. Termine par remember_facts avec 4 à 8 phrases courtes qui résument ses réponses (source presentation) et les habitudes observées (source programmation). Il coche ce qu'il garde.
+Jamais de donnée de santé d'un athlète dans la mémoire.`;
+
 const ASK_REMINDER = `RAPPEL IMPORTANT : dès que tu as besoin de poser une question à l'utilisateur (niveau, date, disponibilités, sécurité, athlète concerné…), appelle l'outil ask_choices au lieu d'écrire la question. Une réponse qui se termine par une liste de questions écrites est une erreur.`;
 
 export function buildSystem(ctx: Ctx): string {
@@ -58,9 +93,7 @@ function buildBody(ctx: Ctx): string {
   const plan = `Limites de son offre : plans Sprinty jusqu'à ${ctx.limits.planWeeksMax} semaines${ctx.limits.planLifetimeMax != null ? ` (offre gratuite : ${ctx.limits.planLifetimeMax} seul plan, une seule fois)` : ''}. La recherche de compétitions, le bilan de la semaine, l'objectif calorique adaptatif, l'export PDF et les plans longs font partie de la formule payante Plus ; ne pousse jamais à l'achat, mentionne-le seulement si on te le demande ou si une fonction manque.`;
 
   if (ctx.role === 'coach') {
-    const philosophy = ctx.philosophy
-      ? `Philosophie d'entraînement du coach (à respecter) : ${ctx.philosophy}`
-      : `Le coach n'a pas encore décrit sa philosophie d'entraînement. Si l'occasion se présente (pas en premier message), propose-lui de la décrire en 3 questions, puis enregistre-la avec save_philosophy.`;
+    const philosophy = coachMemoryBlock(ctx);
     const focus = ctx.focusAthlete
       ? `Le coach parle en ce moment de l'athlète ${ctx.focusAthlete.name} (id ${ctx.focusAthlete.id}).`
       : '';
@@ -78,6 +111,8 @@ Style : concis, chiffré, orienté décision. Tu proposes, le coach tranche.
 - Compétitions : search_competitions avec une région et une période ; les résultats viennent du web, invite à vérifier sur le site officiel.
 - Tu ne vois que ce que les athlètes partagent avec lui. Une donnée absente n'est pas une faute de l'athlète.
 ${philosophy}
+
+${INTRO_GUIDE}
 ${focus}
 ${who} Date du jour : ${todayLabel}.
 ${SESSION_GUIDE}`;

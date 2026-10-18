@@ -1,6 +1,9 @@
 // deno-lint-ignore-file no-explicit-any
 import type { AthleteRef, Ctx, ToolResult } from './types.ts';
 import { addDays, describeSession, isIsoDate, normalizeSession, type Caps, type Session } from './sessions.ts';
+import { computeCoachHabits } from './habits.ts';
+
+const MEMORY_CATEGORIES = ['specialite', 'athletes', 'objectifs', 'semaine', 'methodes', 'interdits', 'autre'];
 
 /* -------------------------------------------------------------------------------------------------------------------
  * Tool definitions (OpenAI function calling). Which ones are offered depends on the role and situation.
@@ -229,9 +232,28 @@ export function toolsFor(ctx: Ctx) {
         },
         ['text', 'target']
       ),
-      fn('save_philosophy', "Affiche la philosophie d'entraînement résumée, que le coach peut enregistrer.", {
-        summary: { type: 'string', description: '5 à 10 lignes.' },
-      }, ['summary'])
+      fn(
+        'remember_facts',
+        "Propose au coach de retenir 1 à 8 informations sur sa façon d'entraîner (une phrase courte chacune, à la deuxième personne : « Tu … »). Le coach coche ce qu'il garde ; rien n'est enregistré sans lui. N'y mets jamais une information déjà dans ta mémoire, ni une donnée de santé d'un athlète.",
+        {
+          items: {
+            type: 'array',
+            minItems: 1,
+            maxItems: 8,
+            items: {
+              type: 'object',
+              properties: {
+                category: { type: 'string', enum: MEMORY_CATEGORIES },
+                content: { type: 'string', description: 'Une phrase, 160 caractères maximum.' },
+                source: { type: 'string', enum: ['presentation', 'conversation', 'programmation'] },
+              },
+              required: ['category', 'content', 'source'],
+            },
+          },
+        },
+        ['items']
+      ),
+      fn('get_coach_habits', "Habitudes de programmation du coach déduites de ses séances des 8 dernières semaines (jours, types, formats de course, intensité moyenne, exercices de muscu). À utiliser pendant la présentation pour lui faire confirmer ses habitudes.")
     );
   } else if (ctx.hasCoach) {
     tools.push(
@@ -1254,12 +1276,37 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
       return { content: { affiche: true, consigne: 'Brouillon affiché ; le coach peut le modifier et le publier.' }, terminal: true };
     }
 
-    case 'save_philosophy': {
+    case 'remember_facts': {
       if (ctx.role !== 'coach') throw new ToolError('Réservé au coach.');
-      const summary = clipText(String(a.summary ?? '').trim(), 2000);
-      if (!summary) throw new ToolError('Résumé vide.');
-      ctx.emit({ ui: { type: 'philosophy', summary } });
-      return { content: { affiche: true }, terminal: true, closing: false };
+      const known = new Set((ctx.memory ?? []).map((m) => m.content.toLowerCase()));
+      const items = (Array.isArray(a.items) ? a.items : [])
+        .map((it: any) => ({
+          category: MEMORY_CATEGORIES.includes(it?.category) ? it.category : 'autre',
+          content: clipText(String(it?.content ?? '').trim(), 160),
+          source: ['presentation', 'conversation', 'programmation'].includes(it?.source) ? it.source : 'conversation',
+        }))
+        .filter((it: any) => it.content && !known.has(it.content.toLowerCase()))
+        .slice(0, 8);
+      if (!items.length) throw new ToolError('Rien de nouveau à retenir.');
+      const room = 40 - (ctx.memory?.length ?? 0);
+      if (room <= 0) throw new ToolError('Mémoire pleine (40 éléments) : invite le coach à faire du tri dans « Ce que Sprinty sait de moi ».');
+      ctx.emit({ ui: { type: 'memory_proposal', items: items.slice(0, room) } });
+      return { content: { affiche: true, consigne: 'Carte affichée ; le coach coche ce qu’il garde.' }, terminal: true, closing: false };
+    }
+
+    case 'get_coach_habits': {
+      if (ctx.role !== 'coach') throw new ToolError('Réservé au coach.');
+      const { data, error } = await sb
+        .from('workouts')
+        .select('id, group_assignment_id, date_prevue, type_seance, measures, blocks')
+        .eq('coach_id', ctx.userId)
+        .gte('date_prevue', sinceIso(ctx, 56))
+        .lte('date_prevue', addDays(ctx.today, 1))
+        .limit(2000);
+      if (error) throw new ToolError('Séances indisponibles.');
+      const habits = computeCoachHabits(data ?? [], 8);
+      if (habits.seances === 0) return { content: { seances: 0, consigne: 'Aucune séance programmée ces 8 dernières semaines : ne déduis aucune habitude.' } };
+      return { content: habits };
     }
 
     case 'search_competitions':
