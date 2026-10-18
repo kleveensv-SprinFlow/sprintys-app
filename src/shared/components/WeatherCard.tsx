@@ -3,7 +3,17 @@ import { View, Text, StyleSheet, Modal, ScrollView, Linking } from 'react-native
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../../core/theme';
 import * as Location from 'expo-location';
-import { weatherService, WeatherData } from '../../services/weatherService';
+import {
+  weatherService,
+  weatherCache,
+  WEATHER_FRESH_MS,
+  WeatherData,
+  localHourIso,
+  next24h,
+  isTrackWet,
+  rainChanceNext,
+  getTrainingVerdict,
+} from '../../services/weatherService';
 import { PressableScale } from './PressableScale';
 import { IconButton } from './IconButton';
 import { Skeleton } from './Skeleton';
@@ -13,29 +23,31 @@ import { FeedbackHost } from '../feedback/FeedbackHost';
 
 const WEATHER_TINT = '#0284C7';
 
-const getWeatherIconColor = (condition?: string) => {
+const getWeatherIconColor = (condition?: string, isDay = true) => {
   switch (condition) {
-    case 'clear': return '#FACC15'; // Yellow
+    case 'clear': return isDay ? '#FACC15' : '#94A3B8'; // soleil / lune
+    case 'partly': return isDay ? '#FACC15' : '#94A3B8';
     case 'cloudy':
     case 'foggy': return '#94A3B8'; // Slate Gray
     case 'rainy':
     case 'showers': return '#38BDF8'; // Sky Blue
     case 'snowy': return '#7DD3FC'; // Ice (visible on white)
     case 'stormy': return '#A855F7'; // Purple
-    default: return '#FACC15';
+    default: return '#94A3B8';
   }
 };
 
-const getWeatherIcon = (condition?: string): keyof typeof Feather.glyphMap => {
+const getWeatherIcon = (condition?: string, isDay = true): keyof typeof Feather.glyphMap => {
   switch (condition) {
-    case 'clear': return 'sun';
+    case 'clear':
+    case 'partly': return isDay ? 'sun' : 'moon';
     case 'cloudy': return 'cloud';
     case 'foggy': return 'align-justify';
     case 'rainy':
     case 'showers': return 'cloud-rain';
     case 'snowy': return 'cloud-snow';
     case 'stormy': return 'cloud-lightning';
-    default: return 'sun';
+    default: return 'cloud';
   }
 };
 
@@ -51,14 +63,21 @@ export const WeatherCard = () => {
 
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const loadWeather = async () => {
-    setIsLoading(true);
-    setFailure(null);
+  const [offline, setOffline] = useState(false);
+
+  /** `hasData` : une météo est déjà affichée (mémoire) — on rafraîchit sans écran de chargement ni message d'erreur. */
+  const loadWeather = async (hasData = false) => {
+    if (!hasData) {
+      setIsLoading(true);
+      setFailure(null);
+    }
     try {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        setLocationName('Accès refusé');
-        setFailure('denied');
+        if (!hasData) {
+          setLocationName('Accès refusé');
+          setFailure('denied');
+        }
         setIsLoading(false);
         return;
       }
@@ -66,6 +85,7 @@ export const WeatherCard = () => {
       let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
       const data = await weatherService.fetchWeather(location.coords.latitude, location.coords.longitude);
       setWeather(data);
+      setOffline(false);
 
       // The town name is a nice-to-have: never let it block or break the card (it can fail or hang on some devices)
       const geocode = await Promise.race([
@@ -73,18 +93,38 @@ export const WeatherCard = () => {
         new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
       ]);
       const place = geocode?.[0];
-      setLocationName(place?.city || place?.region || 'Autour de toi');
+      const name = place?.city || place?.region || 'Autour de toi';
+      setLocationName(name);
+      weatherCache.write(data, name);
     } catch (error) {
       console.error('Error fetching weather:', error);
-      setLocationName('Erreur météo');
-      setFailure('error');
+      if (hasData) {
+        setOffline(true); // on garde la dernière météo connue
+      } else {
+        setLocationName('Erreur météo');
+        setFailure('error');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    loadWeather();
+    let alive = true;
+    (async () => {
+      const cached = await weatherCache.read();
+      if (!alive) return;
+      if (cached) {
+        setWeather(cached.data);
+        setLocationName(cached.place || 'Autour de toi');
+        setIsLoading(false);
+        if (Date.now() - cached.at < WEATHER_FRESH_MS) return; // assez récente : pas de nouvel appel
+      }
+      loadWeather(!!cached);
+    })();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   if (isLoading) {
@@ -110,18 +150,11 @@ export const WeatherCard = () => {
     );
   }
 
+  const nowIso = localHourIso(new Date());
   const getFilteredHourly = () => {
     if (!weather?.hourly) return [];
-    if (!selectedDate) {
-      // Return next 24 hours from now
-      const nowString = new Date().toISOString().substring(0, 14) + "00";
-      let nowIdx = weather.hourly.findIndex(h => h.datetime >= nowString);
-      if (nowIdx === -1) nowIdx = 0;
-      return weather.hourly.slice(nowIdx, nowIdx + 24);
-    } else {
-      // Return all 24 hours of selected date
-      return weather.hourly.filter(h => h.date === selectedDate);
-    }
+    if (!selectedDate) return next24h(weather.hourly, nowIso);
+    return weather.hourly.filter((h) => h.date === selectedDate);
   };
 
   const displayHourly = getFilteredHourly();
@@ -179,6 +212,10 @@ export const WeatherCard = () => {
   }
 
   const closeModal = () => setIsModalVisible(false);
+  const isDay = weather.isDay;
+  const wet = isTrackWet(weather, nowIso);
+  const rainChance = rainChanceNext(weather, nowIso, 3);
+  const verdict = getTrainingVerdict(weather, nowIso);
 
   return (
     <>
@@ -186,14 +223,14 @@ export const WeatherCard = () => {
         style={[cardStyle, styles.container]}
         onPress={() => setIsModalVisible(true)}
         accessibilityRole="button"
-        accessibilityLabel={`Météo à ${locationName} : ${weather.temperature} degrés, ${weather.conditionLabel || 'dégagé'}`}
+        accessibilityLabel={`Météo à ${locationName} : ${weather.temperature} degrés, ${weather.conditionLabel || 'dégagé'}. ${verdict}`}
       >
         <GlassSheen radius={22} />
         <DashboardCardHeader
-          icon={<Feather name={getWeatherIcon(weather.condition)} size={15} color={WEATHER_TINT} />}
+          icon={<Feather name={getWeatherIcon(weather.condition, isDay)} size={15} color={WEATHER_TINT} />}
           label="Météo"
           tint={WEATHER_TINT}
-          meta={locationName}
+          meta={offline ? `${locationName} · hors ligne` : locationName}
         />
 
         <View style={styles.topRow}>
@@ -204,12 +241,13 @@ export const WeatherCard = () => {
                 {weather.conditionLabel || 'Dégagé'}
               </Text>
               <Text style={[styles.statText, { marginTop: 2 }]} numberOfLines={1}>
-                {`Vent ${weather.windSpeed} km/h · ${weather.precipitation && weather.precipitation > 0 ? 'piste humide' : 'piste sèche'}`}
+                {`Ressenti ${weather.feelsLike}° · Vent ${weather.windSpeed} km/h · ${wet ? 'piste humide' : 'piste sèche'}`}
               </Text>
             </View>
           </View>
-          <Feather name={getWeatherIcon(weather.condition)} size={34} color={getWeatherIconColor(weather.condition)} />
+          <Feather name={getWeatherIcon(weather.condition, isDay)} size={34} color={getWeatherIconColor(weather.condition, isDay)} />
         </View>
+        <Text style={styles.verdict} numberOfLines={2}>{verdict}</Text>
       </PressableScale>
 
       {/* Detailed weather */}
@@ -228,9 +266,9 @@ export const WeatherCard = () => {
             <ScrollView contentContainerStyle={styles.modalScroll} showsVerticalScrollIndicator={false}>
               {/* Hero */}
               <View style={styles.modalHero}>
-                <Feather name={getWeatherIcon(weather.condition)} size={52} color={getWeatherIconColor(weather.condition)} />
+                <Feather name={getWeatherIcon(weather.condition, isDay)} size={52} color={getWeatherIconColor(weather.condition, isDay)} />
                 <Text style={styles.modalTemp}>{`${weather.temperature}°C`}</Text>
-                <Text style={styles.modalLoc}>{locationName}</Text>
+                <Text style={styles.modalLoc}>{`${locationName} · ressenti ${weather.feelsLike}°`}</Text>
                 <View style={styles.conditionPill}>
                   <Text style={styles.modalConditionText}>{weather.conditionLabel || 'Dégagé'}</Text>
                 </View>
@@ -243,11 +281,9 @@ export const WeatherCard = () => {
                     <Feather name="wind" size={16} color={theme.colors.sprintyBlue} />
                   </View>
                   <Text style={styles.metricValue}>
-                    {weather.windSpeed || '--'} <Text style={styles.metricUnit}>km/h</Text>
+                    {weather.windSpeed} <Text style={styles.metricUnit}>km/h</Text>
                   </Text>
-                  <Text style={styles.metricSub}>
-                    {weather.windDirection ? `Cap ${weather.windDirection}` : 'Vent'}
-                  </Text>
+                  <Text style={styles.metricSub}>{`Rafales ${weather.windGust} km/h`}</Text>
                 </View>
 
                 <View style={styles.modalMetricCard}>
@@ -255,11 +291,9 @@ export const WeatherCard = () => {
                     <Feather name="cloud-rain" size={16} color={WEATHER_TINT} />
                   </View>
                   <Text style={styles.metricValue}>
-                    {weather.precipitation != null ? `${weather.precipitation}` : '0'} <Text style={styles.metricUnit}>mm</Text>
+                    {rainChance} <Text style={styles.metricUnit}>%</Text>
                   </Text>
-                  <Text style={styles.metricSub}>
-                    {weather.precipitation && weather.precipitation > 0 ? 'Piste humide' : 'Piste sèche'}
-                  </Text>
+                  <Text style={styles.metricSub}>{wet ? 'Piste humide' : 'Pluie dans 3 h'}</Text>
                 </View>
 
                 <View style={styles.modalMetricCard}>
@@ -295,8 +329,9 @@ export const WeatherCard = () => {
                 {displayHourly.length > 0 ? displayHourly.map((h, i) => (
                   <View key={i} style={styles.hourlyCard}>
                     <Text style={styles.hourlyTime}>{h.time}</Text>
-                    <Feather name={getWeatherIcon(h.condition)} size={22} color={getWeatherIconColor(h.condition)} style={{ marginVertical: 8 }} />
+                    <Feather name={getWeatherIcon(h.condition, h.isDay)} size={22} color={getWeatherIconColor(h.condition, h.isDay)} style={{ marginVertical: 8 }} />
                     <Text style={styles.hourlyTemp}>{h.temperature}°</Text>
+                    <Text style={styles.hourlyRain}>{h.rainChance >= 20 ? `${h.rainChance}%` : ' '}</Text>
                   </View>
                 )) : (
                   <Text style={styles.emptyText}>Aucune donnée horaire disponible.</Text>
@@ -319,6 +354,7 @@ export const WeatherCard = () => {
                   >
                     <Text style={styles.dailyDay}>{d.displayDay}</Text>
                     <Feather name={getWeatherIcon(d.condition)} size={20} color={getWeatherIconColor(d.condition)} style={{ width: 40, textAlign: 'center' }} />
+                    <Text style={styles.dailyRain}>{d.rainChance >= 30 ? `${d.rainChance}%` : ''}</Text>
                     <View style={styles.dailyTemps}>
                       <Text style={styles.dailyMin}>{d.tempMin}°</Text>
                       <View style={styles.dailyBar} />
@@ -366,6 +402,26 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: theme.colors.text,
+  },
+  verdict: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginTop: 12,
+  },
+  hourlyRain: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: WEATHER_TINT,
+    marginTop: 4,
+  },
+  dailyRain: {
+    width: 40,
+    fontSize: 12,
+    fontWeight: '700',
+    color: WEATHER_TINT,
+    textAlign: 'center',
   },
   statText: {
     fontSize: 13,
