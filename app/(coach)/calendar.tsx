@@ -4,7 +4,6 @@ import { workoutService } from '../../src/services/workoutService';
 import { periodService } from '../../src/services/periodService';
 import { TrainingPeriod } from '../../src/types/period';
 import { PeriodModal } from '../../src/features/calendar/components/PeriodModal';
-import { CopyWeekModal } from '../../src/features/calendar/components/CopyWeekModal';
 import { PressableScale } from '../../src/shared/components/PressableScale';
 import { Feather } from '@expo/vector-icons';
 import { Text, View } from 'react-native';
@@ -31,7 +30,6 @@ export default function CoachCalendarScreen() {
   const scopeTeamId = teams.length > 1 ? currentTeam?.id ?? null : null;
   const router = useRouter();
   const theme = useTheme();
-  const [isCopyWeekVisible, setIsCopyWeekVisible] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [monthWorkouts, setMonthWorkouts] = useState<MonthWorkout[]>([]);
@@ -139,30 +137,10 @@ export default function CoachCalendarScreen() {
             <Feather name="list" size={13} color={theme.colors.sprintyBlue} />
             <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.sprintyBlue }}>Semaine</Text>
           </PressableScale>
-          <PressableScale
-            haptic="light"
-            onPress={() => setIsCopyWeekVisible(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Copier la semaine"
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: theme.colors.glassFill }}
-          >
-            <Feather name="copy" size={13} color={theme.colors.sprintyBlue} />
-            <Text style={{ fontSize: 13, fontWeight: '700', color: theme.colors.sprintyBlue }}>Copier la semaine</Text>
-          </PressableScale>
           </View>
         }
       />
 
-      {user?.id ? (
-        <CopyWeekModal
-          visible={isCopyWeekVisible}
-          onClose={() => setIsCopyWeekVisible(false)}
-          coachId={user.id}
-          teamId={scopeTeamId}
-          day={selectedDate}
-          onCopied={() => loadMonthData(selectedDate.getFullYear(), selectedDate.getMonth())}
-        />
-      ) : null}
 
       {/* Planning Modal for Periods */}
       <PeriodModal

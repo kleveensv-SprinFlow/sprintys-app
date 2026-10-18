@@ -271,6 +271,7 @@ export default function CoachWeekScreen() {
           onClose={() => setShowCopyWeek(false)}
           coachId={user.id}
           teamId={scopeTeamId}
+          teamName={scopeTeamId ? currentTeam?.name : null}
           day={monday}
           onCopied={load}
         />

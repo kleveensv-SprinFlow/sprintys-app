@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Modal, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, Modal, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../../core/theme';
@@ -7,6 +7,7 @@ import { PressableScale } from '../../../shared/components/PressableScale';
 import { FeedbackHost } from '../../../shared/feedback/FeedbackHost';
 import { appAlert, confirmAsync, toast } from '../../../shared/feedback/appAlert';
 import { workoutService } from '../../../services/workoutService';
+import { summarizeWeek, dayLabel, athletesLabel, WeekSessionPreview } from '../copyWeekPreview';
 
 interface Props {
   visible: boolean;
@@ -16,31 +17,34 @@ interface Props {
   teamId?: string | null;
   /** Any day of the week to copy */
   day: Date;
+  /** Group shown (when the coach runs several), to say exactly who is copied */
+  teamName?: string | null;
   onCopied: () => void;
 }
 
 const fmt = (d: Date) => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 
 /** Copy the planned week (every group and athlete) to a later week. */
-export const CopyWeekModal: React.FC<Props> = ({ visible, onClose, coachId, teamId, day, onCopied }) => {
+export const CopyWeekModal: React.FC<Props> = ({ visible, onClose, coachId, teamId, day, teamName, onCopied }) => {
   const theme = useTheme();
   const monday = workoutService.weekStart(day);
   const sunday = new Date(monday);
   sunday.setDate(sunday.getDate() + 6);
-  const [count, setCount] = useState<number | null>(null);
+  const [sessions, setSessions] = useState<WeekSessionPreview[] | null>(null);
+  const count = sessions == null ? null : sessions.length;
   const [busy, setBusy] = useState<number | null>(null);
 
   useEffect(() => {
     if (!visible) return;
-    setCount(null);
+    setSessions(null);
     let alive = true;
     workoutService
       .fetchWeekRows(coachId, monday, teamId)
       .then((rows) => {
         if (!alive) return;
-        setCount(new Set(rows.map((r: any) => r.group_assignment_id || r.id)).size);
+        setSessions(summarizeWeek(rows, coachId));
       })
-      .catch(() => alive && setCount(0));
+      .catch(() => alive && setSessions([]));
     return () => {
       alive = false;
     };
@@ -54,10 +58,13 @@ export const CopyWeekModal: React.FC<Props> = ({ visible, onClose, coachId, team
       // A week that already has sessions would get them twice: ask first
       const existing = await workoutService.fetchWeekRows(coachId, target, teamId);
       if (existing.length > 0) {
-        const n = new Set(existing.map((r: any) => r.group_assignment_id || r.id)).size;
+        const there = summarizeWeek(existing, coachId);
+        const n = there.length;
+        const list = there.slice(0, 5).map((x) => `• ${dayLabel(x.date)} · ${x.title}`).join('\n');
+        const more = n > 5 ? `\n• et ${n - 5} autre${n - 5 > 1 ? 's' : ''}` : '';
         const go = await confirmAsync({
           title: 'Semaine déjà remplie',
-          message: `La semaine du ${fmt(target)} contient déjà ${n} séance${n > 1 ? 's' : ''}. Les séances copiées s’ajouteront à celles-ci.`,
+          message: `La semaine du ${fmt(target)} contient déjà ${n} séance${n > 1 ? 's' : ''} :\n${list}${more}\n\nLes séances copiées s’ajouteront à côté (rien n’est supprimé), attention aux doublons.`,
           confirmText: 'Copier quand même',
         });
         if (!go) return;
@@ -88,8 +95,20 @@ export const CopyWeekModal: React.FC<Props> = ({ visible, onClose, coachId, team
               ? 'Lecture de la semaine…'
               : count === 0
                 ? `Aucune séance du ${fmt(monday)} au ${fmt(sunday)}.`
-                : `${count} séance${count > 1 ? 's' : ''} du ${fmt(monday)} au ${fmt(sunday)}, pour tous tes athlètes. La semaine d’origine ne change pas, rien n’est validé sur les copies.`}
+                : `${count} séance${count > 1 ? 's' : ''} du ${fmt(monday)} au ${fmt(sunday)}${teamName ? `, groupe ${teamName}` : ''}. La semaine d’origine ne change pas, rien n’est validé sur les copies.`}
           </Text>
+
+          {sessions != null && sessions.length > 0 && (
+            <ScrollView style={[styles.list, { borderColor: theme.colors.hairline }]} nestedScrollEnabled>
+              {sessions.map((x) => (
+                <View key={x.key} style={styles.listRow}>
+                  <Text style={[styles.listDay, { color: theme.colors.textSecondary }]}>{dayLabel(x.date)}</Text>
+                  <Text style={[styles.listTitle, { color: theme.colors.text }]} numberOfLines={1}>{x.title}</Text>
+                  <Text style={[styles.listWho, { color: theme.colors.textSecondary }]}>{athletesLabel(x.athletes)}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          )}
 
           {count != null && count > 0 && (
             <View style={styles.options}>
@@ -132,6 +151,11 @@ const styles = StyleSheet.create({
   icon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 20, fontWeight: '800', letterSpacing: -0.3, marginTop: 6 },
   hint: { fontSize: 14, lineHeight: 20 },
+  list: { maxHeight: 180, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth },
+  listRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
+  listDay: { width: 52, fontSize: 13, fontWeight: '700' },
+  listTitle: { flex: 1, fontSize: 15, fontWeight: '600' },
+  listWho: { fontSize: 13 },
   options: { gap: 8, marginTop: 8 },
   option: { borderRadius: 16, borderCurve: 'continuous', paddingHorizontal: 16, paddingVertical: 13 },
   optionTitle: { fontSize: 16, fontWeight: '700' },
