@@ -1,6 +1,7 @@
 import { Appear } from '../../src/shared/components/Appear';
 import React, { useCallback, useRef, useState } from 'react';
-import { StyleSheet, Animated, View, Text, RefreshControl } from 'react-native';
+import { StyleSheet, Animated, View, Text, RefreshControl, TouchableOpacity } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/core/theme';
 import { AthleteHeader } from '../../src/features/athlete/components/AthleteHeader';
@@ -35,6 +36,7 @@ export default function DashboardScreen() {
   const { loadUpcomingWorkouts } = useWorkoutStore();
   const [refreshKey, setRefreshKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [progressOpen, setProgressOpen] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
   const tabBarSpace = useTabBarSpace(24);
@@ -105,8 +107,25 @@ export default function DashboardScreen() {
               <WeatherCard />
             </View>
           </Appear>
-          <Appear index={4}><PerformanceCard refreshKey={refreshKey} /></Appear>
-          <Appear index={5}><BodyCompositionCard refreshKey={refreshKey} /></Appear>
+          <Appear index={4}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => setProgressOpen((v) => !v)}
+              accessibilityRole="button"
+              accessibilityLabel={progressOpen ? 'Masquer ma progression' : 'Afficher ma progression'}
+              style={styles.progressToggle}
+            >
+              <Text style={[styles.progressTitle, { color: theme.colors.text }]}>Ma progression</Text>
+              <Text style={[styles.progressHint, { color: theme.colors.textSecondary }]}>Records et poids</Text>
+              <Feather name={progressOpen ? 'chevron-up' : 'chevron-down'} size={20} color={theme.colors.textMuted} />
+            </TouchableOpacity>
+          </Appear>
+          {progressOpen && (
+            <>
+              <PerformanceCard refreshKey={refreshKey} />
+              <BodyCompositionCard refreshKey={refreshKey} />
+            </>
+          )}
         </Animated.ScrollView>
       </View>
     </GlassScreen>
@@ -136,6 +155,9 @@ const styles = StyleSheet.create({
     letterSpacing: -0.8,
     marginTop: 2,
   },
+  progressToggle: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 14 },
+  progressTitle: { fontSize: 20, fontWeight: '800' },
+  progressHint: { flex: 1, fontSize: 13, fontWeight: '600' },
   cardGutter: {
     // WeatherCard has no horizontal margin (the coach screen pads its scroll view)
     marginHorizontal: 16,

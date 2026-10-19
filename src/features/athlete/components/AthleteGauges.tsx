@@ -292,6 +292,7 @@ export const AthleteGauges = ({ refreshKey = 0 }: { refreshKey?: number }) => {
         </PressableScale>
 
         {/* Next competition planned by the coach */}
+        {!!nextCompetition && (
         <PressableScale onPress={handleCompetitionPress} containerStyle={styles.tileTouch} style={[glassCard, styles.tile]}>
           <GlassSheen radius={22} />
           <DashboardCardHeader
@@ -313,6 +314,7 @@ export const AthleteGauges = ({ refreshKey = 0 }: { refreshKey?: number }) => {
             {compSub}
           </Text>
         </PressableScale>
+        )}
       </View>
 
       <CheckInModal visible={modalVisible} onClose={() => setModalVisible(false)} onDone={onCheckInDone} />
