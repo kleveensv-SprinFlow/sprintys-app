@@ -61,7 +61,8 @@ export const CheckInModal = ({ visible, onClose, onDone }: CheckInModalProps) =>
     }).start();
     enter.setValue(0);
     Animated.spring(enter, { toValue: 1, useNativeDriver: true, speed: 16, bounciness: 2 }).start();
-  }, [step]);
+    // Aussi à chaque ouverture : fermée en cours d'animation, la fenêtre restait à opacité 0 (page blanche à la modification)
+  }, [step, visible]);
 
   const handleClose = () => {
     cancelCheckIn();
