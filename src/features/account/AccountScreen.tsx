@@ -1,7 +1,7 @@
 import { goBack } from '../../core/navigation';
 import React, { useCallback, useEffect, useState } from 'react';
 import Constants from 'expo-constants';
-import { View, Text, StyleSheet, Image, Linking, Animated, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Image, Linking, Animated, ActivityIndicator, Switch } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from '@react-navigation/native';
@@ -129,6 +129,7 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
 
   const [editVisible, setEditVisible] = useState(false);
   const [faqVisible, setFaqVisible] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [photoSheet, setPhotoSheet] = useState(false);
   const [pending, setPending] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -380,7 +381,6 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
         <View style={[glassCard, styles.card]}>
           <GlassSheen radius={22} />
           <ListRow icon="user" title="Mes informations" subtitle={infoLine} onPress={() => setEditVisible(true)} />
-          <ListRow icon="image" title="Photo de profil" onPress={() => setPhotoSheet(true)} />
           <ListRow
             icon="users"
             title={isAthlete ? 'Mon groupe' : 'Mes groupes'}
@@ -469,7 +469,8 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
                 icon="bell"
                 title={isAthlete ? 'Rappels' : 'Notifications'}
                 subtitle={isAthlete ? 'Séances prévues et check-in du jour' : 'Alertes de tes athlètes et de ton équipe'}
-                value={notif === 'on' ? 'Activées' : notif === 'denied' ? 'Bloquées' : 'Désactivées'}
+                value={notif === 'denied' ? 'Bloquées' : <Switch value={notif === 'on'} onValueChange={toggleNotifications} />}
+                chevron={false}
                 onPress={toggleNotifications}
                 last={!(isAthlete && notif === 'on')}
               />
@@ -495,7 +496,8 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
             iconColor="#8B5CF6"
             title="Assistant IA"
             subtitle={isAthlete ? 'Sprinty et analyse de repas' : 'Sprinty et analyses d’athlètes'}
-            value={aiConsent ? 'Activé' : 'Désactivé'}
+            value={<Switch value={!!aiConsent} onValueChange={toggleAI} />}
+            chevron={false}
             onPress={toggleAI}
           />
           {isAthlete && (
@@ -503,7 +505,8 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
               icon="shield"
               title="Suivi des douleurs"
               subtitle="Données de santé sensibles"
-              value={painConsent ? 'Activé' : 'Désactivé'}
+              value={<Switch value={!!painConsent} onValueChange={togglePain} />}
+              chevron={false}
               onPress={togglePain}
             />
           )}
@@ -530,6 +533,9 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
         <Text style={styles.section}>AIDE</Text>
         <View style={[glassCard, styles.card]}>
           <GlassSheen radius={22} />
+          <ListRow icon="help-circle" title="Aide et informations légales" subtitle="Tutoriel, questions, contact, conditions" chevron={false} value={<Feather name={helpOpen ? 'chevron-up' : 'chevron-down'} size={18} color={theme.colors.textMuted} />} onPress={() => setHelpOpen((v) => !v)} last={!helpOpen} />
+          {helpOpen && (
+            <>
           <ListRow
             icon="compass"
             title="Revoir le tutoriel"
@@ -541,6 +547,8 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
           <ListRow icon="file-text" title="Conditions d’utilisation" onPress={() => openDoc('terms')} />
           <ListRow icon="lock" title="Politique de confidentialité" onPress={() => openDoc('privacy')} />
           <ListRow icon="info" title="Mentions légales" onPress={() => openDoc('notice')} last />
+            </>
+          )}
         </View>
 
         <View style={[glassCard, styles.card]}>
