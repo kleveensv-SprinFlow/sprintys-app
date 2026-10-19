@@ -1260,7 +1260,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                                     styles.athleteValueButtonText,
                                     data.chrono ? styles.athleteValueFilledText : styles.athleteValuePlaceholder,
                                   ]}>
-                                    {data.chrono ? `${String(data.chrono).replace(".", ",")} ${(set.distance || 0) >= 800 ? 'min' : 's'}` : canEdit ? 'Chrono' : '—'}
+                                    {data.chrono ? (String(data.chrono).includes(':') ? String(data.chrono) : `${String(data.chrono).replace('.', ',')} ${(set.distance || 0) >= 800 ? 'min' : 's'}`) : canEdit ? 'Chrono' : '—'}
                                   </Text>
                                 </PressableScale>
                               )}

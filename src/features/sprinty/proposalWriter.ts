@@ -82,7 +82,8 @@ function sessionToRowContent(s: ProposedSession) {
       description: [s.title, notes].filter(Boolean).join('\n'),
       blocks,
       exercises: blocks.flatMap((b) => b.exercises),
-      measures: { surface: s.surface === 'cote' ? 'cote' : 'piste', equipment: 'pointes' },
+      // Pointes seulement pour une séance rapide : une marche à 65 % se fait en baskets
+      measures: { surface: s.surface === 'cote' ? 'cote' : 'piste', equipment: Math.max(0, ...s.run_blocks.map((b) => b.intensity_pct)) >= 85 ? 'pointes' : 'baskets' },
     };
   }
 

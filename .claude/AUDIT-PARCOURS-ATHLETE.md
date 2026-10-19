@@ -17,8 +17,8 @@ Conditions à jouer : nominal · champ vide · valeur absurde · annuler à mi-p
 | 7 | Nutrition : recherche, portion, ajout, modification, suppression, valeurs 0 et 99 999 | ✅ (unités g et ml ⬜) |
 | 8 | Nutrition : photo, Décrire (analyse IA), scan, Récents / Fréquents / Mes repas | 🟡 |
 | 9 | Nutrition : Reprendre hier, repas personnalisé, réglages | 🟡 (réglages ✅ valeurs absurdes) |
-| 10 | Séance : saisie chrono / charge, Suivante, valider, effort ressenti | 🟡 |
-| 11 | Séance muscu, escaliers, technique, compétition | ⬜ |
+| 10 | Séance : charges (9999 kg refusé), chronos de course (1 s sur 500 m refusé, 2:10 accepté), validation réelle, minuteur de récupération | ✅ (effort ressenti ⬜) |
+| 11 | Séance muscu ✅, course ✅ ; escaliers, technique, compétition | 🟡 |
 | 12 | Séance Sprinty ajoutée au calendrier + retirer | ⬜ |
 | 13 | Calendrier : mois, jour vide, 2 séances, phases | 🟡 |
 | 14 | Ma progression : masquer, restaurer | 🟡 |
@@ -37,6 +37,8 @@ Conditions à jouer : nominal · champ vide · valeur absurde · annuler à mi-p
 | Charge de 9999 kg validée sans avertissement (deviendrait un record) | oui, confirmation au-delà de 500 kg |
 | Hors ligne : la recherche d'aliments disait « Aucun produit trouvé » | oui, message « Pas de connexion » |
 | Séance validée : la pastille de récupération recouvre la dernière ligne | à traiter |
+| Chrono « 2:10 s » : unité « s » fausse quand on saisit en minutes:secondes | oui |
+| Plan Sprinty : une marche à 65 % marquée « Pointes » | oui, pointes seulement si intensité ≥ 85 % |
 | Check-in « Modifier » : étape 1 vide | oui |
 | Pesée : 0 ou 9999 kg | oui, bornes 25 à 300 kg, gras, muscle, eau |
 | Portion : 99 999 bananes = 10 499 895 kcal enregistrés | oui, refus au-delà de 5 kg |
