@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -30,6 +31,17 @@ export function BottomSheet({ visible, onClose, title, subtitle, children, style
   const insets = useSafeAreaInsets();
   const anim = useRef(new Animated.Value(0)).current;
   const [mounted, setMounted] = useState(visible);
+  // Android : la fenêtre ne se redimensionne pas avec le clavier, la feuille doit monter d'elle-même
+  const [kb, setKb] = useState(0);
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const show = Keyboard.addListener('keyboardDidShow', (e) => setKb(e.endCoordinates?.height ?? 0));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKb(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
   // Keep the last content while sliding out (callers usually clear their state on close)
   const last = useRef({ title, subtitle, children });
   if (visible) last.current = { title, subtitle, children };
@@ -56,14 +68,14 @@ export function BottomSheet({ visible, onClose, title, subtitle, children, style
       </Animated.View>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.wrap}
+        style={[styles.wrap, kb > 0 && { paddingBottom: kb }]}
         pointerEvents="box-none"
       >
         <Animated.View
           pointerEvents={visible ? 'auto' : 'none'}
           style={[
             styles.sheet,
-            { paddingBottom: Math.max(insets.bottom, 16) + 8 },
+            { paddingBottom: kb > 0 ? 48 : Math.max(insets.bottom, 16) + 8 },
             { transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [420, 0] }) }] },
             style,
           ]}
