@@ -12,7 +12,7 @@ Conditions à jouer : nominal · champ vide · valeur absurde · annuler à mi-p
 | 2 | Inscription athlète + profil à compléter + vérification e-mail | 🟡 (écran des accords vu) |
 | 3 | Rejoindre un groupe par code / quitter | 🟡 |
 | 4 | Check-in complet 3 étapes + modification | ✅ |
-| 5 | Pesée : ajout, valeurs 0 et 9999 refusées, 78,4 enregistré | ✅ (modification et suppression ⬜) |
+| 5 | Pesée : ajout, valeurs 0 et 9999 refusées, 78,4 enregistré ; modification à 78,5 et suppression confirmée ; état vide et bouton d’ajout | ✅ |
 | 6 | Objectif de poids | ⬜ |
 | 7 | Nutrition : recherche, portion, ajout, modification, suppression, valeurs 0 et 99 999 | ✅ (unités g et ml ⬜) |
 | 8 | Nutrition : photo, Décrire (analyse IA), scan, Récents / Fréquents / Mes repas | 🟡 |
@@ -48,7 +48,7 @@ Conditions à jouer : nominal · champ vide · valeur absurde · annuler à mi-p
 | « Modifier la portion » : bouton caché par le clavier | oui |
 | Réglages nutrition : 99 999 kcal acceptés, poids actuel vide malgré une pesée | oui |
 | Recherche « banane » : titre « Chair sans peau de banane », fiche à 0 kcal | oui |
-| Écran Poids vide : « -- kg » et période affichés sans donnée | oui, état vide avec bouton « Ajouter une pesée » (non vu à l'écran) |
+| Écran Poids vide : « -- kg » et période affichés sans donnée | oui, état vide avec bouton « Ajouter une pesée » vu sur le téléphone |
 | Compte neuf : objectif de 2 000 kcal affiché sans l'avoir choisi | oui, affiché comme « Repère 2 000 kcal · à régler » (non vu à l'écran) |
 | Constructeur course coach : 3 × 99 999 m à 95 % était accepté | oui, distance limitée à 1–10 000 m ; répétitions limitées à 50 ; refus 99 999 m vu à l’écran |
 
@@ -66,4 +66,10 @@ Compte coach de test connecté par l’utilisateur, groupe « Test audit ». Un 
 | Sprinty coach et mémoire | ⬜ |
 | Profil coach, messages, export | ⬜ |
 
-La modification de l’état vide de l’écran Poids reste à vérifier avec le compte athlète de test connecté par l’utilisateur.
+## Preuves Poids — compte athlète de test
+
+- Modification : [78,4 kg avant](audit-evidence/2026-10-19/athlete-poids-avant-modification.png) → [formulaire ouvert](audit-evidence/2026-10-19/athlete-pesee-modifier-ouvert.png) → [78,5 avant enregistrement](audit-evidence/2026-10-19/athlete-pesee-avant-enregistrement.png) → [78,5 enregistré](audit-evidence/2026-10-19/athlete-pesee-modifiee.png).
+- Suppression : [confirmation](audit-evidence/2026-10-19/athlete-pesee-confirmation-suppression.png) → [écran vide](audit-evidence/2026-10-19/athlete-poids-vide.png).
+- Bouton de l’état vide : [avant](audit-evidence/2026-10-19/athlete-poids-vide.png) → [formulaire ouvert](audit-evidence/2026-10-19/athlete-poids-vide-ajouter-ouvert.png).
+
+À examiner : le prénom du compte de test contient un caractère de remplacement sur l’accueil et le profil ; son origine n’a pas été établie.

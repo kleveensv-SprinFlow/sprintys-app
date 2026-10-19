@@ -10,6 +10,7 @@ import { useBodyStore } from '../../src/store/bodyStore';
 import { useAuthStore } from '../../src/store/authStore';
 import { useSprintyStore } from '../../src/store/sprintyStore';
 import { BodyMetric } from '../../src/services/bodyService';
+import { EmptyState } from '../../src/shared/components/EmptyState';
 import { WeightTrendChart, movingAverage, TrendPoint } from '../../src/features/body/components/WeightChart';
 import { GlassScreen } from '../../src/shared/components/GlassScreen';
 import { glassCard, glassSurface } from '../../src/core/glass';
@@ -286,6 +287,16 @@ export default function BodyCompositionScreen() {
         </View>
 
         <Animated.ScrollView {...scrollProps} refreshControl={refreshControl} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          {!isLoading && metrics.length === 0 ? (
+            <EmptyState
+              icon="trending-down"
+              title="Aucune pesée pour l’instant"
+              message="Ajoute ta première pesée : la courbe et la moyenne apparaîtront ici."
+              actionLabel="Ajouter une pesée"
+              onAction={openNew}
+            />
+          ) : (
+          <>
           <Text style={[styles.hero, { color: theme.colors.text }]}>
             {shown ? formatKg(shown.v) : '--'}
             <Text style={[styles.heroUnit, { color: theme.colors.textSecondary }]}> {unit}</Text>
@@ -401,6 +412,8 @@ export default function BodyCompositionScreen() {
                 );
               })}
             </View>
+          )}
+          </>
           )}
         </Animated.ScrollView>
 
