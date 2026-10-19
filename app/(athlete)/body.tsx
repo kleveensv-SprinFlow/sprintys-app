@@ -170,6 +170,25 @@ export default function BodyCompositionScreen() {
       showFeedback('error', 'Le poids est obligatoire.');
       return;
     }
+    if (w < 25 || w > 300) {
+      showFeedback('error', 'Entre un poids entre 25 et 300 kg.');
+      return;
+    }
+    const fat = parseNum(bodyFat);
+    if (fat != null && (fat < 2 || fat > 70)) {
+      showFeedback('error', 'La masse grasse doit être entre 2 et 70 %.');
+      return;
+    }
+    const muscle = parseNum(muscleMass);
+    if (muscle != null && (muscle < 10 || muscle > w)) {
+      showFeedback('error', 'La masse musculaire doit être entre 10 kg et ton poids.');
+      return;
+    }
+    const waterPct = parseNum(water);
+    if (waterPct != null && (waterPct < 20 || waterPct > 80)) {
+      showFeedback('error', 'L’eau doit être entre 20 et 80 %.');
+      return;
+    }
     const payload: Partial<BodyMetric> = {
       weight: w,
       scale_type: scaleType,
