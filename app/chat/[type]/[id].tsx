@@ -48,6 +48,7 @@ export default function ChatScreen() {
   const [profiles, setProfiles] = useState<Record<string, any>>({});
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const [blocked, setBlocked] = useState<Set<string>>(new Set());
+  const [muted, setMuted] = useState(false);
   const showFeedback = useSprintyStore((s) => s.showFeedback);
 
   // Réactions, citations et annonce épinglée (Tâche T3)
@@ -186,6 +187,7 @@ export default function ChatScreen() {
 
     setConversation(convo);
     await chatService.ensureParticipant(convo.id, user.id);
+    chatService.getMuted(convo.id, user.id).then((m) => { if (!isCancelled()) setMuted(m); }).catch(() => {});
     fetchMessages(convo.id);
     if (type !== 'team') loadProfiles([id as string]); // photo de l'interlocuteur dans l'en-tête
 
@@ -388,7 +390,19 @@ export default function ChatScreen() {
   const report = () => {
     const otherId = type === 'direct' ? (id as string) : null;
     const otherName = (title as string) || 'cette personne';
+    const toggleMute = async () => {
+      if (!conversation || !user) return;
+      const next = !muted;
+      try {
+        await chatService.setMuted(conversation.id, user.id, next);
+        setMuted(next);
+        toast('success', next ? 'Notifications coupées pour cette conversation.' : 'Notifications réactivées.');
+      } catch {
+        toast('error', 'Impossible de modifier la sourdine. Réessaie.');
+      }
+    };
     appAlert('Options', undefined, [
+      { text: muted ? 'Réactiver les notifications' : 'Mettre en sourdine', onPress: toggleMute },
       { text: 'Signaler la conversation', onPress: () => chooseReason((r) => sendReport({ reportedUserId: otherId ?? undefined }, r)) },
       ...(otherId
         ? blocked.has(otherId)

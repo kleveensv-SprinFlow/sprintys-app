@@ -206,6 +206,26 @@ export const chatService = {
     return data;
   },
 
+  /** Sourdine : plus de notification pour cette conversation (les messages arrivent toujours). */
+  async getMuted(conversationId: string, userId: string): Promise<boolean> {
+    const { data } = await supabase
+      .from('conversation_participants')
+      .select('muted')
+      .eq('conversation_id', conversationId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    return data?.muted === true;
+  },
+
+  async setMuted(conversationId: string, userId: string, muted: boolean) {
+    const { error } = await supabase
+      .from('conversation_participants')
+      .update({ muted })
+      .eq('conversation_id', conversationId)
+      .eq('user_id', userId);
+    if (error) throw error;
+  },
+
   async markAsRead(conversationId: string, userId: string, messageId: string) {
     await supabase
       .from('conversation_participants')
