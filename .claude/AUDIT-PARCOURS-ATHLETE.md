@@ -49,7 +49,7 @@ Conditions à jouer : nominal · champ vide · valeur absurde · annuler à mi-p
 | Réglages nutrition : 99 999 kcal acceptés, poids actuel vide malgré une pesée | oui |
 | Recherche « banane » : titre « Chair sans peau de banane », fiche à 0 kcal | oui |
 | Écran Poids vide : « -- kg » et période affichés sans donnée | oui, état vide avec bouton « Ajouter une pesée » vu sur le téléphone |
-| Compte neuf : objectif de 2 000 kcal affiché sans l'avoir choisi | oui, affiché comme « Repère 2 000 kcal · à régler » (non vu à l'écran) |
+| Compte neuf : objectif de 2 000 kcal affiché sans l'avoir choisi | oui, « Repère 2 000 kcal · à régler » [vu sur le téléphone](audit-evidence/2026-10-19/athlete-nutrition-repere-2000.png) |
 | Constructeur course coach : 3 × 99 999 m à 95 % était accepté | oui, distance limitée à 1–10 000 m ; répétitions limitées à 50 ; refus 99 999 m vu à l’écran |
 
 ## Suite de l’audit coach — 19 octobre 2026
