@@ -155,6 +155,8 @@ export function resolveFoodPortion(food: {
   code_ciqual?: string;
   last_input_qty?: number;
   last_input_unit?: InputUnit;
+  /** Portion naturelle de la base maison, utilisée quand le dictionnaire ne connaît pas l\'aliment. */
+  master_portion?: { label: string; grams: number } | null;
 }): ResolvedPortion {
   const foodName = cleanFoodText(food.nom || food.name || '');
 
@@ -175,6 +177,10 @@ export function resolveFoodPortion(food: {
       hasPiece = true;
       pieceWeight = found.rule.pieceWeight;
       pieceLabel = found.rule.pieceLabel;
+    } else if (food.master_portion && food.master_portion.grams > 0 && food.master_portion.label) {
+      hasPiece = true;
+      pieceWeight = Math.round(food.master_portion.grams);
+      pieceLabel = food.master_portion.label;
     }
   }
 

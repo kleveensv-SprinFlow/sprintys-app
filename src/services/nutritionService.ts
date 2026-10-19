@@ -18,6 +18,45 @@ export interface CiqualFood {
   lipides: number;
   fibres: number;
   sodium: number;
+  /** Portion naturelle de la base maison (« 1 œuf » = 50 g), absente des anciennes fiches. */
+  master_portion?: { label: string; grams: number } | null;
+}
+
+/** Interrupteur : EXPO_PUBLIC_FOOD_MASTER=0 revient à l'ancienne recherche (table ciqual_foods). */
+const USE_FOOD_MASTER = process.env.EXPO_PUBLIC_FOOD_MASTER !== '0';
+
+interface FoodMasterRow {
+  id: string; source_id: string; nom_origine: string; display_name: string; etat: string | null;
+  unite_label: string; poids_moyen_g: number; portion_source: string | null;
+  kcal: number; proteines_g: number; glucides_g: number; lipides_g: number; fibres_g: number; sodium_mg: number;
+}
+
+function fromFoodMaster(r: FoodMasterRow): CiqualFood {
+  const natural = r.portion_source && r.portion_source !== 'defaut' && Number(r.poids_moyen_g) > 0;
+  return {
+    id: r.id,
+    code_ciqual: String(r.source_id),
+    nom: r.nom_origine,
+    display_name: r.display_name,
+    etat: r.etat === 'Cru' ? 'cru' : r.etat === 'Cuit' ? 'cuit' : '',
+    energie_kcal: Number(r.kcal) || 0,
+    proteines: Number(r.proteines_g) || 0,
+    glucides: Number(r.glucides_g) || 0,
+    lipides: Number(r.lipides_g) || 0,
+    fibres: Number(r.fibres_g) || 0,
+    sodium: Number(r.sodium_mg) || 0,
+    master_portion: natural ? { label: r.unite_label.replace(/^1\s+/, ''), grams: Number(r.poids_moyen_g) } : null,
+  };
+}
+
+/** Recherche dans la base maison (classement : niveau, nom exact, mots, popularité). */
+async function searchFoodMaster(rawQ: string): Promise<HybridFoodResult[] | null> {
+  const { data, error } = await supabase.rpc('search_foods', { p_query: rawQ, p_limit: 20 });
+  if (error) {
+    console.warn('search_foods indisponible, ancienne recherche utilisée:', error.message);
+    return null;
+  }
+  return (data as FoodMasterRow[]).map((row) => ({ type: 'ciqual' as const, item: fromFoodMaster(row) }));
 }
 
 export type HybridFoodResult = 
@@ -88,6 +127,11 @@ function hasNoValues(item: CiqualFood): boolean {
 async function searchCiqual(rawQ: string): Promise<HybridFoodResult[]> {
   const tokens = searchTokens(rawQ);
   if (tokens.length === 0) return [];
+
+  if (USE_FOOD_MASTER) {
+    const master = await searchFoodMaster(rawQ);
+    if (master && master.length > 0) return master;
+  }
 
   // The food picker calls searchCiqual directly. Surface curated everyday foods
   // (including their common aliases) before making a network request.
