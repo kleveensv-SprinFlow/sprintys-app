@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Modal, TextInput, FlatList, ActivityIndicator, 
 import { TouchableOpacity } from '../../../shared/components/Tappable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import NetInfo from '@react-native-community/netinfo';
 import { useTheme } from '../../../core/theme';
 import { useNutritionStore } from '../../../store/nutrition/nutritionStore';
 import { openFoodFactsService, OFFProduct } from '../../../services/openFoodFactsService';
@@ -61,6 +62,11 @@ export const FoodSearchModal: React.FC = () => {
   } = useNutritionStore();
   
   const [searchQuery, setSearchQuery] = useState('');
+  const [offline, setOffline] = useState(false);
+  useEffect(
+    () => NetInfo.addEventListener((st) => setOffline(st.isConnected === false || st.isInternetReachable === false)),
+    []
+  );
   const [aiQuery, setAiQuery] = useState('');
   const [results, setResults] = useState<HybridFoodResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -1012,7 +1018,7 @@ export const FoodSearchModal: React.FC = () => {
                   />
                 ) : searchQuery.length > 2 ? (
                   <Text style={[styles.noResults, { color: theme.colors.textSecondary }]}>
-                    Aucun produit trouvé.
+                    {offline ? 'Pas de connexion : la recherche d’aliments a besoin d’Internet. Tes aliments récents restent disponibles.' : 'Aucun produit trouvé.'}
                   </Text>
                 ) : null
               ) : (
