@@ -81,8 +81,8 @@ const RARE_VARIANT = /plantain|nectar|bébé|petit pot|prélevé|séch|sèche|ly
 /** Fiches Ciqual sans aucune valeur (hors eaux et boissons sans calories) : à ne pas proposer. */
 const ZERO_OK = /(^|\s)(eau|boisson|thé|café|infusion|bouillon|sel|vinaigre|édulcor)/i;
 function hasNoValues(item: CiqualFood): boolean {
-  const all = [item.energie_kcal, item.proteines, item.glucides, item.lipides].map((v) => Number(v) || 0);
-  return all.every((v) => v === 0) && !ZERO_OK.test(item.nom);
+  // Un aliment sans énergie ni glucides n'existe pas (hors eaux et boissons) : la fiche Ciqual est vide
+  return (Number(item.energie_kcal) || 0) === 0 && (Number(item.glucides) || 0) === 0 && !ZERO_OK.test(item.nom);
 }
 
 async function searchCiqual(rawQ: string): Promise<HybridFoodResult[]> {
