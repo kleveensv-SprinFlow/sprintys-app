@@ -55,6 +55,11 @@ jest.mock('expo-linear-gradient', () => {
   };
 });
 
+jest.mock('@react-native-community/netinfo', () => ({
+  __esModule: true,
+  default: { addEventListener: () => () => {} },
+}));
+
 jest.mock('expo-camera', () => ({
   CameraView: 'CameraView',
   useCameraPermissions: () => [{ granted: true }, jest.fn()],
