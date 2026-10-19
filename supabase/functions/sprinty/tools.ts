@@ -720,7 +720,8 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
           passees: { nombre: past.length, avec_resultats_saisis: past.filter((r: any) => r.resultats_saisis).length, sans_resultats_saisis: past.filter((r: any) => !r.resultats_saisis).length },
           aujourdhui: todayRows,
           a_venir: upcoming.length,
-          seances: rows,
+          jours_de_repos: rows.filter(isRest).map((r: any) => r.date),
+          seances: rows.filter((r: any) => !isRest(r)),
         },
       };
     }

@@ -337,9 +337,19 @@ async function callModel(
   const calls: ToolCall[] = [];
   // Small chunks are grouped to keep the number of events low
   let pending = '';
-  const flush = () => {
-    if (pending) ctx.emit({ t: pending });
-    pending = '';
+  // Le modèle écrit parfois le nom d'un outil dans sa réponse : on le retire, en gardant la fin du texte en réserve
+  // tant que le morceau suivant n'est pas arrivé (le nom peut être coupé entre deux morceaux).
+  const LEAK = /\(?\s*suggest_follow\w*\s*(\([^)]*\))?\)?/gi;
+  const HOLD = 17;
+  const flush = (final = true) => {
+    const cleaned = pending.replace(LEAK, '');
+    if (final) {
+      if (cleaned) ctx.emit({ t: cleaned });
+      pending = '';
+    } else if (cleaned.length > HOLD) {
+      ctx.emit({ t: cleaned.slice(0, -HOLD) });
+      pending = cleaned.slice(-HOLD);
+    }
   };
 
   for (;;) {
@@ -365,7 +375,7 @@ async function callModel(
       if (typeof delta.content === 'string' && delta.content) {
         text += delta.content;
         pending += delta.content;
-        if (!calls.length && pending.length > 24) flush();
+        if (!calls.length && pending.length > 24) flush(false);
       }
       for (const tc of delta.tool_calls ?? []) {
         const i = tc.index ?? 0;
