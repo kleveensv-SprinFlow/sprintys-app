@@ -476,6 +476,28 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
         if (!ok) return;
       }
     }
+    // Une charge qu'aucun athlète ne soulève (chiffre en trop) est confirmée avant de devenir un record
+    if (sc === 'muscu') {
+      const heavy: string[] = [];
+      for (const b of workout.blocks || [{ id: 'main', exercises: workout.exercises || [] }]) {
+        for (const ex of b.exercises || []) {
+          (ex.sets || []).forEach((_st: any, i: number) => {
+            const kg = parseFloat(String(setData[`${ex.id}_${i}`]?.weight ?? '').replace(',', '.'));
+            if (Number.isFinite(kg) && (kg > 500 || kg < 0)) heavy.push(`${ex.name || 'Exercice'} série ${i + 1} : ${kg} kg`);
+          });
+        }
+      }
+      if (heavy.length > 0) {
+        const ok = await confirmAsync({
+          title: 'Charge inhabituelle',
+          message: `${heavy.slice(0, 3).join(', ')}${heavy.length > 3 ? '…' : ''}. Vérifie la charge saisie. Valider quand même ?`,
+          confirmText: 'Valider quand même',
+          cancelText: 'Corriger',
+          icon: 'alert-triangle',
+        });
+        if (!ok) return;
+      }
+    }
     setIsSubmitting(true);
     try {
       const efforts: any[] = [];
