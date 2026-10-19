@@ -1,385 +1,120 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { theme } from '../core/theme';
+import { DataTable } from '../features/sprinty/blocks/DataTable';
+import { parseContentToBlocks, splitInline } from './richText';
 
 interface RichChatMessageProps {
   content: string;
 }
 
+/**
+ * Réponse de Sprinty : texte aéré (16 px, interligne 24), titres, listes à puces et numérotées, encadrés, séparateurs,
+ * et tableaux au même style que la carte tableau.
+ */
 export const RichChatMessage: React.FC<RichChatMessageProps> = ({ content }) => {
   if (!content) return null;
-
-  // Découper le texte par blocs (tableaux, titres, listes, paragraphes)
   const blocks = parseContentToBlocks(content);
 
   return (
     <View style={styles.container}>
       {blocks.map((block, idx) => {
-        if (block.type === 'table') {
-          return <TableBlock key={idx} rows={block.tableRows || []} />;
-        }
-        if (block.type === 'heading') {
-          const fontSize = block.level === 1 ? 18 : block.level === 2 ? 16 : 14;
-          return (
-            <Text
-              key={idx}
-              style={[
-                styles.heading,
-                { fontSize, marginTop: idx > 0 ? 12 : 2, marginBottom: 4 },
-              ]}
-            >
-              {renderInlineFormattedText(block.text || '')}
-            </Text>
-          );
-        }
-        if (block.type === 'bullet') {
-          return (
-            <View key={idx} style={styles.bulletRow}>
-              <View style={styles.bulletDot} />
-              <Text style={styles.bulletText}>
-                {renderInlineFormattedText(block.text || '')}
+        const first = idx === 0;
+        switch (block.type) {
+          case 'table': {
+            const [head, ...rows] = block.rows;
+            return head ? (
+              <View key={idx} style={styles.tableWrap}>
+                <DataTable columns={head} rows={rows} renderCell={inline} />
+              </View>
+            ) : null;
+          }
+          case 'heading':
+            return (
+              <Text key={idx} style={[styles.heading, block.level === 1 ? styles.h1 : block.level === 2 ? styles.h2 : styles.h3, !first && styles.headingGap]}>
+                {inline(block.text)}
               </Text>
-            </View>
-          );
-        }
-        if (block.type === 'callout') {
-          return (
-            <View key={idx} style={styles.calloutBox}>
-              <Text style={styles.calloutText}>
-                {renderInlineFormattedText(block.text || '')}
+            );
+          case 'bullet':
+            return (
+              <View key={idx} style={styles.listRow}>
+                <View style={styles.bulletDot} />
+                <Text style={styles.listText}>{inline(block.text)}</Text>
+              </View>
+            );
+          case 'numbered':
+            return (
+              <View key={idx} style={styles.listRow}>
+                <View style={styles.numBadge}>
+                  <Text style={styles.numText}>{block.n}</Text>
+                </View>
+                <Text style={styles.listText}>{inline(block.text)}</Text>
+              </View>
+            );
+          case 'callout':
+            return (
+              <View key={idx} style={styles.callout}>
+                <Text style={styles.calloutText}>{inline(block.text)}</Text>
+              </View>
+            );
+          case 'rule':
+            return <View key={idx} style={styles.rule} />;
+          default:
+            return (
+              <Text key={idx} style={styles.paragraph}>
+                {inline(block.text)}
               </Text>
-            </View>
-          );
+            );
         }
-        // Paragraphe classique
-        return (
-          <Text key={idx} style={styles.paragraph}>
-            {renderInlineFormattedText(block.text || '')}
-          </Text>
-        );
       })}
     </View>
   );
 };
 
-// ---------------------------------------------------------------------------
-// Rendu Inline : Gras, Annotations / Italique, Code
-// ---------------------------------------------------------------------------
-
-function renderInlineFormattedText(rawText: string) {
-  // Regex pour matcher : **gras**, *italique/annotation*, _italique_, `code`
-  const regex = /(\*\*[^*]+\*\*|\*[^*]+\*|_[^_]+_|`[^`]+`)/g;
-  const parts = rawText.split(regex);
-
-  return parts.map((part, i) => {
-    if (!part) return null;
-
-    // Gras : **texte**
-    if (part.startsWith('**') && part.endsWith('**')) {
-      const clean = part.slice(2, -2);
-      return (
-        <Text key={i} style={styles.boldText}>
-          {clean}
-        </Text>
-      );
-    }
-    // Annotation / Italique : *texte* ou _texte_
-    if (
-      (part.startsWith('*') && part.endsWith('*')) ||
-      (part.startsWith('_') && part.endsWith('_'))
-    ) {
-      const clean = part.slice(1, -1);
-      return (
-        <Text key={i} style={styles.italicAnnotation}>
-          {clean}
-        </Text>
-      );
-    }
-    // Code inline : `code`
-    if (part.startsWith('`') && part.endsWith('`')) {
-      const clean = part.slice(1, -1);
-      return (
-        <Text key={i} style={styles.inlineCode}>
-          {clean}
-        </Text>
-      );
-    }
-
-    return <React.Fragment key={i}>{part}</React.Fragment>;
+/** **gras**, *italique*, `code` */
+function inline(raw: string): React.ReactNode {
+  return splitInline(raw).map((part, i) => {
+    if (part.kind === 'bold') return <Text key={i} style={styles.bold}>{part.text}</Text>;
+    if (part.kind === 'italic') return <Text key={i} style={styles.italic}>{part.text}</Text>;
+    if (part.kind === 'code') return <Text key={i} style={styles.code}>{part.text}</Text>;
+    return <React.Fragment key={i}>{part.text}</React.Fragment>;
   });
-}
-
-// ---------------------------------------------------------------------------
-// Rendu Tableau Natif (style ChatGPT / Gemini)
-// ---------------------------------------------------------------------------
-
-interface TableRow {
-  isHeader?: boolean;
-  cells: string[];
-}
-
-const TableBlock: React.FC<{ rows: TableRow[] }> = ({ rows }) => {
-  if (rows.length === 0) return null;
-
-  return (
-    <View style={styles.tableCard}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={styles.tableInner}>
-          {rows.map((row, rIdx) => {
-            const isHeader = row.isHeader || rIdx === 0;
-            const isEven = rIdx % 2 === 0;
-            return (
-              <View
-                key={rIdx}
-                style={[
-                  styles.tableRow,
-                  isHeader
-                    ? styles.tableHeaderRow
-                    : isEven
-                    ? styles.tableRowEven
-                    : styles.tableRowOdd,
-                ]}
-              >
-                {row.cells.map((cell, cIdx) => (
-                  <View key={cIdx} style={styles.tableCell}>
-                    <Text
-                      style={[
-                        styles.cellText,
-                        isHeader && styles.headerCellText,
-                      ]}
-                    >
-                      {renderInlineFormattedText(cell)}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            );
-          })}
-        </View>
-      </ScrollView>
-    </View>
-  );
-};
-
-// ---------------------------------------------------------------------------
-// Parseur de Blocs Markdown
-// ---------------------------------------------------------------------------
-
-interface Block {
-  type: 'paragraph' | 'heading' | 'bullet' | 'table' | 'callout';
-  text?: string;
-  level?: number;
-  tableRows?: TableRow[];
-}
-
-function parseContentToBlocks(content: string): Block[] {
-  const lines = content.split('\n');
-  const blocks: Block[] = [];
-
-  let i = 0;
-  while (i < lines.length) {
-    const line = lines[i].trimEnd();
-
-    // Ligne vide
-    if (!line.trim()) {
-      i++;
-      continue;
-    }
-
-    // Détection d'un tableau Markdown : commence par '|'
-    if (line.trim().startsWith('|') && line.includes('|', 1)) {
-      const tableLines: string[] = [];
-      while (i < lines.length && lines[i].trim().startsWith('|')) {
-        tableLines.push(lines[i].trim());
-        i++;
-      }
-      const tableRows = parseMarkdownTable(tableLines);
-      if (tableRows.length > 0) {
-        blocks.push({ type: 'table', tableRows });
-      }
-      continue;
-    }
-
-    // Détection Titres : #, ##, ###
-    const headingMatch = line.match(/^(#{1,3})\s+(.*)$/);
-    if (headingMatch) {
-      blocks.push({
-        type: 'heading',
-        level: headingMatch[1].length,
-        text: headingMatch[2].trim(),
-      });
-      i++;
-      continue;
-    }
-
-    // Détection Listes à puces : '- ' ou '* '
-    const bulletMatch = line.match(/^[-*•]\s+(.*)$/);
-    if (bulletMatch) {
-      blocks.push({
-        type: 'bullet',
-        text: bulletMatch[1].trim(),
-      });
-      i++;
-      continue;
-    }
-
-    // Détection Callout / Citation : '> '
-    if (line.startsWith('>')) {
-      blocks.push({
-        type: 'callout',
-        text: line.replace(/^>\s*/, '').trim(),
-      });
-      i++;
-      continue;
-    }
-
-    // Paragraphe simple
-    blocks.push({
-      type: 'paragraph',
-      text: line,
-    });
-    i++;
-  }
-
-  return blocks;
-}
-
-function parseMarkdownTable(tableLines: string[]): TableRow[] {
-  const rows: TableRow[] = [];
-
-  tableLines.forEach((line, idx) => {
-    // Ignorer la ligne de séparation |---|---|
-    if (/^\|[-:\s|]+\|$/.test(line)) {
-      return;
-    }
-
-    // Découper les cellules
-    const rawCells = line.split('|');
-    // Enlever le premier et dernier élément vide issu du split sur '|'
-    if (rawCells.length >= 2) {
-      const trimmedCells = rawCells
-        .slice(1, rawCells.length - 1)
-        .map((c) => c.trim());
-
-      if (trimmedCells.length > 0) {
-        rows.push({
-          isHeader: idx === 0,
-          cells: trimmedCells,
-        });
-      }
-    }
-  });
-
-  return rows;
 }
 
 const styles = StyleSheet.create({
-  container: {
-    gap: 4,
+  container: { gap: 8 },
+  paragraph: { fontSize: 16, lineHeight: 24, color: theme.colors.text },
+  heading: { color: theme.colors.text, fontWeight: '800', letterSpacing: -0.3 },
+  h1: { fontSize: 20, lineHeight: 26 },
+  h2: { fontSize: 18, lineHeight: 24 },
+  h3: { fontSize: 16, lineHeight: 22 },
+  headingGap: { marginTop: 8 },
+  bold: { fontWeight: '700', color: theme.colors.text },
+  italic: { fontStyle: 'italic', color: theme.colors.textSecondary },
+  code: { fontVariant: ['tabular-nums'], fontWeight: '600', color: theme.colors.sprintyBlue },
+  listRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingRight: 4 },
+  bulletDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.colors.sprintyBlue, marginTop: 9, marginLeft: 4 },
+  numBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 5,
+    backgroundColor: 'rgba(0, 105, 232, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
   },
-  paragraph: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: theme.colors.text,
-    marginBottom: 4,
-  },
-  heading: {
-    fontWeight: '800',
-    color: theme.colors.text,
-    letterSpacing: -0.3,
-  },
-  boldText: {
-    fontWeight: '700',
-    color: theme.colors.text,
-  },
-  italicAnnotation: {
-    fontStyle: 'italic',
-    color: theme.colors.textSecondary,
-    fontSize: 13,
-  },
-  inlineCode: {
-    fontFamily: 'monospace',
-    backgroundColor: theme.colors.glassFill,
-    color: theme.colors.sprintyBlue,
-    fontSize: 13,
-    paddingHorizontal: 4,
-    borderRadius: 4,
-  },
-  bulletRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 4,
-    paddingLeft: 4,
-  },
-  bulletDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: theme.colors.sprintyBlue,
-    marginTop: 8,
-    marginRight: 8,
-  },
-  bulletText: {
-    flex: 1,
-    fontSize: 14,
-    lineHeight: 21,
-    color: theme.colors.text,
-  },
-  calloutBox: {
-    backgroundColor: theme.colors.glassFill,
+  numText: { fontSize: 12, fontWeight: '800', color: theme.colors.sprintyBlue, fontVariant: ['tabular-nums'] },
+  listText: { flex: 1, fontSize: 16, lineHeight: 24, color: theme.colors.text },
+  callout: {
+    backgroundColor: 'rgba(0, 105, 232, 0.06)',
     borderLeftWidth: 3,
     borderLeftColor: theme.colors.sprintyBlue,
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: 6,
-    marginVertical: 4,
+    borderRadius: 10,
   },
-  calloutText: {
-    fontSize: 13,
-    lineHeight: 19,
-    color: theme.colors.textSecondary,
-    fontStyle: 'italic',
-  },
-  tableCard: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.hairline,
-    overflow: 'hidden',
-    marginVertical: 8,
-  },
-  tableInner: {
-    minWidth: 280,
-  },
-  tableRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.glassFill,
-  },
-  tableHeaderRow: {
-    backgroundColor: theme.colors.glassFill,
-    borderBottomWidth: 1.5,
-    borderBottomColor: theme.colors.border,
-  },
-  tableRowEven: {
-    backgroundColor: theme.colors.surface,
-  },
-  tableRowOdd: {
-    backgroundColor: theme.colors.glassFill,
-  },
-  tableCell: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    minWidth: 90,
-    justifyContent: 'center',
-  },
-  cellText: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-  },
-  headerCellText: {
-    fontWeight: '800',
-    color: theme.colors.text,
-    fontSize: 12,
-  },
+  calloutText: { fontSize: 15, lineHeight: 22, color: theme.colors.text },
+  rule: { height: StyleSheet.hairlineWidth, backgroundColor: theme.colors.border, marginVertical: 4 },
+  tableWrap: { marginVertical: 2 },
 });

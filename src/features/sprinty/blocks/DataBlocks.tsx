@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TextInput } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../../../core/theme';
 import { PressableScale } from '../../../shared/components/PressableScale';
 import { Button } from '../../../shared/components/Button';
 import type { UiBlock } from '../types';
+import { DataTable } from './DataTable';
 
 const BLUE = theme.colors.sprintyBlue;
 
@@ -37,31 +38,7 @@ export function StatsBlock({ data }: { data: Extract<UiBlock, { type: 'stats' }>
 }
 
 export function TableBlock({ data }: { data: Extract<UiBlock, { type: 'table' }> }) {
-  return (
-    <View style={styles.card}>
-      {data.title ? <Text style={styles.title}>{data.title}</Text> : null}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View>
-          <View style={[styles.tr, styles.thead]}>
-            {data.columns.map((c, i) => (
-              <Text key={i} style={[styles.td, styles.th, i === 0 && styles.firstCol]}>
-                {c}
-              </Text>
-            ))}
-          </View>
-          {data.rows.map((r, ri) => (
-            <View key={ri} style={[styles.tr, ri % 2 === 1 && styles.zebra]}>
-              {data.columns.map((_, ci) => (
-                <Text key={ci} style={[styles.td, ci === 0 && styles.firstCol]}>
-                  {r[ci] ?? ''}
-                </Text>
-              ))}
-            </View>
-          ))}
-        </View>
-      </ScrollView>
-    </View>
-  );
+  return <DataTable title={data.title} columns={data.columns} rows={data.rows} />;
 }
 
 /**
@@ -179,12 +156,6 @@ const styles = StyleSheet.create({
   tileValue: { flexShrink: 1, fontSize: 20, fontWeight: '800', color: theme.colors.text, letterSpacing: -0.3 },
   tileUnit: { fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary },
 
-  tr: { flexDirection: 'row' },
-  thead: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.border },
-  zebra: { backgroundColor: theme.colors.glassFill },
-  td: { width: 96, paddingVertical: 7, paddingHorizontal: 6, fontSize: 13, color: theme.colors.text },
-  th: { fontSize: 12, fontWeight: '800', color: theme.colors.textSecondary },
-  firstCol: { width: 120, fontWeight: '700' },
 
   choicesCard: { gap: 14 },
   question: { gap: 8 },

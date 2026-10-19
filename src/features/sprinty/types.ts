@@ -28,7 +28,16 @@ export interface ChartSeries {
 }
 
 export type UiBlock =
-  | { type: 'chart'; title: string; kind: 'line' | 'bar'; unit: string; better: 'higher' | 'lower' | null; series: ChartSeries[] }
+  | {
+      type: 'chart';
+      title: string;
+      kind: 'line' | 'bar';
+      unit: string;
+      better: 'higher' | 'lower' | null;
+      series: ChartSeries[];
+      /** Ligne de repère (objectif, record) calculée par le serveur */
+      reference?: { value: number; label: string } | null;
+    }
   | {
       type: 'stats';
       title?: string;
