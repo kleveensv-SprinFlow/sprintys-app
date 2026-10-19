@@ -10,7 +10,7 @@ Conditions à jouer : nominal · champ vide · valeur absurde · annuler à mi-p
 |---|----------|------|
 | 1 | Connexion (e-mail faux, mot de passe faux, champ vide, mot de passe oublié) | ⬜ |
 | 2 | Inscription athlète + profil à compléter + vérification e-mail | 🟡 (écran des accords vu) |
-| 3 | Rejoindre un groupe par code / quitter | 🟡 (code 19790415 reconnu ; accord de partage et envoi effectués par l’utilisateur ; demande en attente côté athlète, validation coach et quitter ⬜) |
+| 3 | Rejoindre un groupe par code / quitter | 🟡 (code 19790415 reconnu ; accord de partage et envoi effectués par l’utilisateur ; demande en attente côté athlète, validation coach ✅ ; quitter ⬜) |
 | 4 | Check-in complet 3 étapes + modification | ✅ |
 | 5 | Pesée : ajout, valeurs 0 et 9999 refusées, 78,4 enregistré ; modification à 78,5 et suppression confirmée ; état vide et bouton d’ajout | ✅ |
 | 6 | Objectif de poids | ⬜ |
@@ -54,15 +54,15 @@ Conditions à jouer : nominal · champ vide · valeur absurde · annuler à mi-p
 
 ## Suite de l’audit coach — 19 octobre 2026
 
-Compte coach de test connecté par l’utilisateur, groupe « Test audit ». Un état 🟡 signifie qu’une partie du parcours est visible, sans couvrir toutes les conditions.
+Compte coach de test connecté pour l’audit après autorisation explicite de l’utilisateur, groupe « Test audit ». Un état 🟡 signifie qu’une partie du parcours est visible, sans couvrir toutes les conditions.
 
 | Parcours demandé | État et preuve |
 |---|---|
 | Constructeur de bloc de course | 🟡 Bloc 3 × 99 999 m accepté avant correction, puis refusé après correction avec message « Saisis une distance entre 1 et 10 000 m ». Captures : [avant ajout](audit-evidence/2026-10-19/coach-bloc-avant-ajout.png), [acceptation initiale](audit-evidence/2026-10-19/coach-bloc-99999-accepte-avant-correction.png), [avant refus](audit-evidence/2026-10-19/coach-bloc-99999-avant-refus.png), [refus](audit-evidence/2026-10-19/coach-bloc-99999-refuse.png). Distance 0, 200 répétitions, enregistrement, modification et suppression de séance ⬜. |
 | Autres séances, séances types, créer avec Sprinty | ⬜ |
 | Calendrier coach : phase, semaine, copie, jours | ⬜ |
-| Équipe, sous-groupes, demandes, discussion, annonces | ⬜ |
-| Athlète rejoint le groupe et coach valide | 🟡 (demande envoyée par l’utilisateur ; validation coach ⬜) |
+| Équipe, sous-groupes, demandes, discussion, annonces | 🟡 Onglets Athlètes et Demandes vus ; demande approuvée et athlète présent dans la liste. Sous-groupes, discussion et annonces ⬜. |
+| Athlète rejoint le groupe et coach valide | 🟡 Demande envoyée par l’utilisateur, approuvée côté coach ; fiche et forme du jour visibles. Séances et Performance ouvertes : pas de données de séances coach, car les résultats antérieurs proviennent du plan personnel Sprinty. Preuves ci-dessous. |
 | Sprinty coach et mémoire | ⬜ |
 | Profil coach, messages, export | ⬜ |
 
@@ -78,3 +78,9 @@ Compte coach de test connecté par l’utilisateur, groupe « Test audit ». Un 
 
 - Photo de profil : [avant](audit-evidence/2026-10-19/athlete-photo-avant.png) → [choix appareil ou galerie](audit-evidence/2026-10-19/athlete-photo-choix.png). Aucune autorisation système accordée, aucune photo sélectionnée.
 - Rejoindre « Test audit » : [code vide](audit-evidence/2026-10-19/athlete-groupe-avant-code.png) → [code reconnu](audit-evidence/2026-10-19/athlete-groupe-code-valide.png) → [accord de partage à décider](audit-evidence/2026-10-19/athlete-groupe-partage-a-decider.png). L’utilisateur a décidé de l’accord et envoyé la demande lui-même. [Plan Sprinty conservé](audit-evidence/2026-10-19/athlete-demande-envoyee-plan-sprinty.png) → [demande en attente](audit-evidence/2026-10-19/athlete-demande-en-attente.png).
+
+## Preuves validation du groupe — comptes de test
+
+- Accueil coach : [demande à valider](audit-evidence/2026-10-19/coach-home2.png) → [onglet Demandes](audit-evidence/2026-10-19/coach-group-detail.png) → [demande de l’athlète](audit-evidence/2026-10-19/coach-demand-list.png) → [validation confirmée](audit-evidence/2026-10-19/coach-approve-result.png).
+- Fiche : [athlète dans le groupe](audit-evidence/2026-10-19/coach-athlete-listed.png) → [actions disponibles](audit-evidence/2026-10-19/coach-athlete-detail.png) → [forme du jour](audit-evidence/2026-10-19/coach-athlete-form.png).
+- Séances : [calendrier ouvert](audit-evidence/2026-10-19/coach-athlete-sessions2.png) → [jour sans séance coach](audit-evidence/2026-10-19/coach-athlete-oct20.png). Performance : [écran sans résultat coach](audit-evidence/2026-10-19/coach-athlete-performance2.png). La fonction SQL filtre les séances et résultats selon le coach qui les a programmés ; le plan personnel Sprinty et son record de squat ne sont donc pas visibles ici. À retester après une séance assignée par le coach et validée par l’athlète.
