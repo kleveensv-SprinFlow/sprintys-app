@@ -3,6 +3,19 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import type { MessagePart, ProposedSession, UiBlock } from './types';
+import { POSES } from './avatar/poses.generated';
+import { poseToSvg } from './avatar/poseSvg';
+import { buildColumns } from './blocks/tableModel';
+
+/** Tableau HTML : chiffres alignés à droite, meilleure valeur en bleu (mêmes règles que dans l'app). */
+function tableHtml(columns: string[], rows: string[][], cell: (s: string) => string = esc): string {
+  const model = buildColumns(columns, rows);
+  const cls = (ci: number, ri: number | null) =>
+    [model[ci].numeric ? 'num' : '', ri != null && model[ci].bestRow === ri ? 'best' : ''].filter(Boolean).join(' ');
+  return `<table><thead><tr>${columns.map((c, ci) => `<th class="${cls(ci, null)}">${cell(c)}</th>`).join('')}</tr></thead><tbody>${rows
+    .map((r, ri) => `<tr>${columns.map((_, ci) => `<td class="${cls(ci, ri)}">${cell(String(r[ci] ?? ''))}</td>`).join('')}</tr>`)
+    .join('')}</tbody></table>`;
+}
 
 /**
  * PDF export of a Sprinty answer (analysis, plan, sessions): an HTML page printed by the system, with the charts
@@ -36,11 +49,7 @@ function markdownToHtml(md: string): string {
   const closeTable = () => {
     if (!table) return;
     const [head, ...rows] = table;
-    out.push(
-      `<table><thead><tr>${head.map((c) => `<th>${inline(c)}</th>`).join('')}</tr></thead><tbody>${rows
-        .map((r) => `<tr>${r.map((c) => `<td>${inline(c)}</td>`).join('')}</tr>`)
-        .join('')}</tbody></table>`
-    );
+    out.push(tableHtml(head, rows, inline));
     table = null;
   };
   for (const raw of lines) {
@@ -103,8 +112,9 @@ export function chartSvg(c: Extract<UiBlock, { type: 'chart' }>): string {
   const xs = [...new Set(series.flatMap((s) => s.points.map((p) => p.x)))].sort();
   const ys = series.flatMap((s) => s.points.map((p) => p.y));
   if (!ys.length) return '';
-  let min = Math.min(...ys);
-  let max = Math.max(...ys);
+  const ref = c.reference && Number.isFinite(c.reference.value) ? c.reference : null;
+  let min = Math.min(...ys, ...(ref ? [ref.value] : []));
+  let max = Math.max(...ys, ...(ref ? [ref.value] : []));
   if (c.kind === 'bar' && series.length === 1) min = Math.min(0, min);
   if (min === max) {
     min -= 1;
@@ -135,16 +145,28 @@ export function chartSvg(c: Extract<UiBlock, { type: 'chart' }>): string {
   } else {
     marks = series
       .map((s, i) => {
-        const d = s.points.map((p, j) => `${j ? 'L' : 'M'}${x(p.x).toFixed(1)},${y(p.y).toFixed(1)}`).join(' ');
-        return `<path d="${d}" fill="none" stroke="${COLORS[i % COLORS.length]}" stroke-width="2.5" stroke-linejoin="round"/>`;
+        const color = COLORS[i % COLORS.length];
+        const pts = s.points.map((p) => [x(p.x), y(p.y)] as const);
+        const d = pts.map(([px, py], j) => `${j ? 'L' : 'M'}${px.toFixed(1)},${py.toFixed(1)}`).join(' ');
+        const last = pts[pts.length - 1];
+        const area =
+          series.length === 1 && pts.length > 1
+            ? `<path d="${d} L${last[0].toFixed(1)},${P.t + ih} L${pts[0][0].toFixed(1)},${P.t + ih} Z" fill="url(#area)"/>`
+            : '';
+        const dots = pts.length <= 16 ? pts.map(([px, py]) => `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="3" fill="${color}"/>`).join('') : '';
+        return `${area}<path d="${d}" fill="none" stroke="${color}" stroke-width="2.75" stroke-linejoin="round" stroke-linecap="round"/>${dots}<circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="5" fill="#fff" stroke="${color}" stroke-width="2.5"/>`;
       })
       .join('');
   }
+  const refLine = ref
+    ? `<line x1="${P.l}" x2="${W - P.r}" y1="${y(ref.value)}" y2="${y(ref.value)}" stroke="#10B981" stroke-width="1.5" stroke-dasharray="6,4"/><text x="${W - P.r}" y="${y(ref.value) - 6}" font-size="11" font-weight="700" fill="#059669" text-anchor="end">${esc(ref.label)} ${fmt(ref.value)}</text>`
+    : '';
+  const defs = `<defs><linearGradient id="area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${COLORS[0]}" stop-opacity="0.22"/><stop offset="1" stop-color="${COLORS[0]}" stop-opacity="0"/></linearGradient></defs>`;
   const legend =
     series.length > 1
       ? `<div class="legend">${series.map((s, i) => `<span><i style="background:${COLORS[i % COLORS.length]}"></i>${esc(s.name)}</span>`).join('')}</div>`
       : '';
-  return `<figure><figcaption>${esc(c.title)} <small>(${esc(c.unit)})</small></figcaption><svg viewBox="0 0 ${W} ${H}" width="100%">${grid}${axis}${marks}</svg>${legend}</figure>`;
+  return `<figure><figcaption>${esc(c.title)} <small>(${esc(c.unit)})</small></figcaption><svg viewBox="0 0 ${W} ${H}" width="100%">${defs}${grid}${axis}${refLine}${marks}</svg>${legend}</figure>`;
 }
 
 function sessionHtml(s: ProposedSession): string {
@@ -167,13 +189,15 @@ function blockHtml(b: UiBlock): string {
     case 'chart':
       return chartSvg(b);
     case 'stats':
-      return `<div class="stats">${b.items
-        .map((i) => `<div><span>${esc(i.label)}</span><b>${esc(i.value)}${i.unit ? ` <small>${esc(i.unit)}</small>` : ''}</b></div>`)
+      return `${b.title ? `<h3>${esc(b.title)}</h3>` : ''}<div class="stats">${b.items
+        .map((i) => {
+          const tone = i.good == null ? '' : i.good ? ' good' : ' bad';
+          const arrow = i.trend === 'up' ? '▲' : i.trend === 'down' ? '▼' : i.trend === 'flat' ? '■' : '';
+          return `<div class="${tone.trim()}"><span>${esc(i.label)}</span><b>${esc(i.value)}${i.unit ? ` <small>${esc(i.unit)}</small>` : ''}${arrow ? ` <em>${arrow}</em>` : ''}</b></div>`;
+        })
         .join('')}</div>`;
     case 'table':
-      return `${b.title ? `<h3>${esc(b.title)}</h3>` : ''}<table><thead><tr>${b.columns.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${b.rows
-        .map((r) => `<tr>${b.columns.map((_, i) => `<td>${esc(r[i] ?? '')}</td>`).join('')}</tr>`)
-        .join('')}</tbody></table>`;
+      return `${b.title ? `<h3>${esc(b.title)}</h3>` : ''}${tableHtml(b.columns, b.rows)}`;
     case 'sessions_proposal':
       return `<h3>${esc(b.title)}</h3><p class="muted">Pour ${esc(b.target.name)}</p><table class="sessions">${b.sessions.map(sessionHtml).join('')}</table>`;
     case 'plan_proposal':
@@ -192,12 +216,17 @@ function blockHtml(b: UiBlock): string {
 }
 
 /** Shared look of every exported document */
-export const PDF_STYLES = `  @page { margin: 18mm 14mm; }
+export const PDF_STYLES = `  @page { margin: 18mm 14mm 20mm; @bottom-right { content: counter(page) " / " counter(pages); font-size: 9px; color: #94A3B8; } }
   html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  body { font-family: -apple-system, 'Helvetica Neue', Roboto, Arial, sans-serif; color: #0F172A; font-size: 12.5px; line-height: 1.5; }
-  header { border-bottom: 3px solid #0069E8; padding-bottom: 8px; margin-bottom: 14px; }
+  body { font-family: -apple-system, 'Helvetica Neue', Roboto, Arial, sans-serif; color: #0F172A; font-size: 13px; line-height: 1.55; font-variant-numeric: tabular-nums; }
+  header { border-bottom: 3px solid #0069E8; padding-bottom: 10px; margin-bottom: 16px; }
+  header.brandbar { display: flex; align-items: center; gap: 12px; }
   header .brand { color: #0069E8; font-weight: 800; letter-spacing: .5px; font-size: 12px; }
-  h1 { font-size: 22px; margin: 4px 0 2px; } h2 { font-size: 18px; margin: 18px 0 4px; } h3 { font-size: 14px; margin: 14px 0 4px; } h4 { font-size: 13px; }
+  h1 { font-size: 22px; margin: 4px 0 2px; letter-spacing: -0.3px; } h2 { font-size: 17px; margin: 20px 0 6px; color: #0B4FB3; } h3 { font-size: 14px; margin: 14px 0 4px; } h4 { font-size: 13px; }
+  p strong:first-child { color: #0B4FB3; }
+  .num { text-align: right; } td.best { color: #0069E8; font-weight: 800; }
+  .stats div.good b { color: #059669; } .stats div.bad b { color: #DC2626; } .stats em { font-style: normal; font-size: 11px; }
+  .page-footer { position: fixed; bottom: -12mm; left: 0; right: 0; font-size: 9px; color: #94A3B8; }
   .muted, small { color: #64748B; }
   table { width: 100%; border-collapse: collapse; margin: 6px 0 10px; page-break-inside: auto; }
   th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #E2E8F0; vertical-align: top; }
@@ -220,7 +249,8 @@ export function buildPdfHtml(parts: MessagePart[], title: string, subtitle?: str
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"/><title>${esc(title)}</title><style>
 ${PDF_STYLES}
   </style></head><body>
-  <header><div class="brand">SPRINTYS</div><h1>${esc(title)}</h1><div class="muted">${subtitle ? `${esc(subtitle)} · ` : ''}${esc(today)}</div></header>
+  <header class="brandbar">${poseToSvg(POSES.neutral, 54)}<div><div class="brand">SPRINTYS · SPRINTY</div><h1>${esc(title)}</h1><div class="muted">${subtitle ? `${esc(subtitle)} · ` : ''}${esc(today)}</div></div></header>
+  <div class="page-footer">Sprinty est une IA : contenu indicatif, pas un avis médical.</div>
   ${body}
   <footer>Contenu proposé par Sprinty, l’assistant IA de Sprintys, à partir des données de l’application. Il peut contenir des erreurs et ne remplace ni un entraîneur diplômé ni un avis médical.</footer>
   </body></html>`;
