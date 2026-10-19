@@ -82,6 +82,15 @@ export const WeatherCard = () => {
         return;
       }
 
+      // Localisation du téléphone éteinte (permission accordée mais GPS coupé) : ce n'est pas un problème de réseau
+      if (!(await Location.hasServicesEnabledAsync().catch(() => true))) {
+        if (!hasData) {
+          setLocationName('Localisation éteinte');
+          setFailure('denied');
+        }
+        setIsLoading(false);
+        return;
+      }
       let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
       const data = await weatherService.fetchWeather(location.coords.latitude, location.coords.longitude);
       setWeather(data);
@@ -193,7 +202,7 @@ export const WeatherCard = () => {
             </Text>
             <Text style={styles.failureText}>
               {denied
-                ? 'Autorise ta position pour voir le vent et la pluie sur ta piste.'
+                ? 'Active la localisation de ton téléphone (ou autorise Sprintys) pour voir le vent et la pluie sur ta piste.'
                 : 'Vérifie ta connexion puis réessaie.'}
             </Text>
           </View>

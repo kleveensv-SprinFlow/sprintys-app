@@ -84,7 +84,9 @@ export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ athleteProfi
             ? (mealLogs.length > 0
                 ? `${mealLogs.length} aliment${mealLogs.length > 1 ? 's enregistrés' : ' enregistré'}`
                 : 'Repères du jour')
-            : `Objectif ${kcalGoal.toLocaleString('fr-FR')} kcal`}
+            : rawKcal
+              ? `Objectif ${kcalGoal.toLocaleString('fr-FR')} kcal`
+              : `Repère ${kcalGoal.toLocaleString('fr-FR')} kcal · à régler`}
         </Text>
       </View>
 

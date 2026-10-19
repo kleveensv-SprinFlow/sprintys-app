@@ -36,7 +36,9 @@ Conditions à jouer : nominal · champ vide · valeur absurde · annuler à mi-p
 |---|---|
 | Charge de 9999 kg validée sans avertissement (deviendrait un record) | oui, confirmation au-delà de 500 kg |
 | Hors ligne : la recherche d'aliments disait « Aucun produit trouvé » | oui, message « Pas de connexion » |
-| Séance validée : la pastille de récupération recouvre la dernière ligne | à traiter |
+| Séance validée : la pastille de récupération recouvre la dernière ligne | oui, marge basse augmentée (non vu à l'écran) |
+| Calendrier : 5 couleurs sans légende | oui, légende des types du mois ✅ vu |
+| Météo : localisation éteinte annoncée comme « Vérifie ta connexion » | oui (non testé à l'écran) |
 | Chrono « 2:10 s » : unité « s » fausse quand on saisit en minutes:secondes | oui |
 | Plan Sprinty : une marche à 65 % marquée « Pointes » | oui, pointes seulement si intensité ≥ 85 % |
 | Check-in « Modifier » : étape 1 vide | oui |
@@ -46,5 +48,5 @@ Conditions à jouer : nominal · champ vide · valeur absurde · annuler à mi-p
 | « Modifier la portion » : bouton caché par le clavier | oui |
 | Réglages nutrition : 99 999 kcal acceptés, poids actuel vide malgré une pesée | oui |
 | Recherche « banane » : titre « Chair sans peau de banane », fiche à 0 kcal | oui |
-| Écran Poids vide : « -- kg » et période affichés sans donnée | à traiter |
-| Compte neuf : objectif de 2 000 kcal affiché sans l'avoir choisi | à décider |
+| Écran Poids vide : « -- kg » et période affichés sans donnée | oui, état vide avec bouton « Ajouter une pesée » (non vu à l'écran) |
+| Compte neuf : objectif de 2 000 kcal affiché sans l'avoir choisi | oui, affiché comme « Repère 2 000 kcal · à régler » (non vu à l'écran) |

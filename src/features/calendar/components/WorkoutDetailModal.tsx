@@ -1618,7 +1618,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 100,
+    paddingBottom: 170,
   },
   sectionLabel: {
     fontSize: 12,

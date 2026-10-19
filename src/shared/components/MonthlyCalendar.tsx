@@ -324,6 +324,18 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
     return `${d.getDate()} ${m}${m.length <= 4 && !['avr', 'oct', 'nov', 'déc'].includes(m) ? '' : '.'}`;
   };
 
+  // Légende : seulement les types de séances présents dans le mois affiché
+  const legend = (() => {
+    const seen = new Map<string, string>();
+    (monthWorkouts || []).forEach((w) => {
+      const d = new Date(w.date_prevue);
+      if (d.getFullYear() !== currentMonth.getFullYear() || d.getMonth() !== currentMonth.getMonth()) return;
+      const c = getWorkoutTypeConfig(w.type_seance);
+      if (!seen.has(c.text)) seen.set(c.text, c.abbr);
+    });
+    return [...seen.entries()].map(([color, label]) => ({ color, label }));
+  })();
+
   const headerBarOpacity = scrollY.interpolate({ inputRange: [0, 16], outputRange: [0, 1], extrapolate: 'clamp' });
 
   return (
@@ -505,6 +517,17 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
             ))}
           </Animated.View>
         </View>
+
+        {legend.length > 0 && (
+          <View style={styles.legendRow} accessibilityLabel={`Légende des couleurs : ${legend.map((l) => l.label).join(', ')}`}>
+            {legend.map((l) => (
+              <View key={l.label} style={styles.legendItem}>
+                <View style={[styles.dot, { backgroundColor: l.color }]} />
+                <Text style={[styles.legendText, { color: theme.colors.textSecondary }]}>{l.label}</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* === Agenda of the selected day === */}
         <View style={styles.agendaHeader}>
@@ -714,6 +737,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontVariant: ['tabular-nums'],
   },
+  legendRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, paddingHorizontal: 20, paddingTop: 10 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendText: { fontSize: 12, fontWeight: '600' },
   dotsRow: {
     flexDirection: 'row',
     gap: 3,
