@@ -91,6 +91,8 @@ const STORAGE_RUN_INTENSITY_KEY = '@sprintflow_run_last_intensity';
 const STORAGE_RUN_REST_REPS_KEY = '@sprintflow_run_last_rest_reps';
 const STORAGE_RUN_REST_BLOCK_KEY = '@sprintflow_run_last_rest_block';
 const STORAGE_RUN_FAVORITES_KEY = '@sprintflow_run_favorites_cache';
+const MAX_RUN_DISTANCE_M = 10_000;
+const MAX_RUN_REPS = 50;
 
 export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
   visible,
@@ -424,6 +426,10 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
 
   // Varied Runs Management inside Block Sheet
   const handleAddRunToBlock = () => {
+    if (variedRuns.length >= MAX_RUN_REPS) {
+      toast('warning', `Un bloc ne peut pas dépasser ${MAX_RUN_REPS} courses.`);
+      return;
+    }
     const lastRun = variedRuns[variedRuns.length - 1];
     const nextDist = lastRun ? lastRun.distance : 120;
     const nextInt = lastRun ? lastRun.intensity : 95;
@@ -451,9 +457,14 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
   const handleSaveBlockSheet = () => {
     if (blockMode === 'identical') {
       const distNum = parseInt(manualDistanceText, 10);
-      if (isNaN(distNum) || distNum <= 0) {
+      if (!Number.isInteger(distNum) || distNum < 1 || distNum > MAX_RUN_DISTANCE_M || !/^\d+$/.test(manualDistanceText.trim())) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        setDistanceError('Saisis une distance valide en mètres.');
+        setDistanceError(`Saisis une distance entre 1 et ${MAX_RUN_DISTANCE_M.toLocaleString('fr-FR')} m.`);
+        return;
+      }
+
+      if (repsCount < 1 || repsCount > MAX_RUN_REPS) {
+        toast('warning', `Choisis entre 1 et ${MAX_RUN_REPS} répétitions.`);
         return;
       }
 
@@ -520,6 +531,11 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
       // Varied mode
       if (variedRuns.length === 0) {
         toast('warning', 'Ajoute au moins une course à ce bloc.');
+        return;
+      }
+
+      if (variedRuns.length > MAX_RUN_REPS || variedRuns.some((r) => !Number.isInteger(r.distance) || r.distance < 1 || r.distance > MAX_RUN_DISTANCE_M)) {
+        toast('warning', `Choisis entre 1 et ${MAX_RUN_REPS} courses de 1 à ${MAX_RUN_DISTANCE_M.toLocaleString('fr-FR')} m.`);
         return;
       }
 
@@ -1359,7 +1375,7 @@ export const RunWorkoutBuilder: React.FC<RunWorkoutBuilderProps> = ({
                           String(repsCount),
                           'les répétitions',
                           () => setRepsCount((r) => Math.max(1, r - 1)),
-                          () => setRepsCount((r) => r + 1)
+                          () => setRepsCount((r) => Math.min(MAX_RUN_REPS, r + 1))
                         )}
                       </View>
 

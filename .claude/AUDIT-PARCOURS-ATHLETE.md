@@ -50,3 +50,20 @@ Conditions à jouer : nominal · champ vide · valeur absurde · annuler à mi-p
 | Recherche « banane » : titre « Chair sans peau de banane », fiche à 0 kcal | oui |
 | Écran Poids vide : « -- kg » et période affichés sans donnée | oui, état vide avec bouton « Ajouter une pesée » (non vu à l'écran) |
 | Compte neuf : objectif de 2 000 kcal affiché sans l'avoir choisi | oui, affiché comme « Repère 2 000 kcal · à régler » (non vu à l'écran) |
+| Constructeur course coach : 3 × 99 999 m à 95 % était accepté | oui, distance limitée à 1–10 000 m ; répétitions limitées à 50 ; refus 99 999 m vu à l’écran |
+
+## Suite de l’audit coach — 19 octobre 2026
+
+Compte coach de test connecté par l’utilisateur, groupe « Test audit ». Un état 🟡 signifie qu’une partie du parcours est visible, sans couvrir toutes les conditions.
+
+| Parcours demandé | État et preuve |
+|---|---|
+| Constructeur de bloc de course | 🟡 Bloc 3 × 99 999 m accepté avant correction, puis refusé après correction avec message « Saisis une distance entre 1 et 10 000 m ». Captures : [avant ajout](audit-evidence/2026-10-19/coach-bloc-avant-ajout.png), [acceptation initiale](audit-evidence/2026-10-19/coach-bloc-99999-accepte-avant-correction.png), [avant refus](audit-evidence/2026-10-19/coach-bloc-99999-avant-refus.png), [refus](audit-evidence/2026-10-19/coach-bloc-99999-refuse.png). Distance 0, 200 répétitions, enregistrement, modification et suppression de séance ⬜. |
+| Autres séances, séances types, créer avec Sprinty | ⬜ |
+| Calendrier coach : phase, semaine, copie, jours | ⬜ |
+| Équipe, sous-groupes, demandes, discussion, annonces | ⬜ |
+| Athlète rejoint le groupe et coach valide | ⬜ |
+| Sprinty coach et mémoire | ⬜ |
+| Profil coach, messages, export | ⬜ |
+
+La modification de l’état vide de l’écran Poids reste à vérifier avec le compte athlète de test connecté par l’utilisateur.
