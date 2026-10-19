@@ -1,4 +1,4 @@
-# Audit des parcours athlète (2026-10-19)
+| 21 | Sans coach : plan Sprinty complet (4 questions de sécurité, plan doux 75 %, ajout au calendrier) | ✅ || 15 | Sprinty : accueil, refus du consentement, questions de sécurité, plan doux, ajout au calendrier | ✅ ; Écouter, PDF, historique, quota ⬜ || 12 | Séance Sprinty ajoutée au calendrier (12 séances) ✅ ; retirer le plan ⬜ | 🟡 || 11 | Séance muscu ✅ ; escaliers, technique, compétition, course | ⬜ || 10 | Séance : saisie de charges (avec 9999 kg refusée), Suivante, validation réelle, minuteur de récupération | ✅ (chronos de course ⬜, effort ressenti ⬜) |# Audit des parcours athlète (2026-10-19)
 
 Règle : un parcours est « testé » seulement avec capture avant / après, pour chaque condition listée. Les actions qui écrivent des données se font sur un compte de test, jamais sur le compte de l'utilisateur. Compte utilisé : athlète de test neuf, sans coach.
 
@@ -34,6 +34,9 @@ Conditions à jouer : nominal · champ vide · valeur absurde · annuler à mi-p
 ## Bugs trouvés
 | Bug | Corrigé |
 |---|---|
+| Charge de 9999 kg validée sans avertissement (deviendrait un record) | oui, confirmation au-delà de 500 kg |
+| Hors ligne : la recherche d'aliments disait « Aucun produit trouvé » | oui, message « Pas de connexion » |
+| Séance validée : la pastille de récupération recouvre la dernière ligne | à traiter |
 | Check-in « Modifier » : étape 1 vide | oui |
 | Pesée : 0 ou 9999 kg | oui, bornes 25 à 300 kg, gras, muscle, eau |
 | Portion : 99 999 bananes = 10 499 895 kcal enregistrés | oui, refus au-delà de 5 kg |
