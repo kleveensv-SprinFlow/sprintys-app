@@ -268,6 +268,8 @@ export function friendlyFoodTitle(nom: string): string {
   if (parts.length < 2 || parts[0].includes(' ')) return nom;
   const second = normalizeSearchText(parts[1]);
   if (COOKED.test(second)) return nom;
+  // « Banane, chair sans peau, crue » : un détail de l'aliment ne devient pas « Chair sans peau de banane »
+  if (/^(chair|pulpe|peau|sans|avec|entier|entière|jus|poudre|graine|feuille)/.test(parts[1].toLowerCase())) return nom;
   const rest = parts.slice(2);
   const title = `${parts[1]} de ${parts[0].toLowerCase()}`;
   const extra = rest.length ? `, ${rest.join(', ')}` : '';

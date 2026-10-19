@@ -589,7 +589,7 @@ export const FoodSearchModal: React.FC = () => {
           </Text>
         </View>
         <View style={styles.productInfo}>
-          <Text style={[styles.productName, { color: theme.colors.text }]} numberOfLines={1}>
+          <Text style={[styles.productName, { color: theme.colors.text }]} numberOfLines={2}>
             {name}
           </Text>
           <Text style={[styles.productBrand, { color: theme.colors.textSecondary }]} numberOfLines={1}>

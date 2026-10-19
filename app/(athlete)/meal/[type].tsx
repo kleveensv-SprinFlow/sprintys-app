@@ -25,7 +25,7 @@ import { useFrostedHeader } from '../../../src/shared/hooks/useFrostedHeader';
 import { ageOn, isMinorAthlete } from '../../../src/legal/age';
 
 import { FeedbackHost } from '../../../src/shared/feedback/FeedbackHost';
-import { appAlert } from '../../../src/shared/feedback/appAlert';
+import { appAlert, toast } from '../../../src/shared/feedback/appAlert';
 
 export default function MealDetailScreen() {
   const params = useLocalSearchParams<{ type: MealType; athleteId?: string; readonly?: string }>();
@@ -172,12 +172,20 @@ export default function MealDetailScreen() {
   const handleSaveEdit = async () => {
     if (!editingLog || readonly) return;
     const numericQty = parseFloat(editQty.replace(',', '.')) || 0;
-    if (numericQty <= 0) return;
+    if (numericQty <= 0) {
+      toast('error', 'Indique une quantité supérieure à 0.');
+      return;
+    }
 
     const gramsPerUnit = editingLog.grams_per_unit || (editingLog.quantity_g / (editingLog.input_qty || 1)) || 1;
     let newTotalGrams = numericQty;
     if (editUnit === 'piece' || editUnit === 'serving' || editUnit === 'ml') {
       newTotalGrams = numericQty * gramsPerUnit;
+    }
+
+    if (newTotalGrams > 5000) {
+      toast('error', 'Cette quantité dépasse 5 kg : vérifie l’unité.');
+      return;
     }
 
     const oldGrams = editingLog.quantity_g || 100;
@@ -624,9 +632,11 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
+    // En haut : le clavier ne cache jamais les boutons (sur Android la fenêtre ne se décale pas toute seule)
+    justifyContent: 'flex-start',
     alignItems: 'center',
-    padding: 24,
+    paddingHorizontal: 24,
+    paddingTop: 96,
   },
   editModalContent: {
     width: '100%',

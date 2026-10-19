@@ -238,7 +238,6 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
                   setUserEdited(true);
                   setInputValue(value);
                 }}
-                autoFocus
                 selectTextOnFocus
                 maxLength={6}
               />
