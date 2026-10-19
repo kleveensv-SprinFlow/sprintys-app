@@ -70,6 +70,7 @@ export const FoodSearchModal: React.FC = () => {
   const [aiQuery, setAiQuery] = useState('');
   const [results, setResults] = useState<HybridFoodResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [packagedSearchFailed, setPackagedSearchFailed] = useState(false);
   const [isAILoading, setIsAILoading] = useState(false);
   const [mode, setMode] = useState<'text' | 'barcode' | 'ai-text' | 'ai-loading' | 'ai-review'>('text');
   const [aiOriginalText, setAiOriginalText] = useState('');
@@ -105,7 +106,9 @@ export const FoodSearchModal: React.FC = () => {
     if (mode === 'text' && debouncedQuery.trim().length > 2) {
       performSearch(debouncedQuery);
     } else {
+      searchSeq.current += 1;
       setResults([]);
+      setIsLoading(false);
     }
   }, [debouncedQuery, mode]);
 
@@ -146,16 +149,30 @@ export const FoodSearchModal: React.FC = () => {
     setReplacingIndex(null);
   };
 
-  const performSearch = async (query: string) => {
+  const performSearch = (query: string) => {
     const seq = ++searchSeq.current;
+    let generic: HybridFoodResult[] = [];
+    let packaged: HybridFoodResult[] = [];
+    let pending = 2;
     setIsLoading(true);
-    const generic = await nutritionService.searchCiqual(query);
-    if (seq !== searchSeq.current) return;
-    setResults(generic);
-    setIsLoading(false);
-    const packaged = await nutritionService.searchPackaged(query);
-    if (seq !== searchSeq.current) return;
-    if (packaged.length > 0) setResults([...generic, ...packaged]);
+    setPackagedSearchFailed(false);
+    const publish = () => {
+      if (seq !== searchSeq.current) return;
+      pending -= 1;
+      const combined = [...generic, ...packaged];
+      setResults(combined);
+      if (combined.length > 0 || pending === 0) setIsLoading(false);
+    };
+    nutritionService.searchCiqual(query)
+      .then((found) => { generic = found; })
+      .catch((error) => console.error('CIQUAL search failed:', error))
+      .finally(publish);
+    nutritionService.searchPackaged(query)
+      .then((found) => { packaged = found; })
+      .catch(() => {
+        if (seq === searchSeq.current) setPackagedSearchFailed(true);
+      })
+      .finally(publish);
   };
 
   /** A limit was reached: close this sheet first (two modals cannot be open together on iOS), then offer the plans. */
@@ -941,7 +958,13 @@ export const FoodSearchModal: React.FC = () => {
                   placeholder="Un aliment, un produit… (riz, œuf, skyr)"
                   placeholderTextColor={theme.colors.textSecondary}
                   value={searchQuery}
-                  onChangeText={setSearchQuery}
+                  onChangeText={(value) => {
+                    searchSeq.current += 1;
+                    setSearchQuery(value);
+                    setResults([]);
+                    setPackagedSearchFailed(false);
+                    setIsLoading(value.trim().length > 2);
+                  }}
                 />
                 
                 {searchQuery.length > 0 && (
@@ -1018,7 +1041,11 @@ export const FoodSearchModal: React.FC = () => {
                   />
                 ) : searchQuery.length > 2 ? (
                   <Text style={[styles.noResults, { color: theme.colors.textSecondary }]}>
-                    {offline ? 'Pas de connexion : la recherche d’aliments a besoin d’Internet. Tes aliments récents restent disponibles.' : 'Aucun produit trouvé.'}
+                    {offline
+                      ? 'Pas de connexion. Les aliments du catalogue restent disponibles.'
+                      : packagedSearchFailed
+                        ? 'Les produits emballés sont momentanément indisponibles. Réessaie plus tard ou cherche un aliment générique.'
+                        : 'Aucun aliment trouvé. Essaie un autre nom ou vérifie l’orthographe.'}
                   </Text>
                 ) : null
               ) : (

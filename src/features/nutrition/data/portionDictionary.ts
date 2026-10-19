@@ -23,7 +23,7 @@ const NO_PIECE_KEYWORDS = [
   'riz', 'pate', 'pâte', 'spaghetti', 'coquillette', 'penne', 'semoule', 'quinoa',
   'lentille', 'boulgour', 'avoine', 'flocon', 'huile', 'beurre', 'vinaigre',
   'farine', 'sucre', 'sel', 'eau', 'lait', 'creme', 'crème', 'sauce', 'jus',
-  'miel', 'confiture', 'puree', 'purée', 'sirop'
+  'miel', 'confiture', 'puree', 'purée', 'sirop', 'plantain'
 ];
 
 /** Un mot court inclus dans une de ces expressions ne doit pas créer de pièce. */

@@ -89,6 +89,13 @@ async function searchCiqual(rawQ: string): Promise<HybridFoodResult[]> {
   const tokens = searchTokens(rawQ);
   if (tokens.length === 0) return [];
 
+  // The food picker calls searchCiqual directly. Surface curated everyday foods
+  // (including their common aliases) before making a network request.
+  const fromCatalog = searchFoodCatalog(rawQ);
+  if (fromCatalog.length > 0) {
+    return fromCatalog.map((item) => ({ type: 'ciqual' as const, item }));
+  }
+
   const distinctive = tokens.filter((token) => !isStateToken(token));
   const lookedUp = distinctive.length > 0 ? distinctive : tokens;
   const lists = await Promise.all(lookedUp.map(async (token) => {
@@ -140,10 +147,10 @@ async function searchCiqual(rawQ: string): Promise<HybridFoodResult[]> {
 
 async function searchPackaged(rawQ: string): Promise<HybridFoodResult[]> {
   const tokens = searchTokens(rawQ);
-  try {
+  {
     const products = await Promise.race([
       openFoodFactsService.searchFood(rawQ),
-      new Promise<OFFProduct[]>((resolve) => setTimeout(() => resolve([]), 1600)),
+      new Promise<OFFProduct[]>((_, reject) => setTimeout(() => reject(new Error('OFF search timeout')), 5000)),
     ]);
     return products
       .map((item) => ({ item, score: matchScore(tokens, item.name) }))
@@ -154,9 +161,6 @@ async function searchPackaged(rawQ: string): Promise<HybridFoodResult[]> {
       })
       .slice(0, 6)
       .map((row) => ({ type: 'off' as const, item: row.item }));
-  } catch (err) {
-    console.error('OFF search error:', err);
-    return [];
   }
 }
 
@@ -187,7 +191,10 @@ export const nutritionService = {
       return fromCatalog.map((item) => ({ type: 'ciqual' as const, item }));
     }
 
-    const [generic, packaged] = await Promise.all([searchCiqual(rawQ), searchPackaged(rawQ)]);
-    return [...generic, ...packaged];
+    const [generic, packaged] = await Promise.allSettled([searchCiqual(rawQ), searchPackaged(rawQ)]);
+    return [
+      ...(generic.status === 'fulfilled' ? generic.value : []),
+      ...(packaged.status === 'fulfilled' ? packaged.value : []),
+    ];
   },
 };

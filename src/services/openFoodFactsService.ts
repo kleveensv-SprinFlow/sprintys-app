@@ -68,7 +68,7 @@ export const openFoodFactsService = {
         
     } catch (error) {
       console.error('Erreur searchFood OFF:', error);
-      return []; // Return empty array on failure instead of crashing
+      throw error; // A server failure is different from a valid empty search.
     }
   },
 
