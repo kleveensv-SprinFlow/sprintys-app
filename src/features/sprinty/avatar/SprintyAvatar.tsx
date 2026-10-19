@@ -15,12 +15,16 @@ const TAGS: Record<string, React.ComponentType<any>> = { g: G, path: Path, ellip
 
 type Register = (poseKey: string, path: string, node: PoseNode) => (el: unknown) => void;
 
+// Bouche de la pose « neutre » (celle qu'il prend pour parler) : pivot en haut de la bouche, elle s'ouvre vers le bas
+const MOUTH_ORIGIN: [number, number] = [525, 792];
+
 function build(node: PoseNode, path: string, poseKey: string, reg: Register): React.ReactNode {
   const C = TAGS[node.t];
   if (!C) return null;
   const props: Record<string, unknown> = { ...(node.a ?? {}) };
   if (node.t === 'stop' && props.offset == null) props.offset = '0';
   if (node.r) props.ref = reg(poseKey, path, node);
+  else if (poseKey === 'neutral' && node.i === 'mouth') props.ref = reg(poseKey, path, { ...node, r: 'mouth', o: MOUTH_ORIGIN });
   return React.createElement(
     C,
     { key: path, ...props },
@@ -37,9 +41,13 @@ export interface SprintyAvatarProps {
   interactive?: boolean;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
+  /** Sprinty parle (lecture à voix haute) : la bouche bouge et la tête hoche. */
+  talking?: boolean;
 }
 
-function SprintyAvatarBase({ size = 96, mood = 'neutral', animated = true, interactive = false, style, accessibilityLabel }: SprintyAvatarProps) {
+function SprintyAvatarBase({ size = 96, mood = 'neutral', animated = true, interactive = false, style, accessibilityLabel, talking = false }: SprintyAvatarProps) {
+  const talkingRef = useRef(talking);
+  talkingRef.current = talking;
   const [shown, setShown] = useState<MoodKey>(mood);
   const [prev, setPrev] = useState<MoodKey | null>(null);
   const fade = useRef(new Animated.Value(1)).current;
@@ -101,7 +109,7 @@ function SprintyAvatarBase({ size = 96, mood = 'neutral', animated = true, inter
       if (now - last < 24) return;
       const dt = (now - last) / 1000;
       last = now;
-      const f = rig.step(dt, { mood: moodRef.current, look: look.current, reduced, moodAge: (now - moodAt.current) / 1000 });
+      const f = rig.step(dt, { mood: moodRef.current, look: look.current, reduced, moodAge: (now - moodAt.current) / 1000, talking: talkingRef.current });
       applyFrame(targets.current.values(), f, moodRef.current === 'sleep');
     };
     raf = requestAnimationFrame(loop);

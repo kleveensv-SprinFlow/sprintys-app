@@ -1065,6 +1065,14 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
       const total = series.reduce((n, s) => n + s.points.length, 0);
       if (!total) return { content: { affiche: false, raison: 'Aucune donnée sur cette période : le graphique n’a pas été affiché.' } };
       const unit = a.metric === 'best_time' && a.distance_m ? `s (${a.distance_m} m)` : meta.unit;
+      // Ligne de repère : le poids visé par l'athlète (un seul athlète affiché)
+      let reference: { value: number; label: string } | null = null;
+      if (a.metric === 'weight' && ids.length === 1) {
+        const who = await resolveAthlete(ctx, ctx.role === 'coach' ? ids[0] : undefined);
+        const { data: p } = await sb.from('profiles').select('target_weight').eq('id', who.id).maybeSingle();
+        const target = Number(p?.target_weight);
+        if (Number.isFinite(target) && target > 0) reference = { value: target, label: 'Objectif' };
+      }
       ctx.emit({
         ui: {
           type: 'chart',
@@ -1073,6 +1081,7 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
           unit,
           better: meta.better,
           series,
+          reference,
         },
       });
       return {

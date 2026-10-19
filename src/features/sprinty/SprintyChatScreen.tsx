@@ -32,6 +32,8 @@ import { SprintyMessageView } from './SprintyMessageView';
 import { ThinkingDots } from './ThinkingDots';
 import { partsToText, type MessagePart } from './types';
 import { CoachIntroCard } from './CoachIntroCard';
+import { ListenButton } from './voice/ListenButton';
+import { useSprintySpeaking, useSprintyVoice } from './voice/sprintyVoice';
 
 const BLUE = theme.colors.sprintyBlue;
 const MAX_CHARS = 2000;
@@ -97,6 +99,9 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
   const { user } = useAuthStore();
   const planInfo = useEntitlementStore((st) => st.info);
   const isCoach = role === 'coach';
+  const speaking = useSprintySpeaking();
+  // La voix s'arrête quand on quitte le chat
+  useEffect(() => () => useSprintyVoice.getState().stop(), []);
 
   const conversations = useSprintyChatStore((s) => s.conversations);
   const currentConversationId = useSprintyChatStore((s) => s.currentConversationId);
@@ -363,7 +368,7 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
           </PressableScale>
           <View style={styles.headerCenter}>
             <View style={styles.avatarWrapper}>
-              <SprintyAvatar size={50} mood={mood} />
+              <SprintyAvatar size={50} mood={speaking ? 'neutral' : mood} talking={speaking} />
             </View>
             <View style={{ flexShrink: 1 }}>
               <Text style={styles.title}>Sprinty</Text>
@@ -524,6 +529,7 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
                         </PressableScale>
                       ) : <View style={{ flex: 1 }} />}
                       <View style={styles.feedbackRow}>
+                        <ListenButton id={`${conversation?.id ?? 'c'}-${index}`} parts={msg.parts} content={msg.content} />
                         <PressableScale
                           haptic="light"
                           onPress={() => handleFeedback(index, msg, 1)}

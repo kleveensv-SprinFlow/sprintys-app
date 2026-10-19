@@ -13,6 +13,8 @@ export interface RigInput {
   reduced: boolean;
   /** Secondes depuis le dernier changement d'humeur (rebond, secousse). */
   moodAge: number;
+  /** Sprinty parle (voix) : la bouche s'ouvre au rythme des syllabes. */
+  talking?: boolean;
 }
 
 export interface RigFrame {
@@ -35,6 +37,8 @@ export interface RigFrame {
   roll: number;
   /** Temps écoulé, pour les éléments flottants. */
   t: number;
+  /** Ouverture de la bouche : 0 = fermée, 1 = grande ouverte. */
+  mouth: number;
 }
 
 export const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
@@ -67,6 +71,7 @@ export function createRig(random: () => number = Math.random) {
   let earSide = 0;
   let nextEar = 4;
   let forcedBlink = false;
+  let mouth = 0;
 
   return {
     /** Fait cligner Sprinty tout de suite (appui sur lui). */
@@ -76,7 +81,7 @@ export function createRig(random: () => number = Math.random) {
     step(dt: number, input: RigInput): RigFrame {
       dt = clamp(dt, 0, 0.05);
       t += dt;
-      const { mood, look, reduced, moodAge } = input;
+      const { mood, look, reduced, moodAge, talking } = input;
 
       let tx = look ? look.x : 0;
       let ty = look ? look.y : 0;
@@ -90,6 +95,7 @@ export function createRig(random: () => number = Math.random) {
       if (mood === 'sleep') tx *= 0.4;
 
       const k = 1 - Math.pow(0.0006, dt); // lissage indépendant de la cadence
+      if (talking && !reduced) ty += Math.sin(t * 4.2) * 0.05; // petits hochements en parlant
       yaw += (tx - yaw) * k * 0.55;
       pitch += (ty - pitch) * k * 0.55;
       gx += (tx - gx) * k * 1.1; // les yeux arrivent avant la tête
@@ -113,6 +119,12 @@ export function createRig(random: () => number = Math.random) {
 
       const bounce = !reduced && moodAge < 0.3 ? Math.sin((moodAge / 0.3) * Math.PI) * 14 : 0;
 
+      // Syllabes : une ouverture rapide modulée par une phrase plus lente, avec de courtes pauses
+      const syllable = Math.abs(Math.sin(t * 9.5)) * (0.55 + 0.45 * Math.abs(Math.sin(t * 2.3)));
+      const pause = Math.sin(t * 0.9) > 0.86 ? 0.15 : 1;
+      const mouthTarget = talking ? clamp(syllable * pause, 0, 1) : 0;
+      mouth += (mouthTarget - mouth) * clamp(dt * 22, 0, 1);
+
       return {
         yaw,
         pitch,
@@ -125,6 +137,7 @@ export function createRig(random: () => number = Math.random) {
         breathe: reduced ? 0 : Math.sin(t * 1.6) * 0.006,
         roll: yaw * 3.2 + m.roll,
         t,
+        mouth,
       };
     },
   };

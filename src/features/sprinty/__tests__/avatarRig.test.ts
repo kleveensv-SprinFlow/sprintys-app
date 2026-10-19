@@ -58,8 +58,29 @@ describe('moteur de mouvement de Sprinty', () => {
   });
 });
 
+describe('Sprinty qui parle', () => {
+  it('la bouche bouge en parlant et se referme ensuite', () => {
+    const rig = createRig(() => 0.5);
+    const input = { mood: 'neutral' as const, look: null, reduced: false, moodAge: 5 };
+    let maxOpen = 0;
+    for (let i = 0; i < 120; i++) maxOpen = Math.max(maxOpen, rig.step(0.016, { ...input, talking: true }).mouth);
+    expect(maxOpen).toBeGreaterThan(0.3);
+    let last = 1;
+    for (let i = 0; i < 60; i++) last = rig.step(0.016, { ...input, talking: false }).mouth;
+    expect(last).toBeLessThan(0.02);
+  });
+});
+
 describe('transformations appliquées aux calques', () => {
-  const frame = { yaw: 1, pitch: 0, gx: 0, gy: 0, lid: 0.5, earR: 4, earL: -4, bounce: 0, breathe: 0, roll: 0, t: 0 };
+  const frame = { yaw: 1, pitch: 0, gx: 0, gy: 0, lid: 0.5, earR: 4, earL: -4, bounce: 0, breathe: 0, roll: 0, t: 0, mouth: 0 };
+
+  it('la bouche s’ouvre vers le bas seulement quand Sprinty parle', () => {
+    expect(propsFor({ role: 'mouth', origin: [525, 792] }, frame, 0)!.scaleY).toBe(1);
+    const open = propsFor({ role: 'mouth', origin: [525, 792] }, { ...frame, mouth: 1 }, 0)!;
+    expect(open.scaleY as number).toBeGreaterThan(2);
+    expect(open.originY).toBe(792);
+    expect(open.x).toBe(0);
+  });
 
   it('la casquette se décale plus que la tête (relief)', () => {
     const cap = propsFor({ role: 'cap' }, frame, 0)!;

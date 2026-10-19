@@ -22,6 +22,9 @@ export function propsFor(target: Pick<RigTarget, 'role' | 'origin'>, f: RigFrame
       return { x: 0, y: 0, originX: LEO_ORIGIN[0], originY: LEO_ORIGIN[1], scaleX: 1 + f.breathe, scaleY: 1 + f.breathe, rotation: f.roll };
     case 'ball':
       return { x: f.gx * 20, y: f.gy * 13, originX: 0, originY: 0, scaleX: 1, scaleY: 1, rotation: 0 };
+    case 'mouth':
+      // La bouche suit déjà la tête (elle est dans le calque du nez) : elle ne fait que s'ouvrir vers le bas
+      return { x: 0, y: 0, originX: ox, originY: oy, scaleX: 1 + f.mouth * 0.06, scaleY: 1 + f.mouth * 1.35, rotation: 0 };
     case 'fx':
       return { x: 0, y: Math.sin(f.t * 2.2 + index) * 7, originX: ox, originY: oy, scaleX: 1, scaleY: 1, rotation: Math.sin(f.t * 1.7 + index) * 2 };
     default: {
