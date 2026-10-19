@@ -427,7 +427,8 @@ TIER1: list[tuple[str, str]] = [
     (r"^comte", "Comté"),
     (r"^feta", "Feta"),
     (r"^fromage de chevre", "Fromage de chèvre"),
-    (r"^creme (fraiche|epaisse|liquide)|^creme fraiche", "Crème fraîche"),
+    (r"^creme de lait, 30% mg", "Crème fraîche"),
+    (r"^creme de lait, 15 a 20% mg", "Crème fraîche légère"),
     (r"^boisson (vegetale )?(au|a base de) soja|^lait de soja", "Lait de soja"),
     # feculents
     (r"^riz (blanc|long|rond)|^riz, ", "Riz blanc"),
