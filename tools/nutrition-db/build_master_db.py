@@ -343,6 +343,7 @@ DRY_STAPLES = re.compile(r"^(lentille|pois chiche|haricot|feve|pois cass|riz|pat
 
 
 def etat_of(nm: str) -> str:
+    nm = re.sub(r"(ou |au |de )?lait cru|au lait pasteurise ou cru", " ", nm)  # « lait cru » ne veut pas dire aliment cru
     if re.search(r"\b(cru|crue|crus|crues)\b", nm):
         return "Cru"
     if DRY_STAPLES.search(nm) and re.search(r"\b(sec|seche|seches|secs)\b", nm) and not re.search(r"cuit|bouilli", nm):
@@ -374,14 +375,15 @@ T1_EXCLUDE = re.compile(
     r"puree|(semoule|riz|tapioca|flan) au lait|carbonara|fourre|praline|sirop|compote|\bjus\b|\bconfits?\b|pane\b|panee|cuisine|gratin|"
     r"salade (de|cesar|compos)|brioche|prepar|recette|biscuit|gateau|soupe|farci|nuggets|en poudre|lyophil|condense|"
     r"rayon frais|aromatise|sucre,|viennois|sauce|dessert|beignet|chips|croquette|vinaigre|melba|belle helene|givre|germe|"
-    r"au mouton|au poulet|aux legumes|variete locale|au fromage|a la creme|au beurre|saumure|rissol|marque|enrichi|pour bebe|"
-    r"infantile|sandwich|crepe|bolognaise|marinier|marine\b|au poisson|brebis|sur lit|aux fruits")
+    r"au mouton|au poulet|aux legumes|variete locale|au fromage|a la creme|au beurre|saumure|rissol|marque|pour bebe|"
+    r"infantile|sandwich|crepe|bolognaise|marinier|marine\b|au poisson|brebis|sur lit|aux fruits|provencale|fait maison")
 # Fruits : la version sechee n'est pas le fruit. Pour les legumineuses, cereales, dattes, etc. le « sec » est leur etat de base.
+EXCLUDE_BYPASS = {"Jus d'orange", "Jus de pomme", "Café", "Thé"}  # boissons courantes : le filtre « jus / boisson » ne s'applique pas
 DRIED = re.compile(r"\bsec\b|\bseche[es]*\b|\bsecs\b|deshydrat")
 DRIED_OK = {"Lentilles", "Pois chiches", "Haricots rouges", "Haricots blancs", "Riz blanc", "Riz complet", "Riz basmati", "Pâtes",
             "Pâtes complètes", "Semoule", "Boulgour", "Quinoa", "Flocons d'avoine", "Dattes", "Farine de blé", "Maïs", "Petits pois",
             "Biscottes", "Muesli", "Couscous", "Graines de chia", "Graines de lin", "Graines de tournesol", "Graines de courge"}
-PENALTY = re.compile(r"appertis|surgel|fume|prelevee|environ|sans gluten|aux oeufs|preemballe")  # fiches moins « de base »
+PENALTY = re.compile(r"appertis|surgel|fume|prelevee|environ|sans gluten|aux oeufs|preemballe|enrichi|aromatise")  # fiches moins « de base »
 
 # Niveau 1 : (regex sur nom normalise, nom affiche). Par regle et par etat, la fiche la plus simple est retenue.
 TIER1: list[tuple[str, str]] = [
@@ -425,12 +427,12 @@ TIER1: list[tuple[str, str]] = [
     (r"^comte", "Comté"),
     (r"^feta", "Feta"),
     (r"^fromage de chevre", "Fromage de chèvre"),
-    (r"^creme fraiche|^creme, .*(30|20|15|12)% ?mg", "Crème fraîche"),
+    (r"^creme (fraiche|epaisse|liquide)|^creme fraiche", "Crème fraîche"),
     (r"^boisson (vegetale )?(au|a base de) soja|^lait de soja", "Lait de soja"),
     # feculents
+    (r"^riz (blanc|long|rond)|^riz, ", "Riz blanc"),
     (r"^riz basmati", "Riz basmati"),
     (r"^riz complet", "Riz complet"),
-    (r"^riz (blanc|long|rond)|^riz, ", "Riz blanc"),
     (r"^pates.*completes?", "Pâtes complètes"),
     (r"^pates(?!.*(completes?|sans gluten|farcies|fraiches|aux oeufs))", "Pâtes"),
     (r"^semoule", "Semoule"),
@@ -480,6 +482,7 @@ TIER1: list[tuple[str, str]] = [
     (r"^miel", "Miel"), (r"^sucre (blanc|en poudre|roux)|^sucre, ", "Sucre"), (r"^confiture", "Confiture"),
     (r"^chocolat noir", "Chocolat noir"), (r"^chocolat au lait, tablette|^chocolat au lait$", "Chocolat au lait"), (r"^pate a tartiner", "Pâte à tartiner"),
     (r"^sirop d'erable", "Sirop d'érable"),
+    (r"^jus d'orange", "Jus d'orange"), (r"^jus de pomme", "Jus de pomme"), (r"^cafe", "Café"), (r"^the, |^the infusion", "Thé"),
 ]
 
 T2_GROUPS = ("fruits, legumes", "produits cerealiers", "viandes", "produits laitiers", "matieres grasses", "produits sucres")
@@ -595,7 +598,9 @@ def main() -> int:
     kept: dict = {}
     unmatched = []
     for rank, (pat, base) in enumerate(TIER1):
-        m = nm.str.contains(pat, regex=True) & (df["source"] == "Ciqual") & ~nm.str.contains(T1_EXCLUDE) & ~df["donnees_pauvres"]
+        m = nm.str.contains(pat, regex=True) & (df["source"] == "Ciqual") & ~df["donnees_pauvres"]
+        if base not in EXCLUDE_BYPASS:
+            m = m & ~nm.str.contains(T1_EXCLUDE)
         if base not in DRIED_OK:
             m = m & ~nm.str.contains(DRIED)
         if not m.any():
