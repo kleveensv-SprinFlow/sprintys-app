@@ -23,9 +23,9 @@ Conditions à jouer : nominal · champ vide · valeur absurde · annuler à mi-p
 | 13 | Calendrier : mois, jour vide, 2 séances, phases | 🟡 |
 | 14 | Ma progression : masquer, restaurer | 🟡 |
 | 15 | Sprinty : accueil et refus du consentement ✅ ; suggestions, question libre, graphique, PDF, Écouter, historique, quota 🟡 (consentement IA à accepter par l’utilisateur) |
-| 16 | Messages : coach, groupe, envoyer, signaler, bloquer | ⬜ |
+| 16 | Messages : écran sans coach ✅ ; envoi, signalement, blocage ⬜ (besoin d'un groupe : compte de démo avec coach à connecter) | 🟡 |
 | 17 | Profil : informations, photo, rappels, export, bloqués, suppression | 🟡 |
-| 18 | Abonnement Plus : paywall, restaurer les achats | ⬜ |
+| 18 | Abonnement Plus : paywall | ⬜ non atteignable : la facturation est désactivée côté serveur sur ce compte (à tester avec la facturation activée) |
 | 19 | Tutoriel : 10 étapes | ✅ |
 | 20 | Notifications | ⬜ |
 | 21 | Sans coach : plan Sprinty complet ⬜ (bloqué par le consentement IA) |
