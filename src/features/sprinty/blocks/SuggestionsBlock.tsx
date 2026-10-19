@@ -71,6 +71,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     minHeight: 44,
+    maxWidth: '100%',
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 22,
@@ -83,6 +84,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(15, 23, 42, 0.08)',
   },
   pillText: {
+    flexShrink: 1,
     fontSize: 14,
     fontWeight: '600',
     color: theme.colors.text,

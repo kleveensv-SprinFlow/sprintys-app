@@ -190,7 +190,7 @@ export function getTrainingVerdict(w: WeatherData, nowIso: string): string {
     return dry ? `Il pleut en ce moment. Accalmie prévue vers ${hourLabel(dry.time)}.` : 'Il pleut en ce moment et la pluie continue ce soir.';
   }
   const rain = ahead.find(isRainy);
-  if (rain) return `Pluie probable vers ${hourLabel(rain.time)} : mieux vaut s'entraîner avant.`;
+  if (rain) return `Pluie probable vers ${hourLabel(rain.time)}.`;
 
   if (w.windGust >= 45) return `Rafales jusqu'à ${w.windGust} km/h : le vent sera gênant sur la piste.`;
   if (w.feelsLike >= 30) return `Chaleur (ressenti ${w.feelsLike}°) : pense à boire et garde un échauffement progressif.`;

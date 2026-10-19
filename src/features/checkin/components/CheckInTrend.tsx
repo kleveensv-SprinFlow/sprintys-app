@@ -4,6 +4,7 @@ import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import { useTheme } from '../../../core/theme';
 import { glassCard } from '../../../core/glass';
 import type { CheckInData } from '../../../services/checkInService';
+import { hoursLabel } from '../hoursLabel';
 
 interface CheckInTrendProps {
   history: CheckInData[];
@@ -12,7 +13,7 @@ interface CheckInTrendProps {
   sleepGoal?: number;
 }
 
-const CHART_H = 64;
+const CHART_H = 84;
 const SLEEP_H = 40;
 
 const shift = (day: string, delta: number) => {
@@ -39,7 +40,18 @@ export const CheckInTrend = ({ history, today, days = 30, sleepGoal = 8 }: Check
   if (filled.length < 3) return null; // pas assez de points pour parler de tendance
 
   const step = w > 0 ? w / (days - 1) : 0;
-  const yForm = (v: number) => CHART_H - 4 - (Math.max(0, Math.min(100, v)) / 100) * (CHART_H - 8);
+  // Échelle ajustée aux valeurs (au moins 20 points d'écart) : une forme entre 75 et 100 ne doit pas ressembler à une ligne plate
+  const vals = filled.map((c) => c.health_score);
+  let lo = Math.min(...vals);
+  let hi = Math.max(...vals);
+  if (hi - lo < 20) {
+    const mid = (hi + lo) / 2;
+    lo = mid - 10;
+    hi = mid + 10;
+  }
+  lo = Math.max(0, lo - 4);
+  hi = Math.min(100, hi + 4);
+  const yForm = (v: number) => CHART_H - 4 - ((Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo || 1)) * (CHART_H - 8);
 
   // Courbe en segments : un trou (jour sans check-in) coupe la ligne
   let d = '';
@@ -62,7 +74,7 @@ export const CheckInTrend = ({ history, today, days = 30, sleepGoal = 8 }: Check
   const barW = Math.max(2, step * 0.55);
 
   const onLayout = (e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width);
-  const fmtH = (v: number) => `${Math.floor(v)}h${String(Math.round((v % 1) * 60)).padStart(2, '0')}`;
+  const fmtH = hoursLabel;
 
   return (
     <View style={[glassCard, styles.card]}>
@@ -73,7 +85,7 @@ export const CheckInTrend = ({ history, today, days = 30, sleepGoal = 8 }: Check
       <View onLayout={onLayout} accessible accessibilityLabel={`Forme moyenne ${avg} % sur ${filled.length} check-ins`}>
         {w > 0 && (
           <Svg width={w} height={CHART_H}>
-            {[25, 50, 75].map((g) => (
+            {[lo, (lo + hi) / 2, hi].map((g) => (
               <Line key={g} x1={0} x2={w} y1={yForm(g)} y2={yForm(g)} stroke={theme.colors.hairline} strokeWidth={1} />
             ))}
             <Path d={d} stroke={theme.colors.sprintyBlue} strokeWidth={2.2} fill="none" strokeLinejoin="round" strokeLinecap="round" />
@@ -89,7 +101,7 @@ export const CheckInTrend = ({ history, today, days = 30, sleepGoal = 8 }: Check
           <View style={[styles.head, styles.sleepHead]}>
             <Text style={[styles.title, { color: theme.colors.text }]}>Sommeil</Text>
             <Text style={[styles.meta, { color: theme.colors.textSecondary }]}>
-              moy. {fmtH(avgSleep)} · objectif {sleepGoal} h
+              moy. {fmtH(avgSleep)} · objectif {hoursLabel(sleepGoal)}
             </Text>
           </View>
           {w > 0 && (

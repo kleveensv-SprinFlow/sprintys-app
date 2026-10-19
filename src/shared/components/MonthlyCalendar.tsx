@@ -320,7 +320,8 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
 
   const formatShort = (iso: string) => {
     const d = new Date(iso);
-    return `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0, 4).toLowerCase()}.`;
+    const m = ['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'][d.getMonth()];
+    return `${d.getDate()} ${m}${m.length <= 4 && !['avr', 'oct', 'nov', 'déc'].includes(m) ? '' : '.'}`;
   };
 
   const headerBarOpacity = scrollY.interpolate({ inputRange: [0, 16], outputRange: [0, 1], extrapolate: 'clamp' });

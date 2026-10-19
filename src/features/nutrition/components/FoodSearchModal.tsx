@@ -662,6 +662,7 @@ export const FoodSearchModal: React.FC = () => {
                 <Text style={{ color: '#FFF', marginLeft: 8, fontWeight: 'bold' }}>Annuler</Text>
               </TouchableOpacity>
               <View style={styles.scanTarget} />
+              <Text style={{ color: '#FFF', textAlign: 'center', marginTop: 16, fontWeight: '600' }}>Place le code-barres dans le cadre</Text>
             </View>
           </View>
         ) : mode === 'ai-loading' ? (

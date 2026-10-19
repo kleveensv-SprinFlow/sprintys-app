@@ -80,7 +80,6 @@ const SOLO_STARTERS: Starter[] = [
 
 const COACHED_STARTERS: Starter[] = [
   { icon: 'bar-chart-2', label: 'Mon bilan de la semaine', hint: 'Séances, nutrition, sommeil, poids', prompt: 'Fais mon bilan de la semaine.', pro: 'weekly_report' },
-  { icon: 'activity', label: 'Analyse ma semaine', hint: 'Séances, forme, sommeil', prompt: "Analyse ma semaine d'entraînement et ma forme." },
   { icon: 'trending-up', label: 'Mes chronos progressent ?', hint: 'Résultats et records', prompt: 'Est-ce que mes chronos progressent ? Montre-moi.' },
   { icon: 'coffee', label: 'Que manger avant ma séance ?', hint: 'Nutrition autour de l’effort', prompt: 'Que devrais-je manger avant ma prochaine séance ?' },
   { icon: 'moon', label: 'Une séance de récupération', hint: 'Mobilité, étirements, respiration', prompt: 'Propose-moi une séance de mobilité pour demain.' },
@@ -430,7 +429,7 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
             ref={scrollRef}
             style={{ flex: 1 }}
             contentContainerStyle={styles.chatContent}
-            onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+            onContentSizeChange={() => { if (hasExchange || isTyping) scrollRef.current?.scrollToEnd({ animated: true }); }}
             showsVerticalScrollIndicator={false}
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
@@ -438,7 +437,7 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
             {!hasExchange && !isTyping && !athleteCtx && (
               <View style={styles.hero}>
                 <View style={styles.heroAvatar}>
-                  <SprintyAvatar size={168} mood={mood} interactive />
+                  <SprintyAvatar size={140} mood={mood} interactive />
                 </View>
                 <Text style={styles.heroTitle}>{firstName ? `Salut ${firstName} !` : 'Salut !'}</Text>
                 <Text style={styles.heroSub}>{intro}</Text>
@@ -738,7 +737,7 @@ const styles = StyleSheet.create({
   bannerClose: { width: 30, height: 30, borderRadius: 15, backgroundColor: theme.colors.glassFill, alignItems: 'center', justifyContent: 'center' },
 
   chatContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
-  hero: { marginTop: 20, marginBottom: 24, paddingHorizontal: 4 },
+  hero: { marginTop: 36, marginBottom: 24, paddingHorizontal: 4 },
   heroTitle: { fontSize: 28, fontWeight: '800', color: theme.colors.text, letterSpacing: -0.6, marginBottom: 8, textAlign: 'center' },
   heroSub: { fontSize: 15, color: theme.colors.textSecondary, marginBottom: 20, lineHeight: 21, textAlign: 'center' },
   starters: { gap: 10 },

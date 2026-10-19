@@ -50,7 +50,7 @@ const Lane = ({
       <View style={styles.laneHead}>
         {/* Lane number, like the numbers painted on a track */}
         <View style={[styles.laneNumber, compact && styles.laneNumberCompact, { backgroundColor: tint }]}>
-          <Text style={[styles.laneNumberText, { color }]}>{index + 1}</Text>
+          <Text style={[styles.laneNumberText, { color }]}>{label.charAt(0)}</Text>
         </View>
         <Text style={[styles.label, compact && styles.labelCompact, { color: theme.colors.text }]}>{label}</Text>
         <Text style={[styles.value, compact && styles.valueCompact, { color: isOver ? ENERGY.over : theme.colors.text }]}>

@@ -287,7 +287,7 @@ export const WeatherCard = () => {
                   <Text style={styles.metricValue}>
                     {weather.windSpeed} <Text style={styles.metricUnit}>km/h</Text>
                   </Text>
-                  <Text style={styles.metricSub} numberOfLines={1}>{`Rafales ${weather.windGust}`}</Text>
+                  <Text style={styles.metricSub} numberOfLines={1}>{`Rafales ${weather.windGust} km/h`}</Text>
                 </View>
 
                 <View style={styles.modalMetricCard}>

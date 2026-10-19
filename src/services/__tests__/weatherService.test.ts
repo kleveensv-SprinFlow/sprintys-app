@@ -125,7 +125,7 @@ describe('phrase du jour', () => {
   });
   it('annonce la pluie à venir avec l’heure', () => {
     const w = parse(payload({ over: { 17: { prob: 80 }, 18: { prob: 80 } } }));
-    expect(getTrainingVerdict(w, NOW)).toBe("Pluie probable vers 17 h : mieux vaut s'entraîner avant.");
+    expect(getTrainingVerdict(w, NOW)).toBe("Pluie probable vers 17 h.");
   });
   it('signale la pluie en cours et l’accalmie', () => {
     const w = parse(payload({ cur: { precipitation: 1 }, over: { 14: { precip: 1, prob: 90 }, 15: { prob: 80 } } }));
