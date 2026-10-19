@@ -105,7 +105,8 @@ export default function BodyCompositionScreen() {
   }, [metrics, metricKey, range]);
 
   const raw = series.map((p) => p.v);
-  const smooth = series.length >= 4 ? movingAverage(series) : raw;
+  // Peu de pesées : la courbe relie les vraies mesures (une moyenne glissante sur 4 points ne veut rien dire)
+  const smooth = series.length >= 10 ? movingAverage(series) : raw;
   const shownIndex = scrub != null && series[scrub] ? scrub : series.length - 1;
   const shown = series[shownIndex];
   const latest = series[series.length - 1];
@@ -240,7 +241,10 @@ export default function BodyCompositionScreen() {
     }
   };
 
-  const history = [...metrics].reverse();
+  const history = [...metrics].reverse().filter((m) => {
+    const v = valueOf(m, metricKey);
+    return v != null && !Number.isNaN(v);
+  });
   const metricOptions: { key: MetricKey; label: string }[] = [
     { key: 'weight', label: 'Poids' },
     ...(hasFat ? [{ key: 'fat' as MetricKey, label: 'Gras' }] : []),
@@ -365,11 +369,12 @@ export default function BodyCompositionScreen() {
                     style={[styles.row, { borderColor: theme.colors.hairline }, i === history.length - 1 && { borderBottomWidth: 0 }]}
                   >
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.rowValue, { color: theme.colors.text }]}>{formatKg(m.weight)} kg</Text>
+                      <Text style={[styles.rowValue, { color: theme.colors.text }]}>{formatKg(valueOf(m, metricKey) as number)} {unit}</Text>
                       <Text style={[styles.rowDate, { color: theme.colors.textMuted }]}>
                         {label}
-                        {m.body_fat != null ? `  ·  MG ${formatKg(Number(m.body_fat))} %` : ''}
-                        {m.muscle_mass_kg != null ? `  ·  Muscle ${formatKg(Number(m.muscle_mass_kg))} kg` : ''}
+                        {metricKey !== 'weight' && m.weight != null ? `  ·  ${formatKg(m.weight)} kg` : ''}
+                        {metricKey !== 'fat' && m.body_fat != null ? `  ·  MG ${formatKg(Number(m.body_fat))} %` : ''}
+                        {metricKey !== 'muscle' && m.muscle_mass_kg != null ? `  ·  Muscle ${formatKg(Number(m.muscle_mass_kg))} kg` : ''}
                       </Text>
                     </View>
                     <Feather name="chevron-right" size={16} color={theme.colors.textMuted} />

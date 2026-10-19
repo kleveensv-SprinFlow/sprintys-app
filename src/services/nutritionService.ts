@@ -76,6 +76,15 @@ async function rowsForToken(token: string, queryTokens: string[]): Promise<Ciqua
   return rows;
 }
 
+/** Variantes rares (exotiques, bébé, séchées) : jamais devant la version courante du même aliment. */
+const RARE_VARIANT = /plantain|nectar|bébé|petit pot|prélevé|séch|sèche|lyophilis/i;
+/** Fiches Ciqual sans aucune valeur (hors eaux et boissons sans calories) : à ne pas proposer. */
+const ZERO_OK = /(^|\s)(eau|boisson|thé|café|infusion|bouillon|sel|vinaigre|édulcor)/i;
+function hasNoValues(item: CiqualFood): boolean {
+  const all = [item.energie_kcal, item.proteines, item.glucides, item.lipides].map((v) => Number(v) || 0);
+  return all.every((v) => v === 0) && !ZERO_OK.test(item.nom);
+}
+
 async function searchCiqual(rawQ: string): Promise<HybridFoodResult[]> {
   const tokens = searchTokens(rawQ);
   if (tokens.length === 0) return [];
@@ -98,7 +107,7 @@ async function searchCiqual(rawQ: string): Promise<HybridFoodResult[]> {
 
   const ranked = rows
     .map((item) => ({ item, score: matchScore(tokens, item.nom, item.etat || '') }))
-    .filter((row) => row.score > 0);
+    .filter((row) => row.score > 0 && !hasNoValues(row.item));
 
   const askedState = tokens.some((token) => isStateToken(token));
   const bestByDish = new Map<string, { item: CiqualFood; score: number }>();
@@ -115,6 +124,9 @@ async function searchCiqual(rawQ: string): Promise<HybridFoodResult[]> {
 
   return [...bestByDish.values()]
     .sort((a, b) => {
+      const aRare = RARE_VARIANT.test(a.item.nom) && !tokens.some((t) => RARE_VARIANT.test(t)) ? 1 : 0;
+      const bRare = RARE_VARIANT.test(b.item.nom) && !tokens.some((t) => RARE_VARIANT.test(t)) ? 1 : 0;
+      if (aRare !== bRare) return aRare - bRare;
       if (!askedState) {
         const aCooked = foodStateLabel(a.item.nom, a.item.etat || '') === 'cuit' ? 1 : 0;
         const bCooked = foodStateLabel(b.item.nom, b.item.etat || '') === 'cuit' ? 1 : 0;

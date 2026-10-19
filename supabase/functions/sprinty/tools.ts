@@ -709,12 +709,14 @@ async function execute(ctx: Ctx, name: string, a: any): Promise<ToolResult> {
       const isRest = (r: any) => /repos/i.test(r.type ?? '');
       const past = rows.filter((r: any) => r.date < ctx.today && !isRest(r));
       const todayRows = rows.filter((r: any) => r.date === ctx.today);
-      const upcoming = rows.filter((r: any) => r.date > ctx.today);
+      const upcoming = rows.filter((r: any) => r.date > ctx.today && !isRest(r));
+      const next = upcoming[0] ?? null;
       return {
         content: {
           athlete: who.name,
           aujourdhui_date: ctx.today,
-          note: "« Résultats saisis » = l'athlète a validé la séance et noté ses résultats ; une séance sans résultats saisis n'est PAS forcément une séance non faite. Les séances d'aujourd'hui et à venir ne sont jamais « manquées ».",
+          prochaine_seance: next ? { date: next.date, type: next.type, titre: next.titre } : "aucune séance programmée à venir (un jour de repos n'est pas une séance)",
+          note: "Un « Repos » n'est PAS une séance : ne dis jamais que la prochaine séance est un jour de repos, utilise prochaine_seance. « Résultats saisis » = l'athlète a validé la séance et noté ses résultats ; une séance sans résultats saisis n'est PAS forcément une séance non faite. Les séances d'aujourd'hui et à venir ne sont jamais « manquées ».",
           passees: { nombre: past.length, avec_resultats_saisis: past.filter((r: any) => r.resultats_saisis).length, sans_resultats_saisis: past.filter((r: any) => !r.resultats_saisis).length },
           aujourdhui: todayRows,
           a_venir: upcoming.length,

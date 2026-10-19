@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, TextInput, Image, KeyboardAvoidingView, Platform, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, StyleSheet, Modal, TextInput, Image, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, ScrollView } from 'react-native';
 import { TouchableOpacity } from '../../../shared/components/Tappable';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../../core/theme';
@@ -183,6 +183,8 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
             <View style={[styles.handle, { backgroundColor: theme.colors.border }]} />
           </View>
 
+          {/* Le clavier réduit la place : le contenu défile au lieu de sortir de l'écran (nom et croix restent visibles) */}
+          <ScrollView style={styles.bodyScroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} bounces={false}>
           {/* En-tête : Détail de l'aliment */}
           <View style={styles.productHeader}>
             {product.image_url ? (
@@ -270,7 +272,7 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
                     ]}
                   >
                     <Text style={[styles.presetText, { color: isSelected ? '#FFFFFF' : theme.colors.textSecondary }]}>
-                      {unit === 'piece' ? `${preset} ${portionInfo?.pieceLabel || 'pce'}` : `${preset} ${unit}`}
+                      {unit === 'piece' ? `${preset} ${pluralLabel(portionInfo?.pieceLabel || 'pce', Number(preset))}` : `${preset} ${unit}`}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -325,11 +327,15 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
               <Text style={styles.submitText}>Ajouter</Text>
             </PressableScale>
           </View>
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </Modal>
   );
 };
+
+/** "2 œuf" -> "2 œufs" (les abréviations comme pce restent telles quelles). */
+const pluralLabel = (label: string, n: number) => (n > 1 && label !== "pce" && !/[sxz]$/i.test(label) ? `${label}s` : label);
 
 const styles = StyleSheet.create({
   modalContainer: {
@@ -340,7 +346,11 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
+  bodyScroll: {
+    flexGrow: 0,
+  },
   sheetContent: {
+    maxHeight: '100%',
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     paddingHorizontal: 24,

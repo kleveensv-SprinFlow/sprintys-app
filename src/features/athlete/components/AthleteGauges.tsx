@@ -165,7 +165,8 @@ export const AthleteGauges = ({ refreshKey = 0 }: { refreshKey?: number }) => {
   const handleEditCheckIn = () => {
     if (!user?.id) return;
     editTodayCheckIn(user.id);
-    setModalVisible(true);
+    // Android : deux Modal qui se ferment/s'ouvrent dans le même tick donnent une étape vide
+    setTimeout(() => setModalVisible(true), 450);
   };
 
   const handleNutritionPress = () => {

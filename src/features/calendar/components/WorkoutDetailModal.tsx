@@ -1085,7 +1085,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                       {/* Column headers for athlete mode */}
                       {needsDataEntry && (exercise.sets || []).length > 0 && (
                         <View style={styles.athleteSetHeader}>
-                          <Text style={[styles.athleteHeaderText, { width: 32 }]}>Série</Text>
+                          <Text style={[styles.athleteHeaderText, { width: 32 }]}>N°</Text>
                           <Text style={[styles.athleteHeaderText, { flex: 1 }]}>Objectif</Text>
                           {sessionCategory === 'muscu' && (
                             <Text style={[styles.athleteHeaderText, { width: 90 }]}>Charge</Text>
@@ -1176,7 +1176,9 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                                   } else if (sessionCategory === 'course') {
                                     const k = courseKey((set as any).distance, workout?.type_seance);
                                     const p = k ? prev.course[k] : null;
-                                    if (p) hint = `Dernier ${formatSeconds(p.last_ms / 1000)}${p.best_ms < p.last_ms ? ` · record ${formatSeconds(p.best_ms / 1000)}` : ''}`;
+                                    const prevSet = setIndex > 0 ? (exercise.sets || [])[setIndex - 1] as any : null;
+                                    const sameAsPrev = !!prevSet && courseKey(prevSet.distance, workout?.type_seance) === k;
+                                    if (p && !sameAsPrev) hint = `Dernier ${formatSeconds(p.last_ms / 1000)}${p.best_ms < p.last_ms ? ` · record ${formatSeconds(p.best_ms / 1000)}` : ''}`;
                                   }
                                   return hint ? <Text style={styles.prevHint} numberOfLines={1}>{hint}</Text> : null;
                                 })()}
@@ -1236,7 +1238,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                                     styles.athleteValueButtonText,
                                     data.chrono ? styles.athleteValueFilledText : styles.athleteValuePlaceholder,
                                   ]}>
-                                    {data.chrono ? `${data.chrono} ${(set.distance || 0) >= 800 ? 'min' : 's'}` : canEdit ? 'Chrono' : '—'}
+                                    {data.chrono ? `${String(data.chrono).replace(".", ",")} ${(set.distance || 0) >= 800 ? 'min' : 's'}` : canEdit ? 'Chrono' : '—'}
                                   </Text>
                                 </PressableScale>
                               )}
