@@ -128,7 +128,7 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
     let cancelled = false;
     supabase
       .from('body_metrics')
-      .select('body_fat')
+      .select('body_fat, weight')
       .eq('athlete_id', user.id)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -137,6 +137,9 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
         if (cancelled) return;
         const fat = data?.body_fat;
         setBodyFatPct(typeof fat === 'number' && fat > 0 ? fat : null);
+        // Dernière pesée : le poids actuel ne reste pas vide quand l'athlète s'est déjà pesé
+        const last = Number(data?.weight);
+        if (!user.startWeight && Number.isFinite(last) && last > 0) setStartWeight((cur) => cur || String(last).replace('.', ','));
       });
     return () => {
       cancelled = true;
@@ -157,7 +160,7 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
   const parsedWeekly = showPace ? parseFloat(weeklyGoal) : 0;
   const isWeeklyValid = !showPace || (!isNaN(parsedWeekly) && parsedWeekly > 0 && parsedWeekly <= 1);
   const parsedKcal = parseInt(kcalGoal, 10);
-  const isKcalValid = !isNaN(parsedKcal) && parsedKcal >= 800;
+  const isKcalValid = !isNaN(parsedKcal) && parsedKcal >= 800 && parsedKcal <= 6000;
   const isFormValid = totalDist === 100 && isWeeklyValid && (isMinor || isKcalValid);
   const totalKcal = parseInt(kcalGoal, 10) || 0;
 
@@ -218,7 +221,14 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
       return;
     }
     if (!isMinor && !isKcalValid) {
-      appAlert('Calories', 'Indique un objectif calorique valide (au moins 800 kcal).');
+      appAlert('Calories', 'Indique un objectif calorique entre 800 et 6 000 kcal.');
+      return;
+    }
+
+    const wStart = parseFloat(startWeight.replace(',', '.'));
+    const wTarget = parseFloat(targetWeight.replace(',', '.'));
+    if ((Number.isFinite(wStart) && (wStart < 30 || wStart > 250)) || (Number.isFinite(wTarget) && (wTarget < 30 || wTarget > 250))) {
+      appAlert('Poids', 'Indique des poids entre 30 et 250 kg.');
       return;
     }
 
