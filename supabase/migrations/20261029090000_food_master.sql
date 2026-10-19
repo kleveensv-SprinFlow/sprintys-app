@@ -60,7 +60,8 @@ create table if not exists public.food_master (
   vitamine_e_mg numeric not null default 0,
   vitamine_k1_ug numeric not null default 0,
   micros_manquants integer not null default 0,
-  alerte_coherence boolean not null default false
+  alerte_coherence boolean not null default false,
+  donnees_pauvres boolean not null default false
 );
 
 alter table public.food_master enable row level security;

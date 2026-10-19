@@ -586,12 +586,16 @@ def main() -> int:
     df["display_name"] = [nice_name(a, b) for a, b in zip(df["nom_origine"], df["etat"])]
     if "_display" in df.columns:
         df["display_name"] = [d if pd.isna(o) else o for d, o in zip(df["display_name"], df["_display"])]
+    # Fiches presque vides (ex. 4,8 kcal, aucun micronutriment) : jamais « aliment de base », rangees au niveau 3
+    poor = ((df["proteines_g"] + df["glucides_g"] + df["lipides_g"] + df["fibres_g"] < 2.5) & (df["kcal"] < 12)
+            & ~df["groupe"].map(norm).str.contains("boissons"))
+    df["donnees_pauvres"] = poor
     df["search_priority"] = 0
     df["popularite"] = 999
     kept: dict = {}
     unmatched = []
     for rank, (pat, base) in enumerate(TIER1):
-        m = nm.str.contains(pat, regex=True) & (df["source"] == "Ciqual") & ~nm.str.contains(T1_EXCLUDE)
+        m = nm.str.contains(pat, regex=True) & (df["source"] == "Ciqual") & ~nm.str.contains(T1_EXCLUDE) & ~df["donnees_pauvres"]
         if base not in DRIED_OK:
             m = m & ~nm.str.contains(DRIED)
         if not m.any():
@@ -619,7 +623,7 @@ def main() -> int:
     grp = df["groupe"].map(norm)
     ncomma = df["nom_origine"].str.count(",")
     for i in df.index[df["search_priority"] == 0]:
-        t3 = (any(g in grp[i] for g in T3_GROUPS) or TIER3_NAME.search(nm[i]) is not None or ncomma[i] >= 4
+        t3 = (df.at[i, "donnees_pauvres"] or any(g in grp[i] for g in T3_GROUPS) or TIER3_NAME.search(nm[i]) is not None or ncomma[i] >= 4
               or not any(g in grp[i] for g in T2_GROUPS))
         df.at[i, "search_priority"] = 3 if t3 else 2
     df["search_tags"] = [make_tags(d, o, s) for d, o, s in zip(df["display_name"], df["nom_origine"], df["sous_groupe"])]
@@ -632,7 +636,7 @@ def main() -> int:
     print("5/5 Excel")
     front = ["id", "source", "source_id", "nom_origine", "display_name", "search_tags", "search_priority", "popularite", "groupe", "sous_groupe",
              "etat", "facteur_cuisson", "facteur_source", "unite_label", "poids_moyen_g", "portion_source"]
-    cols = front + MACROS + ["kcal_source", "eau_g"] + MICROS + ["micros_manquants", "alerte_coherence"]
+    cols = front + MACROS + ["kcal_source", "eau_g"] + MICROS + ["micros_manquants", "alerte_coherence", "donnees_pauvres"]
     out = df[cols].sort_values(["search_priority", "popularite", "display_name"]).reset_index(drop=True)
     for c in MACROS + ["eau_g"] + MICROS + ["poids_moyen_g"]:
         out[c] = out[c].astype(float)
