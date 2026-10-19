@@ -103,6 +103,7 @@ function SprintyAvatarBase({ size = 96, mood = 'neutral', animated = true, inter
     if (!animated || !active) return;
     let raf = 0;
     let last = Date.now();
+    let lastFrame: ReturnType<typeof rig.step> | null = null;
     const loop = () => {
       raf = requestAnimationFrame(loop);
       const now = Date.now();
@@ -110,10 +111,15 @@ function SprintyAvatarBase({ size = 96, mood = 'neutral', animated = true, inter
       const dt = (now - last) / 1000;
       last = now;
       const f = rig.step(dt, { mood: moodRef.current, look: look.current, reduced, moodAge: (now - moodAt.current) / 1000, talking: talkingRef.current });
+      lastFrame = f;
       applyFrame(targets.current.values(), f, moodRef.current === 'sleep');
     };
     raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      // Animation interrompue (app en arrière-plan, écran masqué) en plein clignement : on rouvre les yeux
+      if (lastFrame && lastFrame.lid < 1) applyFrame(targets.current.values(), { ...lastFrame, lid: 1 }, false);
+    };
   }, [animated, active, reduced, rig]);
 
   const onTouch = (e: any) => {
