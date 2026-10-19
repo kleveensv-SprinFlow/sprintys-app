@@ -45,7 +45,7 @@ export const AuthScreen: React.FC<{ initialTab?: Tab }> = ({ initialTab = 'login
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.hero}>
-              <SprintyAvatar size={120} mood="success" interactive />
+              <SprintyAvatar size={96} mood="success" interactive />
               <SprintyLogo width={170} height={44} />
               <Text style={styles.tagline}>L’athlétisme, de la séance à la performance</Text>
             </View>
@@ -97,11 +97,11 @@ export const AuthScreen: React.FC<{ initialTab?: Tab }> = ({ initialTab = 'login
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.backdrop },
-  content: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 40 },
-  hero: { alignItems: 'center', marginBottom: 22, marginTop: 8, gap: 10 },
+  content: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 40 },
+  hero: { alignItems: 'center', marginBottom: 14, marginTop: 4, gap: 6 },
   tagline: { fontSize: 15, fontWeight: '600', color: theme.colors.textSecondary, letterSpacing: -0.2 },
   switcher: { marginBottom: 14 },
-  card: { paddingHorizontal: 20, paddingVertical: 22, marginBottom: 18 },
+  card: { paddingHorizontal: 20, paddingVertical: 18, marginBottom: 18 },
   footer: { textAlign: 'center', fontSize: 13, color: theme.colors.textMuted },
   footerLink: { color: theme.colors.textSecondary, fontWeight: '600' },
 });

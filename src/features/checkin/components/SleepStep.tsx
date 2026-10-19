@@ -12,6 +12,7 @@ import { Button } from '../../../shared/components/Button';
 import { BottomSheet } from '../../../shared/components/BottomSheet';
 import { ScaleCard, ScaleOption } from './ScaleChips';
 import { StepFooter } from './StepFooter';
+import { hoursLabel } from '../hoursLabel';
 
 interface SleepStepProps {
   onNext: () => void;
@@ -206,20 +207,22 @@ export const SleepStep = ({ onNext, quick }: SleepStepProps) => {
         </View>
 
         <View style={[glassCard, styles.resultCard]}>
-          <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Durée du sommeil</Text>
-          <Text style={[styles.resultValue, { color: durationColor }]}>
-            {duration ? `${duration.hours}h ${duration.minutes > 0 ? `${duration.minutes}m` : ''}` : '—'}
-          </Text>
+          <View>
+            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Durée du sommeil</Text>
+            <Text style={[styles.resultValue, { color: durationColor }]}>
+              {duration ? `${duration.hours} h${duration.minutes > 0 ? ` ${String(duration.minutes).padStart(2, '0')}` : ''}` : '—'}
+            </Text>
+          </View>
           <PressableScale
             haptic="selection"
             onPress={openGoal}
             style={[styles.goalChip, { backgroundColor: theme.colors.glassFill }]}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel={`Objectif de sommeil : ${sleepGoal} heures. Modifier`}
+            accessibilityLabel={`Objectif de sommeil : ${hoursLabel(sleepGoal)}. Modifier`}
           >
             <Feather name="target" size={13} color={theme.colors.textSecondary} />
-            <Text style={[styles.goalText, { color: theme.colors.textSecondary }]}>Objectif : {sleepGoal}h</Text>
+            <Text style={[styles.goalText, { color: theme.colors.textSecondary }]}>Objectif : {hoursLabel(sleepGoal)}</Text>
             <Feather name="edit-2" size={12} color={theme.colors.textMuted} />
           </PressableScale>
         </View>
@@ -313,22 +316,22 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 16 },
   title: { fontSize: 26, fontWeight: '800', letterSpacing: -0.6, marginBottom: 4 },
-  subtitle: { fontSize: 15, lineHeight: 21, marginBottom: 20 },
+  subtitle: { fontSize: 15, lineHeight: 21, marginBottom: 14 },
 
   inputContainer: { flexDirection: 'row', marginBottom: 14, gap: 12 },
   timeBlock: { flex: 1 },
-  timeCard: { alignItems: 'center', paddingVertical: 18 },
+  timeCard: { alignItems: 'center', paddingVertical: 14 },
   timeIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
   label: { fontSize: 12, fontWeight: '700', letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 4 },
   timeText: { fontSize: 28, fontWeight: '800', letterSpacing: -0.6, fontVariant: ['tabular-nums'] },
 
-  resultCard: { alignItems: 'center', paddingVertical: 20, marginBottom: 14 },
+  // Durée à gauche, objectif à droite : la carte tient sur une ligne et la qualité du sommeil reste visible sans défiler
+  resultCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 18, marginBottom: 14 },
   resultValue: { fontSize: 36, fontWeight: '800', letterSpacing: -0.8, fontVariant: ['tabular-nums'] },
   goalChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 10,
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 12,

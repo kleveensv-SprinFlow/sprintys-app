@@ -182,13 +182,21 @@ async function runAgent(ctx: Ctx, apiKey: string, history: any[]) {
   let model = MODEL_FAST;
   let upgraded = false;
   let tokens = 0;
+  let suggested = false;
+  let finalText = '';
+  let endedNaturally = false;
 
   for (let round = 0; round < MAX_ROUNDS; round++) {
     const last = round === MAX_ROUNDS - 1;
     const { text, calls, usage } = await callModel(apiKey, model, messages, tools, last, ctx, upgraded ? 16000 : 1800);
     tokens += usage;
+    if (calls.some((c) => c.name === 'suggest_followups')) suggested = true;
 
-    if (!calls.length) break;
+    if (!calls.length) {
+      finalText = text;
+      endedNaturally = true;
+      break;
+    }
 
     // Plans and sessions deserve the more capable model: redo this round with it
     if (!upgraded && model !== MODEL_SMART && calls.some((c) => HEAVY_TOOLS.has(c.name))) {
@@ -234,9 +242,54 @@ async function runAgent(ctx: Ctx, apiKey: string, history: any[]) {
     }
   }
 
+  // Le modèle oublie parfois les relances : on les demande alors par un appel court et forcé
+  if (endedNaturally && !suggested && finalText.trim().length > 20) {
+    const extra = await forceFollowups(apiKey, finalText, ctx);
+    tokens += extra;
+  }
+
   if (tokens > 0) {
     const { error } = await ctx.supabase.rpc('add_ai_tokens', { p_tokens: tokens });
     if (error) console.error('add_ai_tokens failed', error.message);
+  }
+}
+
+/** Relances de secours : 2 ou 3 questions courtes, rédigées à la place de l'utilisateur. Renvoie les tokens utilisés. */
+async function forceFollowups(apiKey: string, answer: string, ctx: Ctx): Promise<number> {
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: MODEL_FAST,
+        temperature: 0.4,
+        max_tokens: 120,
+        messages: [
+          { role: 'system', content: "Tu écris 2 ou 3 relances que l'utilisateur pourrait taper après la réponse de l'assistant sportif ci-dessous : très courtes (8 mots maximum), en tutoyant, utiles et différentes. Aucune donnée médicale, aucun emoji." },
+          { role: 'user', content: clip(answer, 1500) },
+        ],
+        tools: [{
+          type: 'function',
+          function: {
+            name: 'suggest_followups',
+            parameters: { type: 'object', properties: { items: { type: 'array', items: { type: 'string' }, minItems: 2, maxItems: 3 } }, required: ['items'] },
+          },
+        }],
+        tool_choice: { type: 'function', function: { name: 'suggest_followups' } },
+      }),
+    });
+    if (!res.ok) return 0;
+    const data = await res.json();
+    const args = data?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+    const items = (JSON.parse(args ?? '{}')?.items ?? [])
+      .map((x: unknown) => clip(String(x ?? '').trim(), 80))
+      .filter(Boolean)
+      .slice(0, 3);
+    if (items.length >= 2) ctx.emit({ ui: { type: 'suggestions', items } });
+    return Number(data?.usage?.total_tokens) || 0;
+  } catch (e) {
+    console.warn('followups fallback failed', e);
+    return 0;
   }
 }
 

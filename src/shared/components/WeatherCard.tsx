@@ -216,6 +216,10 @@ export const WeatherCard = () => {
   const wet = isTrackWet(weather, nowIso);
   const rainChance = rainChanceNext(weather, nowIso, 3);
   const verdict = getTrainingVerdict(weather, nowIso);
+  // Échelle commune des 7 jours : la barre montre où se place la journée par rapport à la semaine
+  const weekMin = Math.min(...(weather.daily ?? []).map((x) => x.tempMin));
+  const weekMax = Math.max(...(weather.daily ?? []).map((x) => x.tempMax));
+  const weekSpan = Math.max(1, weekMax - weekMin);
 
   return (
     <>
@@ -240,7 +244,7 @@ export const WeatherCard = () => {
               <Text style={styles.location} numberOfLines={1}>
                 {weather.conditionLabel || 'Dégagé'}
               </Text>
-              <Text style={[styles.statText, { marginTop: 2 }]} numberOfLines={1}>
+              <Text style={[styles.statText, { marginTop: 2 }]} numberOfLines={2}>
                 {`Ressenti ${weather.feelsLike}° · Vent ${weather.windSpeed} km/h · ${wet ? 'piste humide' : 'piste sèche'}`}
               </Text>
             </View>
@@ -283,7 +287,7 @@ export const WeatherCard = () => {
                   <Text style={styles.metricValue}>
                     {weather.windSpeed} <Text style={styles.metricUnit}>km/h</Text>
                   </Text>
-                  <Text style={styles.metricSub}>{`Rafales ${weather.windGust} km/h`}</Text>
+                  <Text style={styles.metricSub} numberOfLines={1}>{`Rafales ${weather.windGust}`}</Text>
                 </View>
 
                 <View style={styles.modalMetricCard}>
@@ -293,7 +297,15 @@ export const WeatherCard = () => {
                   <Text style={styles.metricValue}>
                     {rainChance} <Text style={styles.metricUnit}>%</Text>
                   </Text>
-                  <Text style={styles.metricSub}>{wet ? 'Piste humide' : 'Pluie dans 3 h'}</Text>
+                  <Text style={styles.metricSub} numberOfLines={1}>Pluie d’ici 3 h</Text>
+                </View>
+
+                <View style={styles.modalMetricCard}>
+                  <View style={styles.metricIconWrap}>
+                    <Feather name="activity" size={16} color={wet ? WEATHER_TINT : '#10B981'} />
+                  </View>
+                  <Text style={styles.metricValue}>{wet ? 'Humide' : 'Sèche'}</Text>
+                  <Text style={styles.metricSub} numberOfLines={1}>Piste</Text>
                 </View>
 
                 <View style={styles.modalMetricCard}>
@@ -357,7 +369,9 @@ export const WeatherCard = () => {
                     <Text style={styles.dailyRain}>{d.rainChance >= 30 ? `${d.rainChance}%` : ''}</Text>
                     <View style={styles.dailyTemps}>
                       <Text style={styles.dailyMin}>{d.tempMin}°</Text>
-                      <View style={styles.dailyBar} />
+                      <View style={styles.dailyBar}>
+                        <View style={[styles.dailyBarFill, { left: `${((d.tempMin - weekMin) / weekSpan) * 100}%`, width: `${Math.max(8, ((d.tempMax - d.tempMin) / weekSpan) * 100)}%` }]} />
+                      </View>
                       <Text style={styles.dailyMax}>{d.tempMax}°</Text>
                     </View>
                   </PressableScale>
@@ -547,11 +561,13 @@ const styles = StyleSheet.create({
   },
   modalStatsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
     marginBottom: 24,
   },
   modalMetricCard: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '45%',
     backgroundColor: theme.colors.glassFill,
     borderRadius: 18,
     borderCurve: 'continuous',
@@ -667,9 +683,17 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
   dailyBar: {
-    height: 4,
-    width: 30,
+    height: 5,
+    width: 56,
     backgroundColor: theme.colors.hairline,
-    borderRadius: 2,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  dailyBarFill: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    borderRadius: 3,
+    backgroundColor: WEATHER_TINT,
   },
 });

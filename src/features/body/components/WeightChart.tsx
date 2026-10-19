@@ -6,16 +6,24 @@ export type TrendPoint = { t: number; v: number };
 
 const pad = 8;
 
-function rangeOf(values: number[], target?: number | null) {
+/** Une variation d'un demi-kilo ne doit pas ressembler à une chute : l'axe couvre au moins 1,6 kg. */
+export const MIN_WEIGHT_SPAN = 1.6;
+
+export function rangeOf(values: number[], target?: number | null) {
   const all = target != null && !Number.isNaN(target) ? [...values, target] : values;
-  const min = Math.min(...all);
-  const max = Math.max(...all);
-  const span = max - min || 1;
+  let min = Math.min(...all);
+  let max = Math.max(...all);
+  if (max - min < MIN_WEIGHT_SPAN) {
+    const mid = (min + max) / 2;
+    min = mid - MIN_WEIGHT_SPAN / 2;
+    max = mid + MIN_WEIGHT_SPAN / 2;
+  }
+  const span = max - min;
   return { min: min - span * 0.08, max: max + span * 0.08 };
 }
 
-function toXY(values: number[], width: number, height: number, target?: number | null) {
-  const { min, max } = rangeOf(values, target);
+function toXY(values: number[], width: number, height: number, target?: number | null, range?: { min: number; max: number }) {
+  const { min, max } = range ?? rangeOf(values, target);
   const span = max - min || 1;
   return values.map((v, i) => {
     const x = values.length === 1 ? width / 2 : pad + (i / (values.length - 1)) * (width - pad * 2);
@@ -106,9 +114,11 @@ export const WeightTrendChart = ({
 }) => {
   const line = smooth.length >= 2 ? smooth : raw;
   target = goalInView([...line, ...raw], target);
-  const coords = toXY(line, width, height, target);
-  const dots = toXY(raw, width, height, target);
-  const { min, max } = rangeOf(line.length ? line : raw, target);
+  // Même échelle pour la courbe de tendance et pour les pesées : sinon les points ne tombent pas sur la courbe
+  const shared = rangeOf([...line, ...raw], target);
+  const coords = toXY(line, width, height, target, shared);
+  const dots = toXY(raw, width, height, target, shared);
+  const { min, max } = shared;
   const span = max - min || 1;
   const targetY = target != null ? pad + (1 - (target - min) / span) * (height - pad * 2) : null;
   const dotsRef = useRef(dots);
@@ -205,10 +215,13 @@ function smoothPath(pts: { x: number; y: number }[]) {
     const p1 = pts[i];
     const p2 = pts[i + 1];
     const p3 = pts[i + 2] || p2;
+    const lo = Math.min(p1.y, p2.y);
+    const hi = Math.max(p1.y, p2.y);
     const c1x = p1.x + (p2.x - p0.x) / 6;
-    const c1y = p1.y + (p2.y - p0.y) / 6;
+    // Les points de contrôle restent entre les deux pesées : la courbe ne dépasse jamais une valeur mesurée
+    const c1y = Math.min(hi, Math.max(lo, p1.y + (p2.y - p0.y) / 6));
     const c2x = p2.x - (p3.x - p1.x) / 6;
-    const c2y = p2.y - (p3.y - p1.y) / 6;
+    const c2y = Math.min(hi, Math.max(lo, p2.y - (p3.y - p1.y) / 6));
     d += ` C ${c1x} ${c1y} ${c2x} ${c2y} ${p2.x} ${p2.y}`;
   }
   return d;
