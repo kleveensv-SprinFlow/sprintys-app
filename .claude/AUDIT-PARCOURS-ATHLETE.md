@@ -10,7 +10,7 @@ Conditions à jouer : nominal · champ vide · valeur absurde · annuler à mi-p
 |---|----------|------|
 | 1 | Connexion (e-mail faux, mot de passe faux, champ vide, mot de passe oublié) | ⬜ |
 | 2 | Inscription athlète + profil à compléter + vérification e-mail | 🟡 (écran des accords vu) |
-| 3 | Rejoindre un groupe par code / quitter | 🟡 |
+| 3 | Rejoindre un groupe par code / quitter | 🟡 (code 19790415 : « Test audit » trouvé ; demande arrêtée à l’accord de partage, décision de l’utilisateur attendue) |
 | 4 | Check-in complet 3 étapes + modification | ✅ |
 | 5 | Pesée : ajout, valeurs 0 et 9999 refusées, 78,4 enregistré ; modification à 78,5 et suppression confirmée ; état vide et bouton d’ajout | ✅ |
 | 6 | Objectif de poids | ⬜ |
@@ -24,7 +24,7 @@ Conditions à jouer : nominal · champ vide · valeur absurde · annuler à mi-p
 | 14 | Ma progression : masquer, restaurer | 🟡 |
 | 15 | Sprinty : accueil et refus du consentement ✅ ; suggestions, question libre, graphique, PDF, Écouter, historique, quota 🟡 (consentement IA à accepter par l’utilisateur) |
 | 16 | Messages : écran sans coach ✅ ; envoi, signalement, blocage ⬜ (besoin d'un groupe : compte de démo avec coach à connecter) | 🟡 |
-| 17 | Profil : informations, photo, rappels, export, bloqués, suppression | 🟡 |
+| 17 | Profil : informations, photo, rappels, export, bloqués, suppression | 🟡 (le bouton photo ouvre le choix appareil/galerie ; sélection et envoi non testés) |
 | 18 | Abonnement Plus : paywall | ⬜ non atteignable : la facturation est désactivée côté serveur sur ce compte (à tester avec la facturation activée) |
 | 19 | Tutoriel : 10 étapes | ✅ |
 | 20 | Notifications | ⬜ |
@@ -73,3 +73,8 @@ Compte coach de test connecté par l’utilisateur, groupe « Test audit ». Un 
 - Bouton de l’état vide : [avant](audit-evidence/2026-10-19/athlete-poids-vide.png) → [formulaire ouvert](audit-evidence/2026-10-19/athlete-poids-vide-ajouter-ouvert.png).
 
 À examiner : le prénom du compte de test contient un caractère de remplacement sur l’accueil et le profil ; son origine n’a pas été établie.
+
+## Preuves complémentaires — compte athlète de test
+
+- Photo de profil : [avant](audit-evidence/2026-10-19/athlete-photo-avant.png) → [choix appareil ou galerie](audit-evidence/2026-10-19/athlete-photo-choix.png). Aucune autorisation système accordée, aucune photo sélectionnée.
+- Rejoindre « Test audit » : [code vide](audit-evidence/2026-10-19/athlete-groupe-avant-code.png) → [code reconnu](audit-evidence/2026-10-19/athlete-groupe-code-valide.png) → [accord de partage à décider](audit-evidence/2026-10-19/athlete-groupe-partage-a-decider.png). Aucune demande envoyée par Codex.
