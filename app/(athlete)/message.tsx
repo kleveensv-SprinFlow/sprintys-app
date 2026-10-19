@@ -189,7 +189,7 @@ export default function MessagesHubScreen() {
                       <Text style={[styles.discussionPreview, !discussions?.coach?.last_message && styles.discussionPreviewMuted]} numberOfLines={1}>
                         {discussions?.coach?.last_message 
                           ? `${discussions.coach.last_message.is_me ? 'Toi : ' : ''}${discussions.coach.last_message.content}`
-                          : 'Aucun message.'}
+                          : 'Écris à ton coach'}
                       </Text>
                       {(discussions?.coach?.unread_count || 0) > 0 && (
                         <View style={styles.unreadBadge}>
@@ -226,7 +226,7 @@ export default function MessagesHubScreen() {
                       <Text style={[styles.discussionPreview, !discussions?.team?.last_message && styles.discussionPreviewMuted]} numberOfLines={1}>
                         {discussions?.team?.last_message 
                           ? `${discussions.team.last_message.sender_name} : ${discussions.team.last_message.content}`
-                          : 'Aucun message dans le groupe.'}
+                          : 'Lance la discussion du groupe'}
                       </Text>
                       {(discussions?.team?.unread_count || 0) > 0 && (
                         <View style={styles.unreadBadge}>

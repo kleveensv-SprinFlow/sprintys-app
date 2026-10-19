@@ -632,6 +632,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 6,
+    minHeight: 40,
     gap: 8,
   },
   phaseInfo: {
