@@ -261,7 +261,7 @@ export const SleepStep = ({ onNext, quick }: SleepStepProps) => {
             accessibilityLabel="Diminuer l’objectif"
             onPress={() => setTempGoal(Math.max(4, tempGoal - 0.5))}
           />
-          <Text style={[styles.goalDisplay, { color: theme.colors.text }]}>{tempGoal}h</Text>
+          <Text style={[styles.goalDisplay, { color: theme.colors.text }]}>{hoursLabel(tempGoal)}</Text>
           <IconButton
             icon="plus"
             size={48}

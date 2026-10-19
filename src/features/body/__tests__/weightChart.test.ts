@@ -23,8 +23,9 @@ describe('courbe de poids', () => {
 });
 
 describe('durée de sommeil', () => {
-  it('décimale à la française', () => {
-    expect(hoursLabel(7.5)).toBe('7,5 h');
+  it('en heures et minutes', () => {
+    expect(hoursLabel(7.5)).toBe('7 h 30');
+    expect(hoursLabel(7.25)).toBe('7 h 15');
     expect(hoursLabel(8)).toBe('8 h');
   });
 });
