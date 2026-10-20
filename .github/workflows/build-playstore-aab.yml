@@ -85,6 +85,7 @@ jobs:
         working-directory: android
         env:
           NDK_CCACHE: ccache
+          SENTRY_DISABLE_AUTO_UPLOAD: 'true'
         run: ./gradlew bundleRelease --build-cache
 
       - name: Upload Signed AAB Artifact

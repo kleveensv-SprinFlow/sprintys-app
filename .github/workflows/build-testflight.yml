@@ -72,6 +72,7 @@ jobs:
         env:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          SENTRY_DISABLE_AUTO_UPLOAD: 'true'
         run: |
           bundle exec fastlane ios beta
 
