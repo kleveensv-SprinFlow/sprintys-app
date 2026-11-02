@@ -1200,7 +1200,8 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
                                     const p = k ? prev.course[k] : null;
                                     const prevSet = setIndex > 0 ? (exercise.sets || [])[setIndex - 1] as any : null;
                                     const sameAsPrev = !!prevSet && courseKey(prevSet.distance, workout?.type_seance) === k;
-                                    if (p && !sameAsPrev) hint = `Dernier ${formatSeconds(p.last_ms / 1000)}${p.best_ms < p.last_ms ? ` · record ${formatSeconds(p.best_ms / 1000)}` : ''}`;
+                                    // The record is the reference to beat; the last time only adds context when it differs
+                                    if (p && !sameAsPrev) hint = `Record ${formatSeconds(p.best_ms / 1000)}${p.last_ms > p.best_ms ? ` · dernier ${formatSeconds(p.last_ms / 1000)}` : ''}`;
                                   }
                                   return hint ? <Text style={styles.prevHint} numberOfLines={1}>{hint}</Text> : null;
                                 })()}
