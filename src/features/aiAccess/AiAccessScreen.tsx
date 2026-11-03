@@ -16,6 +16,7 @@ import { SkeletonCard } from '../../shared/components/Skeleton';
 import { useFrostedHeader } from '../../shared/hooks/useFrostedHeader';
 import { confirmAsync, toast } from '../../shared/feedback/appAlert';
 import {
+  AI_KEY_DURATIONS,
   AI_SCOPES,
   ALL_AI_SCOPES,
   AiAccessKey,
@@ -28,6 +29,8 @@ import {
 
 const formatDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+
+const expiryText = (iso: string | null) => (iso ? `expire le ${formatDate(iso)}` : 'n’expire jamais');
 
 function ScopeChecklist({ value, onToggle, disabled }: { value: AiScope[]; onToggle: (s: AiScope) => void; disabled?: boolean }) {
   return (
@@ -66,6 +69,7 @@ export function AiAccessScreen() {
   const [busy, setBusy] = useState(false);
   const [label, setLabel] = useState('');
   const [draftScopes, setDraftScopes] = useState<AiScope[]>(ALL_AI_SCOPES);
+  const [days, setDays] = useState<number | null>(30);
   const [created, setCreated] = useState<CreatedAiKey | null>(null);
 
   const load = useCallback(async () => {
@@ -90,7 +94,7 @@ export function AiAccessScreen() {
     }
     setBusy(true);
     try {
-      const res = await aiAccessService.create(label.trim() || 'Mon IA', draftScopes);
+      const res = await aiAccessService.create(label.trim() || 'Mon IA', draftScopes, days);
       setCreated(res);
       setLabel('');
       setDraftScopes(ALL_AI_SCOPES);
@@ -160,7 +164,7 @@ export function AiAccessScreen() {
               <Button title="Copier la clé" variant="outline" onPress={() => copy(created.key, 'Clé')} style={{ flex: 1 }} />
               <Button title="Copier le message pour l’IA" onPress={() => copy(promptForAi(created.key), 'Message')} style={{ flex: 1 }} />
             </View>
-            <Text style={styles.foot}>Valable jusqu’au {formatDate(created.expires_at)}.</Text>
+            <Text style={styles.foot}>{created.expires_at ? `Valable jusqu’au ${formatDate(created.expires_at)}.` : 'Sans date d’expiration : pense à la révoquer si tu ne t’en sers plus.'}</Text>
             <PressableScale haptic="selection" onPress={() => setCreated(null)} style={styles.dismiss} hitSlop={8}>
               <Text style={styles.dismissText}>C’est copié, masquer</Text>
             </PressableScale>
@@ -181,7 +185,7 @@ export function AiAccessScreen() {
             <View style={[glassCard, styles.card]}>
               <GlassSheen radius={22} />
               <Text style={styles.meta}>
-                {k.key_prefix}… · créée le {formatDate(k.created_at)} · expire le {formatDate(k.expires_at)}
+                {k.key_prefix}… · créée le {formatDate(k.created_at)} · {expiryText(k.expires_at)}
               </Text>
               <Text style={styles.meta}>
                 {k.last_used_at ? `Utilisée ${k.use_count} fois, dernière fois le ${formatDate(k.last_used_at)}` : 'Jamais utilisée'}
@@ -209,8 +213,26 @@ export function AiAccessScreen() {
           />
           <Text style={styles.subTitle}>Ce que tu partages</Text>
           <ScopeChecklist value={draftScopes} onToggle={(s) => setDraftScopes((v) => toggle(v, s))} disabled={busy} />
+          <Text style={styles.subTitle}>Expiration</Text>
+          <View style={styles.chips} accessibilityRole="radiogroup">
+            {AI_KEY_DURATIONS.map((d) => {
+              const on = d.days === days;
+              return (
+                <PressableScale
+                  key={d.label}
+                  haptic="selection"
+                  onPress={() => setDays(d.days)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: on }}
+                  style={[styles.chip, on && styles.chipOn]}
+                >
+                  <Text style={[styles.chipText, on && styles.chipTextOn]}>{d.label}</Text>
+                </PressableScale>
+              );
+            })}
+          </View>
           <Button title="Créer la clé" onPress={create} loading={busy} disabled={busy || keys == null} style={{ marginTop: 12 }} />
-          <Text style={styles.foot}>Valable 90 jours. Tu pourras changer les cases cochées ou la révoquer à tout moment.</Text>
+          <Text style={styles.foot}>Tu pourras changer les cases cochées ou révoquer la clé à tout moment.</Text>
         </View>
 
         {inactiveCount > 0 && (
@@ -244,6 +266,11 @@ const styles = StyleSheet.create({
     marginVertical: theme.spacing.sm,
   },
   actions: { flexDirection: 'row', gap: theme.spacing.sm },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm },
+  chip: { paddingHorizontal: theme.spacing.md, paddingVertical: 7, borderRadius: theme.radius.full, backgroundColor: theme.colors.glassFill },
+  chipOn: { backgroundColor: theme.colors.sprintyBlue },
+  chipText: { fontSize: 13, fontWeight: '600', color: theme.colors.text },
+  chipTextOn: { color: theme.colors.surface },
   scopeRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md, paddingVertical: 10 },
   rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.hairline },
   scopeLabel: { fontSize: 15, fontWeight: '600', color: theme.colors.text },

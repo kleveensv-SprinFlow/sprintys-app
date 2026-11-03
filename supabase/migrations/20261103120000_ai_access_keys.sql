@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS public.ai_access_keys (
   key_prefix text NOT NULL,
   scopes text[] NOT NULL DEFAULT '{}',
   created_at timestamptz NOT NULL DEFAULT now(),
-  expires_at timestamptz NOT NULL,
+  expires_at timestamptz, -- NULL = n'expire jamais
   revoked_at timestamptz,
   last_used_at timestamptz,
   use_count integer NOT NULL DEFAULT 0
@@ -40,7 +40,8 @@ RETURNS boolean LANGUAGE sql IMMUTABLE SET search_path = public AS $$
 $$;
 
 -- Création : renvoie la clé en clair UNE seule fois
-CREATE OR REPLACE FUNCTION public.create_ai_access_key(p_label text, p_scopes text[], p_days integer DEFAULT 90)
+-- p_days : 7, 30 ou 365 ; NULL = jamais
+CREATE OR REPLACE FUNCTION public.create_ai_access_key(p_label text, p_scopes text[], p_days integer DEFAULT 30)
 RETURNS jsonb LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public, extensions AS $$
 DECLARE
   v_uid uuid := auth.uid();
@@ -55,12 +56,13 @@ BEGIN
   IF NOT public._ai_scopes_valid(p_scopes) OR COALESCE(array_length(p_scopes, 1), 0) = 0 THEN
     RAISE EXCEPTION 'Catégories invalides';
   END IF;
-  IF (SELECT count(*) FROM public.ai_access_keys WHERE athlete_id = v_uid AND revoked_at IS NULL AND expires_at > now()) >= 5 THEN
+  IF (SELECT count(*) FROM public.ai_access_keys WHERE athlete_id = v_uid AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now())) >= 5 THEN
     RAISE EXCEPTION 'Limite de 5 clés actives atteinte';
   END IF;
 
   v_key := 'spk_' || encode(extensions.gen_random_bytes(24), 'hex');
-  v_exp := now() + make_interval(days => LEAST(GREATEST(COALESCE(p_days, 90), 1), 365));
+  IF p_days IS NOT NULL AND p_days NOT IN (7, 30, 365) THEN RAISE EXCEPTION 'Durée invalide'; END IF;
+  v_exp := CASE WHEN p_days IS NULL THEN NULL ELSE now() + make_interval(days => p_days) END;
 
   INSERT INTO public.ai_access_keys (athlete_id, label, key_hash, key_prefix, scopes, expires_at)
   VALUES (v_uid, COALESCE(NULLIF(btrim(p_label), ''), 'Mon IA'),
@@ -79,7 +81,7 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT k.id, k.label, k.key_prefix, k.scopes, k.created_at, k.expires_at, k.revoked_at, k.last_used_at, k.use_count
   FROM public.ai_access_keys k
   WHERE k.athlete_id = auth.uid()
-  ORDER BY (k.revoked_at IS NULL AND k.expires_at > now()) DESC, k.created_at DESC
+  ORDER BY (k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > now())) DESC, k.created_at DESC
 $$;
 
 -- L'athlète coche / décoche ce qu'il partage, sans changer de clé
@@ -113,7 +115,7 @@ BEGIN
   IF p_key IS NULL OR p_key !~ '^spk_[0-9a-f]{48}$' THEN RETURN NULL; END IF;
   SELECT * INTO k FROM public.ai_access_keys
   WHERE key_hash = encode(extensions.digest(p_key, 'sha256'), 'hex')
-    AND revoked_at IS NULL AND expires_at > now()
+    AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now())
   FOR UPDATE;
   IF NOT FOUND THEN RETURN NULL; END IF;
   -- Rôle vérifié à chaque appel : un compte qui n'est plus athlète perd l'accès
