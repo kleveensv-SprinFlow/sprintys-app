@@ -6,11 +6,14 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
  * The athlete creates a personal key in the app (« Accès IA ») and ticks what it may read.
  * Key: header `Authorization: Bearer spk_…` (preferred) or `x-api-key`, or `?key=` for AIs that can only open a URL.
  * Only that athlete's data, only the ticked categories, never name / e-mail / photo / exact birth date.
- * Under 18: only seances, resultats, records, objectifs (enforced in SQL by _ai_key_consume).
+ * Under 18: profil (age, sex, disciplines only), seances, resultats, records, objectifs, notes (enforced in SQL by _ai_key_consume).
+ * Notes: with the « notes » category the AI may also save short notes (habits, athlete requests, useful facts) and read them
+ * back later. It never changes any other data.
  * verify_jwt is off for this function: the key is checked here, by _ai_key_consume (hash, expiry, revocation, rate limit).
  *
  * Routes: GET /            → JSON (?sections=…&days=…&detail=0&tz=…)
  *         GET /openapi.json → OpenAPI description (no key), for ChatGPT custom GPT actions
+ *         POST /notes       → save a note (REST, for ChatGPT actions)   POST /notes/delete → delete a note
  *         POST / or /mcp   → MCP (Streamable HTTP, JSON responses)
  */
 
@@ -26,11 +29,14 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
   });
 
-const SCOPES = ['profil', 'poids', 'forme', 'nutrition', 'seances', 'resultats', 'records', 'objectifs'] as const;
+const SCOPES = ['profil', 'poids', 'forme', 'nutrition', 'seances', 'resultats', 'records', 'objectifs', 'notes'] as const;
 type Scope = (typeof SCOPES)[number];
 
 /** Rows per section; the most recent ones are kept when there are more. */
 const MAX_ROWS = 300;
+/** Notes given back to the AI (most recent first) */
+const MAX_NOTES = 100;
+const NOTE_CATEGORIES = ['habitude', 'demande', 'info'] as const;
 const DEFAULT_TZ = 'Europe/Paris';
 
 const NOTICE =
@@ -47,6 +53,14 @@ const GUIDE =
   "Cite les dates des données sur lesquelles tu t'appuies. En cas de douleur, de blessure ou de doute sur la santé, " +
   "recommande un professionnel de santé. Si « athlete_mineur » vaut true, l'athlète a moins de 18 ans : " +
   "aucun conseil de régime, de perte de poids ou de complément alimentaire.";
+
+const NOTES_GUIDE =
+  "Notes : si la catégorie « notes » est partagée, relis les notes avant de répondre, ce sont tes souvenirs des échanges précédents. " +
+  "Enregistre une note courte quand l'athlète te demande de retenir quelque chose (catégorie « demande »), quand tu repères une habitude " +
+  "durable (« habitude »), ou une information utile pour la suite (« info » : contrainte d'horaire, matériel, préférence…). " +
+  "Une idée par note, pas de doublon : supprime une note devenue fausse plutôt que d'en ajouter une contradictoire. " +
+  "Jamais d'information sur une autre personne, ni de diagnostic. Si « athlete_mineur » vaut true, aucune note sur le poids, l'alimentation ou la santé. " +
+  "Après chaque note enregistrée ou supprimée, dis-le à l'athlète dans ta réponse, par exemple : « J'ai noté : … ».";
 
 const LEGEND = {
   unites: {
@@ -66,6 +80,7 @@ const LEGEND = {
   prefixes: { planned_: 'prévu par le coach ou le plan', actual_: 'réellement fait' },
   champs_texte_libre: ['description', 'notes', 'pains', 'custom_food_name', 'title', 'constraints', 'location', 'name'],
   dates: 'ISO 8601 (UTC pour les heures, AAAA-MM-JJ pour les jours)',
+  notes: 'categorie : habitude, demande (l’athlète a demandé de retenir) ou info ; source : nom de la clé de l’IA qui a écrit la note',
   champs_vides: 'Les champs vides sont omis : un champ absent signifie « non renseigné ».',
   liens: 'resultats.workout_id renvoie à seances.id',
 };
@@ -197,8 +212,10 @@ async function collect(db: Db, athlete: string, allowed: Set<Scope>, scopes: Set
       .eq('id', athlete)
       .maybeSingle();
     if (error) errors.push('profil');
-    // Always small: given in full even without detail
-    out.profil = p
+    // Always small: given in full even without detail. Under 18: age, sex and disciplines only (no body or weight goals).
+    out.profil = p && minor
+      ? { sexe: p.gender, age: ageFrom(p.date_of_birth), disciplines: p.disciplines, restreint_mineur: true }
+      : p
       ? {
           sexe: p.gender, age: ageFrom(p.date_of_birth), taille_cm: p.height, poids_profil_kg: p.weight,
           disciplines: p.disciplines, objectif: p.objective, niveau_activite: p.activity_level,
@@ -369,6 +386,14 @@ async function collect(db: Db, athlete: string, allowed: Set<Scope>, scopes: Set
     };
   }
 
+  if (scopes.has('notes')) {
+    const notes = await q('notes', db.from('ai_notes').select('id, categorie, texte, source, created_at')
+      .eq('athlete_id', athlete).order('created_at', { ascending: false }).limit(MAX_NOTES));
+    // Not limited to the period: these are the AI's memory of past exchanges
+    out.notes = notes.map((n) => ({ ...n, date: localDay(n.created_at, tz) }));
+    resume.notes = { nb_notes: notes.length, par_categorie: countBy(notes, (n) => n.categorie) };
+  }
+
   out.resume = resume;
   if (truncated.length) out._tronque = { sections: truncated, max_lignes_par_section: MAX_ROWS, conseil: 'Réduis « days » pour obtenir toutes les lignes.' };
   if (errors.length) out._sections_en_erreur = [...new Set(errors)];
@@ -386,11 +411,11 @@ const daysProp = { type: 'integer', minimum: 1, maximum: 365, description: 'Pér
 const detailProp = { type: 'boolean', description: 'false = seulement le résumé (beaucoup plus court). true par défaut.' };
 
 /** Each tool covers some categories; it is listed only if the key shares at least one of them. */
-const MCP_TOOLS: { name: string; title: string; description: string; scopes: Scope[]; props: Record<string, unknown>; fixedDetail?: boolean }[] = [
+const MCP_TOOLS: { name: string; title: string; description: string; scopes: Scope[]; props: Record<string, unknown>; fixedDetail?: boolean; write?: boolean; required?: string[] }[] = [
   {
     name: 'get_summary',
     title: 'Résumé de l’athlète',
-    description: 'Résumé chiffré de toutes les catégories partagées (séances par semaine, meilleurs temps de la période, tendance du poids, moyennes de forme et de nutrition, prochaine compétition). À appeler en premier.',
+    description: 'Résumé chiffré de toutes les catégories partagées (séances par semaine, meilleurs temps de la période, tendance du poids, moyennes de forme et de nutrition, prochaine compétition) et tes notes des échanges précédents. À appeler en premier.',
     scopes: [...SCOPES],
     props: { days: daysProp },
     fixedDetail: false,
@@ -434,6 +459,29 @@ const MCP_TOOLS: { name: string; title: string; description: string; scopes: Sco
       detail: detailProp,
     },
   },
+  {
+    name: 'save_note',
+    title: 'Enregistrer une note',
+    description:
+      "Enregistre une note courte dans Sprintys pour t'en souvenir aux prochains échanges : ce que l'athlète te demande de retenir (demande), " +
+      "une habitude durable (habitude) ou une information utile (info). Une idée par note. Dis ensuite à l'athlète ce que tu as noté.",
+    scopes: ['notes'],
+    props: {
+      categorie: { type: 'string', enum: [...NOTE_CATEGORIES], description: 'habitude, demande ou info' },
+      texte: { type: 'string', minLength: 1, maxLength: 500, description: 'La note, en une ou deux phrases' },
+    },
+    required: ['categorie', 'texte'],
+    write: true,
+  },
+  {
+    name: 'delete_note',
+    title: 'Supprimer une note',
+    description: "Supprime une note devenue fausse ou inutile (identifiant « id » lu dans les notes). Dis ensuite à l'athlète ce que tu as supprimé.",
+    scopes: ['notes'],
+    props: { id: { type: 'string', description: 'Identifiant de la note' } },
+    required: ['id'],
+    write: true,
+  },
 ];
 
 const toolsFor = (allowed: Set<Scope>) => MCP_TOOLS.filter((t) => t.scopes.some((s) => allowed.has(s)));
@@ -442,8 +490,10 @@ const toolDefinition = (t: (typeof MCP_TOOLS)[number], allowed: Set<Scope>) => (
   name: t.name,
   title: t.title,
   description: `${t.description} Catégories partagées par cette clé : ${t.scopes.filter((s) => allowed.has(s)).join(', ')}.`,
-  inputSchema: { type: 'object', properties: t.props, additionalProperties: false },
-  annotations: { readOnlyHint: true, openWorldHint: false, idempotentHint: true },
+  inputSchema: { type: 'object', properties: t.props, ...(t.required ? { required: t.required } : {}), additionalProperties: false },
+  annotations: t.write
+    ? { readOnlyHint: false, destructiveHint: t.name === 'delete_note', openWorldHint: false, idempotentHint: false }
+    : { readOnlyHint: true, openWorldHint: false, idempotentHint: true },
 });
 
 const rpcResult = (id: unknown, result: unknown) => ({ jsonrpc: '2.0', id, result });
@@ -451,16 +501,45 @@ const rpcError = (id: unknown, code: number, message: string) => ({ jsonrpc: '2.
 const toolText = (id: unknown, data: unknown, isError = false) =>
   rpcResult(id, { content: [{ type: 'text', text: typeof data === 'string' ? data : JSON.stringify(data) }], isError });
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Saves a note for the key's athlete. Returns a message for the AI, or an error. */
+async function saveNote(db: Db, keyId: string, categorie: unknown, texte: unknown): Promise<{ ok: boolean; message: string; note?: Row }> {
+  const { data, error } = await db.rpc('_ai_note_add', { p_key_id: keyId, p_categorie: String(categorie ?? ''), p_texte: String(texte ?? '') });
+  if (error) {
+    console.error('ai-data note add', error.message);
+    return { ok: false, message: 'Enregistrement impossible pour le moment.' };
+  }
+  if (data?.error) return { ok: false, message: data.error };
+  return {
+    ok: true,
+    note: data,
+    message: `Note enregistrée (${data.categorie}) : « ${data.texte} ». Dis à l'athlète dans ta réponse ce que tu as noté, par exemple : « J'ai noté : ${data.texte} »`,
+  };
+}
+
+async function deleteNote(db: Db, keyId: string, id: unknown): Promise<{ ok: boolean; message: string }> {
+  if (typeof id !== 'string' || !UUID.test(id)) return { ok: false, message: 'Identifiant de note invalide.' };
+  const { data, error } = await db.rpc('_ai_note_delete', { p_key_id: keyId, p_note_id: id });
+  if (error) {
+    console.error('ai-data note delete', error.message);
+    return { ok: false, message: 'Suppression impossible pour le moment.' };
+  }
+  return data
+    ? { ok: true, message: "Note supprimée. Dis à l'athlète dans ta réponse ce que tu as supprimé." }
+    : { ok: false, message: 'Note introuvable, ou notes non partagées par cette clé.' };
+}
+
 // deno-lint-ignore no-explicit-any
-async function handleMcp(msg: any, db: Db, athlete: string, allowed: Set<Scope>, minor: boolean, tz: string) {
+async function handleMcp(msg: any, db: Db, athlete: string, keyId: string, allowed: Set<Scope>, minor: boolean, tz: string) {
   const id = msg?.id;
   switch (msg?.method) {
     case 'initialize':
       return rpcResult(id, {
         protocolVersion: typeof msg.params?.protocolVersion === 'string' ? msg.params.protocolVersion : '2025-06-18',
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: 'sprintys-athlete', title: 'Sprintys – données athlète', version: '1.1.0' },
-        instructions: GUIDE,
+        serverInfo: { name: 'sprintys-athlete', title: 'Sprintys – données athlète', version: '1.2.0' },
+        instructions: allowed.has('notes') ? `${GUIDE} ${NOTES_GUIDE}` : GUIDE,
       });
     case 'ping':
       return rpcResult(id, {});
@@ -470,6 +549,11 @@ async function handleMcp(msg: any, db: Db, athlete: string, allowed: Set<Scope>,
       const tool = MCP_TOOLS.find((t) => t.name === msg.params?.name);
       if (!tool) return rpcError(id, -32602, 'Outil inconnu');
       const args = msg.params?.arguments ?? {};
+      if (tool.write) {
+        if (!allowed.has('notes')) return toolText(id, "Les notes ne sont pas partagées par l'athlète.", true);
+        const res = tool.name === 'save_note' ? await saveNote(db, keyId, args.categorie, args.texte) : await deleteNote(db, keyId, args.id);
+        return toolText(id, res.message, !res.ok);
+      }
       const asked = tool.name === 'get_athlete_data' && Array.isArray(args.sections) ? args.sections.map(String) : tool.scopes;
       const scopes = pickScopes(allowed, asked);
       if (!scopes.size) return toolText(id, "Ces catégories ne sont pas partagées par l'athlète.", true);
@@ -486,8 +570,8 @@ const openApi = (baseUrl: string) => ({
   openapi: '3.1.0',
   info: {
     title: 'Sprintys – données athlète',
-    version: '1.1.0',
-    description: GUIDE,
+    version: '1.2.0',
+    description: `${GUIDE} ${NOTES_GUIDE}`,
   },
   servers: [{ url: baseUrl }],
   security: [{ cle: [] }],
@@ -495,7 +579,10 @@ const openApi = (baseUrl: string) => ({
     securitySchemes: {
       cle: { type: 'http', scheme: 'bearer', description: 'Clé personnelle spk_… créée dans l’app Sprintys (Réglages → Accès IA)' },
     },
-    schemas: { Donnees: { type: 'object', additionalProperties: true } },
+    schemas: {
+      Donnees: { type: 'object', additionalProperties: true },
+      Resultat: { type: 'object', properties: { ok: { type: 'boolean' }, message: { type: 'string' } } },
+    },
   },
   paths: {
     '/': {
@@ -516,6 +603,40 @@ const openApi = (baseUrl: string) => ({
         },
       },
     },
+    '/notes': {
+      post: {
+        operationId: 'saveNote',
+        summary: 'Enregistrer une note (seulement si la catégorie « notes » est partagée)',
+        description: "Note courte à relire aux prochains échanges. Dire ensuite à l'athlète ce qui a été noté.",
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['categorie', 'texte'],
+                properties: {
+                  categorie: { type: 'string', enum: [...NOTE_CATEGORIES] },
+                  texte: { type: 'string', minLength: 1, maxLength: 500 },
+                },
+              },
+            },
+          },
+        },
+        responses: { '200': { description: 'Résultat', content: { 'application/json': { schema: { $ref: '#/components/schemas/Resultat' } } } } },
+      },
+    },
+    '/notes/delete': {
+      post: {
+        operationId: 'deleteNote',
+        summary: 'Supprimer une note devenue fausse ou inutile',
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { type: 'object', required: ['id'], properties: { id: { type: 'string' } } } } },
+        },
+        responses: { '200': { description: 'Résultat', content: { 'application/json': { schema: { $ref: '#/components/schemas/Resultat' } } } } },
+      },
+    },
   },
 });
 
@@ -528,8 +649,9 @@ serve(async (req) => {
     const publicBase = `${(Deno.env.get('SUPABASE_URL') ?? '').replace(/\/$/, '')}/functions/v1/ai-data`;
     if (req.method === 'GET' && url.pathname.endsWith('/openapi.json')) return json(openApi(publicBase));
 
-    const isMcp = req.method === 'POST';
-    // POST = MCP client (same address, with or without /mcp at the end)
+    const notesRoute = req.method === 'POST' ? (url.pathname.endsWith('/notes/delete') ? 'delete' : url.pathname.endsWith('/notes') ? 'save' : null) : null;
+    const isMcp = req.method === 'POST' && !notesRoute;
+    // Other POST = MCP client (same address, with or without /mcp at the end)
     const auth = req.headers.get('Authorization') ?? '';
     const key = (auth.match(/^Bearer\s+(spk_[0-9a-f]+)$/i)?.[1] ?? req.headers.get('x-api-key') ?? url.searchParams.get('key') ?? '').trim();
     if (!key) return json(isMcp ? rpcError(null, -32001, 'Clé manquante') : { error: 'Clé manquante' }, 401);
@@ -547,9 +669,23 @@ serve(async (req) => {
     if (grant.rate_limited) return json(isMcp ? rpcError(null, -32002, "Trop d'appels : réessaie dans une heure") : { error: "Trop d'appels : réessaie dans une heure" }, 429);
 
     const athlete: string = grant.athlete_id;
+    const keyId: string = grant.key_id;
     const minor = grant.minor === true;
     const allowed = new Set<Scope>((grant.scopes ?? []).filter((s: string) => (SCOPES as readonly string[]).includes(s)));
     const tz = validTz(url.searchParams.get('tz'));
+
+    if (notesRoute) {
+      if (!allowed.has('notes')) return json({ ok: false, message: "Les notes ne sont pas partagées par l'athlète." }, 403);
+      // deno-lint-ignore no-explicit-any
+      let body: any;
+      try {
+        body = await req.json();
+      } catch {
+        return json({ ok: false, message: 'JSON invalide' }, 400);
+      }
+      const res = notesRoute === 'save' ? await saveNote(db, keyId, body?.categorie, body?.texte) : await deleteNote(db, keyId, body?.id);
+      return json(res, res.ok ? 200 : 400);
+    }
 
     if (isMcp) {
       // deno-lint-ignore no-explicit-any
@@ -560,10 +696,10 @@ serve(async (req) => {
         return json(rpcError(null, -32700, 'JSON invalide'), 400);
       }
       if (Array.isArray(body)) {
-        const replies = (await Promise.all(body.map((m) => handleMcp(m, db, athlete, allowed, minor, tz)))).filter(Boolean);
+        const replies = (await Promise.all(body.map((m) => handleMcp(m, db, athlete, keyId, allowed, minor, tz)))).filter(Boolean);
         return replies.length ? json(replies) : new Response(null, { status: 202, headers: corsHeaders });
       }
-      const reply = await handleMcp(body, db, athlete, allowed, minor, tz);
+      const reply = await handleMcp(body, db, athlete, keyId, allowed, minor, tz);
       return reply ? json(reply) : new Response(null, { status: 202, headers: corsHeaders });
     }
 

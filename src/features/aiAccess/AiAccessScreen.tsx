@@ -17,11 +17,17 @@ import { useFrostedHeader } from '../../shared/hooks/useFrostedHeader';
 import { confirmAsync, toast } from '../../shared/feedback/appAlert';
 import {
   AI_KEY_DURATIONS,
+  AI_NOTE_LABELS,
+  AI_QUESTIONS,
   AI_SCOPES,
   ALL_AI_SCOPES,
   AiAccessKey,
+  AiAccessLogEntry,
+  AiNote,
   AiScope,
   CreatedAiKey,
+  DEFAULT_AI_SCOPES,
+  MINOR_PROFILE_DETAIL,
   aiAccessService,
   isActiveKey,
   promptForAi,
@@ -30,6 +36,11 @@ import {
 const formatDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
+const formatDateTime = (iso: string) =>
+  new Date(iso).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+const scopeLabel = (s: AiScope) => AI_SCOPES.find((x) => x.key === s)?.label.toLowerCase() ?? s;
+
 const expiryText = (iso: string | null) => (iso ? `expire le ${formatDate(iso)}` : 'n’expire jamais');
 
 function ScopeChecklist({ value, onToggle, disabled, allowed }: { value: AiScope[]; onToggle: (s: AiScope) => void; disabled?: boolean; allowed: AiScope[] }) {
@@ -37,6 +48,8 @@ function ScopeChecklist({ value, onToggle, disabled, allowed }: { value: AiScope
     <View>
       {AI_SCOPES.map((s, i) => {
         const locked = !allowed.includes(s.key);
+        // Before 18 the profile category only carries age, sex and disciplines
+        const detail = locked ? 'Disponible à partir de 18 ans' : s.key === 'profil' && allowed.length < ALL_AI_SCOPES.length ? MINOR_PROFILE_DETAIL : s.detail;
         const on = value.includes(s.key) && !locked;
         const off = disabled || locked;
         return (
@@ -47,13 +60,13 @@ function ScopeChecklist({ value, onToggle, disabled, allowed }: { value: AiScope
             disabled={off}
             accessibilityRole="checkbox"
             accessibilityState={{ checked: on, disabled: off }}
-            accessibilityLabel={`${s.label} : ${locked ? 'disponible à partir de 18 ans' : s.detail}`}
+            accessibilityLabel={`${s.label} : ${detail}`}
             style={[styles.scopeRow, i > 0 && styles.rowBorder, locked && styles.scopeLocked]}
           >
             <Feather name={locked ? 'lock' : on ? 'check-square' : 'square'} size={20} color={on ? theme.colors.sprintyBlue : theme.colors.textMuted} />
             <View style={{ flex: 1 }}>
               <Text style={styles.scopeLabel}>{s.label}</Text>
-              <Text style={styles.scopeDetail}>{locked ? 'Disponible à partir de 18 ans' : s.detail}</Text>
+              <Text style={styles.scopeDetail}>{detail}</Text>
             </View>
           </PressableScale>
         );
@@ -70,7 +83,9 @@ export function AiAccessScreen() {
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [label, setLabel] = useState('');
-  const [draftScopes, setDraftScopes] = useState<AiScope[]>(ALL_AI_SCOPES);
+  const [draftScopes, setDraftScopes] = useState<AiScope[]>(DEFAULT_AI_SCOPES);
+  const [notes, setNotes] = useState<AiNote[]>([]);
+  const [log, setLog] = useState<AiAccessLogEntry[]>([]);
   const [days, setDays] = useState<number | null>(30);
   const [created, setCreated] = useState<CreatedAiKey | null>(null);
   // Categories this account may share (fewer before 18). The server enforces it; this only greys the boxes.
@@ -80,9 +95,17 @@ export function AiAccessScreen() {
   const load = useCallback(async () => {
     setError(false);
     try {
-      const [list, scopes] = await Promise.all([aiAccessService.list(), aiAccessService.allowedScopes().catch(() => ALL_AI_SCOPES)]);
+      const [list, scopes, notesList, logList] = await Promise.all([
+        aiAccessService.list(),
+        aiAccessService.allowedScopes().catch(() => ALL_AI_SCOPES),
+        // Secondary sections: an error there must not hide the keys
+        aiAccessService.listNotes().catch(() => [] as AiNote[]),
+        aiAccessService.listLog(10).catch(() => [] as AiAccessLogEntry[]),
+      ]);
       setKeys(list);
       setAllowed(scopes);
+      setNotes(notesList);
+      setLog(logList);
       setDraftScopes((v) => v.filter((s) => scopes.includes(s)));
     } catch {
       setError(true);
@@ -105,7 +128,7 @@ export function AiAccessScreen() {
       const res = await aiAccessService.create(label.trim() || 'Mon IA', draftScopes.filter((s) => allowed.includes(s)), days);
       setCreated(res);
       setLabel('');
-      setDraftScopes(allowed);
+      setDraftScopes(DEFAULT_AI_SCOPES.filter((s) => allowed.includes(s)));
       await load();
     } catch (e: any) {
       const msg = e?.message ?? '';
@@ -151,12 +174,30 @@ export function AiAccessScreen() {
     }
   };
 
+  const removeNote = async (n: AiNote) => {
+    const ok = await confirmAsync({
+      title: 'Supprimer cette note ?',
+      message: 'Ton IA ne la relira plus.',
+      confirmText: 'Supprimer',
+      destructive: true,
+    });
+    if (!ok) return;
+    setNotes((prev) => prev.filter((x) => x.id !== n.id));
+    try {
+      await aiAccessService.deleteNote(n.id);
+    } catch {
+      toast('error', 'Suppression impossible. Réessaie.');
+      load();
+    }
+  };
+
   const copy = async (text: string, what: string) => {
     await Clipboard.setStringAsync(text);
     toast('success', `${what} copié${what.endsWith('e') ? 'e' : ''}.`);
   };
 
   const active = (keys ?? []).filter(isActiveKey);
+  const notesShared = active.some((k) => k.scopes.includes('notes'));
   const inactiveCount = (keys ?? []).length - active.length;
 
   return (
@@ -216,6 +257,77 @@ export function AiAccessScreen() {
           </View>
         ))}
 
+        {(notes.length > 0 || notesShared) && (
+          <>
+            <Text style={styles.section}>NOTES DE TES IA</Text>
+            <View style={[glassCard, styles.card]}>
+              <GlassSheen radius={22} />
+              {notes.length === 0 ? (
+                <Text style={styles.meta}>Aucune note pour l’instant. Demande à ton IA de retenir quelque chose : elle l’écrira ici.</Text>
+              ) : (
+                notes.map((n, i) => (
+                  <View key={n.id} style={[styles.noteRow, i > 0 && styles.rowBorder]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.noteTag}>{AI_NOTE_LABELS[n.categorie] ?? n.categorie}</Text>
+                      <Text style={styles.noteText}>{n.texte}</Text>
+                      <Text style={styles.meta}>
+                        {n.source} · {formatDate(n.created_at)}
+                      </Text>
+                    </View>
+                    <PressableScale haptic="light" onPress={() => removeNote(n)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Supprimer cette note">
+                      <Feather name="trash-2" size={18} color={theme.colors.textMuted} />
+                    </PressableScale>
+                  </View>
+                ))
+              )}
+            </View>
+          </>
+        )}
+
+        {log.length > 0 && (
+          <>
+            <Text style={styles.section}>DERNIÈRES LECTURES</Text>
+            <View style={[glassCard, styles.card]}>
+              <GlassSheen radius={22} />
+              {log.map((l, i) => (
+                <View key={`${l.used_at}-${i}`} style={[styles.logRow, i > 0 && styles.rowBorder]}>
+                  <Text style={styles.scopeLabel}>{l.key_label}</Text>
+                  <Text style={styles.meta}>
+                    {formatDateTime(l.used_at)}
+                    {l.scopes.length ? ` · ${l.scopes.map(scopeLabel).join(', ')}` : ''}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+
+        {active.length > 0 && (
+          <>
+            <Text style={styles.section}>IDÉES DE QUESTIONS</Text>
+            <View style={[glassCard, styles.card]}>
+              <GlassSheen radius={22} />
+              {AI_QUESTIONS.map((q, i) => (
+                <PressableScale
+                  key={q.label}
+                  haptic="selection"
+                  onPress={() => copy(q.text, 'Question')}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Copier la question : ${q.label}`}
+                  style={[styles.scopeRow, i > 0 && styles.rowBorder]}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.scopeLabel}>{q.label}</Text>
+                    <Text style={styles.scopeDetail}>{q.text}</Text>
+                  </View>
+                  <Feather name="copy" size={18} color={theme.colors.sprintyBlue} />
+                </PressableScale>
+              ))}
+              <Text style={styles.foot}>Copie une question, puis colle-la dans ton IA.</Text>
+            </View>
+          </>
+        )}
+
         <Text style={styles.section}>NOUVELLE CLÉ</Text>
         <View style={[glassCard, styles.card]}>
           <GlassSheen radius={22} />
@@ -229,7 +341,7 @@ export function AiAccessScreen() {
           />
           <Text style={styles.subTitle}>Ce que tu partages</Text>
           <ScopeChecklist value={draftScopes} onToggle={(s) => setDraftScopes((v) => toggle(v, s))} disabled={busy} allowed={allowed} />
-          {restricted && <Text style={styles.foot}>Avant 18 ans, ton profil, ton poids, ta forme et ta nutrition restent privés.</Text>}
+          {restricted && <Text style={styles.foot}>Avant 18 ans, ton poids, ta forme, ta nutrition et ton profil détaillé restent privés.</Text>}
           <Text style={styles.subTitle}>Expiration</Text>
           <View style={styles.chips} accessibilityRole="radiogroup">
             {AI_KEY_DURATIONS.map((d) => {
@@ -264,6 +376,10 @@ export function AiAccessScreen() {
 
 const styles = StyleSheet.create({
   scopeLocked: { opacity: 0.55 },
+  noteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing.md, paddingVertical: 10 },
+  noteTag: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4, color: theme.colors.sprintyBlue, textTransform: 'uppercase', marginBottom: 2 },
+  noteText: { fontSize: 14, lineHeight: 20, color: theme.colors.text, marginBottom: 2 },
+  logRow: { paddingVertical: 8 },
   content: { paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.md, paddingBottom: theme.spacing.xxxl },
   intro: { fontSize: 14, lineHeight: 20, color: theme.colors.textSecondary, marginBottom: theme.spacing.sm },
   section: { fontSize: 12, fontWeight: '700', letterSpacing: 0.6, color: theme.colors.textSecondary, marginTop: 18, marginBottom: theme.spacing.sm, marginLeft: theme.spacing.xs },
