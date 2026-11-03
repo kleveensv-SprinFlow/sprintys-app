@@ -519,6 +519,15 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
               onPress={() => router.push('/(athlete)/groups')}
             />
           )}
+          {isAthlete && (
+            <ListRow
+              icon="key"
+              iconColor="#8B5CF6"
+              title="Accès IA"
+              subtitle="Partager mes données avec ChatGPT, Claude, Gemini…"
+              onPress={() => router.push('/(athlete)/ai-access' as any)}
+            />
+          )}
           <ListRow icon="slash" title="Utilisateurs bloqués" onPress={openBlocked} />
           <ListRow
             icon="download"
