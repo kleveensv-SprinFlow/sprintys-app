@@ -69,6 +69,8 @@ serve(async (req) => {
       strength_maxes: await rpc('get_athlete_maxes', { p_athlete: id }),
       notification_devices: await rpc('my_push_devices', {}),
       ai_access_keys: await rpc('list_ai_access_keys', {}),
+      ai_access_log: await rpc('list_ai_access_log', { p_limit: 5000 }),
+      ai_notes: await rows('ai_notes', 'athlete_id'),
     };
 
     return json(exportData, 200, { 'Content-Disposition': 'attachment; filename="sprintys_export.json"' });

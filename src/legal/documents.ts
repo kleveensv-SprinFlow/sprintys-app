@@ -35,6 +35,7 @@ export const PRIVACY_POLICY: LegalDocument = {
         'Assistant Sprinty : tes conversations restent sur ton téléphone. Pour répondre, le contenu de la conversation est envoyé à notre prestataire d’IA, avec seulement les données utiles à ta question, lues dans ton compte au moment de la demande (par exemple tes check-ins des deux dernières semaines, tes séances, tes résultats, tes pesées ou tes apports du jour), sous forme résumée et sans ton nom de famille. Les graphiques sont calculés par Sprintys à partir de tes données. Nous comptons le nombre de requêtes par jour pour éviter les abus.',
         'Objectifs et plans Sprinty (athlètes sans coach) : quand tu enregistres un objectif ou ajoutes un plan proposé par Sprinty, nous conservons l’objectif (épreuve, échéance, niveau, disponibilités), le plan, tes réponses au questionnaire de sécurité et les séances ajoutées à ton calendrier.',
         'Assistant Sprinty côté coach : tes échanges avec Sprinty sont envoyés à notre prestataire d’IA pour générer la réponse. Quand ta question porte sur tes athlètes, seules les données qu’ils ont choisi de partager avec toi et qui sont utiles à la question (séances, forme, résultats, nutrition, poids, et douleurs s’ils l’ont accepté) sont envoyées, sous forme résumée, uniquement pour cette réponse.',
+        'Accès IA (athlètes) : si tu crées une clé « Accès IA », nous conservons son nom, les catégories que tu as cochées, ses dates de création, d’expiration et de révocation, et un journal de ses utilisations (date et catégories lues), que tu peux consulter dans Réglages › Accès IA. La clé elle-même n’est jamais conservée en clair : seule son empreinte l’est. Si tu coches « Notes de l’IA », nous conservons aussi les notes courtes que ton IA enregistre (tes habitudes, ce que tu lui demandes de retenir, des informations utiles), avec leur date et le nom de la clé ; tu les vois et peux les supprimer dans l’application.',
         'Position approximative : uniquement pendant l’utilisation, pour la météo de ton lieu d’entraînement. Elle n’est pas enregistrée.',
         'Accords : le type d’accord, le texte accepté, sa version et la date.',
         'Nous n’utilisons ni publicité, ni outil de suivi publicitaire, ni revente de données.',
@@ -56,6 +57,7 @@ export const PRIVACY_POLICY: LegalDocument = {
         'Toi, toujours.',
         'Ton coach, uniquement après que tu as rejoint son équipe et qu’il a accepté ta demande, et seulement après que tu as confirmé le partage. Il voit tes séances et performances, tes repas et objectifs, ton poids et ta composition corporelle, tes check-ins et, si tu as donné cet accord, tes douleurs. Il peut demander à l’assistant Sprinty une analyse de ces données. Si tu quittes l’équipe, ton coach n’y a plus accès.',
         'Les membres de ton équipe voient les messages que tu publies dans la discussion d’équipe, avec ton nom.',
+        'Le service d’IA de ton choix (par exemple ChatGPT, Claude ou Gemini), uniquement si tu lui donnes une clé « Accès IA ». Il peut alors lire les seules catégories que tu as cochées, jamais ton nom, ton e-mail, ta photo ni ta date de naissance exacte. Il ne modifie aucune de tes données ; si tu as coché « Notes de l’IA », il peut seulement ajouter ou supprimer ses propres notes. Ce service n’est pas un prestataire de Sprintys : c’est toi qui choisis de lui transmettre tes données, et ce qu’il en fait relève de ses propres conditions. Avant 18 ans, ton poids, ta forme et ta nutrition ne peuvent pas être partagés ainsi, et ton profil se limite à ton âge, ton sexe et tes disciplines. Tu peux changer les catégories ou révoquer la clé à tout moment dans Réglages › Accès IA ; la révocation est immédiate.',
         'Nos prestataires, uniquement pour faire fonctionner le service (section 5). Nous ne vendons aucune donnée.',
       ],
     },
@@ -78,6 +80,7 @@ export const PRIVACY_POLICY: LegalDocument = {
       paragraphs: [
         'Tant que ton compte existe. Quand tu supprimes ton compte depuis les réglages, ton profil, tes séances, repas, mesures, check-ins, photos de profil et accords sont effacés. Les messages déjà envoyés dans une discussion d’équipe peuvent rester visibles par l’équipe, sans être rattachés à ton profil.',
         'Les informations d’abonnement (formule, dates, magasin) sont effacées avec le compte, hors obligations comptables du magasin. Les compteurs d’utilisation de l’IA sont effacés avec le compte. Les signalements sont conservés au plus un an pour traiter les abus.',
+        'Les clés « Accès IA » et les notes de l’IA sont effacées avec le compte ; tu peux aussi supprimer une note à tout moment. Le journal d’utilisation des clés est conservé 90 jours.',
       ],
     },
     {
