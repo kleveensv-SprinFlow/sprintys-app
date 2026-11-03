@@ -66,6 +66,8 @@ const LEGEND = {
   prefixes: { planned_: 'prévu par le coach ou le plan', actual_: 'réellement fait' },
   champs_texte_libre: ['description', 'notes', 'pains', 'custom_food_name', 'title', 'constraints', 'location', 'name'],
   dates: 'ISO 8601 (UTC pour les heures, AAAA-MM-JJ pour les jours)',
+  champs_vides: 'Les champs vides sont omis : un champ absent signifie « non renseigné ».',
+  liens: 'resultats.workout_id renvoie à seances.id',
 };
 
 const ageFrom = (dob: string | null) => {
@@ -112,6 +114,27 @@ const countBy = <T>(rows: T[], key: (r: T) => string | null | undefined) => {
   }
   return out;
 };
+
+/**
+ * Lighter rows for the AI: drops empty values and the internal ids nested in JSON (blocks, sets…).
+ * Top-level ids (workout id, workout_id) stay, so results can be linked to their session.
+ */
+const compact = (v: unknown, depth = 0): unknown => {
+  if (Array.isArray(v)) return v.map((x) => compact(x, depth + 1));
+  if (v && typeof v === 'object') {
+    const out: Row = {};
+    for (const [k, x] of Object.entries(v as Row)) {
+      if (x == null || x === '' || (Array.isArray(x) && !x.length)) continue;
+      if (depth > 0 && k === 'id') continue;
+      const c = compact(x, depth + 1);
+      if (c && typeof c === 'object' && !Array.isArray(c) && !Object.keys(c).length) continue;
+      out[k] = c;
+    }
+    return out;
+  }
+  return v;
+};
+const compactRows = (rows: Row[]) => rows.map((r) => compact(r) as Row);
 
 const isStrength = (cat: string | null) => /muscu|force|escalier|stair/.test((cat ?? '').toLowerCase());
 const terrainOf = (cat: string | null) => (/c[oô]te/.test((cat ?? '').toLowerCase()) ? 'cote' : 'piste');
@@ -201,7 +224,7 @@ async function collect(db: Db, athlete: string, allowed: Set<Scope>, scopes: Set
       max_kg: w.length ? Math.max(...w.map((r) => Number(r.weight))) : null,
       masse_grasse_derniere_pct: [...rows].reverse().map((r) => num(r.body_fat)).find((x) => x != null) ?? null,
     };
-    if (detail) out.poids = rows;
+    if (detail) out.poids = compactRows(rows);
   }
 
   if (scopes.has('forme')) {
@@ -219,7 +242,7 @@ async function collect(db: Db, athlete: string, allowed: Set<Scope>, scopes: Set
       },
       jours_avec_douleurs: rows.filter((r) => (Array.isArray(r.pains) ? r.pains.length > 0 : !!r.pains)).map((r) => r.date),
     };
-    if (detail) out.forme = rows;
+    if (detail) out.forme = compactRows(rows);
   }
 
   if (scopes.has('nutrition')) {
@@ -244,7 +267,7 @@ async function collect(db: Db, athlete: string, allowed: Set<Scope>, scopes: Set
         : null,
       remarque: 'Moyennes sur les jours où des repas ont été saisis : un jour incomplet fait baisser la moyenne.',
     };
-    if (detail) out.nutrition = rows;
+    if (detail) out.nutrition = compactRows(rows);
   }
 
   if (scopes.has('seances')) {
@@ -261,15 +284,23 @@ async function collect(db: Db, athlete: string, allowed: Set<Scope>, scopes: Set
       par_semaine: Object.entries(weeks).map(([semaine, nb]) => ({ semaine_du: semaine, nb })),
       intensite_moyenne: avg(rows.map((r) => num(r.intensity))),
     };
-    if (detail) out.seances = rows;
+    // « exercises » is a flat copy of the exercises already inside « blocks »: kept only when there are no blocks
+    if (detail) out.seances = compactRows(rows.map(({ exercises, ...r }) => (Array.isArray(r.blocks) && r.blocks.length ? r : { ...r, exercises })));
   }
 
   if (scopes.has('resultats')) {
     const raw = await recent('resultats', db.from('athlete_efforts')
-      .select('workout_id, date_achieved, block_order, set_order, exercise_category, exercise_catalog_id, exercise:exercises_catalog(name_fr), planned_distance_m, planned_time_ms, planned_rest_ms, planned_reps, planned_weight_kg, planned_intensity, planned_extra, actual_distance_m, actual_time_ms, actual_rest_ms, actual_reps, actual_weight_kg, actual_height_cm, actual_intensity, actual_extra, is_pr, hidden_from_records, notes')
+      .select('workout_id, date_achieved, block_order, set_order, exercise_category, exercise_catalog_id, planned_distance_m, planned_time_ms, planned_rest_ms, planned_reps, planned_weight_kg, planned_intensity, planned_extra, actual_distance_m, actual_time_ms, actual_rest_ms, actual_reps, actual_weight_kg, actual_height_cm, actual_intensity, actual_extra, is_pr, hidden_from_records, notes')
       .eq('athlete_id', athlete).gte('date_achieved', sinceIso), 'date_achieved');
-    // Readable exercise name instead of a bare catalog id
-    const rows: Row[] = raw.map(({ exercise, ...r }) => ({ ...r, exercice: exercise?.name_fr ?? null }));
+    // Readable exercise name instead of a bare catalog id (no foreign key in production: looked up separately)
+    const ids = [...new Set(raw.map((r) => r.exercise_catalog_id).filter((x): x is string => typeof x === 'string' && x.length > 0))];
+    const names = new Map<string, string>();
+    if (ids.length) {
+      const { data: cat, error: catError } = await db.from('exercises_catalog').select('id, name_fr').in('id', ids);
+      if (catError) console.error('ai-data exercises_catalog', catError.message);
+      for (const c of (cat ?? []) as Row[]) if (c.name_fr) names.set(c.id, c.name_fr);
+    }
+    const rows: Row[] = raw.map((r) => ({ ...r, exercice: names.get(r.exercise_catalog_id) ?? null }));
     const best = new Map<string, { distance_m: number; terrain: string; temps_s: number; date: string }>();
     const perWeek = new Map<string, { efforts: number; distance_m: number }>();
     for (const e of rows) {
@@ -291,7 +322,7 @@ async function collect(db: Db, athlete: string, allowed: Set<Scope>, scopes: Set
       meilleurs_temps_periode: [...best.values()].sort((a, b) => a.distance_m - b.distance_m),
       par_semaine: [...perWeek.entries()].map(([semaine, v]) => ({ semaine_du: semaine, efforts: v.efforts, distance_course_m: round(v.distance_m, 0) })),
     };
-    if (detail) out.resultats = rows;
+    if (detail) out.resultats = compactRows(rows);
   }
 
   if (scopes.has('records')) {
