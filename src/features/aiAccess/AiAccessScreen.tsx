@@ -32,26 +32,28 @@ const formatDate = (iso: string | null) =>
 
 const expiryText = (iso: string | null) => (iso ? `expire le ${formatDate(iso)}` : 'n’expire jamais');
 
-function ScopeChecklist({ value, onToggle, disabled }: { value: AiScope[]; onToggle: (s: AiScope) => void; disabled?: boolean }) {
+function ScopeChecklist({ value, onToggle, disabled, allowed }: { value: AiScope[]; onToggle: (s: AiScope) => void; disabled?: boolean; allowed: AiScope[] }) {
   return (
     <View>
       {AI_SCOPES.map((s, i) => {
-        const on = value.includes(s.key);
+        const locked = !allowed.includes(s.key);
+        const on = value.includes(s.key) && !locked;
+        const off = disabled || locked;
         return (
           <PressableScale
             key={s.key}
             haptic="selection"
             onPress={() => onToggle(s.key)}
-            disabled={disabled}
+            disabled={off}
             accessibilityRole="checkbox"
-            accessibilityState={{ checked: on, disabled }}
-            accessibilityLabel={`${s.label} : ${s.detail}`}
-            style={[styles.scopeRow, i > 0 && styles.rowBorder]}
+            accessibilityState={{ checked: on, disabled: off }}
+            accessibilityLabel={`${s.label} : ${locked ? 'disponible à partir de 18 ans' : s.detail}`}
+            style={[styles.scopeRow, i > 0 && styles.rowBorder, locked && styles.scopeLocked]}
           >
-            <Feather name={on ? 'check-square' : 'square'} size={20} color={on ? theme.colors.sprintyBlue : theme.colors.textMuted} />
+            <Feather name={locked ? 'lock' : on ? 'check-square' : 'square'} size={20} color={on ? theme.colors.sprintyBlue : theme.colors.textMuted} />
             <View style={{ flex: 1 }}>
               <Text style={styles.scopeLabel}>{s.label}</Text>
-              <Text style={styles.scopeDetail}>{s.detail}</Text>
+              <Text style={styles.scopeDetail}>{locked ? 'Disponible à partir de 18 ans' : s.detail}</Text>
             </View>
           </PressableScale>
         );
@@ -71,11 +73,17 @@ export function AiAccessScreen() {
   const [draftScopes, setDraftScopes] = useState<AiScope[]>(ALL_AI_SCOPES);
   const [days, setDays] = useState<number | null>(30);
   const [created, setCreated] = useState<CreatedAiKey | null>(null);
+  // Categories this account may share (fewer before 18). The server enforces it; this only greys the boxes.
+  const [allowed, setAllowed] = useState<AiScope[]>(ALL_AI_SCOPES);
+  const restricted = allowed.length < ALL_AI_SCOPES.length;
 
   const load = useCallback(async () => {
     setError(false);
     try {
-      setKeys(await aiAccessService.list());
+      const [list, scopes] = await Promise.all([aiAccessService.list(), aiAccessService.allowedScopes().catch(() => ALL_AI_SCOPES)]);
+      setKeys(list);
+      setAllowed(scopes);
+      setDraftScopes((v) => v.filter((s) => scopes.includes(s)));
     } catch {
       setError(true);
     }
@@ -88,19 +96,27 @@ export function AiAccessScreen() {
   const toggle = (list: AiScope[], s: AiScope) => (list.includes(s) ? list.filter((x) => x !== s) : [...list, s]);
 
   const create = async () => {
-    if (!draftScopes.length) {
+    if (!draftScopes.some((s) => allowed.includes(s))) {
       toast('warning', 'Coche au moins une catégorie à partager.');
       return;
     }
     setBusy(true);
     try {
-      const res = await aiAccessService.create(label.trim() || 'Mon IA', draftScopes, days);
+      const res = await aiAccessService.create(label.trim() || 'Mon IA', draftScopes.filter((s) => allowed.includes(s)), days);
       setCreated(res);
       setLabel('');
-      setDraftScopes(ALL_AI_SCOPES);
+      setDraftScopes(allowed);
       await load();
     } catch (e: any) {
-      toast('error', /Limite/.test(e?.message ?? '') ? 'Tu as déjà 5 clés actives. Révoque-en une avant d’en créer une autre.' : 'Impossible de créer la clé. Réessaie.');
+      const msg = e?.message ?? '';
+      toast(
+        'error',
+        /Limite/.test(msg)
+          ? 'Tu as déjà 5 clés actives. Révoque-en une avant d’en créer une autre.'
+          : /majeurs/.test(msg)
+            ? 'Avant 18 ans, seuls les séances, résultats, records et objectifs peuvent être partagés.'
+            : 'Impossible de créer la clé. Réessaie.',
+      );
     } finally {
       setBusy(false);
     }
@@ -191,8 +207,8 @@ export function AiAccessScreen() {
                 {k.last_used_at ? `Utilisée ${k.use_count} fois, dernière fois le ${formatDate(k.last_used_at)}` : 'Jamais utilisée'}
               </Text>
               <Text style={styles.subTitle}>Ce que cette IA peut lire</Text>
-              <ScopeChecklist value={k.scopes} onToggle={(s) => updateScopes(k, s)} />
-              {k.scopes.length === 0 && <Text style={styles.warning}>Rien n’est partagé : l’IA ne recevra aucune donnée.</Text>}
+              <ScopeChecklist value={k.scopes} onToggle={(s) => updateScopes(k, s)} allowed={allowed} />
+              {!k.scopes.some((s) => allowed.includes(s)) && <Text style={styles.warning}>Rien n’est partagé : l’IA ne recevra aucune donnée.</Text>}
               <PressableScale haptic="light" onPress={() => revoke(k)} style={styles.revoke} hitSlop={8}>
                 <Text style={styles.revokeText}>Révoquer cette clé</Text>
               </PressableScale>
@@ -212,7 +228,8 @@ export function AiAccessScreen() {
             maxLength={40}
           />
           <Text style={styles.subTitle}>Ce que tu partages</Text>
-          <ScopeChecklist value={draftScopes} onToggle={(s) => setDraftScopes((v) => toggle(v, s))} disabled={busy} />
+          <ScopeChecklist value={draftScopes} onToggle={(s) => setDraftScopes((v) => toggle(v, s))} disabled={busy} allowed={allowed} />
+          {restricted && <Text style={styles.foot}>Avant 18 ans, ton profil, ton poids, ta forme et ta nutrition restent privés.</Text>}
           <Text style={styles.subTitle}>Expiration</Text>
           <View style={styles.chips} accessibilityRole="radiogroup">
             {AI_KEY_DURATIONS.map((d) => {
@@ -246,6 +263,7 @@ export function AiAccessScreen() {
 }
 
 const styles = StyleSheet.create({
+  scopeLocked: { opacity: 0.55 },
   content: { paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.md, paddingBottom: theme.spacing.xxxl },
   intro: { fontSize: 14, lineHeight: 20, color: theme.colors.textSecondary, marginBottom: theme.spacing.sm },
   section: { fontSize: 12, fontWeight: '700', letterSpacing: 0.6, color: theme.colors.textSecondary, marginTop: 18, marginBottom: theme.spacing.sm, marginLeft: theme.spacing.xs },
