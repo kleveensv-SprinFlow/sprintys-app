@@ -6,7 +6,7 @@ do $$
 declare
   v_conv uuid; v_team uuid; v_coach uuid; v_member uuid; v_outsider uuid; v_direct uuid; v_other uuid;
   v_report text[] := '{}';
-  v_n int;
+  v_n int; v_msgs int;
 
 begin
   -- Données réelles : une conversation d'équipe, son coach, un membre approuvé, un compte étranger, une conversation privée
@@ -22,6 +22,8 @@ begin
   if v_conv is null or v_member is null or v_outsider is null or v_direct is null then
     raise exception 'DONNÉES INSUFFISANTES pour le test';
   end if;
+
+  select count(*) into v_msgs from messages where conversation_id in (v_conv, v_direct);
 
   -- Règle de la migration appliquée à l'intérieur du test (annulée à la fin)
   drop policy if exists "Users can insert participants if they are coach or self" on public.conversation_participants;
@@ -50,10 +52,14 @@ begin
 
   -- 3. Il ne voit aucun message de ces conversations
   select count(*) into v_n from messages where conversation_id in (v_conv, v_direct);
-  v_report := v_report || case when v_n = 0 then 'OK 3 : l''étranger ne lit aucun message' else 'ÉCHEC 3 : l''étranger lit ' || v_n || ' messages' end;
+  v_report := v_report || (case
+    when v_msgs = 0 then 'NON CONCLUANT 3 : ces conversations ne contiennent aucun message'
+    when v_n = 0 then 'OK 3 : l''étranger ne lit aucun des ' || v_msgs || ' messages'
+    else 'ÉCHEC 3 : l''étranger lit ' || v_n || ' messages' end)::text;
 
   -- 4. Un membre approuvé peut s'ajouter lui-même à la conversation de son équipe (cas ensureParticipant)
   reset role;
+  delete from conversation_participants where user_id = v_outsider;
   delete from conversation_participants where conversation_id = v_conv and user_id = v_member;
   perform set_config('request.jwt.claims', json_build_object('sub', v_member, 'role', 'authenticated')::text, true);
   set local role authenticated;
@@ -69,18 +75,19 @@ begin
     insert into conversation_participants(conversation_id, user_id) values (v_conv, v_outsider);
     v_report := v_report || 'ÉCHEC 5 : un membre a pu ajouter un tiers'::text;
   exception when others then
-    v_report := v_report || 'OK 5 : un membre ne peut pas ajouter un tiers'::text;
+    v_report := v_report || ('OK 5 : un membre ne peut pas ajouter un tiers (' || sqlerrm || ')')::text;
   end;
 
   -- 6. Un visiteur non connecté ne peut rien ajouter
   reset role;
+  delete from conversation_participants where user_id = v_outsider;
   perform set_config('request.jwt.claims', '{"role":"anon"}', true);
   set local role anon;
   begin
     insert into conversation_participants(conversation_id, user_id) values (v_conv, v_outsider);
     v_report := v_report || 'ÉCHEC 6 : un visiteur non connecté a pu s''ajouter'::text;
   exception when others then
-    v_report := v_report || 'OK 6 : un visiteur non connecté ne peut rien ajouter'::text;
+    v_report := v_report || ('OK 6 : un visiteur non connecté ne peut rien ajouter (' || sqlerrm || ')')::text;
   end;
   reset role;
 
