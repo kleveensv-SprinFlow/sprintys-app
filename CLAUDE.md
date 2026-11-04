@@ -7,7 +7,7 @@ Expo SDK 54 / React Native (nouvelle archi) + Expo Router · TypeScript strict �
 **Carte du code : `.claude/MAP.md` (lis-la avant de chercher).** Conventions détaillées par zone : `.claude/rules/` (chargées automatiquement).
 
 ## Commandes
-`npm install` · `npx expo start` · `npx tsc --noEmit` (0 erreur avant tout commit/release) · Edge Functions : skill `supabase-deploy`.
+`npm install` · `npx expo start` · `npx tsc --noEmit` (0 erreur avant tout commit/release) · Edge Functions : skill `supabase-deploy` · Captures d'écran sans build (version web, données fictives) : skill `apercu-ecrans`.
 
 ## Règles non négociables
 1. **Exécute toi-même les commandes** ; l'utilisateur n'est pas développeur. Seule exception : actions sur plateforme externe sans accès (dashboard Supabase, consoles stores) → texte/SQL **prêt à copier** en bloc de code.
