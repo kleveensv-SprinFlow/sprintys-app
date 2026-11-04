@@ -185,7 +185,7 @@ export const SleepStep = ({ onNext, quick }: SleepStepProps) => {
             accessibilityLabel={`${quick.title}. ${quick.detail}`}
           >
             <View style={[styles.quickIcon, { backgroundColor: theme.colors.sprintyBlue }]}>
-              <Feather name="repeat" size={16} color="#FFFFFF" />
+              <Feather name="repeat" size={16} color={theme.colors.onAccent} />
             </View>
             <View style={styles.quickBody}>
               <Text style={[styles.quickTitle, { color: theme.colors.text }]}>{quick.title}</Text>

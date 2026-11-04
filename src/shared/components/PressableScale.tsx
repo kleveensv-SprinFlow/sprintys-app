@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { Animated, Pressable, PressableProps, Platform, StyleProp, ViewStyle } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { useReduceMotion } from '../hooks/useReduceMotion';
 
 type HapticKind = 'light' | 'medium' | 'selection' | 'none';
 
@@ -43,14 +44,18 @@ export const PressableScale = ({
   ...rest
 }: PressableScaleProps) => {
   const scale = useRef(new Animated.Value(1)).current;
+  const reduceMotion = useReduceMotion();
 
-  const animateTo = (toValue: number) =>
+  const animateTo = (toValue: number) => {
+    // Reduced motion: no shrink, the press is still confirmed by the haptic and the action itself
+    if (reduceMotion) return;
     Animated.spring(scale, {
       toValue,
       useNativeDriver: true,
       speed: 40,
       bounciness: toValue === 1 ? 6 : 0,
     }).start();
+  };
 
   return (
     <Pressable

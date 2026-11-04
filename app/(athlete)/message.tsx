@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Animated } from 'react-native';
+import { Skeleton } from '../../src/shared/components/Skeleton';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -155,7 +156,10 @@ export default function MessagesHubScreen() {
           <Text style={styles.sectionLabel}>ÉQUIPE & COACH</Text>
 
           {isLoading ? (
-            <ActivityIndicator size="small" color={theme.colors.sprintyBlue} style={{ marginTop: 20 }} />
+            <View style={{ marginTop: 20, gap: 10 }} accessibilityLabel="Chargement">
+              <Skeleton height={64} radius={20} />
+              <Skeleton height={64} radius={20} />
+            </View>
           ) : myGroup ? (
             myGroup.status === 'pending' ? (
               <View style={styles.emptyState}>

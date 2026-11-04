@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Modal, TextInput, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { Skeleton } from '../../../shared/components/Skeleton';
 import { TouchableOpacity } from '../../../shared/components/Tappable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -527,7 +528,7 @@ export const FoodSearchModal: React.FC = () => {
           </View>
 
           <PressableScale style={styles.savedMealAddBtn} onPress={() => handleLogSavedMeal(item)}>
-            <Feather name="plus" size={15} color="#FFF" />
+            <Feather name="plus" size={15} color={theme.colors.onAccent} />
             <Text style={styles.savedMealAddText}>Ajouter tout</Text>
           </PressableScale>
         </View>
@@ -666,7 +667,7 @@ export const FoodSearchModal: React.FC = () => {
         {isAILoading && (
           <View style={styles.aiLoadingOverlay}>
             <LinearGradient colors={['#0069E8', '#00DCFD']} style={styles.aiLoaderCircle}>
-              <ActivityIndicator size="large" color="#FFF" />
+              <ActivityIndicator size="large" color={theme.colors.onAccent} />
             </LinearGradient>
             <Text style={styles.aiLoadingText}>Sprinty analyse ton repas…</Text>
           </View>
@@ -681,11 +682,11 @@ export const FoodSearchModal: React.FC = () => {
             />
             <View style={styles.scannerOverlay}>
               <TouchableOpacity style={styles.closeScannerBtn} onPress={() => setMode('text')}>
-                <Feather name="x" size={24} color="#FFF" />
-                <Text style={{ color: '#FFF', marginLeft: 8, fontWeight: 'bold' }}>Annuler</Text>
+                <Feather name="x" size={24} color={theme.colors.onAccent} />
+                <Text style={{ color: theme.colors.onAccent, marginLeft: 8, fontWeight: 'bold' }}>Annuler</Text>
               </TouchableOpacity>
               <View style={styles.scanTarget} />
-              <Text style={{ color: '#FFF', textAlign: 'center', marginTop: 16, fontWeight: '600' }}>Place le code-barres dans le cadre</Text>
+              <Text style={{ color: theme.colors.onAccent, textAlign: 'center', marginTop: 16, fontWeight: '600' }}>Place le code-barres dans le cadre</Text>
             </View>
           </View>
         ) : mode === 'ai-loading' ? (
@@ -869,9 +870,9 @@ export const FoodSearchModal: React.FC = () => {
                  disabled={isLoading}
              >
                  {isLoading ? (
-                    <ActivityIndicator color="#FFF" />
+                    <ActivityIndicator color={theme.colors.onAccent} />
                  ) : (
-                    <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '700' }}>Confirmer et ajouter</Text>
+                    <Text style={{ color: theme.colors.onAccent, fontSize: 16, fontWeight: '700' }}>Confirmer et ajouter</Text>
                  )}
              </TouchableOpacity>
           </View>
@@ -927,9 +928,9 @@ export const FoodSearchModal: React.FC = () => {
                 disabled={!aiQuery || !aiQuery.trim() || isAILoading}
               >
                 {isAILoading ? (
-                   <ActivityIndicator color="#FFF" />
+                   <ActivityIndicator color={theme.colors.onAccent} />
                 ) : (
-                   <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '700' }}>Analyser mon repas</Text>
+                   <Text style={{ color: theme.colors.onAccent, fontSize: 16, fontWeight: '700' }}>Analyser mon repas</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -1029,7 +1030,11 @@ export const FoodSearchModal: React.FC = () => {
             {/* RESULTS LIST */}
             <View style={styles.resultsContainer}>
               {isLoading ? (
-                <ActivityIndicator size="large" color={theme.colors.accent} style={{ marginTop: 40 }} />
+                <View style={{ marginTop: 24, gap: 10 }} accessibilityLabel="Chargement">
+                  {[0, 1, 2, 3].map((i) => (
+                    <Skeleton key={i} height={60} radius={16} />
+                  ))}
+                </View>
               ) : isSearching ? (
                 /* SEARCH RESULTS */
                 results.length > 0 ? (

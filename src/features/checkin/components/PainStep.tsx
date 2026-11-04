@@ -181,9 +181,9 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
         accessibilityState={{ checked: noPain }}
       >
         <View style={[styles.noneDot, { backgroundColor: noPain ? 'rgba(255,255,255,0.3)' : theme.colors.border }]}>
-          <Feather name="check" size={14} color="#FFFFFF" />
+          <Feather name="check" size={14} color={theme.colors.onAccent} />
         </View>
-        <Text style={[styles.noneText, { color: noPain ? '#FFFFFF' : theme.colors.text }]}>Rien à signaler aujourd’hui</Text>
+        <Text style={[styles.noneText, { color: noPain ? theme.colors.onAccent : theme.colors.text }]}>Rien à signaler aujourd’hui</Text>
       </PressableScale>
     </>
   );
@@ -255,7 +255,7 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
                 >
                   <View style={styles.sectionHeaderLeft}>
                     <View style={[styles.iconBox, { backgroundColor: isExpanded ? theme.colors.sprintyBlue : theme.colors.sprintyMuted }]}>
-                      <Feather name={section.icon as keyof typeof Feather.glyphMap} size={17} color={isExpanded ? '#FFFFFF' : theme.colors.sprintyBlue} />
+                      <Feather name={section.icon as keyof typeof Feather.glyphMap} size={17} color={isExpanded ? theme.colors.onAccent : theme.colors.sprintyBlue} />
                     </View>
                     <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>{section.name}</Text>
                     {painsInSection.length > 0 && (
@@ -361,7 +361,7 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
                     accessibilityState={{ selected: intensity === n }}
                     accessibilityLabel={`Intensité ${n} sur 10`}
                   >
-                    <Text style={[styles.levelText, { color: reached ? '#FFFFFF' : theme.colors.text }, intensity === n && styles.chipTextActive]}>{n}</Text>
+                    <Text style={[styles.levelText, { color: reached ? theme.colors.onAccent : theme.colors.text }, intensity === n && styles.chipTextActive]}>{n}</Text>
                   </PressableScale>
                 );
               })}
@@ -389,7 +389,7 @@ export const PainStep = ({ onBack, onSubmit }: PainStepProps) => {
                     accessibilityRole="radio"
                     accessibilityState={{ selected: active }}
                   >
-                    <Text style={[styles.chipText, { color: active ? '#FFFFFF' : theme.colors.text }, active && styles.chipTextActive]}>{t}</Text>
+                    <Text style={[styles.chipText, { color: active ? theme.colors.onAccent : theme.colors.text }, active && styles.chipTextActive]}>{t}</Text>
                   </PressableScale>
                 );
               })}

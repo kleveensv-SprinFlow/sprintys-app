@@ -1,6 +1,6 @@
 import { goBack } from '../../src/core/navigation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, useWindowDimensions, Animated, Modal, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, useWindowDimensions, Animated } from 'react-native';
 import { TouchableOpacity } from '../../src/shared/components/Tappable';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -19,8 +19,8 @@ import { FrostedBar } from '../../src/shared/components/FrostedBar';
 import { useFrostedHeader } from '../../src/shared/hooks/useFrostedHeader';
 import { SegmentedControl } from '../../src/shared/components/SegmentedControl';
 import { PressableScale } from '../../src/shared/components/PressableScale';
+import { BottomSheet } from '../../src/shared/components/BottomSheet';
 import { supabase } from '../../src/services/supabase';
-import { FeedbackHost } from '../../src/shared/feedback/FeedbackHost';
 import { appAlert } from '../../src/shared/feedback/appAlert';
 
 import { useRefresh } from '../../src/shared/hooks/useRefresh';
@@ -440,14 +440,8 @@ export default function BodyCompositionScreen() {
           )}
         </Animated.ScrollView>
 
-        <Modal visible={sheet} transparent animationType="slide" onRequestClose={() => setSheet(false)} statusBarTranslucent>
-          <FeedbackHost />
-          <KeyboardAvoidingView style={styles.sheetBackdrop} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-            <Pressable style={{ flex: 1 }} onPress={() => setSheet(false)} />
-            <View style={[styles.sheet, { backgroundColor: theme.colors.surface, paddingBottom: Math.max(insets.bottom, 16) }]}>
-              <View style={[styles.handle, { backgroundColor: theme.colors.border }]} />
+        <BottomSheet visible={sheet} onClose={() => setSheet(false)} title={editingId ? 'Modifier la pesée' : 'Nouvelle pesée'}>
               <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} bounces={false}>
-                <Text style={[styles.sheetTitle, { color: theme.colors.text }]}>{editingId ? 'Modifier la pesée' : 'Nouvelle pesée'}</Text>
                 <View style={styles.stepper}>
                   <PressableScale onPress={() => nudge(-1)} haptic="selection" style={[styles.stepBtn, { backgroundColor: theme.colors.glassFill }]}>
                     <Text style={[styles.stepLabel, { color: theme.colors.text }]}>− 0,1</Text>
@@ -503,17 +497,9 @@ export default function BodyCompositionScreen() {
                   </TouchableOpacity>
                 )}
               </ScrollView>
-            </View>
-          </KeyboardAvoidingView>
-        </Modal>
+        </BottomSheet>
 
-        <Modal visible={goalSheet} transparent animationType="slide" onRequestClose={() => setGoalSheet(false)} statusBarTranslucent>
-          <FeedbackHost />
-          <KeyboardAvoidingView style={styles.sheetBackdrop} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-            <Pressable style={{ flex: 1 }} onPress={() => setGoalSheet(false)} />
-            <View style={[styles.sheet, { backgroundColor: theme.colors.surface, paddingBottom: Math.max(insets.bottom, 16) }]}>
-              <View style={[styles.handle, { backgroundColor: theme.colors.border }]} />
-              <Text style={[styles.sheetTitle, { color: theme.colors.text }]}>Objectif de poids</Text>
+        <BottomSheet visible={goalSheet} onClose={() => setGoalSheet(false)} title="Objectif de poids">
               <View style={styles.stepper}>
                 <PressableScale onPress={() => nudgeGoal(-1)} haptic="selection" style={[styles.stepBtn, { backgroundColor: theme.colors.glassFill }]}>
                   <Text style={[styles.stepLabel, { color: theme.colors.text }]}>− 0,5</Text>
@@ -545,9 +531,7 @@ export default function BodyCompositionScreen() {
                   <Text style={[styles.deleteText, { color: theme.colors.textSecondary }]}>Retirer l'objectif</Text>
                 </TouchableOpacity>
               )}
-            </View>
-          </KeyboardAvoidingView>
-        </Modal>
+        </BottomSheet>
       </SafeAreaView>
     </GlassScreen>
   );
@@ -622,11 +606,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   rowValue: { fontSize: 16, fontWeight: '700' },
   rowDate: { fontSize: 12, marginTop: 2 },
-  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.35)', justifyContent: 'flex-end' },
-  sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 8, maxHeight: '88%' },
-  handle: { alignSelf: 'center', width: 40, height: 5, borderRadius: 3, marginBottom: 14 },
-  sheetTitle: { fontSize: 18, fontWeight: '800', marginBottom: 16 },
-  stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 },
   stepBtn: { paddingHorizontal: 14, paddingVertical: 12, borderRadius: 14, borderCurve: 'continuous' },
   stepLabel: { fontSize: 16, fontWeight: '700' },
   weightInput: { fontSize: 40, fontWeight: '800', minWidth: 120, textAlign: 'center' },

@@ -1,6 +1,6 @@
 import { goBack } from '../../../src/core/navigation';
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, TextInput, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Animated } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Animated } from 'react-native';
 import { TouchableOpacity } from '../../../src/shared/components/Tappable';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,7 +24,7 @@ import { PressableScale } from '../../../src/shared/components/PressableScale';
 import { useFrostedHeader } from '../../../src/shared/hooks/useFrostedHeader';
 import { ageOn, isMinorAthlete } from '../../../src/legal/age';
 
-import { FeedbackHost } from '../../../src/shared/feedback/FeedbackHost';
+import { BottomSheet } from '../../../src/shared/components/BottomSheet';
 import { appAlert, toast } from '../../../src/shared/feedback/appAlert';
 
 export default function MealDetailScreen() {
@@ -382,25 +382,15 @@ export default function MealDetailScreen() {
             onPress={() => openSearchModal(type)}
             activeOpacity={0.85}
           >
-            <Feather name="plus" size={18} color="#FFF" />
+            <Feather name="plus" size={18} color={theme.colors.onAccent} />
             <Text style={styles.pillAddBtnText}>Ajouter un aliment</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {/* MODAL D'ÉDITION DE PORTION */}
-      <Modal visible={!!editingLog} transparent animationType="fade" onRequestClose={() => setEditingLog(null)}>
-        <FeedbackHost />
-        <TouchableWithoutFeedback onPress={() => setEditingLog(null)}>
-          <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback>
-              <KeyboardAvoidingView 
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                style={[styles.editModalContent, { backgroundColor: theme.colors.surface }]}
-              >
-                <Text style={[styles.editModalTitle, { color: theme.colors.text }]} numberOfLines={1}>
-                  Modifier la portion
-                </Text>
+      <BottomSheet visible={!!editingLog} onClose={() => setEditingLog(null)} title="Modifier la portion">
+
                 <Text style={[styles.editModalFoodName, { color: theme.colors.textSecondary }]} numberOfLines={1}>
                   {editingLog?.custom_food_name || 'Aliment'}
                 </Text>
@@ -442,28 +432,14 @@ export default function MealDetailScreen() {
                     style={[styles.editActionBtn, { backgroundColor: theme.colors.sprintyBlue }]}
                     onPress={handleSaveEdit}
                   >
-                    <Text style={{ color: '#FFF', fontWeight: '700' }}>Enregistrer</Text>
+                    <Text style={{ color: theme.colors.onAccent, fontWeight: '700' }}>Enregistrer</Text>
                   </TouchableOpacity>
                 </View>
-              </KeyboardAvoidingView>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
+      </BottomSheet>
 
       {/* MODAL DE SAUVEGARDE DE REPAS TYPE */}
-      <Modal visible={showSaveModal} transparent animationType="fade" onRequestClose={() => setShowSaveModal(false)}>
-        <FeedbackHost />
-        <TouchableWithoutFeedback onPress={() => setShowSaveModal(false)}>
-          <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback>
-              <KeyboardAvoidingView 
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                style={[styles.editModalContent, { backgroundColor: theme.colors.surface }]}
-              >
-                <Text style={[styles.editModalTitle, { color: theme.colors.text }]} numberOfLines={1}>
-                  Enregistrer ce repas
-                </Text>
+      <BottomSheet visible={showSaveModal} onClose={() => setShowSaveModal(false)} title="Enregistrer ce repas">
+
                 <Text style={[styles.saveModalSubtitle, { color: theme.colors.textSecondary }]}>
                   Donnez un nom à ce repas pour l'ajouter en 1 clic plus tard.
                 </Text>
@@ -502,14 +478,10 @@ export default function MealDetailScreen() {
                     onPress={handleSaveMealTemplate}
                     disabled={!savedTemplateName.trim()}
                   >
-                    <Text style={{ color: '#FFF', fontWeight: '700' }}>Enregistrer</Text>
+                    <Text style={{ color: theme.colors.onAccent, fontWeight: '700' }}>Enregistrer</Text>
                   </TouchableOpacity>
                 </View>
-              </KeyboardAvoidingView>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
+      </BottomSheet>
 
       {/* MODAL DE RECHERCHE D'ALIMENT (si non readonly) */}
       {!readonly && <FoodSearchModal />}
@@ -644,30 +616,6 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 15,
     fontWeight: '700',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    // En haut : le clavier ne cache jamais les boutons (sur Android la fenêtre ne se décale pas toute seule)
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 96,
-  },
-  editModalContent: {
-    width: '100%',
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 10,
-  },
-  editModalTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    marginBottom: 4,
   },
   editModalFoodName: {
     fontSize: 13,

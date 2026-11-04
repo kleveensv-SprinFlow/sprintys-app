@@ -36,7 +36,7 @@ export const ScaleChips = ({ value, onChange, options }: ScaleChipsProps) => (
           accessibilityLabel={item.label}
         >
           <View style={[styles.chip, active && styles.chipActive]}>
-            <Feather name={item.icon} size={20} color={active ? '#FFFFFF' : theme.colors.textSecondary} />
+            <Feather name={item.icon} size={20} color={active ? theme.colors.onAccent : theme.colors.textSecondary} />
           </View>
           <Text style={[styles.label, active && styles.labelActive]} numberOfLines={2}>
             {item.label}

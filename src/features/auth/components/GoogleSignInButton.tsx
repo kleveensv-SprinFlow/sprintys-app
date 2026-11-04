@@ -1,6 +1,6 @@
 import React from 'react';
+import { TouchableOpacity } from '../../../shared/components/Tappable';
 import {
-  TouchableOpacity,
   Text,
   StyleSheet,
   ActivityIndicator,
