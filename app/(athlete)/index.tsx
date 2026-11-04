@@ -1,16 +1,14 @@
 import { Appear } from '../../src/shared/components/Appear';
 import React, { useCallback, useRef, useState } from 'react';
-import { StyleSheet, Animated, View, Text, RefreshControl, TouchableOpacity } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { StyleSheet, Animated, View, Text, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/core/theme';
 import { AthleteHeader } from '../../src/features/athlete/components/AthleteHeader';
-import { AthleteGauges } from '../../src/features/athlete/components/AthleteGauges';
+import { CheckInCard, SummaryTiles } from '../../src/features/athlete/components/AthleteGauges';
 import { NotificationInvite } from '../../src/features/notifications/NotificationInvite';
 import { SprintyWordCard } from '../../src/features/sprinty/SprintyWordCard';
 import { SessionCarousel } from '../../src/features/athlete/components/SessionCarousel';
-import { BodyCompositionCard } from '../../src/features/athlete/components/BodyCompositionCard';
-import { PerformanceCard } from '../../src/features/athlete/components/PerformanceCard';
+import { ProgressSummaryCard } from '../../src/features/athlete/components/ProgressSummaryCard';
 import { WeatherCard } from '../../src/shared/components/WeatherCard';
 import { GlassScreen } from '../../src/shared/components/GlassScreen';
 import { FrostedBar } from '../../src/shared/components/FrostedBar';
@@ -25,7 +23,8 @@ const MONTH_NAMES = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'jui
 
 const getGreeting = () => {
   const hour = new Date().getHours();
-  if (hour < 5 || hour >= 18) return 'Bonsoir';
+  if (hour < 5) return 'Bonne nuit';
+  if (hour >= 18) return 'Bonsoir';
   return 'Bonjour';
 };
 
@@ -36,7 +35,8 @@ export default function DashboardScreen() {
   const { loadUpcomingWorkouts } = useWorkoutStore();
   const [refreshKey, setRefreshKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  const [progressOpen, setProgressOpen] = useState(false);
+  // One information card at a time: the notification invitation first, Sprinty's daily word otherwise
+  const [inviteVisible, setInviteVisible] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
   const tabBarSpace = useTabBarSpace(24);
@@ -100,32 +100,34 @@ export default function DashboardScreen() {
             </Text>
           </View></Appear>
 
-          <Appear index={1}><NotificationInvite role="athlete" /><SprintyWordCard /><AthleteGauges refreshKey={refreshKey} /></Appear>
-          <Appear index={2}><SessionCarousel /></Appear>
+          {/* 1. The daily action */}
+          <Appear index={1}>
+            <CheckInCard refreshKey={refreshKey} />
+          </Appear>
+          {/* 2. What I do today and this week */}
+          <Appear index={2}>
+            <SessionCarousel />
+          </Appear>
+          {/* 3. Glanceable tiles */}
           <Appear index={3}>
+            <SummaryTiles refreshKey={refreshKey} />
+          </Appear>
+          {/* 4. A single information card, never a stack */}
+          <Appear index={4}>
             <View style={styles.cardGutter}>
+              <NotificationInvite role="athlete" onVisibleChange={setInviteVisible} />
+              {!inviteVisible && <SprintyWordCard />}
+            </View>
+          </Appear>
+          {/* 5. Progress, compact and always visible */}
+          <Appear index={5}>
+            <ProgressSummaryCard refreshKey={refreshKey} />
+          </Appear>
+          <Appear index={6}>
+            <View style={[styles.cardGutter, styles.weather]}>
               <WeatherCard />
             </View>
           </Appear>
-          <Appear index={4}>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => setProgressOpen((v) => !v)}
-              accessibilityRole="button"
-              accessibilityLabel={progressOpen ? 'Masquer ma progression' : 'Afficher ma progression'}
-              style={styles.progressToggle}
-            >
-              <Text style={[styles.progressTitle, { color: theme.colors.text }]}>Ma progression</Text>
-              <Text style={[styles.progressHint, { color: theme.colors.textSecondary }]}>Records et poids</Text>
-              <Feather name={progressOpen ? 'chevron-up' : 'chevron-down'} size={20} color={theme.colors.textMuted} />
-            </TouchableOpacity>
-          </Appear>
-          {progressOpen && (
-            <>
-              <PerformanceCard refreshKey={refreshKey} />
-              <BodyCompositionCard refreshKey={refreshKey} />
-            </>
-          )}
         </Animated.ScrollView>
       </View>
     </GlassScreen>
@@ -155,11 +157,10 @@ const styles = StyleSheet.create({
     letterSpacing: -0.8,
     marginTop: 2,
   },
-  progressToggle: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 14 },
-  progressTitle: { fontSize: 20, fontWeight: '800' },
-  progressHint: { flex: 1, fontSize: 13, fontWeight: '600' },
   cardGutter: {
-    // WeatherCard has no horizontal margin (the coach screen pads its scroll view)
+    // These cards have no horizontal margin of their own (the coach screen pads its scroll view)
     marginHorizontal: 16,
+    marginTop: 12,
   },
+  weather: { marginTop: 24 },
 });

@@ -69,6 +69,15 @@ export const universalColors = {
   glassFill: 'rgba(15, 23, 42, 0.05)', // Neutral fill inside glass (tracks, chips, inputs)
   glassBar: 'rgba(255, 255, 255, 0.8)', // Frosted bars (headers) over the glows
   hairline: 'rgba(15, 23, 42, 0.08)',
+  // Content on a filled accent (white text or icon on a blue button)
+  onAccent: '#FFFFFF',
+  // Dashboard categories
+  nutrition: '#00A88C',
+  competition: '#B45309',
+  record: '#F59E0B',
+  // Soft backgrounds behind status pills
+  successTint: 'rgba(16, 185, 129, 0.12)',
+  neutralTint: 'rgba(15, 23, 42, 0.06)',
 };
 
 export const useTheme = () => {
