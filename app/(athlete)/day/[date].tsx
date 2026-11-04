@@ -143,7 +143,16 @@ export default function AthleteDayScreen() {
           <View style={styles.workoutsContainer}>
             {workouts.map((w, i) => {
               let summary = '';
-              if (w.blocks && w.blocks.length > 0) summary = `${w.blocks.length} bloc${w.blocks.length > 1 ? 's' : ''} d’entraînement`;
+              // The first exercises say more than « 3 blocs d’entraînement » repeated on every card
+              const names = [
+                ...new Set(
+                  ((w.blocks && w.blocks.length > 0 ? w.blocks.flatMap((b: any) => b?.exercises ?? []) : w.exercises) ?? [])
+                    .map((e: any) => (typeof e?.name === 'string' ? e.name.trim() : ''))
+                    .filter(Boolean),
+                ),
+              ] as string[];
+              if (names.length > 0) summary = names.slice(0, 3).join(', ') + (names.length > 3 ? '…' : '');
+              else if (w.blocks && w.blocks.length > 0) summary = `${w.blocks.length} bloc${w.blocks.length > 1 ? 's' : ''} d’entraînement`;
               else if (w.exercises && w.exercises.length > 0) summary = `${w.exercises.length} exercice${w.exercises.length > 1 ? 's' : ''}`;
               else if (w.type_seance?.toLowerCase().includes('technique')) summary = 'Consignes techniques';
               else if (w.type_seance?.toLowerCase().includes('repos')) summary = 'Récupération';

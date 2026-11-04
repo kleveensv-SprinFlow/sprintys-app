@@ -74,6 +74,46 @@ const Lane = ({
   );
 };
 
+const Column = ({ label, color, tint, value, goal }: { label: string; color: string; tint: string; value: number; goal?: number }) => {
+  const theme = useTheme();
+  const width = useRef(new Animated.Value(0)).current;
+  const percent = goal && goal > 0 ? Math.min(100, (value / goal) * 100) : 0;
+  const isOver = !!goal && goal > 0 && value > goal * 1.05;
+
+  useEffect(() => {
+    Animated.timing(width, { toValue: percent, duration: 800, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+  }, [percent]);
+
+  return (
+    <View style={styles.column} accessible accessibilityLabel={`${label} : ${formatG(value)} grammes${goal ? ` sur ${goal}` : ''}`}>
+      <View style={styles.columnHead}>
+        <View style={[styles.columnDot, { backgroundColor: tint }]}>
+          <Text style={[styles.columnDotText, { color }]}>{label.charAt(0)}</Text>
+        </View>
+        <Text style={[styles.columnLabel, { color: theme.colors.textSecondary }]} numberOfLines={1}>{label}</Text>
+      </View>
+      <Text style={[styles.columnValue, { color: isOver ? ENERGY.over : theme.colors.text }]} numberOfLines={1}>
+        {formatG(value)}
+        <Text style={[styles.columnGoal, { color: theme.colors.textMuted }]}>{goal ? ` / ${goal} g` : ' g'}</Text>
+      </Text>
+      {!!goal && (
+        <View style={[styles.track, styles.trackCompact, { backgroundColor: theme.colors.glassFill }]}>
+          <Animated.View style={[styles.fill, { backgroundColor: color, width: width.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }) }]} />
+        </View>
+      )}
+    </View>
+  );
+};
+
+/** The three macros side by side: one line instead of three rows (the day card stays glanceable). */
+export const MacroColumns = ({ values, goals }: { values: Record<MacroKey, number>; goals?: Record<MacroKey, number> }) => (
+  <View style={styles.columns}>
+    {MACROS.map((m) => (
+      <Column key={m.key} label={m.label} color={m.color} tint={m.tint} value={values[m.key] || 0} goal={goals?.[m.key]} />
+    ))}
+  </View>
+);
+
 /** The three macros as numbered running lanes. */
 export const MacroLanes = ({ values, goals, compact }: MacroLanesProps) => (
   <View style={compact ? styles.listCompact : styles.list}>
@@ -93,6 +133,14 @@ export const MacroLanes = ({ values, goals, compact }: MacroLanesProps) => (
 );
 
 const styles = StyleSheet.create({
+  columns: { flexDirection: 'row', gap: 14 },
+  column: { flex: 1, minWidth: 0, gap: 4 },
+  columnHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  columnDot: { width: 18, height: 18, borderRadius: 6, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  columnDotText: { fontSize: 11, fontWeight: '800' },
+  columnLabel: { flexShrink: 1, fontSize: 12, fontWeight: '600' },
+  columnValue: { fontSize: 15, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  columnGoal: { fontSize: 11, fontWeight: '500' },
   list: { gap: 12 },
   listCompact: { gap: 9 },
   lane: {},

@@ -127,7 +127,6 @@ export default function BodyCompositionScreen() {
     return slice.reduce((s, p) => s + p.v, 0) / slice.length;
   }, [series, latest]);
 
-  const min = raw.length ? Math.min(...raw) : null;
   const unit = metricKey === 'fat' ? '%' : 'kg';
 
   const delta = latest && first && series.length > 1 ? latest.v - first.v : null;
@@ -327,15 +326,26 @@ export default function BodyCompositionScreen() {
           )}
 
           {metricOptions.length > 1 && (
-            <SegmentedControl
-              style={styles.segment}
-              options={metricOptions}
-              value={metricKey}
-              onChange={(k) => {
-                setMetricKey(k);
-                setScrub(null);
-              }}
-            />
+            <View style={styles.metricPills} accessibilityRole="tablist">
+              {metricOptions.map((o) => {
+                const on = o.key === metricKey;
+                return (
+                  <PressableScale
+                    key={o.key}
+                    haptic="selection"
+                    onPress={() => {
+                      setMetricKey(o.key);
+                      setScrub(null);
+                    }}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: on }}
+                    style={[styles.metricPill, { backgroundColor: on ? theme.colors.sprintyBlue : theme.colors.glassFill }]}
+                  >
+                    <Text style={[styles.metricPillText, { color: on ? theme.colors.onAccent : theme.colors.text }]}>{o.label}</Text>
+                  </PressableScale>
+                );
+              })}
+            </View>
           )}
 
           <SegmentedControl
@@ -358,6 +368,7 @@ export default function BodyCompositionScreen() {
                 height={220}
                 color={blue}
                 target={metricKey === 'weight' && target > 0 ? target : null}
+                targetLabel={target > 0 ? `Objectif ${target.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} kg` : undefined}
                 onScrub={setScrub}
               />
             ) : (
@@ -368,9 +379,8 @@ export default function BodyCompositionScreen() {
 
             {series.length > 0 && (
               <View style={styles.stats}>
-                <Stat label="Début" value={first ? formatKg(first.v) : '--'} color={theme.colors.text} muted={theme.colors.textMuted} />
-                <Stat label="Moyenne 7 j" value={weekAvg != null ? formatKg(weekAvg) : '--'} color={theme.colors.text} muted={theme.colors.textMuted} />
-                <Stat label="Min" value={min != null ? formatKg(min) : '--'} color={theme.colors.text} muted={theme.colors.textMuted} />
+                <Stat label="Début" value={first ? `${formatKg(first.v)} ${unit}` : '--'} color={theme.colors.text} muted={theme.colors.textMuted} />
+                <Stat label="Moyenne 7 j" value={weekAvg != null ? `${formatKg(weekAvg)} ${unit}` : '--'} color={theme.colors.text} muted={theme.colors.textMuted} />
               </View>
             )}
 
@@ -588,6 +598,9 @@ const styles = StyleSheet.create({
   deltaSpacer: { height: 12 },
   delta: { fontSize: 13, fontWeight: '700', fontVariant: ['tabular-nums'] },
   segment: { marginBottom: 10 },
+  metricPills: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  metricPill: { height: 34, paddingHorizontal: 16, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  metricPillText: { fontSize: 14, fontWeight: '700' },
   scaleSegment: { marginTop: 4 },
   hint: { fontSize: 14, marginVertical: 24 },
   stats: { flexDirection: 'row', marginTop: 8 },

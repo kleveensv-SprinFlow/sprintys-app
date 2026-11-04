@@ -245,17 +245,28 @@ export default function MealDetailScreen() {
               </View>
             ) : (
               <View style={{ flex: 1 }}>
-                <Text style={[styles.summaryKcal, { color: theme.colors.text }]}>
-                  {Math.round(consumedKcal).toLocaleString('fr-FR')}
-                  <Text style={[styles.summaryKcalUnit, { color: theme.colors.textSecondary }]}> kcal</Text>
-                </Text>
-                <Text style={[styles.summaryTarget, { color: theme.colors.textSecondary }]}>
-                  sur {targetKcal.toLocaleString('fr-FR')} kcal prévues pour ce repas
-                </Text>
+                {logs.length === 0 ? (
+                  <>
+                    <Text style={[styles.summaryEmptyTitle, { color: theme.colors.text }]}>{label}</Text>
+                    <Text style={[styles.summaryTarget, { color: theme.colors.textSecondary }]}>
+                      Repère : environ {targetKcal.toLocaleString('fr-FR')} kcal
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={[styles.summaryKcal, { color: theme.colors.text }]}>
+                      {Math.round(consumedKcal).toLocaleString('fr-FR')}
+                      <Text style={[styles.summaryKcalUnit, { color: theme.colors.textSecondary }]}> kcal</Text>
+                    </Text>
+                    <Text style={[styles.summaryTarget, { color: theme.colors.textSecondary }]}>
+                      sur {targetKcal.toLocaleString('fr-FR')} kcal prévues pour ce repas
+                    </Text>
+                  </>
+                )}
               </View>
             )}
           </View>
-          {!isMinor && (
+          {!isMinor && logs.length > 0 && (
             <>
               <View style={[styles.summaryTrack, { backgroundColor: theme.colors.glassFill }]}>
                 <View
@@ -519,6 +530,11 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   summaryMinorTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+  },
+  summaryEmptyTitle: {
     fontSize: 22,
     fontWeight: '800',
     letterSpacing: -0.4,

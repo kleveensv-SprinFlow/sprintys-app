@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { TouchableOpacity } from './Tappable';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../core/theme';
 import { getWorkoutTypeConfig } from './MonthlyCalendar';
@@ -18,24 +17,21 @@ export interface WorkoutCardProps {
   onPress?: () => void;
 }
 
-export const WorkoutCard: React.FC<WorkoutCardProps> = ({
-  time,
-  title,
-  type,
-  status = 'pending',
-  summary,
-  onPress,
-}) => {
+/**
+ * One session of a day, on two lines: the title, then time and summary. The state sits on the right (done / in progress),
+ * otherwise a chevron says the card opens. (The old « … » button did the same as the card itself: removed.)
+ */
+export const WorkoutCard: React.FC<WorkoutCardProps> = ({ time, title, type, status = 'pending', summary, onPress }) => {
   const theme = useTheme();
-
   const isCompleted = status === 'completed';
   const isActive = status === 'active';
-  
+
   // Dynamic color coding & icon from session type
   const typeConfig = getWorkoutTypeConfig(title || type || '');
 
-  // Only display type subtitle if it's a specific informative category, not generic "Séance" / "Séance Coach"
-  const showTypeSubtitle = type && !type.toLowerCase().includes('séance');
+  // Only display the type if it is a specific informative category, not generic "Séance" / "Séance Coach"
+  const showTypeSubtitle = !!type && !type.toLowerCase().includes('séance');
+  const detail = [time, showTypeSubtitle ? type : null, summary].filter(Boolean).join(' · ');
 
   return (
     <View style={styles.containerRow}>
@@ -45,90 +41,52 @@ export const WorkoutCard: React.FC<WorkoutCardProps> = ({
         onPress={onPress}
         disabled={!onPress}
         haptic={onPress ? 'light' : 'none'}
+        accessibilityRole={onPress ? 'button' : undefined}
+        accessibilityLabel={`${title}${detail ? `, ${detail}` : ''}${isCompleted ? ', terminée' : isActive ? ', en cours' : ''}`}
       >
         <GlassSheen radius={22} />
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={[styles.iconBox, { backgroundColor: typeConfig.bg }]}>
-              <Ionicons name={typeConfig.icon} size={20} color={typeConfig.text} />
-            </View>
-            <View style={styles.titleWrapper}>
-              <Text style={[styles.title, { color: theme.colors.text }]}>{title}</Text>
-              {!!time && (
-                <View style={styles.timeRow}>
-                  <Feather name="clock" size={12} color={theme.colors.textSecondary} />
-                  <Text style={[styles.timeText, { color: theme.colors.textSecondary }]}>{time}</Text>
-                </View>
-              )}
-              {!!showTypeSubtitle && (
-                <Text style={[styles.type, { color: typeConfig.text }]}>{type}</Text>
-              )}
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={[styles.moreButton, { backgroundColor: theme.colors.glassFill }]}
-            onPress={onPress}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Feather name="more-horizontal" size={20} color={theme.colors.text} />
-          </TouchableOpacity>
+        <View style={[styles.iconBox, { backgroundColor: typeConfig.bg }]}>
+          <Ionicons name={typeConfig.icon} size={20} color={typeConfig.text} />
         </View>
-
-        {summary ? (
-          <View style={styles.summaryContainer}>
-            <Text style={[styles.summaryText, { color: theme.colors.textSecondary }]} numberOfLines={2}>
-              {summary}
+        <View style={styles.texts}>
+          <Text style={[styles.title, { color: theme.colors.text }]} numberOfLines={1}>
+            {title}
+          </Text>
+          {!!detail && (
+            <Text style={[styles.detail, { color: theme.colors.textSecondary }]} numberOfLines={2}>
+              {detail}
             </Text>
-          </View>
+          )}
+        </View>
+        {isCompleted ? (
+          <Feather name="check-circle" size={22} color={theme.colors.success} />
+        ) : isActive ? (
+          <Feather name="activity" size={20} color={theme.colors.sprintyBlue} />
+        ) : onPress ? (
+          <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />
         ) : null}
-
-        {(isCompleted || isActive) && (
-          <View style={styles.footer}>
-            {isCompleted && (
-              <View style={styles.statusBadge}>
-                <Feather name="check-circle" size={14} color={theme.colors.success} />
-                <Text style={[styles.statusText, { color: theme.colors.success }]}>Terminée</Text>
-              </View>
-            )}
-            {isActive && (
-              <View style={styles.statusBadge}>
-                <Feather name="activity" size={14} color={theme.colors.accent} />
-                <Text style={[styles.statusText, { color: theme.colors.accent }]}>En cours</Text>
-              </View>
-            )}
-          </View>
-        )}
       </PressableScale>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  timeRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  timeText: { fontSize: 13, fontWeight: '700' },
   containerRow: {
     flexDirection: 'row',
-    marginBottom: 14,
+    marginBottom: 10,
   },
   cardTouch: {
     flex: 1,
   },
   card: {
     flex: 1,
-    borderRadius: 22,
-    padding: 18,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
     gap: 12,
+    borderRadius: 22,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    minHeight: 68,
   },
   iconBox: {
     width: 42,
@@ -137,61 +95,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  titleWrapper: {
+  texts: {
     flex: 1,
+    minWidth: 0,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: -0.2,
-  },
-  type: {
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: -0.3,
+  },
+  detail: {
+    fontSize: 13,
+    fontWeight: '500',
     marginTop: 2,
-  },
-  moreButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  summaryContainer: {
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(0,0,0,0.06)',
-  },
-  summaryText: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '500',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  footerInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  durationText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
+    lineHeight: 18,
   },
 });

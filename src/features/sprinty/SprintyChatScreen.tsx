@@ -74,14 +74,11 @@ const SOLO_STARTERS: Starter[] = [
   { icon: 'bar-chart-2', label: 'Mon bilan de la semaine', hint: 'Séances, nutrition, sommeil, poids', prompt: 'Fais mon bilan de la semaine.', pro: 'weekly_report' },
   { icon: 'flag', label: 'Fixer un objectif et un plan', hint: 'Sprinty construit ton programme', prompt: 'Je veux fixer un objectif et avoir un plan d’entraînement.' },
   { icon: 'zap', label: 'Une séance pour demain', hint: 'Adaptée à ta forme', prompt: 'Propose-moi une séance pour demain.' },
-  { icon: 'trending-up', label: 'Analyse ma forme', hint: 'Sommeil, fatigue, tendance', prompt: 'Comment évolue ma forme ces dernières semaines ?' },
-  { icon: 'coffee', label: 'Que manger avant ma séance ?', hint: 'Nutrition autour de l’effort', prompt: 'Que devrais-je manger avant ma prochaine séance ?' },
 ];
 
 const COACHED_STARTERS: Starter[] = [
   { icon: 'bar-chart-2', label: 'Mon bilan de la semaine', hint: 'Séances, nutrition, sommeil, poids', prompt: 'Fais mon bilan de la semaine.', pro: 'weekly_report' },
   { icon: 'trending-up', label: 'Mes chronos progressent ?', hint: 'Résultats et records', prompt: 'Est-ce que mes chronos progressent ? Montre-moi.' },
-  { icon: 'coffee', label: 'Que manger avant ma séance ?', hint: 'Nutrition autour de l’effort', prompt: 'Que devrais-je manger avant ma prochaine séance ?' },
   { icon: 'moon', label: 'Une séance de récupération', hint: 'Mobilité, étirements, respiration', prompt: 'Propose-moi une séance de mobilité pour demain.' },
 ];
 
@@ -347,10 +344,10 @@ export default function SprintyChatScreen({ role }: { role: 'athlete' | 'coach' 
   const lastAssistantIndex = messages.map((m) => m.role).lastIndexOf('assistant');
   const firstName = user?.firstName || '';
   const intro = isCoach
-    ? 'Ton assistant de préparation : forme de l’équipe, analyses, programmation, compétitions, annonces. Je pose des questions avant d’agir et tu valides toujours.'
+    ? 'Ton assistant de préparation. Je pose des questions avant d’agir et tu valides toujours.'
     : hasCoach
-      ? 'Je connais tes séances, ta forme, tes résultats et tes repas. Ton coach programme tes séances ; moi, je t’aide à les comprendre, à récupérer (je peux t’ajouter des séances de mobilité) et à progresser.'
-      : 'Je peux être ton coach : on fixe un objectif ensemble, je construis ton plan et tu l’ajoutes à ton calendrier. Je connais aussi ta forme, tes résultats et tes repas.';
+      ? 'Je connais tes séances, ta forme et tes résultats. Ton coach programme, moi je t’aide à comprendre et à récupérer.'
+      : 'On fixe un objectif ensemble, je construis ton plan et tu l’ajoutes à ton calendrier.';
 
   return (
     <View style={styles.container}>
