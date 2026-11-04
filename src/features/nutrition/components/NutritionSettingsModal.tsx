@@ -326,7 +326,7 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
                       ]}
                     >
                       <View style={[styles.cellIcon, { backgroundColor: on ? MEAL_ACCENT : theme.colors.glassFill }]}>
-                        <Feather name={obj.icon} size={15} color={on ? '#FFFFFF' : theme.colors.textSecondary} />
+                        <Feather name={obj.icon} size={15} color={on ? theme.colors.onAccent : theme.colors.textSecondary} />
                       </View>
                       <Text style={[styles.loadTitle, { color: on ? MEAL_ACCENT : theme.colors.text }]}>{obj.label}</Text>
                       <Text style={[styles.loadDesc, { color: theme.colors.textSecondary }]}>{obj.desc}</Text>
@@ -410,7 +410,7 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
                             { backgroundColor: on ? MEAL_ACCENT : theme.colors.surface },
                           ]}
                         >
-                          <Text style={[styles.paceText, { color: on ? '#FFF' : theme.colors.text }]}>{pace.replace('.', ',')}</Text>
+                          <Text style={[styles.paceText, { color: on ? theme.colors.onAccent : theme.colors.text }]}>{pace.replace('.', ',')}</Text>
                         </TouchableOpacity>
                       );
                     })}
@@ -436,7 +436,7 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
                       ]}
                     >
                       <View style={[styles.cellIcon, { backgroundColor: on ? MEAL_ACCENT : theme.colors.glassFill }]}>
-                        <Feather name={NEAT_ICONS[lvl.id] || 'activity'} size={15} color={on ? '#FFFFFF' : theme.colors.textSecondary} />
+                        <Feather name={NEAT_ICONS[lvl.id] || 'activity'} size={15} color={on ? theme.colors.onAccent : theme.colors.textSecondary} />
                       </View>
                       <Text style={[styles.loadTitle, { color: on ? MEAL_ACCENT : theme.colors.text }]}>{lvl.label}</Text>
                       <Text style={[styles.loadDesc, { color: theme.colors.textSecondary }]}>{lvl.desc}</Text>
@@ -546,7 +546,7 @@ export const NutritionSettingsModal: React.FC<Props> = ({ visible, onClose }) =>
             haptic="medium"
           >
             {isSaving ? (
-              <ActivityIndicator color="#FFF" />
+              <ActivityIndicator color={theme.colors.onAccent} />
             ) : (
               <Text style={styles.saveButtonText}>{totalDist === 100 ? 'Enregistrer' : `Il manque ${100 - totalDist} %`}</Text>
             )}

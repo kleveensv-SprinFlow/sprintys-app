@@ -270,7 +270,7 @@ export const FoodDetailSheet: React.FC<FoodDetailSheetProps> = ({ product, visib
                       { backgroundColor: isSelected ? MEAL_ACCENT : theme.colors.glassFill },
                     ]}
                   >
-                    <Text style={[styles.presetText, { color: isSelected ? '#FFFFFF' : theme.colors.textSecondary }]}>
+                    <Text style={[styles.presetText, { color: isSelected ? theme.colors.onAccent : theme.colors.textSecondary }]}>
                       {unit === 'piece' ? `${preset} ${pluralLabel(portionInfo?.pieceLabel || 'pce', Number(preset))}` : `${preset} ${unit}`}
                     </Text>
                   </TouchableOpacity>

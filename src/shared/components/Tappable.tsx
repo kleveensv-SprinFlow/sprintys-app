@@ -1,6 +1,8 @@
 import React, { forwardRef, useRef } from 'react';
 import { Animated, GestureResponderEvent, Pressable, PressableProps, StyleProp, StyleSheet, ViewStyle } from 'react-native';
 
+import { useReduceMotion } from '../hooks/useReduceMotion';
+
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export interface TappableProps extends Omit<PressableProps, 'style'> {
@@ -21,7 +23,8 @@ export const TouchableOpacity = forwardRef<any, TappableProps>(function Tappable
   ref
 ) {
   const press = useRef(new Animated.Value(0)).current;
-  const to = (v: number) => Animated.spring(press, { toValue: v, useNativeDriver: true, speed: 40, bounciness: v ? 0 : 6 }).start();
+  const reduceMotion = useReduceMotion();
+  const to = (v: number) => reduceMotion ? undefined : Animated.spring(press, { toValue: v, useNativeDriver: true, speed: 40, bounciness: v ? 0 : 6 }).start();
 
   // Keep an opacity or transform set by the caller (e.g. a dimmed disabled button)
   const flat = (StyleSheet.flatten(style) || {}) as ViewStyle;

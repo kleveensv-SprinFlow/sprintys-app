@@ -123,7 +123,7 @@ export const CheckInSummaryModal = ({ visible, onClose, onEdit, justDone }: Prop
                     { opacity: pop, transform: [{ scale: pop }] },
                   ]}
                 >
-                  <Feather name="check" size={16} color="#FFFFFF" />
+                  <Feather name="check" size={16} color={theme.colors.onAccent} />
                 </Animated.View>
               </View>
               <Text style={[styles.overallTitle, { color: theme.colors.text }]}>Forme du jour</Text>
@@ -186,7 +186,7 @@ export const CheckInSummaryModal = ({ visible, onClose, onEdit, justDone }: Prop
                 onEdit();
               }}
             >
-              <Feather name="edit-2" size={18} color="#FFF" />
+              <Feather name="edit-2" size={18} color={theme.colors.onAccent} />
               <Text style={styles.editButtonText}>Modifier mon check-in</Text>
             </PressableScale>
           </ScrollView>

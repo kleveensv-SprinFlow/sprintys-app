@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../../core/theme';
 import { FeedbackHost } from '../feedback/FeedbackHost';
+import { useReduceMotion } from '../hooks/useReduceMotion';
 
 interface BottomSheetProps {
   visible: boolean;
@@ -30,6 +31,7 @@ interface BottomSheetProps {
 export function BottomSheet({ visible, onClose, title, subtitle, children, style }: BottomSheetProps) {
   const insets = useSafeAreaInsets();
   const anim = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReduceMotion();
   const [mounted, setMounted] = useState(visible);
   // Android : la fenêtre ne se redimensionne pas avec le clavier, la feuille doit monter d'elle-même
   const [kb, setKb] = useState(0);
@@ -50,8 +52,14 @@ export function BottomSheet({ visible, onClose, title, subtitle, children, style
     if (visible) {
       setMounted(true);
       anim.setValue(0);
-      Animated.spring(anim, { toValue: 1, useNativeDriver: true, speed: 14, bounciness: 3 }).start();
+      if (reduceMotion) anim.setValue(1);
+      else Animated.spring(anim, { toValue: 1, useNativeDriver: true, speed: 14, bounciness: 3 }).start();
     } else if (mounted) {
+      if (reduceMotion) {
+        anim.setValue(0);
+        setMounted(false);
+        return;
+      }
       Animated.timing(anim, { toValue: 0, duration: 200, easing: Easing.in(Easing.quad), useNativeDriver: true }).start(() =>
         setMounted(false),
       );

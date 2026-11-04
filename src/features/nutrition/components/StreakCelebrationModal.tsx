@@ -83,7 +83,7 @@ export const StreakCelebrationModal = () => {
                   end={{ x: 1, y: 0 }}
                   style={styles.badge}
                 >
-                  <Feather name="zap" size={34} color="#FFFFFF" />
+                  <Feather name="zap" size={34} color={theme.colors.onAccent} />
                 </LinearGradient>
               </Animated.View>
             </View>
@@ -119,7 +119,7 @@ export const StreakCelebrationModal = () => {
                       ]}
                     >
                       {(isToday || inStreak) && (
-                        <Feather name="check" size={isToday ? 14 : 12} color={isToday ? '#FFFFFF' : MEAL_ACCENT} />
+                        <Feather name="check" size={isToday ? 14 : 12} color={isToday ? theme.colors.onAccent : MEAL_ACCENT} />
                       )}
                     </View>
                   </View>
