@@ -110,6 +110,7 @@ jest.mock('../components/EnergyTrack', () => ({
 
 jest.mock('../components/MacroLanes', () => ({
   MacroLanes: 'MacroLanes',
+  MacroColumns: 'MacroColumns',
 }));
 
 jest.mock('@expo/vector-icons', () => ({

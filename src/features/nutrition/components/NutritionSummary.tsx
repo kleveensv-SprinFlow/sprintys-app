@@ -7,7 +7,7 @@ import { useAuthStore } from '../../../store/authStore';
 import { glassCard } from '../../../core/glass';
 import { GlassSheen } from '../../../shared/components/GlassSheen';
 import { EnergyTrack } from './EnergyTrack';
-import { MacroLanes } from './MacroLanes';
+import { MacroColumns } from './MacroLanes';
 import { MealIcon } from './MealIcon';
 import { MEALS, MEAL_ACCENT, macroGoals } from '../nutritionTheme';
 import { ageOn, isMinorAthlete } from '../../../legal/age';
@@ -132,16 +132,16 @@ export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ athleteProfi
         </View>
       ) : (
         <>
-          <Text style={[styles.carbAdvice, { color: theme.colors.textSecondary }]}>
-            {carbAdviceText}
-          </Text>
           <EnergyTrack consumed={sum('calories')} goal={kcalGoal || 0} />
           <View style={styles.lanes}>
-            <MacroLanes
+            <MacroColumns
               values={{ proteines: sum('proteines'), glucides: sum('glucides'), lipides: sum('lipides') }}
               goals={macroGoals(kcalGoal)}
             />
           </View>
+          {!!carbAdviceText && (
+            <Text style={[styles.carbAdvice, styles.carbAdviceLast, { color: theme.colors.textMuted }]}>{carbAdviceText}</Text>
+          )}
         </>
       )}
     </View>
@@ -172,13 +172,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   lanes: {
-    marginTop: 18,
+    marginTop: 14,
   },
   carbAdvice: {
     fontSize: 13,
     fontWeight: '500',
     marginBottom: 12,
     lineHeight: 18,
+  },
+  carbAdviceLast: {
+    marginTop: 14,
+    marginBottom: 0,
+    fontSize: 12,
   },
   minorContainer: {
     marginTop: 4,

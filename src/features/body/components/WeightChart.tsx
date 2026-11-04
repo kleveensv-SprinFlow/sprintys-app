@@ -102,6 +102,7 @@ export const WeightTrendChart = ({
   height,
   color,
   target,
+  targetLabel,
   onScrub,
 }: {
   raw: number[];
@@ -110,6 +111,8 @@ export const WeightTrendChart = ({
   height: number;
   color: string;
   target?: number | null;
+  /** Written on the dashed goal line (« Objectif 78 kg »): an unlabeled dashed line left people guessing */
+  targetLabel?: string;
   onScrub: (index: number | null) => void;
 }) => {
   const line = smooth.length >= 2 ? smooth : raw;
@@ -194,6 +197,19 @@ export const WeightTrendChart = ({
             strokeDasharray="4 4"
             strokeWidth={1}
           />
+        )}
+        {targetY != null && !!targetLabel && (
+          <SvgText
+            x={width - pad}
+            y={targetY > 22 ? targetY - 6 : targetY + 15}
+            textAnchor="end"
+            fontSize={11}
+            fontWeight="600"
+            fill={color}
+            fillOpacity={0.8}
+          >
+            {targetLabel}
+          </SvgText>
         )}
         {coords.length >= 2 && (
           <Path d={smoothPath(coords)} fill="none" stroke={color} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />

@@ -45,9 +45,9 @@ export const AuthScreen: React.FC<{ initialTab?: Tab }> = ({ initialTab = 'login
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.hero}>
-              <SprintyAvatar size={96} mood="success" interactive />
-              <SprintyLogo width={170} height={44} />
-              <Text style={styles.tagline}>L’athlétisme, de la séance à la performance</Text>
+              {/* Smaller and without the slogan: the form comes first (a third of the screen was brand) */}
+              <SprintyAvatar size={64} mood="success" interactive />
+              <SprintyLogo width={150} height={39} />
             </View>
 
             <SegmentedControl
@@ -99,7 +99,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.backdrop },
   content: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 40 },
   hero: { alignItems: 'center', marginBottom: 14, marginTop: 4, gap: 6 },
-  tagline: { fontSize: 15, fontWeight: '600', color: theme.colors.textSecondary, letterSpacing: -0.2 },
   switcher: { marginBottom: 14 },
   card: { paddingHorizontal: 20, paddingVertical: 18, marginBottom: 18 },
   footer: { textAlign: 'center', fontSize: 13, color: theme.colors.textMuted },

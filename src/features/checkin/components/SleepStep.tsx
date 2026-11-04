@@ -206,26 +206,29 @@ export const SleepStep = ({ onNext, quick }: SleepStepProps) => {
           {renderTimeBlock('wakeup')}
         </View>
 
-        <View style={[glassCard, styles.resultCard]}>
-          <View>
-            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Durée du sommeil</Text>
-            <Text style={[styles.resultValue, { color: durationColor }]}>
-              {duration ? `${duration.hours} h${duration.minutes > 0 ? ` ${String(duration.minutes).padStart(2, '0')}` : ''}` : '—'}
-            </Text>
+        {/* The duration appears once both times are known: an empty « — » card was dead space */}
+        {duration && (
+          <View style={[glassCard, styles.resultCard]}>
+            <View>
+              <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Durée du sommeil</Text>
+              <Text style={[styles.resultValue, { color: durationColor }]}>
+                {duration ? `${duration.hours} h${duration.minutes > 0 ? ` ${String(duration.minutes).padStart(2, '0')}` : ''}` : '—'}
+              </Text>
+            </View>
+            <PressableScale
+              haptic="selection"
+              onPress={openGoal}
+              style={[styles.goalChip, { backgroundColor: theme.colors.glassFill }]}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={`Objectif de sommeil : ${hoursLabel(sleepGoal)}. Modifier`}
+            >
+              <Feather name="target" size={13} color={theme.colors.textSecondary} />
+              <Text style={[styles.goalText, { color: theme.colors.textSecondary }]}>Objectif : {hoursLabel(sleepGoal)}</Text>
+              <Feather name="edit-2" size={12} color={theme.colors.textMuted} />
+            </PressableScale>
           </View>
-          <PressableScale
-            haptic="selection"
-            onPress={openGoal}
-            style={[styles.goalChip, { backgroundColor: theme.colors.glassFill }]}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={`Objectif de sommeil : ${hoursLabel(sleepGoal)}. Modifier`}
-          >
-            <Feather name="target" size={13} color={theme.colors.textSecondary} />
-            <Text style={[styles.goalText, { color: theme.colors.textSecondary }]}>Objectif : {hoursLabel(sleepGoal)}</Text>
-            <Feather name="edit-2" size={12} color={theme.colors.textMuted} />
-          </PressableScale>
-        </View>
+        )}
 
         <ScaleCard
           title="Qualité du sommeil"

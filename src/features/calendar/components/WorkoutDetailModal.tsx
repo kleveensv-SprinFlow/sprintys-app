@@ -61,6 +61,20 @@ function chronoToMs(value: string, distance?: number | string | null): number | 
 const readFeedback = (m: any): string =>
   typeof m?.athlete_feedback === 'string' ? m.athlete_feedback : typeof m?.athlete_notes === 'string' ? m.athlete_notes : '';
 
+/** What each felt-effort level means, shown under the grid and read by VoiceOver */
+const RPE_LABELS: Record<number, string> = {
+  1: 'très facile',
+  2: 'très facile',
+  3: 'facile',
+  4: 'facile',
+  5: 'modéré',
+  6: 'modéré',
+  7: 'dur',
+  8: 'dur',
+  9: 'très dur',
+  10: 'maximal',
+};
+
 export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible, onClose, workout, onDelete, onEdit, onUpdated, readOnlyAthleteId }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
@@ -105,6 +119,9 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
   // Felt effort (1-10) and duration: together they give the session load that the coach follows
   const [rpe, setRpe] = React.useState<number | null>(null);
   const [durationMin, setDurationMin] = React.useState('');
+  // Optional details (effort, duration, comment) stay folded: validating a session is one tap.
+  // null = automatic (open when something is already filled), true/false = the athlete's choice.
+  const [detailsToggle, setDetailsToggle] = React.useState<boolean | null>(null);
   // Per-athlete validation of a group session (coach view)
   const [validations, setValidations] = React.useState<{ athlete_id: string; status: string }[]>([]);
   const draftReady = React.useRef(false);
@@ -174,6 +191,7 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
     setAthleteNotes('');
     setRpe(null);
     setDurationMin('');
+    setDetailsToggle(null);
     draftReady.current = false;
     wasAwaiting.current = false;
     setJustSaved(false);
@@ -1332,67 +1350,94 @@ export const WorkoutDetailModal: React.FC<WorkoutDetailModalProps> = ({ visible,
         {/* ========== ATHLETE BOTTOM SECTION ========== */}
         {canEdit && (
           <View style={styles.athleteBottom}>
-            {/* Felt effort and duration: session load */}
-            {kind !== 'rest' && kind !== 'competition' && (
-              <View>
-                <Text style={styles.sectionLabel}>Effort ressenti (facultatif)</Text>
-                <View style={styles.rpeRow}>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                    <PressableScale
-                      key={n}
-                      haptic="selection"
-                      containerStyle={styles.rpeCellContainer}
-                      style={[styles.rpeCell, rpe === n && styles.rpeCellActive]}
-                      onPress={() => setRpe(rpe === n ? null : n)}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: rpe === n }}
-                      accessibilityLabel={`Effort ressenti ${n} sur 10`}
-                    >
-                      <Text style={[styles.rpeText, rpe === n && styles.rpeTextActive]}>{n}</Text>
-                    </PressableScale>
-                  ))}
-                </View>
-                <View style={styles.rpeLegend}>
-                  <Text style={styles.rpeLegendText}>Très facile</Text>
-                  <Text style={styles.rpeLegendText}>Maximal</Text>
-                </View>
-                <View style={styles.durationRow}>
-                  <Feather name="clock" size={15} color={theme.colors.textSecondary} />
-                  <Text style={styles.durationLabel}>Durée de la séance</Text>
-                  <TextInput
-                    style={styles.durationInput}
-                    value={durationMin}
-                    onChangeText={(t) => setDurationMin(t.replace(/[^0-9]/g, '').slice(0, 3))}
-                    keyboardType="number-pad"
-                    placeholder="—"
-                    placeholderTextColor={theme.colors.textMuted}
-                    selectionColor={theme.colors.sprintyBlue}
-                    accessibilityLabel="Durée de la séance en minutes"
-                  />
-                  <Text style={styles.durationUnit}>min</Text>
-                </View>
-              </View>
-            )}
+            {/* Optional details: effort, duration, comment. Folded by default so validating is one tap. */}
+            {(() => {
+              const hasLoad = kind !== 'rest' && kind !== 'competition';
+              // A session without data entry (« other ») is described by its comment: keep it open
+              const open = detailsToggle ?? (sessionCategory === 'other' || rpe != null || !!durationMin || !!athleteNotes.trim());
+              return (
+                <View style={styles.detailsWrap}>
+                  <PressableScale
+                    haptic="selection"
+                    activeScale={0.985}
+                    onPress={() => setDetailsToggle(!open)}
+                    style={styles.detailsToggle}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: open }}
+                    accessibilityLabel={open ? 'Masquer les détails' : hasLoad ? 'Ajouter effort, durée ou commentaire' : 'Ajouter un commentaire'}
+                  >
+                    <Feather name={open ? 'minus-circle' : 'plus-circle'} size={18} color={theme.colors.sprintyBlue} />
+                    <Text style={styles.detailsToggleText}>
+                      {open ? 'Masquer les détails' : hasLoad ? 'Ajouter effort, durée ou commentaire' : 'Ajouter un commentaire'}
+                    </Text>
+                    <Feather name={open ? 'chevron-up' : 'chevron-down'} size={18} color={theme.colors.textMuted} />
+                  </PressableScale>
 
-            {/* Comment / Notes */}
-            <View>
-              <Text style={styles.sectionLabel}>
-                {sessionCategory === 'other' ? 'Commentaire' : 'Commentaire (facultatif)'}
-              </Text>
-              <TextInput
-                style={styles.notesInput}
-                placeholder={
-                  sessionCategory === 'other'
-                    ? 'Comment s’est passée la séance ? Notes, ressentis…'
-                    : 'Comment s’est passée la séance ?'
-                }
-                placeholderTextColor={theme.colors.textMuted}
-                selectionColor={theme.colors.sprintyBlue}
-                multiline
-                value={athleteNotes}
-                onChangeText={setAthleteNotes}
-              />
-            </View>
+                  {open && (
+                    <View style={styles.detailsBody}>
+                      {hasLoad && (
+                        <View>
+                          <Text style={styles.sectionLabel}>Effort ressenti</Text>
+                          <View style={styles.rpeGrid}>
+                            {[[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]].map((line) => (
+                              <View key={line[0]} style={styles.rpeRow}>
+                                {line.map((n) => (
+                                  <PressableScale
+                                    key={n}
+                                    haptic="selection"
+                                    containerStyle={styles.rpeCellContainer}
+                                    style={[styles.rpeCell, rpe === n && styles.rpeCellActive]}
+                                    onPress={() => setRpe(rpe === n ? null : n)}
+                                    accessibilityRole="button"
+                                    accessibilityState={{ selected: rpe === n }}
+                                    accessibilityLabel={`Effort ressenti ${n} sur 10, ${RPE_LABELS[n]}`}
+                                  >
+                                    <Text style={[styles.rpeText, rpe === n && styles.rpeTextActive]}>{n}</Text>
+                                  </PressableScale>
+                                ))}
+                              </View>
+                            ))}
+                          </View>
+                          <Text style={styles.rpeCaption}>{rpe ? `${rpe}/10 · ${RPE_LABELS[rpe]}` : '1 = très facile · 10 = maximal'}</Text>
+                          <View style={styles.durationRow}>
+                            <Feather name="clock" size={15} color={theme.colors.textSecondary} />
+                            <Text style={styles.durationLabel}>Durée de la séance</Text>
+                            <TextInput
+                              style={styles.durationInput}
+                              value={durationMin}
+                              onChangeText={(t) => setDurationMin(t.replace(/[^0-9]/g, '').slice(0, 3))}
+                              keyboardType="number-pad"
+                              placeholder="—"
+                              placeholderTextColor={theme.colors.textMuted}
+                              selectionColor={theme.colors.sprintyBlue}
+                              accessibilityLabel="Durée de la séance en minutes"
+                            />
+                            <Text style={styles.durationUnit}>min</Text>
+                          </View>
+                        </View>
+                      )}
+
+                      <View>
+                        <Text style={styles.sectionLabel}>Commentaire</Text>
+                        <TextInput
+                          style={styles.notesInput}
+                          placeholder={
+                            sessionCategory === 'other'
+                              ? 'Comment s’est passée la séance ? Notes, ressentis…'
+                              : 'Comment s’est passée la séance ?'
+                          }
+                          placeholderTextColor={theme.colors.textMuted}
+                          selectionColor={theme.colors.sprintyBlue}
+                          multiline
+                          value={athleteNotes}
+                          onChangeText={setAthleteNotes}
+                        />
+                      </View>
+                    </View>
+                  )}
+                </View>
+              );
+            })()}
 
             {/* Submit / Update button */}
             <PressableScale
@@ -2096,21 +2141,34 @@ const styles = StyleSheet.create({
     marginTop: 24,
     gap: 16,
   },
-  rpeRow: { flexDirection: 'row', gap: 4 },
+  detailsWrap: { gap: 12 },
+  detailsToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 48,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderCurve: 'continuous',
+    backgroundColor: theme.colors.glassFill,
+  },
+  detailsToggleText: { flex: 1, fontSize: 15, fontWeight: '600', color: theme.colors.sprintyBlue },
+  detailsBody: { gap: 16 },
+  rpeGrid: { gap: 8 },
+  rpeRow: { flexDirection: 'row', gap: 8 },
+  rpeCaption: { fontSize: 12, fontWeight: '600', color: theme.colors.textMuted, marginTop: 8, textAlign: 'center' },
   rpeCellContainer: { flex: 1 },
   rpeCell: {
-    height: 40,
-    borderRadius: 10,
+    height: 48,
+    borderRadius: 12,
     borderCurve: 'continuous',
     backgroundColor: theme.colors.glassFill,
     alignItems: 'center',
     justifyContent: 'center',
   },
   rpeCellActive: { backgroundColor: theme.colors.sprintyBlue },
-  rpeText: { fontSize: 14, fontWeight: '700', color: theme.colors.textSecondary, fontVariant: ['tabular-nums'] },
-  rpeTextActive: { color: '#FFFFFF' },
-  rpeLegend: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 },
-  rpeLegendText: { fontSize: 11, fontWeight: '600', color: theme.colors.textMuted },
+  rpeText: { fontSize: 16, fontWeight: '700', color: theme.colors.textSecondary, fontVariant: ['tabular-nums'] },
+  rpeTextActive: { color: theme.colors.onAccent },
   durationRow: {
     flexDirection: 'row',
     alignItems: 'center',

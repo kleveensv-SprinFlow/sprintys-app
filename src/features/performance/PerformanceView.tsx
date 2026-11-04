@@ -29,10 +29,13 @@ interface Props {
   athleteName?: string;
 }
 
-const MONTHS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
-const weekLabel = (iso: string) => {
-  const d = new Date(`${iso}T12:00:00`);
-  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+/** Load as one word for the athlete (the coach keeps the ratio) */
+const ATHLETE_LOAD_WORD: Record<'low' | 'muted' | 'good' | 'warn' | 'bad', string> = {
+  low: 'En baisse',
+  muted: '–',
+  good: 'Équilibrée',
+  warn: 'Élevée',
+  bad: 'Très élevée',
 };
 
 export const PerformanceView: React.FC<Props> = ({ athleteId, mode = 'full', audience = 'athlete', onSeeAll, onWeeklyReport, refreshKey = 0, athleteName }) => {
@@ -134,10 +137,20 @@ export const PerformanceView: React.FC<Props> = ({ athleteId, mode = 'full', aud
           <Text style={[styles.statValue, { color: theme.colors.text }]}>{planned2 > 0 ? `${done2}/${planned2}` : '–'}</Text>
           <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Séances validées{'\n'}(2 semaines)</Text>
         </View>
-        <View style={styles.stat}>
-          <Text style={[styles.statValue, { color: theme.colors.text }]}>{d.load.ratio != null ? d.load.ratio.toFixed(2).replace('.', ',') : '–'}</Text>
-          <Text style={[styles.statLabel, { color: toneColor(zone.tone) }]}>{zone.label}</Text>
-        </View>
+        {audience === 'coach' ? (
+          <View style={styles.stat}>
+            <Text style={[styles.statValue, { color: theme.colors.text }]}>{d.load.ratio != null ? d.load.ratio.toFixed(2).replace('.', ',') : '–'}</Text>
+            <Text style={[styles.statLabel, { color: toneColor(zone.tone) }]}>{zone.label}</Text>
+          </View>
+        ) : (
+          // The athlete reads a word, not a ratio: « 1,10 » and « optimale » meant nothing and sounded like a prescription
+          <View style={styles.stat}>
+            <Text style={[styles.statValue, { color: d.load.ratio != null ? toneColor(zone.tone) : theme.colors.text }]}>
+              {d.load.ratio != null ? ATHLETE_LOAD_WORD[zone.tone === 'muted' && d.load.ratio < 0.8 ? 'low' : zone.tone] : '–'}
+            </Text>
+            <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Charge{'\n'}d’entraînement</Text>
+          </View>
+        )}
         <View style={styles.stat}>
           <Text style={[styles.statValue, { color: theme.colors.text }]}>{d.form.avg7 != null ? `${d.form.avg7}` : '–'}</Text>
           <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Forme moyenne{'\n'}(7 jours)</Text>
@@ -151,6 +164,9 @@ export const PerformanceView: React.FC<Props> = ({ athleteId, mode = 'full', aud
         </Text>
       )}
       {mode === 'full' && (
+        <Text style={[styles.weeksCaption, { color: theme.colors.textMuted }]}>Séances faites sur séances prévues, par semaine</Text>
+      )}
+      {mode === 'full' && (
         <View style={styles.weeks}>
           {d.weekly.map((w) => {
             const ratio = w.planned > 0 ? Math.min(1, w.done / w.planned) : 0;
@@ -160,12 +176,12 @@ export const PerformanceView: React.FC<Props> = ({ athleteId, mode = 'full', aud
                   <View
                     style={[
                       styles.weekFill,
-                      { height: `${Math.round(ratio * 100)}%`, backgroundColor: ratio >= 1 ? theme.colors.success : blue },
+                      { height: `${Math.round(ratio * 100)}%`, backgroundColor: blue },
                     ]}
                   />
                 </View>
                 <Text style={[styles.weekNum, { color: theme.colors.text }]}>{w.planned > 0 ? `${w.done}/${w.planned}` : '–'}</Text>
-                <Text style={[styles.weekDate, { color: theme.colors.textMuted }]}>{weekLabel(w.week_start)}</Text>
+                <Text style={[styles.weekDate, { color: theme.colors.textMuted }]} numberOfLines={1}>{shortDate(w.week_start)}</Text>
               </View>
             );
           })}
@@ -372,7 +388,8 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 24, fontWeight: '800', letterSpacing: -0.5, fontVariant: ['tabular-nums'] },
   statLabel: { fontSize: 11.5, fontWeight: '600', textAlign: 'center', marginTop: 3, lineHeight: 15 },
   hint: { fontSize: 13, lineHeight: 18, marginTop: 10 },
-  weeks: { flexDirection: 'row', gap: 6, marginTop: 16 },
+  weeksCaption: { fontSize: 12, fontWeight: '500', marginTop: 16 },
+  weeks: { flexDirection: 'row', gap: 6, marginTop: 8 },
   weekCol: { flex: 1, alignItems: 'center' },
   weekTrack: { width: '70%', height: 64, borderRadius: 8, justifyContent: 'flex-end', overflow: 'hidden' },
   weekFill: { width: '100%', borderRadius: 8 },

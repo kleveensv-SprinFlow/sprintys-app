@@ -108,6 +108,8 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
                       ? `${logs.length} aliment${logs.length > 1 ? 's' : ''}`
                       : 'Non renseigné'}
                   </Text>
+                ) : logs.length === 0 ? (
+                  <Text style={[styles.minorMealState, { color: theme.colors.textSecondary }]}>Rien noté</Text>
                 ) : (
                   <Text style={[styles.kcalText, { color: theme.colors.text }]}>
                     {Math.round(consumedKcal).toLocaleString('fr-FR')} kcal
@@ -134,7 +136,7 @@ export const MealSection: React.FC<MealSectionProps> = ({ readonly = false, athl
             </View>
 
             {/* Share of this meal in the day's target (adultes uniquement) */}
-            {!isMinor && (
+            {!isMinor && logs.length > 0 && (
               <View style={[styles.progressTrack, { backgroundColor: theme.colors.glassFill }]}>
                 <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
               </View>
