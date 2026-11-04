@@ -11,7 +11,7 @@ import { useOnboardingStore } from '../../store/onboardingStore';
 import { dismissInvite, enableNotifications, shouldInvite } from '../../services/notifications';
 
 /** One-time, dismissible invitation to turn notifications on. Never shown over the welcome tour. */
-export const NotificationInvite: React.FC<{ role: 'athlete' | 'coach' }> = ({ role }) => {
+export const NotificationInvite: React.FC<{ role: 'athlete' | 'coach'; onVisibleChange?: (visible: boolean) => void }> = ({ role, onVisibleChange }) => {
   const theme = useTheme();
   const userId = useAuthStore((s) => s.user?.id);
   const tourVisible = useOnboardingStore((s) => s.visible);
@@ -22,7 +22,13 @@ export const NotificationInvite: React.FC<{ role: 'athlete' | 'coach' }> = ({ ro
     if (userId) shouldInvite(userId).then(setShow);
   }, [userId]);
 
-  if (!show || tourVisible || !userId) return null;
+  // Lets the home show a single information card at a time
+  const visible = show && !tourVisible && !!userId;
+  useEffect(() => {
+    onVisibleChange?.(visible);
+  }, [visible]);
+
+  if (!visible) return null;
 
   const accept = async () => {
     if (busy) return;

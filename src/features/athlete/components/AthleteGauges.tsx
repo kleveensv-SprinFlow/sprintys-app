@@ -14,20 +14,21 @@ import { glassCard, glassFill, DashboardCardHeader } from '../../../shared/compo
 import { useFocusEffect } from '@react-navigation/native';
 import { workoutService } from '../../../services/workoutService';
 import { GlassSheen } from '../../../shared/components/GlassSheen';
-
 import { tourRef } from '../../onboarding/tourRegistry';
+import { isMinorAthlete } from '../../../legal/age';
+import { MEALS } from '../../nutrition/nutritionTheme';
+import { useToday } from '../../../shared/hooks/useToday';
+
 const toLocalDateString = (d: Date): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-const getCheckInPrompt = () => {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Recommandé ce matin';
-  if (hour < 18) return 'Évalue ta forme en 2 min';
-  return 'Ton bilan du jour';
-};
+const getCheckInPrompt = () => (new Date().getHours() < 18 ? 'Ta forme en 2 minutes' : 'Ton bilan du jour');
 
-const NUTRITION_TINT = '#00A88C';
-const COMPETITION_TINT = '#B45309';
+/**
+ * Readiness wording: a description of the score the athlete entered, never advice that sounds medical
+ * (« Repos conseillé » read like a prescription).
+ */
+const formeLabel = (score: number) => (score >= 70 ? 'Bonne forme' : score >= 40 ? 'Forme moyenne' : 'Forme basse · écoute ton corps');
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -101,13 +102,13 @@ const AnimatedBar = ({ percent, color, track }: { percent: number; color: string
 
 const MONTHS_SHORT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 
-export const AthleteGauges = ({ refreshKey = 0 }: { refreshKey?: number }) => {
+/** The daily action, first on the home: check-in, or today's readiness once it is done. */
+export const CheckInCard = ({ refreshKey = 0 }: { refreshKey?: number }) => {
   const theme = useTheme();
   const router = useRouter();
   const [modalVisible, setModalVisible] = useState(false);
   const [summaryVisible, setSummaryVisible] = useState(false);
-  
-  const { user } = useAuthStore();
+  const userId = useAuthStore((s) => s.user?.id);
   const { startCheckIn, editTodayCheckIn, loadHistory, todayHealthScore, historyLoaded } = useCheckInStore();
   const [justDone, setJustDone] = useState(false);
 
@@ -115,31 +116,121 @@ export const AthleteGauges = ({ refreshKey = 0 }: { refreshKey?: number }) => {
   const params = useLocalSearchParams<{ checkin?: string }>();
   const autoOpened = useRef(false);
   useEffect(() => {
-    if (params.checkin !== '1' || autoOpened.current || !historyLoaded || !user?.id) return;
+    if (params.checkin !== '1' || autoOpened.current || !historyLoaded || !userId) return;
     autoOpened.current = true;
     router.setParams({ checkin: undefined });
     if (todayHealthScore !== null) {
       setJustDone(false);
       setSummaryVisible(true);
     } else {
-      startCheckIn(user.id);
+      startCheckIn(userId);
       setModalVisible(true);
     }
-  }, [params.checkin, historyLoaded, todayHealthScore, user?.id]);
+  }, [params.checkin, historyLoaded, todayHealthScore, userId]);
+
+  useEffect(() => {
+    if (userId) loadHistory(userId);
+  }, [userId, refreshKey]);
 
   // Après l'enregistrement : le bilan s'ouvre une fois la fenêtre du check-in refermée (iOS refuse deux fenêtres à la fois)
   const onCheckInDone = () => {
     setJustDone(true);
     setTimeout(() => setSummaryVisible(true), 450);
   };
-  const { mealLogs } = useNutritionStore();
-  const [nextCompetition, setNextCompetition] = useState<any | null>(null);
 
-  useEffect(() => {
-    if (user?.id) {
-      loadHistory(user.id);
+  const handlePress = () => {
+    if (!userId) return;
+    if (todayHealthScore !== null) {
+      setSummaryVisible(true);
+    } else {
+      startCheckIn(userId);
+      setModalVisible(true);
     }
-  }, [user, refreshKey]);
+  };
+
+  const handleEdit = () => {
+    if (!userId) return;
+    editTodayCheckIn(userId);
+    // Android : deux Modal qui se ferment/s'ouvrent dans le même tick donnent une étape vide
+    setTimeout(() => setModalVisible(true), 450);
+  };
+
+  const showScore = todayHealthScore !== null;
+  const scoreValue = todayHealthScore ?? 0;
+  const scoreColor = !showScore
+    ? theme.colors.accent
+    : scoreValue >= 70
+      ? theme.colors.success
+      : scoreValue >= 40
+        ? theme.colors.warning
+        : theme.colors.error;
+
+  return (
+    <View style={styles.container}>
+      <PressableScale
+        onPress={handlePress}
+        haptic="medium"
+        style={glassCard}
+        targetRef={tourRef('athlete.checkin')}
+        accessibilityRole="button"
+        accessibilityLabel={showScore ? `Forme du jour : ${scoreValue} sur 100, ${formeLabel(scoreValue)}. Voir le bilan.` : 'Faire le check-in du jour'}
+      >
+        <GlassSheen radius={22} />
+        {!showScore ? (
+          <View style={styles.mainCardInner}>
+            <View style={[styles.iconCircleAccent, { backgroundColor: theme.colors.sprintyBlue }]}>
+              <Feather name="activity" size={22} color={theme.colors.onAccent} />
+            </View>
+            <View style={styles.mainPillText}>
+              <Text style={[styles.mainTitle, { color: theme.colors.text }]} numberOfLines={1}>Check-in du jour</Text>
+              <Text style={[styles.mainSubtitle, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                {getCheckInPrompt()}
+              </Text>
+            </View>
+            <View style={[styles.actionBadge, { backgroundColor: theme.colors.sprintyBlue }]}>
+              <Feather name="arrow-right" size={18} color={theme.colors.onAccent} />
+            </View>
+          </View>
+        ) : (
+          <View style={styles.mainCardInner}>
+            <ScoreRing score={scoreValue} color={scoreColor} track={glassFill} />
+            <View style={styles.mainPillText}>
+              <Text style={[styles.mainTitle, { color: theme.colors.text }]} numberOfLines={1}>Forme du jour</Text>
+              <Text style={[styles.mainSubtitle, { color: scoreColor }]} numberOfLines={1}>
+                {formeLabel(scoreValue)}
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />
+          </View>
+        )}
+      </PressableScale>
+
+      <CheckInModal visible={modalVisible} onClose={() => setModalVisible(false)} onDone={onCheckInDone} />
+      <CheckInSummaryModal
+        visible={summaryVisible}
+        justDone={justDone}
+        onClose={() => {
+          setSummaryVisible(false);
+          setJustDone(false);
+        }}
+        onEdit={handleEdit}
+      />
+    </View>
+  );
+};
+
+/**
+ * Two glanceable tiles: nutrition and, when the coach planned one, the next competition.
+ * Before 18 the nutrition tile counts meals instead of calories (same rule as the Nutrition tab).
+ */
+export const SummaryTiles = ({ refreshKey = 0 }: { refreshKey?: number }) => {
+  const theme = useTheme();
+  const router = useRouter();
+  const user = useAuthStore((s) => s.user);
+  const mealLogs = useNutritionStore((s) => s.mealLogs);
+  const today = useToday();
+  const [nextCompetition, setNextCompetition] = useState<{ date_prevue: string; description?: string | null } | null>(null);
+  const isMinor = isMinorAthlete(user);
 
   useFocusEffect(
     useCallback(() => {
@@ -151,174 +242,101 @@ export const AthleteGauges = ({ refreshKey = 0 }: { refreshKey?: number }) => {
     }, [user?.id, refreshKey])
   );
 
-  const handleCheckInPress = () => {
-    if (!user?.id) return;
-    
-    if (todayHealthScore !== null) {
-      setSummaryVisible(true);
-    } else {
-      startCheckIn(user.id);
-      setModalVisible(true);
-    }
+  const openCompetition = () => {
+    if (nextCompetition?.date_prevue) router.push(`/(athlete)/day/${toLocalDateString(new Date(nextCompetition.date_prevue))}`);
+    else router.push('/(athlete)/calendar');
   };
 
-  const handleEditCheckIn = () => {
-    if (!user?.id) return;
-    editTodayCheckIn(user.id);
-    // Android : deux Modal qui se ferment/s'ouvrent dans le même tick donnent une étape vide
-    setTimeout(() => setModalVisible(true), 450);
-  };
-
-  const handleNutritionPress = () => {
-    router.push('/(athlete)/nutrition');
-  };
-
-  const handleCompetitionPress = () => {
-    if (nextCompetition?.date_prevue) {
-      router.push(`/(athlete)/day/${toLocalDateString(new Date(nextCompetition.date_prevue))}`);
-    } else {
-      router.push('/(athlete)/calendar');
-    }
-  };
-
-  const getScoreColor = (score: number) => {
-    if (score >= 70) return theme.colors.success;
-    if (score >= 40) return theme.colors.warning;
-    return theme.colors.error;
-  };
-
-  const scoreValue = todayHealthScore !== null ? todayHealthScore : 0;
-  const scoreColor = todayHealthScore !== null ? getScoreColor(scoreValue) : theme.colors.accent;
-  const showScore = todayHealthScore !== null;
-
-  const kcalGoal = user?.manualKcalGoal || null;
+  // Nutrition: calories against the goal (adults), meals logged (minors)
+  const kcalGoal = isMinor ? null : user?.manualKcalGoal || null;
   const consumedKcal = mealLogs.reduce((sum, log) => sum + Number(log.calories), 0);
   const nutritionPercentage = kcalGoal ? Math.round((consumedKcal / kcalGoal) * 100) || 0 : 0;
   const nutritionExceeded = nutritionPercentage > 100;
+  const mealsLogged = new Set(mealLogs.map((l) => l.meal_type)).size;
+  const nutritionLabel = isMinor
+    ? `Nutrition : ${mealsLogged} repas sur ${MEALS.length} notés aujourd’hui`
+    : kcalGoal
+      ? `Nutrition : ${Math.round(consumedKcal)} kilocalories sur ${kcalGoal}`
+      : `Nutrition : ${Math.round(consumedKcal)} kilocalories aujourd’hui`;
 
-  let compValue = 'Aucune';
-  let compSub = 'Voir mon calendrier';
-  let compColor = theme.colors.textMuted;
-
+  let compValue = '';
+  let compSub = '';
   if (nextCompetition?.date_prevue) {
     const compDate = new Date(nextCompetition.date_prevue);
     compDate.setHours(0, 0, 0, 0);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const diffDays = Math.round((compDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-    if (diffDays <= 0) {
-      compValue = 'Jour J';
-      compColor = theme.colors.success;
-    } else {
-      compValue = `J-${diffDays}`;
-      compColor = diffDays <= 7 ? theme.colors.error : theme.colors.warning;
-    }
-
+    const diffDays = Math.round((compDate.getTime() - today.getTime()) / 86400000);
+    compValue = diffDays <= 0 ? 'Jour J' : `J-${diffDays}`;
     // CompetitionBuilder stores "<title>\n📍 <location>" in description
     const title = (nextCompetition.description || '').split('\n')[0].trim();
     compSub = title || `${compDate.getDate()} ${MONTHS_SHORT[compDate.getMonth()]}`;
   }
 
   return (
-    <View style={styles.container}>
-      {/* 1. Hero card: Check-In / Readiness */}
-      <PressableScale onPress={handleCheckInPress} haptic="medium" style={glassCard} targetRef={tourRef('athlete.checkin')}>
+    <View style={[styles.container, styles.secondaryRow]}>
+      <PressableScale
+        onPress={() => router.push('/(athlete)/nutrition')}
+        containerStyle={styles.tileTouch}
+        style={[glassCard, styles.tile]}
+        accessibilityRole="button"
+        accessibilityLabel={nutritionLabel}
+      >
         <GlassSheen radius={22} />
-        {!showScore ? (
-          <View style={styles.mainCardInner}>
-            <View style={[styles.iconCircleAccent, { backgroundColor: theme.colors.sprintyBlue }]}>
-              <Feather name="activity" size={22} color="#FFF" />
-            </View>
-            <View style={styles.mainPillText}>
-              <Text style={[styles.mainTitle, { color: theme.colors.text }]} numberOfLines={1}>Check-in du jour</Text>
-              <Text style={[styles.mainSubtitle, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                {getCheckInPrompt()}
+        <DashboardCardHeader icon={<Ionicons name="restaurant" size={15} color={theme.colors.nutrition} />} label="Nutrition" tint={theme.colors.nutrition} />
+        {isMinor ? (
+          <>
+            <View style={styles.valueRow}>
+              <Text style={[styles.secondaryValue, { color: theme.colors.text }]}>{mealsLogged}</Text>
+              <Text style={[styles.secondaryUnitText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                / {MEALS.length} repas
               </Text>
             </View>
-            <View style={[styles.actionBadge, { backgroundColor: theme.colors.sprintyBlue }]}>
-              <Feather name="arrow-right" size={18} color="#FFF" />
-            </View>
-          </View>
+            <Text style={[styles.cardLinkText, { color: theme.colors.nutrition }]} numberOfLines={1}>
+              {mealsLogged ? 'Voir mes repas' : 'Noter un repas'}
+            </Text>
+          </>
         ) : (
-          <View style={styles.mainCardInner}>
-            <ScoreRing score={scoreValue} color={scoreColor} track={glassFill} />
-            <View style={styles.mainPillText}>
-              <Text style={[styles.mainTitle, { color: theme.colors.text }]} numberOfLines={1}>Forme du jour</Text>
-              <Text style={[styles.mainSubtitle, { color: scoreColor }]} numberOfLines={1}>
-                {scoreValue >= 70 ? 'Prêt à performer' : scoreValue >= 40 ? 'À surveiller' : 'Repos conseillé'}
+          <>
+            <View style={styles.valueRow}>
+              <Text style={[styles.secondaryValue, { color: theme.colors.text }]}>{Math.round(consumedKcal).toLocaleString('fr-FR')}</Text>
+              <Text style={[styles.secondaryUnitText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                {kcalGoal ? `/ ${kcalGoal.toLocaleString('fr-FR')} kcal` : 'kcal'}
               </Text>
             </View>
-            <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />
-          </View>
+            {kcalGoal ? (
+              <View style={styles.progressRow}>
+                <AnimatedBar percent={nutritionPercentage} color={nutritionExceeded ? theme.colors.warning : theme.colors.nutrition} track={glassFill} />
+                <Text style={[styles.percentBadgeText, { color: nutritionExceeded ? theme.colors.warning : theme.colors.textSecondary }]}>
+                  {nutritionPercentage}%
+                </Text>
+              </View>
+            ) : (
+              <Text style={[styles.cardLinkText, { color: theme.colors.nutrition }]} numberOfLines={1}>
+                Définir mon objectif
+              </Text>
+            )}
+          </>
         )}
       </PressableScale>
 
-      {/* 2. Summary tiles */}
-      <View style={styles.secondaryRow}>
-        <PressableScale onPress={handleNutritionPress} containerStyle={styles.tileTouch} style={[glassCard, styles.tile]}>
+      {/* Next competition planned by the coach: one steady color, the countdown is the message */}
+      {!!nextCompetition && (
+        <PressableScale
+          onPress={openCompetition}
+          containerStyle={styles.tileTouch}
+          style={[glassCard, styles.tile]}
+          accessibilityRole="button"
+          accessibilityLabel={`Prochaine compétition : ${compSub}, ${compValue === 'Jour J' ? 'aujourd’hui' : `dans ${compValue.slice(2)} jours`}`}
+        >
           <GlassSheen radius={22} />
-          <DashboardCardHeader
-            icon={<Ionicons name="restaurant" size={15} color={NUTRITION_TINT} />}
-            label="Nutrition"
-            tint={NUTRITION_TINT}
-          />
-
+          <DashboardCardHeader icon={<Ionicons name="trophy" size={15} color={theme.colors.competition} />} label="Compétition" tint={theme.colors.competition} />
           <View style={styles.valueRow}>
-            <Text style={[styles.secondaryValue, { color: theme.colors.text }]}>
-              {Math.round(consumedKcal).toLocaleString('fr-FR')}
-            </Text>
-            <Text style={[styles.secondaryUnitText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-              {kcalGoal ? `/ ${kcalGoal.toLocaleString('fr-FR')} kcal` : 'kcal'}
-            </Text>
+            <Text style={[styles.secondaryValue, { color: compValue === 'Jour J' ? theme.colors.success : theme.colors.competition }]}>{compValue}</Text>
           </View>
-
-          {kcalGoal ? (
-            <View style={styles.progressRow}>
-              <AnimatedBar
-                percent={nutritionPercentage}
-                color={nutritionExceeded ? theme.colors.warning : NUTRITION_TINT}
-                track={glassFill}
-              />
-              <Text style={[styles.percentBadgeText, { color: nutritionExceeded ? theme.colors.warning : theme.colors.textSecondary }]}>
-                {nutritionPercentage}%
-              </Text>
-            </View>
-          ) : (
-            <Text style={[styles.cardLinkText, { color: NUTRITION_TINT }]} numberOfLines={1}>
-              Définir mon objectif
-            </Text>
-          )}
-        </PressableScale>
-
-        {/* Next competition planned by the coach */}
-        {!!nextCompetition && (
-        <PressableScale onPress={handleCompetitionPress} containerStyle={styles.tileTouch} style={[glassCard, styles.tile]}>
-          <GlassSheen radius={22} />
-          <DashboardCardHeader
-            icon={<Ionicons name="trophy" size={15} color={COMPETITION_TINT} />}
-            label="Compétition"
-            tint={COMPETITION_TINT}
-          />
-
-          <View style={styles.valueRow}>
-            <Text style={[styles.secondaryValue, { color: nextCompetition ? compColor : theme.colors.textSecondary }]}>
-              {compValue}
-            </Text>
-          </View>
-
-          <Text
-            style={[styles.cardLinkText, { color: nextCompetition ? theme.colors.textSecondary : theme.colors.sprintyBlue }]}
-            numberOfLines={1}
-          >
+          <Text style={[styles.cardLinkText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
             {compSub}
           </Text>
         </PressableScale>
-        )}
-      </View>
-
-      <CheckInModal visible={modalVisible} onClose={() => setModalVisible(false)} onDone={onCheckInDone} />
-      <CheckInSummaryModal visible={summaryVisible} justDone={justDone} onClose={() => { setSummaryVisible(false); setJustDone(false); }} onEdit={handleEditCheckIn} />
+      )}
     </View>
   );
 };
@@ -327,7 +345,6 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
     paddingTop: 4,
-    gap: 12,
   },
   mainCardInner: {
     flexDirection: 'row',
@@ -361,7 +378,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
   },
-
   secondaryRow: {
     flexDirection: 'row',
     gap: 12,

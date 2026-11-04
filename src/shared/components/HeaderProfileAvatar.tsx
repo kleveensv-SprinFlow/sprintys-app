@@ -27,6 +27,8 @@ export const HeaderProfileAvatar: React.FC<HeaderProfileAvatarProps> = ({
       ref={targetRef}
       onPress={onPress}
       activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel="Mon profil et mes réglages"
       style={[
         styles.container,
         {

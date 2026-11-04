@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, Animated, Dimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Animated, Platform, useWindowDimensions } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../../core/theme';
@@ -14,16 +14,15 @@ import { PressableScale } from '../../../shared/components/PressableScale';
 import { glassCard, glassFill } from '../../../shared/components/DashboardCard';
 import { GlassSheen } from '../../../shared/components/GlassSheen';
 import { timeLabelOf } from '../../calendar/components/TimeField';
+import { useToday } from '../../../shared/hooks/useToday';
 
-const { width } = Dimensions.get('window');
 const CARD_GAP = 12;
-const CARD_WIDTH = width - 56;
-const SNAP_INTERVAL = CARD_WIDTH + CARD_GAP;
 const DAY_ITEM_WIDTH = 46;
 const DAY_ITEM_STRIDE = DAY_ITEM_WIDTH + 6;
 
 const DAY_SHORT = ['Di', 'Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa'];
 const DAY_LONG = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+const MONTH_LONG = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 
 const toLocalDateString = (d: Date): string => {
   const year = d.getFullYear();
@@ -67,6 +66,10 @@ export const SessionCarousel = () => {
 
   const { user } = useAuthStore();
   const { upcomingWorkouts, loadUpcomingWorkouts } = useWorkoutStore();
+  // Real window width (iPad, split view, foldables, rotation), not the one at launch
+  const { width } = useWindowDimensions();
+  const CARD_WIDTH = width - 56;
+  const SNAP_INTERVAL = CARD_WIDTH + CARD_GAP;
 
   const [activeIndex, setActiveIndex] = useState(7); // Default to today (index 7 in 15-day array)
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutSession | null>(null);
@@ -77,11 +80,8 @@ export const SessionCarousel = () => {
   // While a tap on the week strip animates the carousel, don't tick through every day passed
   const ignoreScrollUntil = useRef(0);
 
-  const todayStart = useMemo(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
-  }, []);
+  // Follows midnight and the return to the app: yesterday is never shown as « Aujourd'hui »
+  const todayStart = useToday();
 
   // 15 days timeline (J-7 to J+7)
   const timelineDays = useMemo(() => {
@@ -118,14 +118,16 @@ export const SessionCarousel = () => {
     });
   };
 
-  // Initial position: today
+  // Position on today: at launch, after midnight (the 15 days shift) and when the width changes
   useEffect(() => {
     const t = setTimeout(() => {
+      activeIndexRef.current = 7;
+      setActiveIndex(7);
       scrollRef.current?.scrollTo({ x: 7 * SNAP_INTERVAL, animated: false });
       centerTimeline(7, false);
     }, 100);
     return () => clearTimeout(t);
-  }, []);
+  }, [todayStart, SNAP_INTERVAL]);
 
   const setActive = (index: number, withHaptic: boolean) => {
     if (index === activeIndexRef.current || index < 0 || index >= timelineDays.length) return;
@@ -179,6 +181,7 @@ export const SessionCarousel = () => {
     if (!activeWorkout || isRestType(activeWorkout)) {
       const hasRestNote = !!activeWorkout;
       return {
+        label: `${dayLabel} : repos. ${hasRestNote ? 'Voir les consignes' : 'Voir mon calendrier'}`,
         onPress: () => (hasRestNote ? openDayView(date) : router.push('/(athlete)/calendar')),
         content: (
           <>
@@ -227,12 +230,14 @@ export const SessionCarousel = () => {
     if (extraCount > 0) summary += ` · +${extraCount} séance${extraCount > 1 ? 's' : ''}`;
 
     const status = isCompleted
-      ? { label: 'Fait', icon: 'check', color: theme.colors.success, bg: 'rgba(16, 185, 129, 0.12)' }
+      ? { label: 'Fait', icon: 'check', color: theme.colors.success, bg: theme.colors.successTint }
       : isMissed
-        ? { label: 'Manquée', icon: 'x', color: theme.colors.error, bg: 'rgba(239, 68, 68, 0.1)' }
+        ? // Neutral, not red: the session may have been done without being validated in the app
+          { label: 'Non validée', icon: 'circle', color: theme.colors.textSecondary, bg: theme.colors.neutralTint }
         : null;
 
     return {
+      label: `${dayLabel} : ${activeWorkout.type_seance}${status ? `, ${status.label.toLowerCase()}` : ''}. ${summary}`,
       onPress: () => (extraCount === 0 ? openWorkoutDetail(activeWorkout) : openDayView(date)),
       content: (
         <>
@@ -260,7 +265,7 @@ export const SessionCarousel = () => {
           </View>
           <View style={[styles.cardButton, { backgroundColor: typeConfig.bg }]}>
             <Text style={[styles.cardButtonText, { color: typeConfig.text }]}>
-              {extraCount > 0 ? 'Voir la journée' : isCompleted ? 'Voir le bilan' : 'Voir la séance'}
+              {extraCount > 0 ? 'Voir la journée' : isCompleted ? 'Voir le bilan' : isMissed ? 'Valider ou voir la séance' : 'Voir la séance'}
             </Text>
             <Feather name="chevron-right" size={15} color={typeConfig.text} />
           </View>
@@ -273,8 +278,8 @@ export const SessionCarousel = () => {
     <View style={styles.container}>
       {/* Section header */}
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Ma semaine</Text>
-        <PressableScale haptic="selection" onPress={() => router.push('/(athlete)/calendar')} hitSlop={10}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]} accessibilityRole="header">Mes séances</Text>
+        <PressableScale haptic="selection" onPress={() => router.push('/(athlete)/calendar')} hitSlop={10} accessibilityRole="link" accessibilityLabel="Ouvrir le calendrier">
           <Text style={[styles.sectionLink, { color: theme.colors.sprintyBlue }]}>Calendrier</Text>
         </PressableScale>
       </View>
@@ -299,6 +304,9 @@ export const SessionCarousel = () => {
               activeScale={0.9}
               onPress={() => scrollToDate(index)}
               style={styles.timelineItem}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={`${isTodayDate ? 'Aujourd’hui, ' : ''}${DAY_LONG[date.getDay()]} ${date.getDate()} ${MONTH_LONG[date.getMonth()]}${firstReal ? `, ${firstReal.type_seance}` : ''}`}
             >
               <Text
                 style={[
@@ -317,7 +325,7 @@ export const SessionCarousel = () => {
                 <Text
                   style={[
                     styles.timelineDateNum,
-                    { color: active ? '#FFF' : isTodayDate ? theme.colors.sprintyBlue : theme.colors.text },
+                    { color: active ? theme.colors.onAccent : isTodayDate ? theme.colors.sprintyBlue : theme.colors.text },
                   ]}
                 >
                   {date.getDate()}
@@ -336,12 +344,12 @@ export const SessionCarousel = () => {
         showsHorizontalScrollIndicator={false}
         snapToInterval={SNAP_INTERVAL}
         decelerationRate="fast"
-        contentContainerStyle={styles.carouselContent}
+        contentContainerStyle={[styles.carouselContent, { paddingHorizontal: (width - CARD_WIDTH) / 2 }]}
         onScroll={onScroll}
         scrollEventThrottle={16}
       >
         {timelineDays.map((date, index) => {
-          const { onPress, content } = renderCardContent(date, workoutsByDay[index]);
+          const { label, onPress, content } = renderCardContent(date, workoutsByDay[index]);
           const inputRange = [(index - 1) * SNAP_INTERVAL, index * SNAP_INTERVAL, (index + 1) * SNAP_INTERVAL];
           const scale = scrollX.interpolate({ inputRange, outputRange: [0.93, 1, 0.93], extrapolate: 'clamp' });
           const opacity = scrollX.interpolate({ inputRange, outputRange: [0.5, 1, 0.5], extrapolate: 'clamp' });
@@ -349,9 +357,9 @@ export const SessionCarousel = () => {
           return (
             <Animated.View
               key={index}
-              style={[styles.cardSlot, { opacity, transform: [{ scale }] }]}
+              style={[styles.cardSlot, { width: CARD_WIDTH, opacity, transform: [{ scale }] }]}
             >
-              <PressableScale onPress={onPress} unstable_pressDelay={70} style={[glassCard, styles.card]}>
+              <PressableScale onPress={onPress} unstable_pressDelay={70} style={[glassCard, styles.card]} accessibilityRole="button" accessibilityLabel={label}>
                 <GlassSheen radius={22} />
                 {content}
               </PressableScale>
@@ -424,12 +432,10 @@ const styles = StyleSheet.create({
   },
 
   carouselContent: {
-    paddingHorizontal: (width - CARD_WIDTH) / 2,
     paddingTop: 12,
     paddingBottom: 12,
   },
   cardSlot: {
-    width: CARD_WIDTH,
     marginRight: CARD_GAP,
   },
   card: {
