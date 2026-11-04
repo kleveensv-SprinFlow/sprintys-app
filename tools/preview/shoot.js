@@ -1,7 +1,7 @@
 // Capture d'écran d'un écran de l'app (version web, données fictives, format téléphone).
 //
 // Usage :  node tools/preview/shoot.js <scénario> <route> <sortie.png> [hauteur] [--click "texte"]… [--wait ms]
-//   scénario : default | minor | stale   (voir mock.js)
+//   scénario : default | minor | stale | loggedout   (voir mock.js)
 //   route    : /  /calendar  /nutrition  /ai-access  /ai-access/new …   (les groupes d'expo-router ne figurent pas dans l'URL)
 //   hauteur  : 844 par défaut ; plus grand pour voir toute la page (le défilement est interne à l'écran)
 //   --click  : touche l'élément portant ce texte avant la capture (peut être répété, dans l'ordre)
@@ -40,7 +40,7 @@ function serve() {
   });
 }
 
-const SCENARIOS = { default: {}, minor: { minor: true }, stale: { staleWeight: true } };
+const SCENARIOS = { default: {}, minor: { minor: true }, stale: { staleWeight: true }, loggedout: { noSession: true } };
 
 (async () => {
   const args = process.argv.slice(2);
@@ -78,12 +78,12 @@ const SCENARIOS = { default: {}, minor: { minor: true }, stale: { staleWeight: t
     const seen = new Set();
     await install(context, buildData(SCENARIOS[scenario]), seen);
     await context.addInitScript(
-      ({ session, uid }) => {
-        localStorage.setItem('sb-mock-auth-token', JSON.stringify(session));
+      ({ session, uid, noSession }) => {
+        if (!noSession) localStorage.setItem('sb-mock-auth-token', JSON.stringify(session));
         // Visite guidée déjà vue
         for (let v = 1; v <= 9; v++) localStorage.setItem(`@sprintys_tour_seen_v${v}:${uid}`, String(Date.now()));
       },
-      { session: SESSION, uid: USER_ID },
+      { session: SESSION, uid: USER_ID, noSession: !!SCENARIOS[scenario].noSession },
     );
 
     const page = await context.newPage();

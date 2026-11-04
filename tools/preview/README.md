@@ -15,7 +15,7 @@ node tools/preview/shoot.js <scénario> <route> <sortie.png> [hauteur] [--click 
 ```
 | Paramètre | Rôle |
 |---|---|
-| scénario | `default` (adulte), `minor` (16 ans), `stale` (dernière pesée il y a 12 jours) |
+| scénario | `default` (adulte), `minor` (16 ans), `stale` (dernière pesée il y a 12 jours), `loggedout` (écrans de connexion et d'inscription) |
 | route | `/`, `/calendar`, `/nutrition`, `/ai-access`, `/ai-access/new`… (les groupes d'expo-router comme `(athlete)` ne figurent pas dans l'URL) |
 | hauteur | 844 par défaut. L'écran défile en interne : prendre 1100 à 1700 pour tout voir |
 | `--click "texte"` | touche l'élément portant ce texte avant la capture (répétable, dans l'ordre) pour ouvrir une fenêtre, un onglet… |

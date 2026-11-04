@@ -64,8 +64,8 @@ function buildData(opts = {}) {
   ];
 
   const meals = [
-    { id: 'l1', user_id: USER_ID, meal_type: 'breakfast', custom_food_name: 'Porridge', quantity_g: 250, calories: 420, proteines: 14, glucides: 70, lipides: 8, consumed_at: day(0, 8) },
-    { id: 'l2', user_id: USER_ID, meal_type: 'lunch', custom_food_name: 'Poulet riz', quantity_g: 400, calories: 533, proteines: 42, glucides: 60, lipides: 10, consumed_at: day(0, 12) },
+    { id: 'l1', user_id: USER_ID, meal_type: 'petit_dejeuner', custom_food_name: 'Porridge', quantity_g: 250, calories: 420, proteines: 14, glucides: 70, lipides: 8, consumed_at: day(0, 8) },
+    { id: 'l2', user_id: USER_ID, meal_type: 'dejeuner', custom_food_name: 'Poulet riz', quantity_g: 400, calories: 533, proteines: 42, glucides: 60, lipides: 10, consumed_at: day(0, 12) },
   ];
 
   const consents = ['terms', 'health_profile', 'coach_sharing', 'ai_processing'].map((t) => ({ consent_type: t, version: '2026-10-18' }));
@@ -127,7 +127,23 @@ async function install(context, data, seen) {
           { used_at: day(-1, 21, 40), key_label: 'ChatGPT', scopes: ['seances', 'resultats', 'records'] },
           { used_at: day(-2, 8, 5), key_label: 'ChatGPT', scopes: ['seances'] },
         ]);
-      if (fn === 'get_athlete_performance' || fn === 'athlete_performance') return json({ records: [{ label: 'Épaule puissance', value: 110, unit: 'kg', date: dateOnly(-1) }], recent_prs: [{ label: 'Épaule puissance', value: 110, unit: 'kg', date: dateOnly(-1) }] });
+      if (fn === 'get_athlete_performance') {
+        const series = (key, label, unit, better, vals) => ({ key, label, unit, better, points: vals.map((v, k) => ({ date: dateOnly(-(vals.length - k) * 9), value: v })) });
+        return json({
+          records: [
+            { kind: 'muscu', key: 'epaule_puissance', label: 'Épaule puissance', value: 110, unit: 'kg', date: dateOnly(-1), count: 9, recent_pr: true, reps: 1 },
+            { kind: 'muscu', key: 'squat_arriere', label: 'Squat arrière', value: 150, unit: 'kg', date: dateOnly(-12), count: 14, recent_pr: false, reps: 1 },
+            { kind: 'course', key: '100_piste', label: '100 m', value: 11.42, unit: 's', distance_m: 100, surface: 'piste', date: dateOnly(-20), count: 11, recent_pr: false },
+            { kind: 'course', key: '200_piste', label: '200 m', value: 23.18, unit: 's', distance_m: 200, surface: 'piste', date: dateOnly(-33), count: 6, recent_pr: false },
+          ],
+          series: [series('100_piste', '100 m', 's', 'lower', [11.8, 11.7, 11.6, 11.5, 11.42]), series('squat_arriere', 'Squat arrière', 'kg', 'higher', [135, 140, 142, 148, 150])],
+          weekly: [-49, -42, -35, -28, -21, -14, -7, 0].map((o, k) => ({ week_start: dateOnly(o), planned: 5, done: [4, 5, 3, 5, 4, 5, 2, 3][k], load: 300 + k * 35, run_m: 1800 + k * 120 })),
+          recent_prs: [{ date: dateOnly(-1), label: 'Épaule puissance', value: 110, unit: 'kg', reps: 1 }],
+          hidden_count: 0,
+          load: { acute: 420, chronic: 380, ratio: 1.1 },
+          form: { last_date: dateOnly(-1), last_score: 74, avg7: 71, fatigue7: 4, checkins7: 5 },
+        });
+      }
       return json(null);
     }
 
