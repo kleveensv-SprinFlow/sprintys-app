@@ -1,10 +1,10 @@
 import { goBack } from '../../src/core/navigation';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, useWindowDimensions, Animated, Modal, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
 import { TouchableOpacity } from '../../src/shared/components/Tappable';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../../src/core/theme';
 import { useBodyStore } from '../../src/store/bodyStore';
 import { useAuthStore } from '../../src/store/authStore';
@@ -59,6 +59,9 @@ function valueOf(m: BodyMetric, key: MetricKey): number | null {
 export default function BodyCompositionScreen() {
   const theme = useTheme();
   const router = useRouter();
+  // Arriving with ?new=1 (the + of the home) opens the weighing sheet straight away
+  const params = useLocalSearchParams<{ new?: string }>();
+  const autoOpened = useRef(false);
   const { barOpacity: headerBarOpacity, scrollProps } = useFrostedHeader();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -163,6 +166,13 @@ export default function BodyCompositionScreen() {
     const parsed = parseFloat(val.replace(',', '.'));
     return Number.isNaN(parsed) ? null : parsed;
   };
+
+  useEffect(() => {
+    if (params.new !== '1' || autoOpened.current || !user?.id || isLoading) return;
+    autoOpened.current = true;
+    router.setParams({ new: undefined });
+    openNew();
+  }, [params.new, user?.id, isLoading]);
 
   const handleSave = async () => {
     if (!user?.id) return;
