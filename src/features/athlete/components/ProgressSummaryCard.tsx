@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../../core/theme';
 import { useAuthStore } from '../../../store/authStore';
@@ -10,32 +10,27 @@ import { glassCard } from '../../../shared/components/DashboardCard';
 import { GlassSheen } from '../../../shared/components/GlassSheen';
 import { performanceService, AthletePerformance } from '../../../services/performanceService';
 import { formatValue, shortDate } from '../../performance/format';
+import { isMinorAthlete } from '../../../legal/age';
+import { useToday } from '../../../shared/hooks/useToday';
+import { summarizeWeight } from '../weightSummary';
 
-const DAY = 86400000;
 const kg = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
-type Row = {
-  icon: keyof typeof Feather.glyphMap;
-  tint: string;
-  title: string;
-  value: string;
-  sub?: string;
-  onPress: () => void;
-  a11y: string;
-};
-
 /**
- * « Ma progression », always visible and compact: one line for the latest record, one for weight.
- * The detailed charts stay one tap away (Performance, Body). A failed load says so, with a retry, instead of vanishing.
- * Weight is shown without goal or « good direction » colouring: neutral for everyone, and no weight-loss cue for minors.
+ * « Ma progression », always visible and compact: the latest record, then weight.
+ * The weight line shows the value first, how old it is, and a + button that opens the weighing sheet directly:
+ * the usual gesture is one tap. The detailed charts stay one tap away (Performance, Body).
+ * Before 18 the 30-day change is not shown (no weight-trend cue for minors). A failed records load says so, with a retry.
  */
 export const ProgressSummaryCard = ({ refreshKey = 0 }: { refreshKey?: number }) => {
   const theme = useTheme();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const { metrics, loadMetrics } = useBodyStore();
+  const today = useToday();
   const [perf, setPerf] = useState<AthletePerformance | null>(null);
   const [perfFailed, setPerfFailed] = useState(false);
+  const isMinor = isMinorAthlete(user);
 
   const loadPerf = useCallback(() => {
     if (!user?.id) return () => undefined;
@@ -55,88 +50,18 @@ export const ProgressSummaryCard = ({ refreshKey = 0 }: { refreshKey?: number })
     if (user?.id) loadMetrics(user.id);
   }, [user?.id, refreshKey]);
 
-  // Weight: latest value and change over about 30 days
-  const weight = useMemo(() => {
-    const latest = metrics.length ? metrics[metrics.length - 1] : null;
-    if (!latest || latest.weight == null) return null;
-    const latestT = new Date(latest.created_at || '').getTime();
-    let diff: number | null = null;
-    if (latestT && metrics.length > 1) {
-      const ref = metrics
-        .slice(0, -1)
-        .filter((m) => m.weight != null && m.created_at)
-        .reduce<{ m: (typeof metrics)[number] | null; d: number }>(
-          (best, m) => {
-            const d = Math.abs(new Date(m.created_at as string).getTime() - (latestT - 30 * DAY));
-            return d < best.d ? { m, d } : best;
-          },
-          { m: null, d: Infinity },
-        ).m;
-      if (ref) diff = Number(latest.weight) - Number(ref.weight);
-    }
-    return { value: Number(latest.weight), diff, date: latest.created_at as string };
-  }, [metrics]);
+  // `today` is a dependency: « hier » becomes « il y a 2 jours » after midnight without a reload
+  const weight = useMemo(() => summarizeWeight(metrics, new Date()), [metrics, today]);
 
-  const rows: Row[] = [];
-
-  // Records
   const pr = perf?.recent_prs?.[0] ?? perf?.records?.[0];
   const isNewPr = !!perf?.recent_prs?.length;
-  if (perfFailed) {
-    rows.push({
-      icon: 'award',
-      tint: theme.colors.textMuted,
-      title: 'Records indisponibles',
-      value: 'Réessayer',
-      onPress: loadPerf,
-      a11y: 'Records indisponibles. Réessayer',
-    });
-  } else if (pr) {
-    rows.push({
-      icon: 'award',
-      tint: isNewPr ? theme.colors.record : theme.colors.sprintyBlue,
-      title: isNewPr ? 'Nouveau record' : 'Dernier record',
-      value: formatValue(pr.value, pr.unit),
-      sub: `${pr.label} · ${shortDate(pr.date)}`,
-      onPress: () => router.push('/(athlete)/performance'),
-      a11y: `${isNewPr ? 'Nouveau record' : 'Dernier record'} : ${pr.label}, ${formatValue(pr.value, pr.unit)}. Voir ma progression`,
-    });
-  } else if (perf) {
-    rows.push({
-      icon: 'award',
-      tint: theme.colors.sprintyBlue,
-      title: 'Records',
-      value: '',
-      sub: 'Ils apparaîtront après tes premiers chronos',
-      onPress: () => router.push('/(athlete)/performance'),
-      a11y: 'Records : ils apparaîtront après tes premiers chronos',
-    });
-  }
+  const prTint = isNewPr ? theme.colors.record : theme.colors.sprintyBlue;
 
-  // Weight
-  if (weight) {
-    const showDiff = weight.diff != null && Math.abs(weight.diff) >= 0.05;
-    const diffText = showDiff ? `${weight.diff! < 0 ? '−' : '+'}${kg(Math.abs(weight.diff!))} kg sur 30 j` : `Pesée du ${shortDate(weight.date)}`;
-    rows.push({
-      icon: 'bar-chart-2',
-      tint: theme.colors.sprintyBlue,
-      title: 'Poids',
-      value: `${kg(weight.value)} kg`,
-      sub: diffText,
-      onPress: () => router.push('/(athlete)/body'),
-      a11y: `Poids : ${kg(weight.value)} kilos, ${diffText}. Voir le suivi du corps`,
-    });
-  } else {
-    rows.push({
-      icon: 'plus',
-      tint: theme.colors.sprintyBlue,
-      title: 'Poids',
-      value: '',
-      sub: 'Ajoute ta première pesée',
-      onPress: () => router.push('/(athlete)/body'),
-      a11y: 'Ajouter ma première pesée',
-    });
-  }
+  const openBody = () => router.push('/(athlete)/body');
+  const openWeighIn = () => router.push({ pathname: '/(athlete)/body', params: { new: '1' } } as never);
+
+  const diffText =
+    weight && !isMinor && weight.diff != null ? `${weight.diff < 0 ? '−' : '+'}${kg(Math.abs(weight.diff))} kg sur 30 j` : null;
 
   return (
     <View style={styles.wrapper}>
@@ -145,33 +70,93 @@ export const ProgressSummaryCard = ({ refreshKey = 0 }: { refreshKey?: number })
       </Text>
       <View style={[glassCard, styles.card]}>
         <GlassSheen radius={22} />
-        {rows.map((r, i) => (
+
+        {/* Records */}
+        {perfFailed ? (
+          <PressableScale haptic="selection" activeScale={0.985} onPress={loadPerf} accessibilityRole="button" accessibilityLabel="Records indisponibles. Réessayer" style={[styles.row, styles.divider, { borderBottomColor: theme.colors.hairline }]}>
+            <View style={[styles.icon, { backgroundColor: theme.colors.neutralTint }]}>
+              <Feather name="award" size={16} color={theme.colors.textMuted} />
+            </View>
+            <View style={styles.text}>
+              <Text style={[styles.rowTitle, { color: theme.colors.text }]}>Records indisponibles</Text>
+              <Text style={[styles.rowSub, { color: theme.colors.textSecondary }]}>Touche pour réessayer</Text>
+            </View>
+            <Feather name="refresh-cw" size={17} color={theme.colors.textMuted} />
+          </PressableScale>
+        ) : perf ? (
           <PressableScale
-            key={r.title}
             haptic="selection"
             activeScale={0.985}
-            onPress={r.onPress}
+            onPress={() => router.push('/(athlete)/performance')}
             accessibilityRole="button"
-            accessibilityLabel={r.a11y}
-            style={[styles.row, i < rows.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.hairline }]}
+            accessibilityLabel={pr ? `${isNewPr ? 'Nouveau record' : 'Dernier record'} : ${pr.label}, ${formatValue(pr.value, pr.unit)}. Voir ma progression` : 'Records : ils apparaîtront après tes premiers chronos. Voir ma progression'}
+            style={[styles.row, styles.divider, { borderBottomColor: theme.colors.hairline }]}
           >
-            <View style={[styles.icon, { backgroundColor: `${r.tint}1A` }]}>
-              <Feather name={r.icon} size={16} color={r.tint} />
+            <View style={[styles.icon, { backgroundColor: `${prTint}1A` }]}>
+              <Feather name="award" size={16} color={prTint} />
             </View>
-            <View style={{ flex: 1, minWidth: 0 }}>
+            <View style={styles.text}>
               <Text style={[styles.rowTitle, { color: theme.colors.text }]} numberOfLines={1}>
-                {r.title}
+                {pr ? (isNewPr ? 'Nouveau record' : 'Dernier record') : 'Records'}
               </Text>
-              {!!r.sub && (
-                <Text style={[styles.rowSub, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                  {r.sub}
-                </Text>
-              )}
+              <Text style={[styles.rowSub, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                {pr ? `${pr.label} · ${shortDate(pr.date)}` : 'Ils apparaîtront après tes premiers chronos'}
+              </Text>
             </View>
-            {!!r.value && <Text style={[styles.value, { color: r.title === 'Nouveau record' ? theme.colors.record : theme.colors.text }]}>{r.value}</Text>}
+            {!!pr && <Text style={[styles.value, { color: isNewPr ? theme.colors.record : theme.colors.text }]}>{formatValue(pr.value, pr.unit)}</Text>}
             <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />
           </PressableScale>
-        ))}
+        ) : null}
+
+        {/* Weight: value first, then its age, and a + that opens the weighing sheet */}
+        <View style={styles.row}>
+          <PressableScale
+            haptic="selection"
+            activeScale={0.985}
+            onPress={openBody}
+            containerStyle={styles.weightMainWrap}
+            accessibilityRole="button"
+            accessibilityLabel={
+              weight
+                ? `Poids : ${kg(weight.value)} kilos, pesé ${weight.when}${diffText ? `, ${diffText}` : ''}. Voir le suivi du poids`
+                : 'Poids : aucune pesée. Voir le suivi du poids'
+            }
+            style={styles.weightMain}
+          >
+            <View style={[styles.icon, { backgroundColor: `${theme.colors.sprintyBlue}1A` }]}>
+              <Ionicons name="scale-outline" size={18} color={theme.colors.sprintyBlue} />
+            </View>
+            <View style={styles.text}>
+              <Text style={[styles.rowTitle, { color: theme.colors.text }]}>Poids</Text>
+              {weight ? (
+                <>
+                  <Text style={[styles.weightValue, { color: theme.colors.text }]} numberOfLines={1}>
+                    {kg(weight.value)} kg
+                    <Text style={[styles.weightWhen, { color: weight.stale ? theme.colors.warning : theme.colors.textSecondary }]}>{`  ·  ${weight.when}`}</Text>
+                  </Text>
+                  {!!diffText && (
+                    <Text style={[styles.rowSub, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                      {diffText}
+                    </Text>
+                  )}
+                </>
+              ) : (
+                <Text style={[styles.rowSub, { color: theme.colors.textSecondary }]}>Ajoute ta première pesée</Text>
+              )}
+            </View>
+          </PressableScale>
+
+          <PressableScale
+            haptic="light"
+            onPress={openWeighIn}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Ajouter une pesée"
+            style={[styles.plus, weight?.stale || !weight ? { backgroundColor: theme.colors.sprintyBlue } : { backgroundColor: `${theme.colors.sprintyBlue}1A` }]}
+          >
+            <Feather name="plus" size={20} color={weight?.stale || !weight ? theme.colors.onAccent : theme.colors.sprintyBlue} />
+          </PressableScale>
+        </View>
       </View>
     </View>
   );
@@ -182,8 +167,16 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: '800', marginBottom: 10, marginLeft: 4 },
   card: { paddingVertical: 4 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 8 },
+  divider: { borderBottomWidth: StyleSheet.hairlineWidth },
   icon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  text: { flex: 1, minWidth: 0 },
   rowTitle: { fontSize: 16, fontWeight: '600' },
   rowSub: { fontSize: 13, marginTop: 1 },
   value: { fontSize: 16, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  // The + stays on the right edge: the row takes all the room left by the button
+  weightMainWrap: { flex: 1, minWidth: 0 },
+  weightMain: { flexDirection: 'row', alignItems: 'center', gap: 12, minWidth: 0 },
+  weightValue: { fontSize: 20, fontWeight: '800', letterSpacing: -0.4, fontVariant: ['tabular-nums'], marginTop: 1 },
+  weightWhen: { fontSize: 13, fontWeight: '500', letterSpacing: 0 },
+  plus: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
 });

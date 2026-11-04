@@ -69,9 +69,9 @@ export const AuthScreen: React.FC<{ initialTab?: Tab }> = ({ initialTab = 'login
             >
               <GlassSheen radius={22} />
               {tab === 'login' ? (
-                <LoginForm onSwitchToSignup={() => setTab('signup')} />
+                <LoginForm />
               ) : (
-                <RegisterMultiStep onSwitchToLogin={() => setTab('login')} />
+                <RegisterMultiStep />
               )}
             </Animated.View>
 

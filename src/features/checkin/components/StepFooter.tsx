@@ -15,22 +15,9 @@ interface StepFooterProps {
   onSkip?: () => void;
 }
 
-/** Bottom action bar of a check-in step: optional back square + primary button (+ optional skip link). */
+/** Bottom action bar of a check-in step: optional back square + primary button, then the optional skip link underneath. */
 export const StepFooter = ({ title, onPress, onBack, loading, disabled, onSkip }: StepFooterProps) => (
-  <View>
-    {onSkip && (
-      <PressableScale
-        haptic="selection"
-        onPress={onSkip}
-        style={styles.skip}
-        hitSlop={8}
-        accessibilityRole="button"
-        accessibilityLabel="Passer cette étape"
-        disabled={loading}
-      >
-        <Text style={styles.skipText}>Passer cette étape</Text>
-      </PressableScale>
-    )}
+  <View style={styles.bar}>
     <View style={styles.footer}>
     {onBack && (
       <PressableScale
@@ -46,18 +33,33 @@ export const StepFooter = ({ title, onPress, onBack, loading, disabled, onSkip }
     )}
     <Button title={title} onPress={onPress} loading={loading} disabled={disabled} style={styles.primary} />
     </View>
+    {onSkip && (
+      <PressableScale
+        haptic="selection"
+        onPress={onSkip}
+        style={styles.skip}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel="Passer cette étape"
+        disabled={loading}
+      >
+        <Text style={styles.skipText}>Passer cette étape</Text>
+      </PressableScale>
+    )}
   </View>
 );
 
 const styles = StyleSheet.create({
+  bar: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.hairline,
+  },
   footer: {
     flexDirection: 'row',
     gap: 12,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: theme.colors.hairline,
   },
   backBtn: {
     width: 52,
@@ -69,6 +71,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   primary: { flex: 1 },
-  skip: { alignSelf: 'center', paddingTop: 10, paddingBottom: 2, paddingHorizontal: 12 },
+  skip: { alignSelf: 'center', paddingVertical: 12, paddingHorizontal: 16 },
   skipText: { fontSize: 14, fontWeight: '600', color: theme.colors.textSecondary },
 });

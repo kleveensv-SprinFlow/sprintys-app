@@ -32,11 +32,13 @@ export const NutritionHeader: React.FC<Props> = ({ onSettingsPress, athleteProfi
         <Text style={[styles.title, { color: theme.colors.text }]}>Nutrition</Text>
 
         <View style={styles.right}>
-          {/* Logging streak, in the app's own bolt */}
-          <View style={[styles.streakChip, glassSurface]}>
-            <Feather name="zap" size={14} color={theme.colors.sprintyBlue} />
-            <Text style={[styles.streakText, { color: theme.colors.text }]}>{currentStreak}</Text>
-          </View>
+          {/* Logging streak, in the app's own bolt. Hidden at 0 (a zero is discouraging), and spelled out in days */}
+          {currentStreak > 0 && (
+            <View style={[styles.streakChip, glassSurface]} accessible accessibilityLabel={`Série : ${currentStreak} jour${currentStreak > 1 ? 's' : ''} de suite avec des repas notés`}>
+              <Feather name="zap" size={14} color={theme.colors.sprintyBlue} />
+              <Text style={[styles.streakText, { color: theme.colors.text }]}>{currentStreak} j</Text>
+            </View>
+          )}
 
           {showSettings && (
             <PressableScale onPress={onSettingsPress} haptic="selection" hitSlop={8} style={[styles.iconButton, glassSurface]}>

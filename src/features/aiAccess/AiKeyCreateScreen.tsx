@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.md, paddingBottom: theme.spacing.xxxl },
   pad: { paddingVertical: theme.spacing.sm },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm },
-  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: theme.radius.full, backgroundColor: theme.colors.glassFill },
+  chip: { paddingHorizontal: 11, paddingVertical: 8, borderRadius: theme.radius.full, backgroundColor: theme.colors.glassFill },
   chipOn: { backgroundColor: theme.colors.sprintyBlue },
   chipText: { fontSize: 14, fontWeight: '600', color: theme.colors.text },
   chipTextOn: { color: theme.colors.surface },

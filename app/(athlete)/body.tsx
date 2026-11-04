@@ -1,10 +1,10 @@
 import { goBack } from '../../src/core/navigation';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, useWindowDimensions, Animated, Modal, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
 import { TouchableOpacity } from '../../src/shared/components/Tappable';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../../src/core/theme';
 import { useBodyStore } from '../../src/store/bodyStore';
 import { useAuthStore } from '../../src/store/authStore';
@@ -24,6 +24,7 @@ import { FeedbackHost } from '../../src/shared/feedback/FeedbackHost';
 import { appAlert } from '../../src/shared/feedback/appAlert';
 
 import { useRefresh } from '../../src/shared/hooks/useRefresh';
+import { isMinorAthlete } from '../../src/legal/age';
 
 const BLUE_TINT = 'rgba(0, 105, 232, 0.1)';
 
@@ -59,6 +60,9 @@ function valueOf(m: BodyMetric, key: MetricKey): number | null {
 export default function BodyCompositionScreen() {
   const theme = useTheme();
   const router = useRouter();
+  // Arriving with ?new=1 (the + of the home) opens the weighing sheet straight away
+  const params = useLocalSearchParams<{ new?: string }>();
+  const autoOpened = useRef(false);
   const { barOpacity: headerBarOpacity, scrollProps } = useFrostedHeader();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -88,7 +92,9 @@ export default function BodyCompositionScreen() {
 
   const hasFat = metrics.some((m) => m.body_fat != null);
   const hasMuscle = metrics.some((m) => m.muscle_mass_kg != null);
-  const target = Number(user?.targetWeight || 0);
+  // No weight goal before 18 (nor without a birth date): none is shown nor can be set
+  const isMinor = isMinorAthlete(user);
+  const target = isMinor ? 0 : Number(user?.targetWeight || 0);
   const blue = theme.colors.sprintyBlue;
 
   const series = useMemo(() => {
@@ -163,6 +169,13 @@ export default function BodyCompositionScreen() {
     const parsed = parseFloat(val.replace(',', '.'));
     return Number.isNaN(parsed) ? null : parsed;
   };
+
+  useEffect(() => {
+    if (params.new !== '1' || autoOpened.current || !user?.id || isLoading) return;
+    autoOpened.current = true;
+    router.setParams({ new: undefined });
+    openNew();
+  }, [params.new, user?.id, isLoading]);
 
   const handleSave = async () => {
     if (!user?.id) return;
@@ -361,7 +374,7 @@ export default function BodyCompositionScreen() {
               </View>
             )}
 
-            {metricKey === 'weight' && (
+            {metricKey === 'weight' && !isMinor && (
               <PressableScale onPress={openGoal} haptic="selection" style={[styles.goalRow, { borderTopColor: theme.colors.hairline }]}>
                 <View style={[styles.goalIcon, { backgroundColor: BLUE_TINT }]}>
                   <Feather name="flag" size={14} color={blue} />

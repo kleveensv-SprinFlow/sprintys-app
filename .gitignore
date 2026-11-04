@@ -50,3 +50,6 @@ google-services.json
 .claude/settings.local.json
 .mcp.json
 .agentsroom/
+
+# Aperçu des écrans (tools/preview)
+.preview/

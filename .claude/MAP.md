@@ -29,4 +29,5 @@ Lis ce fichier AVANT de chercher. Mets-le à jour si tu ajoutes/déplaces un mod
 - `migrations/` datées (ne jamais éditer une migration appliquée) · `seed_exercises.sql` (gros)
 
 ## Hors code
+- `tools/preview/` : captures d'écran de l'app sans build (build.js, shoot.js, mock.js) · skill `apercu-ecrans`
 - `store/` fiches stores + captures · `docs/` pages légales générées · `fastlane/`, `.github/workflows/`, `eas.json` · `scripts/`
