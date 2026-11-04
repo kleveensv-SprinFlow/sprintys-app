@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuthStore, UserRole, SignupData } from '../../../store/authStore';
@@ -63,12 +63,6 @@ export const RegisterMultiStep: React.FC<RegisterMultiStepProps> = ({ onSwitchTo
     direction.current = delta;
     clearError();
     setStep((s) => Math.min(TOTAL_STEPS, Math.max(1, s + delta)));
-  };
-
-  const handleLoginPress = () => {
-    clearError();
-    if (onSwitchToLogin) onSwitchToLogin();
-    else router.push('/(auth)/login');
   };
 
   const handleSignup = async () => {
@@ -164,14 +158,6 @@ export const RegisterMultiStep: React.FC<RegisterMultiStepProps> = ({ onSwitchTo
           <Text style={styles.noticeText}>{error}</Text>
         </View>
       )}
-
-      {step === 1 && (
-        <Pressable onPress={handleLoginPress} style={styles.loginLink} hitSlop={8}>
-          <Text style={styles.loginText}>
-            Déjà un compte ? <Text style={styles.loginTextBold}>Connecte-toi</Text>
-          </Text>
-        </Pressable>
-      )}
     </View>
   );
 };
@@ -194,7 +180,4 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   noticeText: { flex: 1, fontSize: 14, color: theme.colors.text },
-  loginLink: { marginTop: 18, alignItems: 'center', paddingVertical: 4 },
-  loginText: { fontSize: 14, color: theme.colors.textSecondary },
-  loginTextBold: { fontWeight: '700', color: theme.colors.sprintyBlue },
 });

@@ -28,10 +28,10 @@ describe('summarizeWeight', () => {
     expect(summarizeWeight([{ weight: null, created_at: at(1) }, { weight: 80, created_at: null }], now)).toBeNull();
   });
 
-  it('donne le dernier poids, sa date relative et l’écart sur environ 30 jours', () => {
+  it('donne le dernier poids, sa date relative et l’écart sur les 30 derniers jours', () => {
     const s = summarizeWeight(
       [
-        { weight: 79.6, created_at: at(31) },
+        { weight: 79.6, created_at: at(31) }, // hors des 30 jours : ignorée, comme l'écran Corps en « 1M »
         { weight: 79.0, created_at: at(15) },
         { weight: 79.8, created_at: at(1) },
       ],
@@ -40,7 +40,11 @@ describe('summarizeWeight', () => {
     expect(s.value).toBe(79.8);
     expect(s.when).toBe('hier');
     expect(s.stale).toBe(false);
-    expect(s.diff).toBeCloseTo(0.2, 5);
+    expect(s.diff).toBeCloseTo(0.8, 5);
+  });
+
+  it('pas d’écart s’il n’y a qu’une pesée dans les 30 derniers jours', () => {
+    expect(summarizeWeight([{ weight: 79.6, created_at: at(40) }, { weight: 79.8, created_at: at(1) }], now)!.diff).toBeNull();
   });
 
   it('ignore un écart négligeable et une pesée unique', () => {
@@ -54,7 +58,7 @@ describe('summarizeWeight', () => {
   });
 
   it('range les pesées dans l’ordre même si elles arrivent mélangées', () => {
-    const s = summarizeWeight([{ weight: 79.8, created_at: at(1) }, { weight: 79.6, created_at: at(31) }], now)!;
+    const s = summarizeWeight([{ weight: 79.8, created_at: at(1) }, { weight: 79.6, created_at: at(20) }], now)!;
     expect(s.value).toBe(79.8);
     expect(s.diff).toBeCloseTo(0.2, 5);
   });

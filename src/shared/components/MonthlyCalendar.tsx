@@ -16,6 +16,7 @@ import { GlassSheen } from './GlassSheen';
 import { FrostedBar } from './FrostedBar';
 import { PressableScale } from './PressableScale';
 import { useFrostedHeader } from '../hooks/useFrostedHeader';
+import { timeLabelOf } from '../../features/calendar/components/TimeField';
 
 
 // === Pastel workout banners (matching screenshot style) ===
@@ -99,7 +100,6 @@ interface MonthlyCalendarProps {
 const DAYS_OF_WEEK = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 const DAY_NAMES = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 const BLUE = '#0069E8';
-const SUNDAY_RED = '#E11D48';
 const MONTH_NAMES = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
@@ -440,7 +440,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
             {DAYS_OF_WEEK.map((day, index) => (
               <Text
                 key={index}
-                style={[styles.dayLabelText, { color: index === 6 ? SUNDAY_RED : theme.colors.textSecondary }]}
+                style={[styles.dayLabelText, { color: theme.colors.textSecondary }]}
               >
                 {day}
               </Text>
@@ -485,9 +485,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                     ? '#FFFFFF'
                     : isTodayCell
                       ? BLUE
-                      : dayIndex === 6
-                        ? SUNDAY_RED
-                        : theme.colors.text;
+                      : theme.colors.text;
 
                   return (
                     <Pressable key={dayIndex} style={styles.cell} onPress={() => handleDayPress(item.date)}>
@@ -518,7 +516,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
           </Animated.View>
         </View>
 
-        {legend.length > 0 && (
+        {isCoach && legend.length > 0 && (
           <View style={styles.legendRow} accessibilityLabel={`Légende des couleurs : ${legend.map((l) => l.label).join(', ')}`}>
             {legend.map((l) => (
               <View key={l.label} style={styles.legendItem}>
@@ -532,9 +530,9 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
         {/* === Agenda of the selected day === */}
         <View style={styles.agendaHeader}>
           <Text style={[styles.agendaTitle, { color: theme.colors.text }]}>{selectedLabel}</Text>
-          {onOpenDate && (
-            <Pressable onPress={() => onOpenDate(selectedDate)} hitSlop={8} style={styles.agendaLink}>
-              <Text style={styles.agendaLinkText}>{isCoach ? 'Planifier' : 'Ouvrir'}</Text>
+          {onOpenDate && isCoach && (
+            <Pressable onPress={() => onOpenDate(selectedDate)} hitSlop={8} style={styles.agendaLink} accessibilityRole="button">
+              <Text style={styles.agendaLinkText}>Planifier</Text>
               <Feather name="chevron-right" size={15} color={BLUE} />
             </Pressable>
           )}
@@ -547,16 +545,22 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
             const isCompetition = (w.type_seance || '').toLowerCase().startsWith('comp');
             const isRest = (w.type_seance || '').toLowerCase().includes('repos');
             const isMissed = !isCompleted && !isCompetition && !isRest && selectedDate < todayStart;
+            // A planned session says nothing about its state (« Prévue » was noise): its time, when it has one.
+            // A past session that was not validated is neutral, like on the home: it may well have been done.
             const status = isCompleted
               ? { label: 'Faite', color: theme.colors.success }
               : isMissed
-                ? { label: 'Manquée', color: theme.colors.error }
-                : { label: isRest ? 'Récupération' : 'Prévue', color: theme.colors.textSecondary };
+                ? { label: 'Non validée', color: theme.colors.textSecondary }
+                : isRest
+                  ? { label: 'Récupération', color: theme.colors.textSecondary }
+                  : { label: timeLabelOf(w), color: theme.colors.textSecondary };
             return (
               <PressableScale
                 key={w.id || i}
                 onPress={() => onOpenDate?.(selectedDate)}
                 disabled={!onOpenDate}
+                accessibilityRole="button"
+                accessibilityLabel={`${w.type_seance}${status.label ? `, ${status.label.toLowerCase()}` : ''}. Voir la journée`}
                 haptic={onOpenDate ? 'light' : 'none'}
                 style={[glassCard, styles.agendaItem]}
               >
@@ -568,7 +572,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                   <Text style={[styles.agendaItemTitle, { color: theme.colors.text }]} numberOfLines={1}>
                     {w.type_seance}
                   </Text>
-                  <Text style={[styles.agendaItemStatus, { color: status.color }]}>{status.label}</Text>
+                  {!!status.label && <Text style={[styles.agendaItemStatus, { color: status.color }]}>{status.label}</Text>}
                 </View>
                 {onOpenDate && <Feather name="chevron-right" size={18} color={theme.colors.textMuted} />}
               </PressableScale>

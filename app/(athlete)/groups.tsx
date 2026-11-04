@@ -446,13 +446,6 @@ export default function GroupsScreen() {
                 style={styles.joinBtn}
               />
             </View>
-
-            <View style={styles.hintRow}>
-              <Feather name="shield" size={16} color={theme.colors.textMuted} />
-              <Text style={styles.hintText}>
-                Tu n’es dans aucun groupe pour l’instant. Demande le code d’invitation à ton coach.
-              </Text>
-            </View>
           </>
         )}
 

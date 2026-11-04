@@ -9,13 +9,9 @@ import { theme } from '../../../core/theme';
 import { supabase } from '../../../services/supabase';
 import { SocialAuthButtons, OrDivider } from './SocialAuthButtons';
 
-interface LoginFormProps {
-  onSwitchToSignup?: () => void;
-}
-
 const isEmail = (v: string) => /^\S+@\S+\.\S+$/.test(v.trim());
 
-export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup }) => {
+export const LoginForm: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -162,14 +158,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup }) => {
       )}
 
       <Button title="Se connecter" onPress={handleLogin} loading={isLoading} disabled={!email || !password} />
-
-      {onSwitchToSignup && (
-        <Pressable onPress={onSwitchToSignup} style={styles.switchRow} hitSlop={8}>
-          <Text style={styles.switchText}>
-            Pas encore de compte ? <Text style={styles.link}>Crée-le</Text>
-          </Text>
-        </Pressable>
-      )}
     </View>
   );
 };
@@ -193,6 +181,4 @@ const styles = StyleSheet.create({
   },
   noticeOk: { backgroundColor: 'rgba(16, 185, 129, 0.1)' },
   noticeText: { flex: 1, fontSize: 14, color: theme.colors.text },
-  switchRow: { alignItems: 'center', paddingTop: 18 },
-  switchText: { fontSize: 14, color: theme.colors.textSecondary },
 });

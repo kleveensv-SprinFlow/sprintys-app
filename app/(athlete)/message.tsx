@@ -145,7 +145,7 @@ export default function MessagesHubScreen() {
                 <Text style={styles.discussionPreview} numberOfLines={1}>
                   {lastSprintyMessage
                     ? `${lastSprintyMessage.role === 'user' ? 'Toi : ' : ''}${previewOf(lastSprintyMessage.content)}`
-                    : 'Pose-moi une question sur ton entraînement'}
+                    : 'Pose-moi une question'}
                 </Text>
               </View>
             </View>
@@ -242,7 +242,10 @@ export default function MessagesHubScreen() {
           ) : (
             <View style={styles.emptyState}>
               <GlassSheen radius={18} />
-              <Text style={styles.emptyText}>Tu n'as pas encore d'équipe. Appuie sur l'icône de personnes en haut de l'accueil pour en rejoindre une.</Text>
+              <Text style={styles.emptyText}>Tu n'as pas encore d'équipe.</Text>
+              <PressableScale haptic="selection" onPress={() => router.push('/(athlete)/groups')} style={styles.emptyAction} accessibilityRole="button" accessibilityLabel="Rejoindre un coach">
+                <Text style={styles.emptyActionText}>Rejoindre un coach</Text>
+              </PressableScale>
             </View>
           )}
         </Animated.ScrollView>
@@ -271,6 +274,8 @@ const styles = StyleSheet.create({
   unreadBadge: { backgroundColor: theme.colors.sprintyBlue, borderRadius: 12, paddingHorizontal: 6, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
   unreadBadgeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
   emptyState: { padding: 20, ...glassSurface, borderRadius: 18 },
-  emptyText: { color: theme.colors.textSecondary, textAlign: 'center', lineHeight: 20 }
+  emptyText: { color: theme.colors.textSecondary, textAlign: 'center', lineHeight: 20 },
+  emptyAction: { alignSelf: 'center', marginTop: 12, paddingHorizontal: 20, paddingVertical: 10, borderRadius: theme.radius.full, backgroundColor: theme.colors.sprintyBlue },
+  emptyActionText: { fontSize: 15, fontWeight: '700', color: theme.colors.onAccent },
 });
 

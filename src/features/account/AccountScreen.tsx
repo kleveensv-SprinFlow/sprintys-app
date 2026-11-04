@@ -371,10 +371,13 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
           <Text style={styles.email} numberOfLines={1}>
             {user?.email}
           </Text>
-          <View style={styles.roleChip}>
-            <Feather name={isAthlete ? 'activity' : 'clipboard'} size={12} color={theme.colors.sprintyBlue} />
-            <Text style={styles.roleText}>{isAthlete ? 'Athlète' : 'Coach'}</Text>
-          </View>
+          {/* The athlete knows what they are: the role chip only helps tell a coach account */}
+          {!isAthlete && (
+            <View style={styles.roleChip}>
+              <Feather name="clipboard" size={12} color={theme.colors.sprintyBlue} />
+              <Text style={styles.roleText}>Coach</Text>
+            </View>
+          )}
         </View>
 
         <Text style={styles.section}>COMPTE</Text>
@@ -494,7 +497,7 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
           <ListRow
             icon="cpu"
             iconColor="#8B5CF6"
-            title="Assistant IA"
+            title="Sprinty (IA)"
             subtitle={isAthlete ? 'Sprinty et analyse de repas' : 'Sprinty et analyses d’athlètes'}
             value={<Switch value={!!aiConsent} onValueChange={toggleAI} />}
             chevron={false}
@@ -523,8 +526,8 @@ export function AccountScreen({ role }: { role: 'athlete' | 'coach' }) {
             <ListRow
               icon="key"
               iconColor="#8B5CF6"
-              title="Accès IA"
-              subtitle="Partager mes données avec ChatGPT, Claude, Gemini…"
+              title="Connecter ChatGPT, Claude…"
+              subtitle="Partager mes données en lecture seule"
               onPress={() => router.push('/(athlete)/ai-access' as any)}
             />
           )}

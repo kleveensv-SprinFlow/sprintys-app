@@ -51,7 +51,7 @@ export const ProgressSummaryCard = ({ refreshKey = 0 }: { refreshKey?: number })
   }, [user?.id, refreshKey]);
 
   // `today` is a dependency: « hier » becomes « il y a 2 jours » after midnight without a reload
-  const weight = useMemo(() => summarizeWeight(metrics, new Date(today.getTime() + 12 * 3600000)), [metrics, today]);
+  const weight = useMemo(() => summarizeWeight(metrics, new Date()), [metrics, today]);
 
   const pr = perf?.recent_prs?.[0] ?? perf?.records?.[0];
   const isNewPr = !!perf?.recent_prs?.length;
@@ -61,7 +61,7 @@ export const ProgressSummaryCard = ({ refreshKey = 0 }: { refreshKey?: number })
   const openWeighIn = () => router.push({ pathname: '/(athlete)/body', params: { new: '1' } } as never);
 
   const diffText =
-    weight && !isMinor && weight.diff != null ? `${weight.diff < 0 ? '−' : '+'}${kg(Math.abs(weight.diff))} kg en 30 jours` : null;
+    weight && !isMinor && weight.diff != null ? `${weight.diff < 0 ? '−' : '+'}${kg(Math.abs(weight.diff))} kg sur 30 j` : null;
 
   return (
     <View style={styles.wrapper}>

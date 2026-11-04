@@ -1,4 +1,8 @@
-/** Weight line of the home « Ma progression » card: latest weighing, how old it is, change over ~30 days. */
+/**
+ * Weight line of the home « Ma progression » card: latest weighing, how old it is, change over 30 days.
+ * The change uses the same rule as the Body screen on its « 1M » range (latest minus the first weighing of the
+ * last 30 days), so both screens always show the same number.
+ */
 
 const DAY = 86400000;
 
@@ -14,7 +18,7 @@ export interface WeightSummary {
   daysAgo: number;
   /** More than a week old: the + button is highlighted and the line says so */
   stale: boolean;
-  /** Change versus the weighing closest to 30 days earlier; null when unknown or negligible */
+  /** Latest minus the first weighing of the last 30 days; null with fewer than two of them, or when negligible */
   diff: number | null;
 }
 
@@ -43,12 +47,10 @@ export function summarizeWeight(metrics: WeightPoint[], now: Date = new Date()):
   const daysAgo = calendarDaysAgo(new Date(latest.t), now);
 
   let diff: number | null = null;
-  if (points.length > 1) {
-    const target = latest.t - 30 * DAY;
-    const ref = points
-      .slice(0, -1)
-      .reduce((best, p) => (Math.abs(p.t - target) < Math.abs(best.t - target) ? p : best));
-    const d = latest.weight - ref.weight;
+  const windowStart = now.getTime() - 30 * DAY;
+  const inWindow = points.filter((p) => p.t >= windowStart);
+  if (inWindow.length > 1) {
+    const d = latest.weight - inWindow[0].weight;
     diff = Math.abs(d) >= 0.05 ? d : null;
   }
 

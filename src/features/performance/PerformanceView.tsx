@@ -122,23 +122,6 @@ export const PerformanceView: React.FC<Props> = ({ athleteId, mode = 'full', aud
   const planned2 = last2.reduce((a, w) => a + w.planned, 0);
   const done2 = last2.reduce((a, w) => a + w.done, 0);
 
-  const prBanner = d.recent_prs.length > 0 && (
-    <View style={[glassCard, styles.card]}>
-      <GlassSheen radius={22} />
-      <View style={styles.headerRow}>
-        <Feather name="award" size={15} color={gold} />
-        <Text style={[styles.headerLabel, { color: gold }]}>Records battus ces 14 derniers jours</Text>
-      </View>
-      {d.recent_prs.slice(0, mode === 'summary' ? 3 : 6).map((r) => (
-        <View key={`${r.label}${r.date}`} style={styles.prRow}>
-          <Text style={[styles.prLabel, { color: theme.colors.text }]} numberOfLines={1}>{r.label}</Text>
-          <Text style={[styles.prValue, { color: gold }]}>{formatValue(r.value, r.unit, r.reps)}</Text>
-          <Text style={[styles.prDate, { color: theme.colors.textMuted }]}>{shortDate(r.date)}</Text>
-        </View>
-      ))}
-    </View>
-  );
-
   const loadBlock = (
     <View style={[glassCard, styles.card]}>
       <GlassSheen radius={22} />
@@ -310,7 +293,6 @@ export const PerformanceView: React.FC<Props> = ({ athleteId, mode = 'full', aud
 
   return (
     <View>
-      {prBanner}
       {mode === 'summary' ? (
         <>
           {loadBlock}

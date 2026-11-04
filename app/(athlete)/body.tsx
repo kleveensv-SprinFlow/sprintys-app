@@ -24,6 +24,7 @@ import { FeedbackHost } from '../../src/shared/feedback/FeedbackHost';
 import { appAlert } from '../../src/shared/feedback/appAlert';
 
 import { useRefresh } from '../../src/shared/hooks/useRefresh';
+import { isMinorAthlete } from '../../src/legal/age';
 
 const BLUE_TINT = 'rgba(0, 105, 232, 0.1)';
 
@@ -91,7 +92,9 @@ export default function BodyCompositionScreen() {
 
   const hasFat = metrics.some((m) => m.body_fat != null);
   const hasMuscle = metrics.some((m) => m.muscle_mass_kg != null);
-  const target = Number(user?.targetWeight || 0);
+  // No weight goal before 18 (nor without a birth date): none is shown nor can be set
+  const isMinor = isMinorAthlete(user);
+  const target = isMinor ? 0 : Number(user?.targetWeight || 0);
   const blue = theme.colors.sprintyBlue;
 
   const series = useMemo(() => {
@@ -371,7 +374,7 @@ export default function BodyCompositionScreen() {
               </View>
             )}
 
-            {metricKey === 'weight' && (
+            {metricKey === 'weight' && !isMinor && (
               <PressableScale onPress={openGoal} haptic="selection" style={[styles.goalRow, { borderTopColor: theme.colors.hairline }]}>
                 <View style={[styles.goalIcon, { backgroundColor: BLUE_TINT }]}>
                   <Feather name="flag" size={14} color={blue} />

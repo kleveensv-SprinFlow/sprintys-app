@@ -66,7 +66,8 @@ describe('Ligne Poids de l’accueil', () => {
   beforeEach(() => {
     mockPush.mockClear();
     mockMetrics = [
-      { weight: 79.6, created_at: daysAgoIso(31) },
+      { weight: 79.0, created_at: daysAgoIso(31) },
+      { weight: 79.6, created_at: daysAgoIso(15) },
       { weight: 79.8, created_at: daysAgoIso(1) },
     ];
   });
@@ -76,14 +77,14 @@ describe('Ligne Poids de l’accueil', () => {
     const t = allText(await render());
     expect(t).toMatch(/79,8 kg/);
     expect(t).toMatch(/hier/);
-    expect(t).toMatch(/\+0,2 kg en 30 jours/);
+    expect(t).toMatch(/\+0,2 kg sur 30 j/);
   });
 
   it('n’affiche pas l’évolution du poids à un mineur', async () => {
     mockUser = { id: 'm', dateOfBirth: yearsAgo(16) };
     const t = allText(await render());
     expect(t).toMatch(/79,8 kg/);
-    expect(t).not.toMatch(/30 jours/);
+    expect(t).not.toMatch(/sur 30 j/);
   });
 
   it('le + ouvre directement la saisie d’une pesée', async () => {

@@ -30,6 +30,7 @@ function buildData(opts = {}) {
     disciplines: ['100m', '200m'],
     objective: 'Améliorer mes performances',
     avatar_url: null,
+    current_flow_streak: 3,
   };
 
   const workouts = [
