@@ -114,6 +114,7 @@ export const ProgressSummaryCard = ({ refreshKey = 0 }: { refreshKey?: number })
             haptic="selection"
             activeScale={0.985}
             onPress={openBody}
+            containerStyle={styles.weightMainWrap}
             accessibilityRole="button"
             accessibilityLabel={
               weight
@@ -172,7 +173,9 @@ const styles = StyleSheet.create({
   rowTitle: { fontSize: 16, fontWeight: '600' },
   rowSub: { fontSize: 13, marginTop: 1 },
   value: { fontSize: 16, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  weightMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, minWidth: 0 },
+  // The + stays on the right edge: the row takes all the room left by the button
+  weightMainWrap: { flex: 1, minWidth: 0 },
+  weightMain: { flexDirection: 'row', alignItems: 'center', gap: 12, minWidth: 0 },
   weightValue: { fontSize: 20, fontWeight: '800', letterSpacing: -0.4, fontVariant: ['tabular-nums'], marginTop: 1 },
   weightWhen: { fontSize: 13, fontWeight: '500', letterSpacing: 0 },
   plus: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },

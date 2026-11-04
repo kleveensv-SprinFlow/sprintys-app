@@ -84,7 +84,8 @@ export function AiKeyDetailScreen() {
           <>
             <Section>
               <ListRow title="Validité" value={expiryText(key.expires_at)} />
-              <ListRow title="Utilisation" value={key.last_used_at ? `${key.use_count} · le ${formatDate(key.last_used_at)}` : 'Jamais'} />
+              <ListRow title="Lectures" value={key.use_count ? String(key.use_count) : 'Aucune'} />
+              <ListRow title="Dernière lecture" value={key.last_used_at ? formatDate(key.last_used_at) : 'Jamais'} />
               <ListRow title="Créée le" value={formatDate(key.created_at)} last />
             </Section>
 
