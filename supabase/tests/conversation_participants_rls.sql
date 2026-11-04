@@ -35,17 +35,17 @@ begin
   set local role authenticated;
   begin
     insert into conversation_participants(conversation_id, user_id) values (v_direct, v_outsider);
-    v_report := v_report || 'ÉCHEC 1 : un étranger a pu rejoindre une conversation privée';
+    v_report := v_report || 'ÉCHEC 1 : un étranger a pu rejoindre une conversation privée'::text;
   exception when others then
-    v_report := v_report || 'OK 1 : un étranger ne peut pas rejoindre une conversation privée';
+    v_report := v_report || 'OK 1 : un étranger ne peut pas rejoindre une conversation privée'::text;
   end;
 
   -- 2. ... ni une conversation d'équipe dont il ne fait pas partie
   begin
     insert into conversation_participants(conversation_id, user_id) values (v_conv, v_outsider);
-    v_report := v_report || 'ÉCHEC 2 : un étranger a pu rejoindre une conversation d''équipe';
+    v_report := v_report || 'ÉCHEC 2 : un étranger a pu rejoindre une conversation d''équipe'::text;
   exception when others then
-    v_report := v_report || 'OK 2 : un étranger ne peut pas rejoindre une conversation d''équipe';
+    v_report := v_report || 'OK 2 : un étranger ne peut pas rejoindre une conversation d''équipe'::text;
   end;
 
   -- 3. Il ne voit aucun message de ces conversations
@@ -59,7 +59,7 @@ begin
   set local role authenticated;
   begin
     insert into conversation_participants(conversation_id, user_id) values (v_conv, v_member);
-    v_report := v_report || 'OK 4 : un membre approuvé peut rejoindre la conversation de son équipe';
+    v_report := v_report || 'OK 4 : un membre approuvé peut rejoindre la conversation de son équipe'::text;
   exception when others then
     v_report := v_report || 'ÉCHEC 4 : un membre approuvé ne peut plus rejoindre sa conversation d''équipe (' || sqlerrm || ')';
   end;
@@ -67,9 +67,9 @@ begin
   -- 5. Un membre ne peut pas ajouter quelqu'un d'autre
   begin
     insert into conversation_participants(conversation_id, user_id) values (v_conv, v_outsider);
-    v_report := v_report || 'ÉCHEC 5 : un membre a pu ajouter un tiers';
+    v_report := v_report || 'ÉCHEC 5 : un membre a pu ajouter un tiers'::text;
   exception when others then
-    v_report := v_report || 'OK 5 : un membre ne peut pas ajouter un tiers';
+    v_report := v_report || 'OK 5 : un membre ne peut pas ajouter un tiers'::text;
   end;
 
   -- 6. Un visiteur non connecté ne peut rien ajouter
@@ -78,9 +78,9 @@ begin
   set local role anon;
   begin
     insert into conversation_participants(conversation_id, user_id) values (v_conv, v_outsider);
-    v_report := v_report || 'ÉCHEC 6 : un visiteur non connecté a pu s''ajouter';
+    v_report := v_report || 'ÉCHEC 6 : un visiteur non connecté a pu s''ajouter'::text;
   exception when others then
-    v_report := v_report || 'OK 6 : un visiteur non connecté ne peut rien ajouter';
+    v_report := v_report || 'OK 6 : un visiteur non connecté ne peut rien ajouter'::text;
   end;
   reset role;
 
@@ -89,7 +89,7 @@ begin
   set local role authenticated;
   begin
     perform public.get_or_create_direct_conversation(v_member);
-    v_report := v_report || 'OK 7 : get_or_create_direct_conversation fonctionne (coach vers membre)';
+    v_report := v_report || 'OK 7 : get_or_create_direct_conversation fonctionne (coach vers membre)'::text;
   exception when others then
     v_report := v_report || 'ÉCHEC 7 : get_or_create_direct_conversation (' || sqlerrm || ')';
   end;
